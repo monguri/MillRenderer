@@ -78,12 +78,14 @@ void App::TermApp()
 
 bool App::InitWnd()
 {
+	// Get instance handle.
 	HMODULE hInst = GetModuleHandle(nullptr);
 	if (hInst == nullptr)
 	{
 		return false;
 	}
 
+	// Window class registration.
 	WNDCLASSEX wc = {};
 	wc.cbSize = sizeof(WNDCLASSEX);
 	wc.style = CS_HREDRAW | CS_VREDRAW;
@@ -102,6 +104,7 @@ bool App::InitWnd()
 
 	m_hInst = hInst;
 
+	// Create window.
 	RECT rc = {};
 	rc.right = static_cast<LONG>(m_Width);
 	rc.bottom = static_cast<LONG>(m_Height);
@@ -134,6 +137,7 @@ bool App::InitWnd()
 
 void App::TermWnd()
 {
+	// Window class unregistration.
 	if (m_hInst != nullptr)
 	{
 		UnregisterClass(WindowClassName, m_hInst);
@@ -145,6 +149,7 @@ void App::TermWnd()
 
 bool App::InitD3D()
 {
+	// To debug d3d.
 #if defined(DEBUG) || defined(_DEBUG)
 	{
 		ComPtr<ID3D12Debug> pDebug;
@@ -163,7 +168,7 @@ bool App::InitD3D()
 	}
 #endif
 
-	// デバイスの生成
+	// Create device.
 	HRESULT hr = D3D12CreateDevice(
 		nullptr,
 		D3D_FEATURE_LEVEL_11_0,
@@ -173,7 +178,6 @@ bool App::InitD3D()
 	{
 		return false;
 	}
-
 
 	// TODO:現状、RTVとDSV用のDescriptorHeapでのGetGPUDescriptorHandleForHeapStart()でエラーが出るが、
 	// DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLEをつけたらつけたでCreateDescriptorHeap()でエラーが出るので、
@@ -194,7 +198,7 @@ bool App::InitD3D()
 #endif
 #endif
 
-	// コマンドキューの生成
+	// Create command queue.
 	{
 		D3D12_COMMAND_QUEUE_DESC desc = {};
 		desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -209,7 +213,7 @@ bool App::InitD3D()
 		}
 	}
 
-	// スワップチェインの生成
+	// Create swap chain.
 	{
 		hr = CreateDXGIFactory2(0, IID_PPV_ARGS(m_pFactory.GetAddressOf()));
 		if (FAILED(hr))
@@ -253,7 +257,7 @@ bool App::InitD3D()
 		pSwapChain.Reset();
 	}
 
-	// ディスクリプタプールの生成
+	// Create descriptor pool.
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 
@@ -291,7 +295,7 @@ bool App::InitD3D()
 		}
 	}
 
-	// コマンドリストの生成
+	// Create command list.
 	{
 		if (!m_CommandList.Init(m_pDevice.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT, FrameCount))
 		{
@@ -299,7 +303,7 @@ bool App::InitD3D()
 		}
 	}
 
-	// レンダーターゲットビューの生成
+	// Create render target view.
 	{
 		for (uint32_t i = 0u; i < FrameCount; ++i)
 		{
@@ -310,7 +314,7 @@ bool App::InitD3D()
 		}
 	}
 
-	// 深度ステンシルバッファの生成
+	// Create depth stencil buffer.
 	{
 		if (!m_DepthTarget.Init
 		(
@@ -328,7 +332,7 @@ bool App::InitD3D()
 		}
 	}
 
-	// フェンスの生成
+	// Create fence.
 	{
 		if (!m_Fence.Init(m_pDevice.Get()))
 		{
@@ -336,7 +340,7 @@ bool App::InitD3D()
 		}
 	}
 
-	// ビューポートの設定
+	// Viewport settings.
 	{
 		m_Viewport.TopLeftX = 0;
 		m_Viewport.TopLeftY = 0;
@@ -346,7 +350,7 @@ bool App::InitD3D()
 		m_Viewport.MaxDepth = 1.0f;
 	}
 
-	// シザー矩形の設定
+	// Scissor rect settings.
 	{
 		m_Scissor.left = 0;
 		m_Scissor.right = m_Width;
@@ -359,6 +363,7 @@ bool App::InitD3D()
 
 void App::TermD3D()
 {
+	// Wait command queue finishing.
 	m_Fence.Sync(m_pQueue.Get());
 
 	m_Fence.Term();
@@ -412,6 +417,7 @@ void App::Present(uint32_t interval)
 {
 	m_pSwapChain->Present(interval, 0);
 
+	// Wait command queue finishing.
 	m_Fence.Wait(m_pQueue.Get(), INFINITE);
 
 	m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
@@ -467,6 +473,7 @@ void App::CheckSupportHDR()
 	ComPtr<IDXGIOutput> bestOutput;
 	int bestIntersectArea = -1;
 
+	// Find best intersected display to this application window.
 	for (UINT i = 0; pAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND; i++)
 	{
 		DXGI_OUTPUT_DESC desc;
@@ -489,6 +496,7 @@ void App::CheckSupportHDR()
 		}
 	}
 
+	// Check HDR and luminance information from the display.
 	ComPtr<IDXGIOutput6> pOutput6;
 	hr = bestOutput.As(&pOutput6);
 	if (FAILED(hr))
