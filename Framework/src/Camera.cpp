@@ -191,7 +191,7 @@ void Camera::Rotate(float angleH, float angleV)
 	m_Current.Angle.x += angleH;
 	m_Current.Angle.y += angleV;
 
-	// ジンバルロック対策
+	// Avoid gimbal lock.
 	{
 		if (m_Current.Angle.y > DirectX::XM_PIDIV2 - FLT_EPSILON)
 		{

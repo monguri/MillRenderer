@@ -26,7 +26,6 @@ bool CommandList::Init
 
 	m_pAllocators.resize(count);
 
-    // コマンドアロケータの生成
 	{
 		for (uint32_t i = 0u; i < count; ++i)
 		{
@@ -41,7 +40,6 @@ bool CommandList::Init
 		}
 	}
 
-    // コマンドリストの生成
 	{
 		HRESULT hr = pDevice->CreateCommandList(
 			0,
