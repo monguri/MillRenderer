@@ -34,8 +34,10 @@ protected:
 		POOL_COUNT = 4,
 	};
 
+	// Number of frame buffers
 	static const uint32_t FrameCount = 2;
 
+	// Window
 	HINSTANCE m_hInst;
 	HWND m_hWnd;
 	uint32_t m_Width;
@@ -66,7 +68,8 @@ protected:
 	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {}
 
 private:
-	bool m_supportHDR;
+	bool m_SupportHDR;
+	// Display luminance
 	float m_MaxLuminance;
 	float m_MinLuminance;
 

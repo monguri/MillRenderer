@@ -419,7 +419,7 @@ void App::Present(uint32_t interval)
 
 bool App::IsSupportHDR() const
 {
-	return m_supportHDR;
+	return m_SupportHDR;
 }
 
 float App::GetMaxLuminance() const
@@ -503,7 +503,7 @@ void App::CheckSupportHDR()
 		return;
 	}
 
-	m_supportHDR = (desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
+	m_SupportHDR = (desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
 	m_MaxLuminance = desc1.MaxLuminance;
 	m_MinLuminance = desc1.MinLuminance;
 }
