@@ -5,7 +5,7 @@
 
 namespace
 {
-	const auto ClassName = TEXT("SampleWindowClass");
+	const auto WindowClassName = TEXT("SampleWindowClass");
 
 	inline int ComputeIntersectionArea(
 		int ax1, int ay1,
@@ -92,7 +92,7 @@ bool App::InitWnd()
 	wc.hCursor = LoadCursor(hInst, IDC_ARROW);
 	wc.hbrBackground = GetSysColorBrush(COLOR_BACKGROUND);
 	wc.lpszMenuName = nullptr;
-	wc.lpszClassName = ClassName;
+	wc.lpszClassName = WindowClassName;
 	wc.hIconSm = LoadIcon(hInst, IDI_APPLICATION);
 
 	if (!RegisterClassEx(&wc))
@@ -112,7 +112,7 @@ bool App::InitWnd()
 	m_hWnd = CreateWindowEx
 	(
 		0,
-		ClassName,
+		WindowClassName,
 		TEXT("Sample"),
 		style,
 		CW_USEDEFAULT,
@@ -136,7 +136,7 @@ void App::TermWnd()
 {
 	if (m_hInst != nullptr)
 	{
-		UnregisterClass(ClassName, m_hInst);
+		UnregisterClass(WindowClassName, m_hInst);
 	}
 
 	m_hInst = nullptr;
