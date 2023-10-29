@@ -64,7 +64,7 @@ bool SkyBox::Init
 		range[1].OffsetInDescriptorsFromTableStart = 0;
 
 		D3D12_STATIC_SAMPLER_DESC sampler = {};
-		sampler.Filter = D3D12_FILTER_MAXIMUM_MIN_MAG_POINT_MIP_LINEAR;
+		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -141,7 +141,7 @@ bool SkyBox::Init
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullNone;
-		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		desc.DepthStencilState = DirectX::CommonStates::DepthRead;
 		desc.InputLayout.pInputElementDescs = elements;
 		desc.InputLayout.NumElements = 1;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
