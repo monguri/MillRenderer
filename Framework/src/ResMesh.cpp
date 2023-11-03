@@ -244,6 +244,32 @@ namespace
 				}
 			}
 		}
+
+		{
+			aiString path;
+
+			if (pSrcMaterial->GetTexture(AI_MATKEY_BASE_COLOR_TEXTURE, &path) == AI_SUCCESS)
+			{
+				dstMaterial.BaseColorMap = Convert(path);
+			}
+			else
+			{
+				dstMaterial.BaseColorMap .clear();
+			}
+		}
+
+		{
+			aiString path;
+
+			if (pSrcMaterial->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &path) == AI_SUCCESS)
+			{
+				dstMaterial.MetallicRoughnessMap = Convert(path);
+			}
+			else
+			{
+				dstMaterial.MetallicRoughnessMap.clear();
+			}
+		}
 	}
 }
 

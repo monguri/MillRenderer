@@ -43,6 +43,8 @@ struct ResMaterial
 	std::wstring SpecularMap;
 	std::wstring ShininessMap;
 	std::wstring NormalMap;
+	std::wstring BaseColorMap;
+	std::wstring MetallicRoughnessMap;
 };
 
 struct ResMesh
