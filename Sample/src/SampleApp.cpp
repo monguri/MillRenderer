@@ -112,6 +112,7 @@ bool SampleApp::OnInit()
 	{
 		std::wstring path;
 		if (!SearchFilePath(L"res/matball/matball.obj", path))
+		//if (!SearchFilePath(L"res/SponzaKhronos/glTF/Sponza.gltf", path))
 		{
 			ELOG("Error : File Not Found.");
 			return false;
