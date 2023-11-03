@@ -398,3 +398,7 @@ FodyWeavers.xsd
 
 # Shader compiled header file
 *.inc
+
+# Assimp lib/dll
+!assimp/lib/Debug/
+!assimp/lib/Release/
