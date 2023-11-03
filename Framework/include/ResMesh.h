@@ -43,6 +43,7 @@ struct ResMaterial
 	std::wstring SpecularMap;
 	std::wstring ShininessMap;
 	std::wstring NormalMap;
+	DirectX::XMFLOAT3 BaseColor;
 	std::wstring BaseColorMap;
 	std::wstring MetallicRoughnessMap;
 };

@@ -245,6 +245,23 @@ namespace
 			}
 		}
 
+
+		{
+			aiColor3D color(1.0f, 1.0f, 1.0f);
+			if (pSrcMaterial->Get(AI_MATKEY_BASE_COLOR, color) == AI_SUCCESS)
+			{
+				dstMaterial.BaseColor.x = color.r;
+				dstMaterial.BaseColor.y = color.g;
+				dstMaterial.BaseColor.z = color.b;
+			}
+			else
+			{
+				dstMaterial.BaseColor.x = 1.0f;
+				dstMaterial.BaseColor.y = 1.0f;
+				dstMaterial.BaseColor.z = 1.0f;
+			}
+		}
+
 		{
 			aiString path;
 
