@@ -9,9 +9,6 @@
 #include "DepthTarget.h"
 #include "RootSignature.h"
 #include "Texture.h"
-#include "SphereMapConverter.h"
-#include "IBLBaker.h"
-#include "SkyBox.h"
 #include "Camera.h"
 
 class SampleApp : public App
@@ -35,14 +32,12 @@ private:
 	ConstantBuffer m_MeshCB[FrameCount * 16];
 	std::vector<class Mesh*> m_pMesh;
 	Material m_Material[16];
+	float m_RotateAngle;
 	int m_TonemapType;
 	int m_ColorSpace;
 	float m_BaseLuminance;
 	float m_MaxLuminance;
 	Texture m_SphereMap;
-	SphereMapConverter m_SphereMapConverter;
-	IBLBaker m_IBLBaker;
-	SkyBox m_SkyBox;
 	DirectX::SimpleMath::Matrix m_View;
 	DirectX::SimpleMath::Matrix m_Proj;
 	Camera m_Camera;

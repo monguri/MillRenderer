@@ -47,11 +47,9 @@ namespace
 
 	struct alignas(256) CbLight
 	{
-		float TextureSize;
-		float MipCount;
+		Vector3 LightColor;
 		float LightIntensity;
-		float Padding0;
-		Vector3 LightDirection; // TODO:使ってない
+		Vector3 LightForward;
 	};
 
 	struct alignas(256) CbCamera
@@ -99,6 +97,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_MaxLuminance(100.0f)
 , m_PrevCursorX(0)
 , m_PrevCursorY(0)
+, m_RotateAngle(0.0f)
 {
 }
 
@@ -249,7 +248,7 @@ bool SampleApp::OnInit()
     // シーン用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(11)
+		desc.Begin(8)
 			.SetCBV(ShaderStage::VS, 0, 0)
 			.SetCBV(ShaderStage::VS, 1, 1)
 			.SetCBV(ShaderStage::PS, 2, 1)
@@ -258,16 +257,10 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 5, 1)
 			.SetSRV(ShaderStage::PS, 6, 2)
 			.SetSRV(ShaderStage::PS, 7, 3)
-			.SetSRV(ShaderStage::PS, 8, 4)
-			.SetSRV(ShaderStage::PS, 9, 5)
-			.SetSRV(ShaderStage::PS, 10, 6)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 3, SamplerState::LinearWrap)
-			.AddStaticSmp(ShaderStage::PS, 4, SamplerState::LinearWrap)
-			.AddStaticSmp(ShaderStage::PS, 5, SamplerState::LinearWrap)
-			.AddStaticSmp(ShaderStage::PS, 6, SamplerState::LinearWrap)
 			.AllowIL()
 			.End();
 
@@ -494,6 +487,8 @@ bool SampleApp::OnInit()
 			ptr->View = Matrix::CreateLookAt(eyePos, targetPos, upward);
 			ptr->Proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
 		}
+
+		m_RotateAngle = DirectX::XMConvertToRadians(-60.0f);
 	}
 
 	// メッシュ用バッファの作成
@@ -509,97 +504,6 @@ bool SampleApp::OnInit()
 			CbMesh* ptr = m_MeshCB[i].GetPtr<CbMesh>();
 			ptr->World = Matrix::Identity;
 		}
-	}
-
-	// IBLベイカーの生成
-	{
-		if (!m_IBLBaker.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RTV]))
-		{
-			ELOG("Error : IBLBaker::Init() Failed.");
-			return false;
-		}
-	}
-
-	// テクスチャロード
-	{
-		DirectX::ResourceUploadBatch batch(m_pDevice.Get());
-
-		batch.Begin();
-
-		{
-			std::wstring sphereMapPath;
-			if (!SearchFilePathW(L"../res/texture/hdr014.dds", sphereMapPath))
-			{
-				ELOG("Error : File Not Found.");
-				return false;
-			}
-
-			if (!m_SphereMap.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sphereMapPath.c_str(), false, batch))
-			{
-				ELOG("Error : Texture::Init() Failed.");
-				return false;
-			}
-		}
-
-		std::future<void> future = batch.End(m_pQueue.Get());
-		future.wait();
-	}
-
-	// スフィアマップコンバーター初期化
-	{
-		if (!m_SphereMapConverter.Init
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
-			m_SphereMap.GetResource()->GetDesc()
-		))
-		{
-			ELOG("Error : SphereMapConverter::Init() Failed.");
-			return false;
-		}
-	}
-
-	// スカイボックス初期化
-	{
-		if (!m_SkyBox.Init
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
-			DXGI_FORMAT_R10G10B10A2_UNORM,
-			DXGI_FORMAT_D32_FLOAT
-		))
-		{
-			ELOG("Error : SkyBox::Init() Failed.");
-			return false;
-		}
-	}
-
-	// ベイク処理を実行
-	{
-		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
-
-		ID3D12DescriptorHeap* const pHeaps[] = {
-			m_pPool[POOL_TYPE_RES]->GetHeap()
-		};
-
-		pCmd->SetDescriptorHeaps(1, pHeaps);
-
-		m_SphereMapConverter.DrawToCube(pCmd, m_SphereMap.GetHandleGPU());
-
-		const D3D12_RESOURCE_DESC& desc = m_SphereMapConverter.GetCubeMapDesc();
-		const D3D12_GPU_DESCRIPTOR_HANDLE& handle = m_SphereMapConverter.GetHandleGPU();
-
-		m_IBLBaker.IntegrateDFG(pCmd);
-
-		m_IBLBaker.IntegrateLD(pCmd, uint32_t(desc.Width), desc.MipLevels, handle);
-
-		pCmd->Close();
-
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
-
-		m_Fence.Sync(m_pQueue.Get());
 	}
 
 	return true;
@@ -642,11 +546,6 @@ void SampleApp::OnTerm()
 
 	m_pTonemapPSO.Reset();
 	m_TonemapRootSig.Term();
-
-	m_IBLBaker.Term();
-	m_SphereMapConverter.Term();
-	m_SphereMap.Term();
-	m_SkyBox.Term();
 }
 
 void SampleApp::OnRender()
@@ -683,8 +582,6 @@ void SampleApp::OnRender()
 		pCmd->RSSetViewports(1, &m_Viewport);
 		pCmd->RSSetScissorRects(1, &m_Scissor);
 
-		m_SkyBox.Draw(pCmd, m_SphereMapConverter.GetHandleGPU(), m_View, m_Proj, 100.0f);
-
 		DrawScene(pCmd);
 
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -719,11 +616,14 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
 {
 	// ライトバッファの更新
 	{
+		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
+
 		CbLight* ptr = m_LightCB[m_FrameIndex].GetPtr<CbLight>();
-		ptr->TextureSize = m_IBLBaker.LDTextureSize; // TODO:DFGTextureSizeはLDTextureSizeの2倍あるのにいいのか？
-		ptr->MipCount = m_IBLBaker.MipCount;
-		ptr->LightDirection = Vector3(0.0f, -1.0f, 0.0f); // TODO:使ってない
-		ptr->LightIntensity = 1.0f;
+		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f);
+		ptr->LightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
+		ptr->LightIntensity = 5.0f;
+
+		m_RotateAngle += 0.01f;
 	}
 
 	// カメラバッファの更新
@@ -757,9 +657,6 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_LightCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(4, m_IBLBaker.GetHandleGPU_DFG());
-	pCmdList->SetGraphicsRootDescriptorTable(5, m_IBLBaker.GetHandleGPU_DiffuseLD());
-	pCmdList->SetGraphicsRootDescriptorTable(6, m_IBLBaker.GetHandleGPU_SpecularLD());
 	pCmdList->SetPipelineState(m_pScenePSO.Get());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
@@ -779,10 +676,10 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, int material_index
 
 		const Material& mat = m_Material[material_index];
 
-		pCmdList->SetGraphicsRootDescriptorTable(7, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_BASE_COLOR));
-		pCmdList->SetGraphicsRootDescriptorTable(8, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_METALLIC));
-		pCmdList->SetGraphicsRootDescriptorTable(9, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_ROUGHNESS));
-		pCmdList->SetGraphicsRootDescriptorTable(10, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_NORMAL));
+		pCmdList->SetGraphicsRootDescriptorTable(4, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_BASE_COLOR));
+		pCmdList->SetGraphicsRootDescriptorTable(5, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_METALLIC));
+		pCmdList->SetGraphicsRootDescriptorTable(6, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_ROUGHNESS));
+		pCmdList->SetGraphicsRootDescriptorTable(7, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_NORMAL));
 
 		m_pMesh[i]->Draw(pCmdList);
 	}
