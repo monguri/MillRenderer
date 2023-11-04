@@ -100,7 +100,7 @@ bool Texture::Init
 	);
 	if (FAILED(hr))
 	{
-		ELOG("Eror : DirectX::CreateDDSTextureFromFile() Failed. filename = %ls, retcode = 0x%x", filename, hr);
+		ELOG("Error : DirectX::CreateDDSTextureFromFile() Failed. filename = %ls, retcode = 0x%x", filename, hr);
 		return false;
 	}
 
