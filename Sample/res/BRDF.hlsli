@@ -13,8 +13,7 @@ float3 SchlickFresnel(float3 specular, float NL)
 float D_GGX(float a, float NH)
 {
 	float a2 = a * a;
-	float NH2 = NH * NH;
-	float f = NH2 * ((a2 - 1) * NH + 1);
+	float f = (NH * a2 - NH) * NH + 1;
 	return a2 / (F_PI * f * f);
 }
 
