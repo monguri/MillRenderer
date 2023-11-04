@@ -188,7 +188,11 @@ PSOutput main(VSOutput input)
 	float3 diffuse = ComputeLambert(Kd);
 
 	float3 Ks = baseColor * metallic;
-	float3 specular = ComputeGGX(Ks, roughness, NH, NV, NL);
+	float3 specular = 0.0f;
+	if (NV > 0.0f)
+	{
+		specular = ComputeGGX(Ks, roughness, NH, NV, NL);
+	}
 
 	float3 BRDF = (diffuse + specular);
 
