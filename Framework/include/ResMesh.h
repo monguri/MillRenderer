@@ -45,6 +45,8 @@ struct ResMaterial
 	std::wstring NormalMap;
 	DirectX::XMFLOAT3 BaseColor;
 	std::wstring BaseColorMap;
+	float MetallicFactor;
+	float RoughnessFactor;
 	std::wstring MetallicRoughnessMap;
 };
 

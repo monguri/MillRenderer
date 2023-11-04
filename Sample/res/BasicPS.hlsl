@@ -29,6 +29,14 @@ cbuffer CbCamera : register(b2)
 	float3 CameraPosition : packoffset(c0);
 };
 
+cbuffer CbMaterial : register(b3)
+{
+	float3 BaseColorFactor;
+	float Alpha;
+	float MetallicFactor;
+	float RoughnessFactor;
+};
+
 Texture2D BaseColorMap : register(t0);
 SamplerState BaseColorSmp : register(s0);
 
@@ -172,9 +180,10 @@ PSOutput main(VSOutput input)
 	float VH = saturate(dot(V, H));
 
 	float3 baseColor = BaseColorMap.Sample(BaseColorSmp, input.TexCoord).rgb;
+	baseColor *= BaseColorFactor;
 	float2 metallicRoughness = MetallicRoughnessMap.Sample(MetallicRoughnessSmp, input.TexCoord).bg;
-	float metallic = metallicRoughness.x;
-	float roughness = metallicRoughness.y;
+	float metallic = metallicRoughness.x * MetallicFactor;
+	float roughness = metallicRoughness.y * RoughnessFactor;
 
 	float3 Kd = baseColor * (1.0f - metallic);
 	float3 diffuse = ComputeLambert(Kd);

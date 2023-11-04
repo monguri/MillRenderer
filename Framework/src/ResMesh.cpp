@@ -276,6 +276,30 @@ namespace
 		}
 
 		{
+			float metallicFactor = 1.0f;
+			if (pSrcMaterial->Get(AI_MATKEY_METALLIC_FACTOR, metallicFactor) == AI_SUCCESS)
+			{
+				dstMaterial.MetallicFactor = metallicFactor;
+			}
+			else
+			{
+				dstMaterial.MetallicFactor = 1.0f;
+			}
+		}
+
+		{
+			float roughnessFactor = 1.0f;
+			if (pSrcMaterial->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughnessFactor) == AI_SUCCESS)
+			{
+				dstMaterial.RoughnessFactor = roughnessFactor;
+			}
+			else
+			{
+				dstMaterial.RoughnessFactor = 1.0f;
+			}
+		}
+
+		{
 			aiString path;
 
 			if (pSrcMaterial->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &path) == AI_SUCCESS)

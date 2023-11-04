@@ -59,10 +59,10 @@ namespace
 
 	struct alignas(256) CbMaterial
 	{
-		Vector3 BaseColor;
+		Vector3 BaseColorFactor;
 		float Alpha;
-		float Roughness;
-		float Metallic;
+		float MetallicFactor;
+		float RoughnessFactor;
 	};
 
 	UINT16 inline GetChromaticityCoord(double value)
@@ -147,6 +147,13 @@ bool SampleApp::OnInit()
 			m_Material.SetTexture(i, Material::TEXTURE_USAGE_BASE_COLOR, dir + resMaterial[i].BaseColorMap, batch);
 			m_Material.SetTexture(i, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMaterial[i].MetallicRoughnessMap, batch);
 			m_Material.SetTexture(i, Material::TEXTURE_USAGE_NORMAL, dir + resMaterial[i].NormalMap, batch);
+
+			CbMaterial* ptr = m_Material.GetBufferPtr<CbMaterial>(i);
+			ptr->BaseColorFactor = resMaterial[i].BaseColor;
+			// TODO:Alphaには現状非対応
+			ptr->Alpha = 1.0f;
+			ptr->MetallicFactor = resMaterial[i].MetallicFactor;
+			ptr->RoughnessFactor = resMaterial[i].RoughnessFactor;
 		}
 
 		std::future<void> future = batch.End(m_pQueue.Get());
@@ -219,14 +226,15 @@ bool SampleApp::OnInit()
     // シーン用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(7)
+		desc.Begin(8)
 			.SetCBV(ShaderStage::VS, 0, 0)
 			.SetCBV(ShaderStage::VS, 1, 1)
 			.SetCBV(ShaderStage::PS, 2, 1)
 			.SetCBV(ShaderStage::PS, 3, 2)
-			.SetSRV(ShaderStage::PS, 4, 0)
-			.SetSRV(ShaderStage::PS, 5, 1)
-			.SetSRV(ShaderStage::PS, 6, 2)
+			.SetCBV(ShaderStage::PS, 4, 3)
+			.SetSRV(ShaderStage::PS, 5, 0)
+			.SetSRV(ShaderStage::PS, 6, 1)
+			.SetSRV(ShaderStage::PS, 7, 2)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::LinearWrap)
@@ -601,13 +609,12 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_LightCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetPipelineState(m_pScenePSO.Get());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
-
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 	DrawMesh(pCmdList);
 }
 
@@ -618,9 +625,10 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList)
 		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
 		uint32_t materialId = m_pMesh[i]->GetMaterialId();
 
-		pCmdList->SetGraphicsRootDescriptorTable(4, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
-		pCmdList->SetGraphicsRootDescriptorTable(5, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-		pCmdList->SetGraphicsRootDescriptorTable(6, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_Material.GetBufferHandle(materialId));
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
+		pCmdList->SetGraphicsRootDescriptorTable(6, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+		pCmdList->SetGraphicsRootDescriptorTable(7, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
 
 		m_pMesh[i]->Draw(pCmdList);
 	}
