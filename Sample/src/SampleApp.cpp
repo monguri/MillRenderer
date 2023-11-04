@@ -583,7 +583,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
 		ptr->LightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
 		ptr->LightIntensity = 5.0f;
 
-		m_RotateAngle += 0.01f;
+		//m_RotateAngle += 0.01f;
 	}
 
 	// カメラバッファの更新
