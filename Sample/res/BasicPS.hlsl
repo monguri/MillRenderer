@@ -171,7 +171,6 @@ PSOutput main(VSOutput input)
 	N = mul(input.InvTangentBasis, N);
 	float3 L = normalize(LightForward);
 	float3 V = normalize(CameraPosition - input.WorldPos);
-	float3 R = normalize(-reflect(V, N));
 	float3 H = normalize(V + L);
 
 	float NH = saturate(dot(N, H));
