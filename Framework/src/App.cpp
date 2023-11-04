@@ -358,6 +358,13 @@ bool App::InitD3D()
 		m_Scissor.bottom = m_Height;
 	}
 
+	// Initialize COM to use WIC.
+	hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	if (FAILED(hr))
+	{
+		return false;
+	}
+
 	return true;
 }
 

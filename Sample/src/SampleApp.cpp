@@ -69,24 +69,6 @@ namespace
 	{
 		return UINT16(value * 50000);
 	}
-
-	void SetTextureSet
-	(
-		const std::wstring& base_path,
-		Material& material,
-		DirectX::ResourceUploadBatch& batch
-	)
-	{
-		const std::wstring& pathBC = base_path + L"_bc.dds";
-		const std::wstring& pathM = base_path + L"_m.dds";
-		const std::wstring& pathR = base_path + L"_r.dds";
-		const std::wstring& pathN = base_path + L"_n.dds";
-
-		material.SetTexture(0, Material::TEXTURE_USAGE_BASE_COLOR, pathBC, batch);
-		material.SetTexture(0, Material::TEXTURE_USAGE_METALLIC, pathM, batch);
-		material.SetTexture(0, Material::TEXTURE_USAGE_ROUGHNESS, pathR, batch);
-		material.SetTexture(0, Material::TEXTURE_USAGE_NORMAL, pathN, batch);
-	}
 }
 
 SampleApp::SampleApp(uint32_t width, uint32_t height)
@@ -110,8 +92,8 @@ bool SampleApp::OnInit()
 	// メッシュをロード
 	{
 		std::wstring path;
-		if (!SearchFilePath(L"res/matball/matball.obj", path))
-		//if (!SearchFilePath(L"res/SponzaKhronos/glTF/Sponza.gltf", path))
+		//if (!SearchFilePath(L"res/matball/matball.obj", path))
+		if (!SearchFilePath(L"res/SponzaKhronos/glTF/Sponza.gltf", path))
 		{
 			ELOG("Error : File Not Found.");
 			return false;
@@ -148,35 +130,24 @@ bool SampleApp::OnInit()
 
 		m_pMesh.shrink_to_fit();
 
-		for (size_t j = 0; j < 16; j++)
+		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
+		if (!m_Material.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), resMaterial.size())) // ContantBufferはこの時点では作らない。テクスチャはダミー。
 		{
-			if (!m_Material[j].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), resMaterial.size())) // ContantBufferはこの時点では作らない。テクスチャはダミー。
-			{
-				ELOG("Error : Material Initialize Failed.");
-				return false;
-
-			}
+			ELOG("Error : Material Initialize Failed.");
+			return false;
 		}
+
 		DirectX::ResourceUploadBatch batch(m_pDevice.Get());
 
 		batch.Begin();
 
-		SetTextureSet(L"../res/texture/wood", m_Material[0], batch);
-        SetTextureSet(L"../res/texture/camouflage", m_Material[1], batch);
-        SetTextureSet(L"../res/texture/dirt", m_Material[2], batch);
-        SetTextureSet(L"../res/texture/fabric", m_Material[3], batch);
-        SetTextureSet(L"../res/texture/leathertte", m_Material[4], batch);
-        SetTextureSet(L"../res/texture/machinery", m_Material[5], batch);
-        SetTextureSet(L"../res/texture/marble", m_Material[6], batch);
-        SetTextureSet(L"../res/texture/plastic", m_Material[7], batch);
-        SetTextureSet(L"../res/texture/rubber", m_Material[8], batch);
-        SetTextureSet(L"../res/texture/rust", m_Material[9], batch);
-        SetTextureSet(L"../res/texture/bronze", m_Material[10], batch);
-        SetTextureSet(L"../res/texture/steel", m_Material[11], batch);
-        SetTextureSet(L"../res/texture/iron", m_Material[12], batch);
-        SetTextureSet(L"../res/texture/alminum", m_Material[13], batch);
-        SetTextureSet(L"../res/texture/copper", m_Material[14], batch);
-        SetTextureSet(L"../res/texture/gold", m_Material[15], batch);
+		std::wstring dir = GetDirectoryPath(path.c_str());
+		for (size_t i = 0; i < resMaterial.size(); i++)
+		{
+			m_Material.SetTexture(i, Material::TEXTURE_USAGE_BASE_COLOR, dir + resMaterial[i].BaseColorMap, batch);
+			m_Material.SetTexture(i, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMaterial[i].MetallicRoughnessMap, batch);
+			m_Material.SetTexture(i, Material::TEXTURE_USAGE_NORMAL, dir + resMaterial[i].NormalMap, batch);
+		}
 
 		std::future<void> future = batch.End(m_pQueue.Get());
 		future.wait();
@@ -248,7 +219,7 @@ bool SampleApp::OnInit()
     // シーン用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(8)
+		desc.Begin(7)
 			.SetCBV(ShaderStage::VS, 0, 0)
 			.SetCBV(ShaderStage::VS, 1, 1)
 			.SetCBV(ShaderStage::PS, 2, 1)
@@ -256,11 +227,9 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 4, 0)
 			.SetSRV(ShaderStage::PS, 5, 1)
 			.SetSRV(ShaderStage::PS, 6, 2)
-			.SetSRV(ShaderStage::PS, 7, 3)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::LinearWrap)
-			.AddStaticSmp(ShaderStage::PS, 3, SamplerState::LinearWrap)
 			.AllowIL()
 			.End();
 
@@ -493,17 +462,14 @@ bool SampleApp::OnInit()
 
 	// メッシュ用バッファの作成
 	{
-		for (uint32_t i = 0u; i < FrameCount * 16; i++)
+		if (!m_MeshCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMesh)))
 		{
-			if (!m_MeshCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMesh)))
-			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
-				return false;
-			}
-
-			CbMesh* ptr = m_MeshCB[i].GetPtr<CbMesh>();
-			ptr->World = Matrix::Identity;
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
 		}
+
+		CbMesh* ptr = m_MeshCB.GetPtr<CbMesh>();
+		ptr->World = Matrix::Identity;
 	}
 
 	return true;
@@ -521,10 +487,7 @@ void SampleApp::OnTerm()
 		m_TransformCB[i].Term();
 	}
 
-	for (uint32_t i = 0; i < FrameCount * 16; i++)
-	{
-		m_MeshCB[i].Term();
-	}
+	m_MeshCB.Term();
 
 	for (size_t i = 0; i < m_pMesh.size(); i++)
 	{
@@ -533,10 +496,7 @@ void SampleApp::OnTerm()
 	m_pMesh.clear();
 	m_pMesh.shrink_to_fit();
 
-	for (size_t i = 0; i < 16; i++)
-	{
-		m_Material[i].Term();
-	}
+	m_Material.Term();
 
 	m_SceneColorTarget.Term();
 	m_SceneDepthTarget.Term();
@@ -639,20 +599,6 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
 		ptr->Proj = m_Proj;
 	}
 
-	// メッシュのワールド行列の更新
-	{
-		float space = 0.75f;
-
-		for (size_t i = 0; i < 16; i++)
-		{
-			float x = -space * 1.5f + (i % 4) * space;
-			float z = -space * 1.5f + (i / 4) * space;
-
-			CbMesh* ptr = m_MeshCB[i + m_FrameIndex * 16].GetPtr<CbMesh>();
-			ptr->World = Matrix::CreateTranslation(Vector3(x, 0.0f, z));
-		}
-	}
-
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_LightCB[m_FrameIndex].GetHandleGPU());
@@ -661,25 +607,20 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
 
-	for (size_t i = 0; i < 16; i++)
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB[i + m_FrameIndex * 16].GetHandleGPU());
-		DrawMesh(pCmdList, (int)i);
-	}
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
+	DrawMesh(pCmdList);
 }
 
-void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, int material_index)
+void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList)
 {
 	for (size_t i = 0; i < m_pMesh.size(); i++)
 	{
-		uint32_t id = m_pMesh[i]->GetMaterialId();
+		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
+		uint32_t materialId = m_pMesh[i]->GetMaterialId();
 
-		const Material& mat = m_Material[material_index];
-
-		pCmdList->SetGraphicsRootDescriptorTable(4, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_BASE_COLOR));
-		pCmdList->SetGraphicsRootDescriptorTable(5, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_METALLIC));
-		pCmdList->SetGraphicsRootDescriptorTable(6, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_ROUGHNESS));
-		pCmdList->SetGraphicsRootDescriptorTable(7, mat.GetTextureHandle(id, Material::TEXTURE_USAGE_NORMAL));
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+		pCmdList->SetGraphicsRootDescriptorTable(6, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
 
 		m_pMesh[i]->Draw(pCmdList);
 	}

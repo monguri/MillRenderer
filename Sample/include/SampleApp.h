@@ -29,9 +29,9 @@ private:
 	ConstantBuffer m_LightCB[FrameCount];
 	ConstantBuffer m_CameraCB[FrameCount];
 	ConstantBuffer m_TransformCB[FrameCount];
-	ConstantBuffer m_MeshCB[FrameCount * 16];
+	ConstantBuffer m_MeshCB;
 	std::vector<class Mesh*> m_pMesh;
-	Material m_Material[16];
+	Material m_Material;
 	float m_RotateAngle;
 	int m_TonemapType;
 	int m_ColorSpace;
@@ -50,6 +50,6 @@ private:
 	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 	void ChangeDisplayMode(bool hdr);
 	void DrawScene(ID3D12GraphicsCommandList* pCmdList);
-	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, int material_index);
+	void DrawMesh(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
 };

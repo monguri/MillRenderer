@@ -32,14 +32,11 @@ cbuffer CbCamera : register(b2)
 Texture2D BaseColorMap : register(t0);
 SamplerState BaseColorSmp : register(s0);
 
-Texture2D MetallicMap : register(t1);
-SamplerState MetallicSmp : register(s1);
+Texture2D MetallicRoughnessMap : register(t1);
+SamplerState MetallicRoughnessSmp : register(s1);
 
-Texture2D RoughnessMap : register(t2);
-SamplerState RoughnessSmp : register(s2);
-
-Texture2D NormalMap : register(t3);
-SamplerState NormalSmp : register(s3);
+Texture2D NormalMap : register(t2);
+SamplerState NormalSmp : register(s2);
 
 float SmoothDistanceAttenuation
 (
@@ -175,8 +172,9 @@ PSOutput main(VSOutput input)
 	float VH = saturate(dot(V, H));
 
 	float3 baseColor = BaseColorMap.Sample(BaseColorSmp, input.TexCoord).rgb;
-	float metallic = MetallicMap.Sample(MetallicSmp, input.TexCoord).r;
-	float roughness = RoughnessMap.Sample(RoughnessSmp, input.TexCoord).r;
+	float2 metallicRoughness = MetallicRoughnessMap.Sample(MetallicRoughnessSmp, input.TexCoord).bg;
+	float metallic = metallicRoughness.x;
+	float roughness = metallicRoughness.y;
 
 	float3 Kd = baseColor * (1.0f - metallic);
 	float3 diffuse = ComputeLambert(Kd);

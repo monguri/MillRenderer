@@ -2,6 +2,7 @@
 #include "DescriptorPool.h"
 #include "Logger.h"
 #include <DDSTextureLoader.h>
+#include <WICTextureLoader.h>
 
 namespace
 {
@@ -100,8 +101,27 @@ bool Texture::Init
 	);
 	if (FAILED(hr))
 	{
-		ELOG("Error : DirectX::CreateDDSTextureFromFile() Failed. filename = %ls, retcode = 0x%x", filename, hr);
-		return false;
+		DirectX::WIC_LOADER_FLAGS flag = DirectX::WIC_LOADER_MIP_AUTOGEN;
+		if (isSRGB)
+		{
+			flag |= DirectX::WIC_LOADER_FORCE_SRGB;
+		}
+
+		hr = CreateWICTextureFromFileEx
+		(
+			pDevice,
+			batch,
+			filename,
+			0,
+			D3D12_RESOURCE_FLAG_NONE,
+			flag,
+			m_pTex.GetAddressOf()
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : CreateDDSTextureFromFileEx() and CreateWICTextureFromFileEx() Failed. filename = %ls, retcode = 0x%x", filename, hr);
+			return false;
+		}
 	}
 
 	const D3D12_SHADER_RESOURCE_VIEW_DESC& viewDesc = GetViewDesc(isCube);
