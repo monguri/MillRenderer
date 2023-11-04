@@ -33,6 +33,15 @@ private:
 	static const D3D12_INPUT_ELEMENT_DESC  InputElements[InputElementCount];
 };
 
+enum ALPHA_MODE
+{
+	ALPHA_MODE_OPAQUE = 0,
+	ALPHA_MODE_MASK,
+	ALPHA_MODE_BLEND,
+
+	ALPHA_MODE_COUNT
+};
+
 struct ResMaterial
 {
 	DirectX::XMFLOAT3 Diffuse;
@@ -48,6 +57,9 @@ struct ResMaterial
 	float MetallicFactor;
 	float RoughnessFactor;
 	std::wstring MetallicRoughnessMap;
+	ALPHA_MODE AlphaMode;
+	float AlphaCutoff;
+	bool DoubleSided;
 };
 
 struct ResMesh

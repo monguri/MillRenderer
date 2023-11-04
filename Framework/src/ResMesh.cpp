@@ -2,6 +2,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <assimp/GltfMaterial.h>
 #include <codecvt>
 #include <cassert>
 
@@ -309,6 +310,61 @@ namespace
 			else
 			{
 				dstMaterial.MetallicRoughnessMap.clear();
+			}
+		}
+
+		{
+			aiString alphaMode;
+
+			if (pSrcMaterial->Get(AI_MATKEY_GLTF_ALPHAMODE, alphaMode) == AI_SUCCESS)
+			{
+				std::string opaque("OPAQUE");
+				std::string mask("MASK");
+				std::string blend("BLEND");
+				if (alphaMode == aiString(opaque))
+				{
+					dstMaterial.AlphaMode = ALPHA_MODE_OPAQUE;
+				}
+				else if (alphaMode == aiString(mask))
+				{
+					dstMaterial.AlphaMode = ALPHA_MODE_MASK;
+				}
+				else if (alphaMode == aiString(blend))
+				{
+					dstMaterial.AlphaMode = ALPHA_MODE_BLEND;
+				}
+				else
+				{
+					dstMaterial.AlphaMode = ALPHA_MODE_OPAQUE;
+				}
+			}
+			else
+			{
+				dstMaterial.AlphaMode = ALPHA_MODE_OPAQUE;
+			}
+		}
+
+		{
+			float alphaCutoff = 0.0f;
+			if (pSrcMaterial->Get(AI_MATKEY_GLTF_ALPHACUTOFF, alphaCutoff) == AI_SUCCESS)
+			{
+				dstMaterial.AlphaCutoff = alphaCutoff;
+			}
+			else
+			{
+				dstMaterial.AlphaCutoff = 0.0f;
+			}
+		}
+
+		{
+			bool doubleSided = false;
+			if (pSrcMaterial->Get(AI_MATKEY_TWOSIDED, doubleSided) == AI_SUCCESS)
+			{
+				dstMaterial.DoubleSided = doubleSided;
+			}
+			else
+			{
+				dstMaterial.DoubleSided = false;
 			}
 		}
 	}
