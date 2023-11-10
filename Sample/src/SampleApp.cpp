@@ -60,9 +60,9 @@ namespace
 	struct alignas(256) CbMaterial
 	{
 		Vector3 BaseColorFactor;
-		float Alpha;
 		float MetallicFactor;
 		float RoughnessFactor;
+		float AlphaCutoff;
 	};
 
 	UINT16 inline GetChromaticityCoord(double value)
@@ -150,10 +150,9 @@ bool SampleApp::OnInit()
 
 			CbMaterial* ptr = m_Material.GetBufferPtr<CbMaterial>(i);
 			ptr->BaseColorFactor = resMaterial[i].BaseColor;
-			// TODO:Alphaには現状非対応
-			ptr->Alpha = 1.0f;
 			ptr->MetallicFactor = resMaterial[i].MetallicFactor;
 			ptr->RoughnessFactor = resMaterial[i].RoughnessFactor;
+			ptr->AlphaCutoff = resMaterial[i].AlphaCutoff;
 		}
 
 		std::future<void> future = batch.End(m_pQueue.Get());
@@ -302,7 +301,7 @@ bool SampleApp::OnInit()
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pScenePSO.GetAddressOf())
+			IID_PPV_ARGS(m_pSceneOpaquePSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -509,7 +508,7 @@ void SampleApp::OnTerm()
 	m_SceneColorTarget.Term();
 	m_SceneDepthTarget.Term();
 
-	m_pScenePSO.Reset();
+	m_pSceneOpaquePSO.Reset();
 	m_SceneRootSig.Term();
 
 	m_pTonemapPSO.Reset();
@@ -612,7 +611,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_LightCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetPipelineState(m_pScenePSO.Get());
+	pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
 	DrawMesh(pCmdList);

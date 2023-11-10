@@ -32,9 +32,9 @@ cbuffer CbCamera : register(b2)
 cbuffer CbMaterial : register(b3)
 {
 	float3 BaseColorFactor;
-	float Alpha;
 	float MetallicFactor;
 	float RoughnessFactor;
+	float AlphaCutoff;
 };
 
 Texture2D BaseColorMap : register(t0);

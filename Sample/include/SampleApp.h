@@ -18,7 +18,8 @@ public:
 	virtual ~SampleApp();
 
 private:
-	ComPtr<ID3D12PipelineState> m_pScenePSO;
+	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
+	ComPtr<ID3D12PipelineState> m_pSceneCutoffPSO;
 	RootSignature m_SceneRootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
