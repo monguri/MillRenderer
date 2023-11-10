@@ -288,7 +288,7 @@ bool SampleApp::OnInit()
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullNone;
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
 		desc.SampleMask = UINT_MAX;
