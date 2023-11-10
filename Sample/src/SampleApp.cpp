@@ -148,6 +148,8 @@ bool SampleApp::OnInit()
 			m_Material.SetTexture(i, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMaterial[i].MetallicRoughnessMap, batch);
 			m_Material.SetTexture(i, Material::TEXTURE_USAGE_NORMAL, dir + resMaterial[i].NormalMap, batch);
 
+			m_Material.SetDoubleSided(i, resMaterial[i].DoubleSided);
+
 			CbMaterial* ptr = m_Material.GetBufferPtr<CbMaterial>(i);
 			ptr->BaseColorFactor = resMaterial[i].BaseColor;
 			ptr->MetallicFactor = resMaterial[i].MetallicFactor;
@@ -249,6 +251,7 @@ bool SampleApp::OnInit()
 
     // シーン用パイプラインステートの生成
 	{
+		// AlphaModeがOpaqueのマテリアル用
 		std::wstring vsPath;
 		std::wstring psPath;
 
@@ -258,7 +261,7 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		if (!SearchFilePath(L"BasicPS.cso", psPath))
+		if (!SearchFilePath(L"BasicOpaquePS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -302,6 +305,35 @@ bool SampleApp::OnInit()
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pSceneOpaquePSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+
+		// AlphaModeがMaskのマテリアル用
+		if (!SearchFilePath(L"BasicMaskPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
+		desc.RasterizerState = DirectX::CommonStates::CullNone;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSceneMaskPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -509,6 +541,7 @@ void SampleApp::OnTerm()
 	m_SceneDepthTarget.Term();
 
 	m_pSceneOpaquePSO.Reset();
+	m_pSceneMaskPSO.Reset();
 	m_SceneRootSig.Term();
 
 	m_pTonemapPSO.Reset();
@@ -611,18 +644,33 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_LightCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
-	DrawMesh(pCmdList);
+
+	// Opaqueマテリアルのメッシュの描画
+	pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+
+	// Mask, DoubleSidedマテリアルのメッシュの描画
+	pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 }
 
-void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
 {
 	for (size_t i = 0; i < m_pMesh.size(); i++)
 	{
 		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
 		uint32_t materialId = m_pMesh[i]->GetMaterialId();
+
+		if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && m_Material.GetDoubleSided(materialId))
+		{
+			continue;
+		}
+		else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !m_Material.GetDoubleSided(materialId))
+		{
+			continue;
+		}
 
 		pCmdList->SetGraphicsRootDescriptorTable(4, m_Material.GetBufferHandle(materialId));
 		pCmdList->SetGraphicsRootDescriptorTable(5, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));

@@ -41,6 +41,7 @@ bool Material::Init
 	m_pPool->AddRef();
 
 	m_Subset.resize(count);
+	m_DoubleSided.resize(count);
 
 	// ダミーテクスチャ生成
 	{
@@ -140,6 +141,7 @@ void Material::Term()
 
 	m_pTexture.clear();
 	m_Subset.clear();
+	m_DoubleSided.clear();
 
 	if (m_pDevice != nullptr)
 	{
@@ -208,6 +210,11 @@ bool Material::SetTexture
 	return true;
 }
 
+void Material::SetDoubleSided(size_t index, bool isDoubleSided)
+{
+	m_DoubleSided[index] = isDoubleSided;
+}
+
 void* Material::GetBufferPtr(size_t index) const
 {
 	if (index >= GetCount())
@@ -241,6 +248,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE Material::GetTextureHandle(size_t index, TEXTURE_USA
 	}
 
 	return m_Subset[index].TextureHandle[usage];
+}
+
+bool Material::GetDoubleSided(size_t index) const
+{
+	return m_DoubleSided[index];
 }
 
 size_t Material::GetCount() const

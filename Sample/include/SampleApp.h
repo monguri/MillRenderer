@@ -10,6 +10,7 @@
 #include "RootSignature.h"
 #include "Texture.h"
 #include "Camera.h"
+#include "ResMesh.h"
 
 class SampleApp : public App
 {
@@ -19,7 +20,7 @@ public:
 
 private:
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
-	ComPtr<ID3D12PipelineState> m_pSceneCutoffPSO;
+	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
@@ -51,6 +52,6 @@ private:
 	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 	void ChangeDisplayMode(bool hdr);
 	void DrawScene(ID3D12GraphicsCommandList* pCmdList);
-	void DrawMesh(ID3D12GraphicsCommandList* pCmdList);
+	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
 };

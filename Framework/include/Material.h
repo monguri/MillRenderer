@@ -44,6 +44,8 @@ public:
 		DirectX::ResourceUploadBatch& batch
 	);
 
+	void SetDoubleSided(size_t index, bool isDoubleSided );
+
 	void* GetBufferPtr(size_t index) const;
 
 	template<typename T>
@@ -57,6 +59,8 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetBufferHandle(size_t index) const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetTextureHandle(size_t index, TEXTURE_USAGE usage) const;
 
+	bool GetDoubleSided(size_t index) const;
+
 	size_t GetCount() const;
 
 private:
@@ -68,6 +72,7 @@ private:
 
 	std::map<std::wstring, class Texture*> m_pTexture;
 	std::vector<Subset> m_Subset;
+	std::vector<bool> m_DoubleSided;
 	ID3D12Device* m_pDevice;
 	class DescriptorPool* m_pPool;
 
