@@ -167,6 +167,14 @@ PSOutput main(VSOutput input)
 {
 	PSOutput output = (PSOutput)0;
 
+	float4 baseColor = BaseColorMap.Sample(BaseColorSmp, input.TexCoord);
+#ifdef ALPHA_MODE_MASK
+	if (baseColor.a < AlphaCutoff)
+	{
+		discard;
+	}
+#endif
+
 	float3 N = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 	N = mul(input.InvTangentBasis, N);
 	float3 L = normalize(LightForward);
@@ -178,16 +186,15 @@ PSOutput main(VSOutput input)
 	float NL = saturate(dot(N, L));
 	float VH = saturate(dot(V, H));
 
-	float3 baseColor = BaseColorMap.Sample(BaseColorSmp, input.TexCoord).rgb;
-	baseColor *= BaseColorFactor;
+	baseColor.rgb *= BaseColorFactor;
 	float2 metallicRoughness = MetallicRoughnessMap.Sample(MetallicRoughnessSmp, input.TexCoord).bg;
 	float metallic = metallicRoughness.x * MetallicFactor;
 	float roughness = metallicRoughness.y * RoughnessFactor;
 
-	float3 Kd = baseColor * (1.0f - metallic);
+	float3 Kd = baseColor.rgb * (1.0f - metallic);
 	float3 diffuse = ComputeLambert(Kd);
 
-	float3 Ks = baseColor * metallic;
+	float3 Ks = baseColor.rgb * metallic;
 	float3 specular = 0.0f;
 	if (NV > 0.0f)
 	{
