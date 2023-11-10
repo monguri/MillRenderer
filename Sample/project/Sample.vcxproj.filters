@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\res\BasicPS.hlsl">
+    <FxCompile Include="..\res\BasicOpaquePS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\BasicVS.hlsl">
@@ -55,6 +55,9 @@
       <Filter>リソース ファイル</Filter>
     </None>
     <None Include="..\res\BakeUtil.hlsli">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="..\res\BasicPS.hlsli">
       <Filter>リソース ファイル</Filter>
     </None>
   </ItemGroup>

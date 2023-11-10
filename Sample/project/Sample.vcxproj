@@ -86,7 +86,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <FxCompile Include="..\res\BasicPS.hlsl">
+    <FxCompile Include="..\res\BasicOpaquePS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
@@ -187,6 +187,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\res\BakeUtil.hlsli" />
+    <None Include="..\res\BasicPS.hlsli" />
     <None Include="..\res\BRDF.hlsli" />
     <None Include="packages.config" />
   </ItemGroup>
