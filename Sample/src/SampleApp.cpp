@@ -757,7 +757,9 @@ void SampleApp::DrawShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3
 
 		CbTransform* ptr = m_ShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
 		ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * zFar * 0.5f, Vector3::Zero, Vector3::UnitY);
-		ptr->Proj = Matrix::CreateOrthographic(width, height, zNear, zFar);
+		//ptr->Proj = Matrix::CreateOrthographic(width, height, zNear, zFar);
+		//TODO:適当に目分量
+		ptr->Proj = Matrix::CreateOrthographic(50.0f, 50.0f, zNear, zFar);
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
