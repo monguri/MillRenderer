@@ -186,16 +186,21 @@ bool SampleApp::OnInit()
 	}
 
 	// ディレクショナルライト用デプスターゲットの生成
-	// TODO:width/heightはどうする？
+	// TODO:ModelViewerだと内部で以下の処理がある
+    //// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
+    //m_Scissor.left = 1;
+    //m_Scissor.top = 1;
+    //m_Scissor.right = (LONG)Width - 2;
+    //m_Scissor.bottom = (LONG)Height - 2;
 	{
 		if (!m_ShadowMapTarget.Init
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_DSV],
 			nullptr,
-			m_Width,
-			m_Height,
-			DXGI_FORMAT_D32_FLOAT,
+			2048, // TODO:ModelViewerを参考にした
+			2048, // TODO:ModelViewerを参考にした
+			DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
 			1.0f,
 			0
 		))
@@ -306,9 +311,6 @@ bool SampleApp::OnInit()
 		}
 
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
-		desc.DSVFormat = m_DepthTarget.GetDSVDesc().Format;
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		// PSは実行しないので設定しない
@@ -367,6 +369,9 @@ bool SampleApp::OnInit()
 		}
 
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
+		desc.DSVFormat = m_DepthTarget.GetDSVDesc().Format;
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 
@@ -621,14 +626,10 @@ void SampleApp::OnTerm()
 
 void SampleApp::OnRender()
 {
-	// カメラ更新
-	{
-		constexpr float fovY = DirectX::XMConvertToRadians(37.5f);
-		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
-
-		m_View = m_Camera.GetView();
-		m_Proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
-	}
+	// ディレクショナルライト方向（の逆方向ベクトル）の更新
+	//m_RotateAngle += 0.01f;
+	const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
+	const Vector3& lightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
@@ -637,6 +638,12 @@ void SampleApp::OnRender()
 	};
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
+	
+	// シャドウマップ描画パス
+	{
+		//DrawShadowMap(pCmd, lightForward);
+		//TODO:Viewport,Scissorが通常と違う
+	}
 
 	// シーンをレンダーターゲットに描画するパス
 	{
@@ -653,7 +660,7 @@ void SampleApp::OnRender()
 		pCmd->RSSetViewports(1, &m_Viewport);
 		pCmd->RSSetScissorRects(1, &m_Scissor);
 
-		DrawScene(pCmd);
+		DrawScene(pCmd, lightForward);
 
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
@@ -680,18 +687,44 @@ void SampleApp::OnRender()
 	Present(1);
 }
 
-void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward)
 {
-	// ライトバッファの更新
+	// 変換行列用の定数バッファの更新
 	{
-		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
+		float width = static_cast<float>(m_ShadowMapTarget.GetDesc().Width);
+		float height = static_cast<float>(m_ShadowMapTarget.GetDesc().Height);
 
-		CbLight* ptr = m_LightCB[m_FrameIndex].GetPtr<CbLight>();
-		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f);
-		ptr->LightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
-		ptr->LightIntensity = 5.0f;
+		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		ptr->View = Matrix::CreateLookAt(Vector3::Zero, -lightForward, Vector3::UnitY);
+		//TODO:nearとfarは適当
+		ptr->Proj = Matrix::CreateOrthographic(width, height, 1.0f, 1000.0f);
+	}
 
-		//m_RotateAngle += 0.01f;
+	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
+
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
+
+	// Opaqueマテリアルのメッシュの描画
+	pCmdList->SetPipelineState(m_pSceneDepthOpaquePSO.Get());
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+
+	// Mask, DoubleSidedマテリアルのメッシュの描画
+	pCmdList->SetPipelineState(m_pSceneDepthMaskPSO.Get());
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+}
+
+void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward)
+{
+	// 変換行列用の定数バッファの更新
+	{
+		constexpr float fovY = DirectX::XMConvertToRadians(37.5f);
+		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
+
+		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		ptr->View = m_Camera.GetView();
+		ptr->Proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
 	}
 
 	// カメラバッファの更新
@@ -700,19 +733,22 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList)
 		ptr->CameraPosition = m_Camera.GetPosition();
 	}
 
-	// 変換行列用の定数バッファの更新
+	// ライトバッファの更新
 	{
-		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
-		ptr->View = m_View;
-		ptr->Proj = m_Proj;
+		CbLight* ptr = m_LightCB[m_FrameIndex].GetPtr<CbLight>();
+		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f);
+		ptr->LightForward = lightForward;
+		ptr->LightIntensity = 5.0f;
 	}
 
+	//TODO:DrawShadowMapと重複してるがとりあえず
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_LightCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandleGPU());
 
+	//TODO:DrawShadowMapと重複してるがとりあえず
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
 
 	// Opaqueマテリアルのメッシュの描画

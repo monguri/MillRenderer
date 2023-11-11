@@ -43,8 +43,6 @@ private:
 	float m_BaseLuminance;
 	float m_MaxLuminance;
 	Texture m_SphereMap;
-	DirectX::SimpleMath::Matrix m_View;
-	DirectX::SimpleMath::Matrix m_Proj;
 	Camera m_Camera;
 	int m_PrevCursorX;
 	int m_PrevCursorY;
@@ -54,7 +52,8 @@ private:
 	virtual void OnRender() override;
 	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 	void ChangeDisplayMode(bool hdr);
-	void DrawScene(ID3D12GraphicsCommandList* pCmdList);
+	void DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
+	void DrawShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
 };
