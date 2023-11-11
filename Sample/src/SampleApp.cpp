@@ -636,12 +636,9 @@ void SampleApp::OnRender()
 		DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 		const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
-		const DescriptorHandle* handleDSV = m_DepthTarget.GetHandleDSV();
-
-		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, &handleDSV->HandleCPU);
+		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 		m_ColorTarget[m_FrameIndex].ClearView(pCmd);
-		m_DepthTarget.ClearView(pCmd);
 
 		DrawTonemap(pCmd);
 
