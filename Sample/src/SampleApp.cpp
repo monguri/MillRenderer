@@ -185,6 +185,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// ディレクショナルライト用デプスターゲットの生成
+	// TODO:width/heightはどうする？
+	{
+		if (!m_ShadowMapTarget.Init
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_DSV],
+			nullptr,
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_D32_FLOAT,
+			1.0f,
+			0
+		))
+		{
+			ELOG("Error : DepthTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// シーン用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.2f, 0.2f, 0.2f, 1.0f};
@@ -224,7 +244,7 @@ bool SampleApp::OnInit()
 		}
 	}
 
-    // シーン用ルートシグニチャの生成
+    // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
 	{
 		RootSignature::Desc desc;
 		desc.Begin(8)
@@ -251,39 +271,33 @@ bool SampleApp::OnInit()
 
     // シーン用パイプラインステートの生成
 	{
-		// メッシュ描画用パイプラインステートディスクリプタ
+		// シャドウマップ描画用のパイプラインステートディスクリプタ
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.InputLayout = MeshVertex::InputLayout;
 		desc.pRootSignature = m_SceneRootSig.GetPtr();
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
 		desc.SampleMask = UINT_MAX;
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
-		desc.DSVFormat = m_DepthTarget.GetDSVDesc().Format;
+		desc.NumRenderTargets = 0;
+		desc.DSVFormat = m_ShadowMapTarget.GetDSVDesc().Format;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 
-		// AlphaModeがOpaqueのマテリアル用
-		std::wstring vsPath;
-		std::wstring psPath;
+		// TODO:SponzaRendererの数字を何も考えずに使っている
+		desc.RasterizerState.SlopeScaledDepthBias = -1.5f;
+		desc.RasterizerState.DepthBias = -100;
 
+		// AlphaModeがOpaqueのシャドウマップ描画用
+		std::wstring vsPath;
 		if (!SearchFilePath(L"BasicVS.cso", vsPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;
 		}
 
-		if (!SearchFilePath(L"BasicOpaquePS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
 		ComPtr<ID3DBlob> pVSBlob;
-		ComPtr<ID3DBlob> pPSBlob;
-
 		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
@@ -291,6 +305,33 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
+		desc.DSVFormat = m_DepthTarget.GetDSVDesc().Format;
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		// PSは実行しないので設定しない
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSceneDepthOpaquePSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+
+		// AlphaModeがOpaqueのマテリアル用
+		std::wstring psPath;
+		if (!SearchFilePath(L"BasicOpaquePS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pPSBlob;
 		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
@@ -299,8 +340,6 @@ bool SampleApp::OnInit()
 		}
 
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 
@@ -427,7 +466,6 @@ bool SampleApp::OnInit()
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
-		desc.DSVFormat = m_DepthTarget.GetDSVDesc().Format;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 
@@ -539,11 +577,15 @@ void SampleApp::OnTerm()
 
 	m_Material.Term();
 
+	m_ShadowMapTarget.Term();
 	m_SceneColorTarget.Term();
 	m_SceneDepthTarget.Term();
 
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
+	m_pSceneDepthOpaquePSO.Reset();
+	m_pSceneDepthMaskPSO.Reset();
+
 	m_SceneRootSig.Term();
 
 	m_pTonemapPSO.Reset();

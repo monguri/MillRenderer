@@ -21,9 +21,12 @@ public:
 private:
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
+	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
+	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
 	RootSignature m_SceneRootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
+	DepthTarget m_ShadowMapTarget;
 	ColorTarget m_SceneColorTarget;
 	DepthTarget m_SceneDepthTarget;
 	VertexBuffer m_QuadVB;
