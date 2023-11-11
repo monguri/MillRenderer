@@ -323,15 +323,42 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		// AlphaModeがOpaqueのマテリアル用
+		// AlphaModeがMaskのシャドウマップ描画用
 		std::wstring psPath;
-		if (!SearchFilePath(L"BasicOpaquePS.cso", psPath))
+		if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
 		ComPtr<ID3DBlob> pPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSceneDepthMaskPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+
+		// AlphaModeがOpaqueのマテリアル用
+		if (!SearchFilePath(L"BasicOpaquePS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
 		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
