@@ -42,10 +42,11 @@ private:
 	int m_ColorSpace;
 	float m_BaseLuminance;
 	float m_MaxLuminance;
-	Texture m_SphereMap;
 	Camera m_Camera;
 	int m_PrevCursorX;
 	int m_PrevCursorY;
+	D3D12_VIEWPORT m_ShadowMapViewport;
+	D3D12_RECT m_ShadowMapScissor;
 
 	virtual bool OnInit() override;
 	virtual void OnTerm() override;

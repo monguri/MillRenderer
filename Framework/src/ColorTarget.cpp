@@ -133,7 +133,7 @@ bool ColorTarget::Init
 		&prop,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&clearValue,
 		IID_PPV_ARGS(m_pTarget.GetAddressOf())
 	);

@@ -186,12 +186,6 @@ bool SampleApp::OnInit()
 	}
 
 	// ディレクショナルライト用デプスターゲットの生成
-	// TODO:ModelViewerだと内部で以下の処理がある
-    //// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
-    //m_Scissor.left = 1;
-    //m_Scissor.top = 1;
-    //m_Scissor.right = (LONG)Width - 2;
-    //m_Scissor.bottom = (LONG)Height - 2;
 	{
 		if (!m_ShadowMapTarget.Init
 		(
@@ -207,6 +201,28 @@ bool SampleApp::OnInit()
 		{
 			ELOG("Error : DepthTarget::Init() Failed.");
 			return false;
+		}
+
+		{
+			m_ShadowMapViewport.TopLeftX = 0;
+			m_ShadowMapViewport.TopLeftY = 0;
+			m_ShadowMapViewport.Width = static_cast<float>(m_ShadowMapTarget.GetDesc().Width);
+			m_ShadowMapViewport.Height = static_cast<float>(m_ShadowMapTarget.GetDesc().Height);
+			m_ShadowMapViewport.MinDepth = 0.0f;
+			m_ShadowMapViewport.MaxDepth = 1.0f;
+		}
+
+		// TODO:ModelViewerだと内部で以下の処理がある
+		//// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
+		//m_Scissor.left = 1;
+		//m_Scissor.top = 1;
+		//m_Scissor.right = (LONG)Width - 2;
+		//m_Scissor.bottom = (LONG)Height - 2;
+		{
+			m_ShadowMapScissor.left = 0;
+			m_ShadowMapScissor.right = (LONG)m_ShadowMapTarget.GetDesc().Width;
+			m_ShadowMapScissor.top = 0;
+			m_ShadowMapScissor.bottom = (LONG)m_ShadowMapTarget.GetDesc().Height;
 		}
 	}
 
@@ -641,13 +657,26 @@ void SampleApp::OnRender()
 	
 	// シャドウマップ描画パス
 	{
-		//DrawShadowMap(pCmd, lightForward);
-		//TODO:Viewport,Scissorが通常と違う
+		DirectX::TransitionResource(pCmd, m_ShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+		const DescriptorHandle* handleDSV = m_ShadowMapTarget.GetHandleDSV();
+
+		pCmd->OMSetRenderTargets(0, nullptr, FALSE, &handleDSV->HandleCPU);
+
+		m_ShadowMapTarget.ClearView(pCmd);
+
+		pCmd->RSSetViewports(1, &m_ShadowMapViewport);
+		pCmd->RSSetScissorRects(1, &m_ShadowMapScissor);
+
+		DrawShadowMap(pCmd, lightForward);
+
+		DirectX::TransitionResource(pCmd, m_ShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	// シーンをレンダーターゲットに描画するパス
 	{
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 		const DescriptorHandle* handleRTV = m_SceneColorTarget.GetHandleRTV();
 		const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
@@ -663,6 +692,7 @@ void SampleApp::OnRender()
 		DrawScene(pCmd, lightForward);
 
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	// トーンマップを適用してフレームバッファに描画するパス
