@@ -251,6 +251,20 @@ bool SampleApp::OnInit()
 
     // シーン用パイプラインステートの生成
 	{
+		// メッシュ描画用パイプラインステートディスクリプタ
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout = MeshVertex::InputLayout;
+		desc.pRootSignature = m_SceneRootSig.GetPtr();
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		desc.SampleMask = UINT_MAX;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
+		desc.DSVFormat = m_DepthTarget.GetDSVDesc().Format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+
 		// AlphaModeがOpaqueのマテリアル用
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -284,23 +298,11 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout = MeshVertex::InputLayout;
-		desc.pRootSignature = m_SceneRootSig.GetPtr();
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
-		desc.SampleMask = UINT_MAX;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
-		desc.DSVFormat = m_DepthTarget.GetDSVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -418,9 +420,9 @@ bool SampleApp::OnInit()
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullNone;
+		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
 		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
 		desc.SampleMask = UINT_MAX;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
