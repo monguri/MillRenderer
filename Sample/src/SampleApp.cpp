@@ -562,6 +562,34 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	m_RotateAngle = DirectX::XMConvertToRadians(-60.0f);
+
+	// シャドウマップ変換行列用の定数バッファの作成
+	{
+		float width = static_cast<float>(m_ShadowMapTarget.GetDesc().Width);
+		float height = static_cast<float>(m_ShadowMapTarget.GetDesc().Height);
+		//TODO:nearとfarは適当
+		float zNear = 0.0f;
+		float zFar = 1000.0f;
+
+		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
+		Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
+		lightForward.Normalize();
+
+		for (uint32_t i = 0u; i < FrameCount; i++)
+		{
+			if (!m_ShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+
+			CbTransform* ptr = m_ShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
+			ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * zFar * 0.5f, Vector3::Zero, Vector3::UnitY);
+			ptr->Proj = Matrix::CreateOrthographic(width, height, zNear, zFar);
+		}
+	}
+
 	// 変換行列用の定数バッファの作成
 	{
 		for (uint32_t i = 0u; i < FrameCount; i++)
@@ -583,8 +611,6 @@ bool SampleApp::OnInit()
 			ptr->View = Matrix::CreateLookAt(eyePos, targetPos, upward);
 			ptr->Proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
 		}
-
-		m_RotateAngle = DirectX::XMConvertToRadians(-60.0f);
 	}
 
 	// メッシュ用バッファの作成
@@ -611,6 +637,7 @@ void SampleApp::OnTerm()
 		m_TonemapCB[i].Term();
 		m_LightCB[i].Term();
 		m_CameraCB[i].Term();
+		m_ShadowMapTransformCB[i].Term();
 		m_TransformCB[i].Term();
 	}
 
@@ -645,7 +672,8 @@ void SampleApp::OnRender()
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	//m_RotateAngle += 0.01f;
 	const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
-	const Vector3& lightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
+	Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
+	lightForward.Normalize();
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
@@ -717,21 +745,23 @@ void SampleApp::OnRender()
 	Present(1);
 }
 
-void SampleApp::DrawShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward)
+void SampleApp::DrawShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
 {
 	// 変換行列用の定数バッファの更新
 	{
 		float width = static_cast<float>(m_ShadowMapTarget.GetDesc().Width);
 		float height = static_cast<float>(m_ShadowMapTarget.GetDesc().Height);
-
-		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
-		ptr->View = Matrix::CreateLookAt(Vector3::Zero, -lightForward, Vector3::UnitY);
 		//TODO:nearとfarは適当
-		ptr->Proj = Matrix::CreateOrthographic(width, height, 1.0f, 1000.0f);
+		float zNear = 0.0f;
+		float zFar = 1000.0f;
+
+		CbTransform* ptr = m_ShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * zFar * 0.5f, Vector3::Zero, Vector3::UnitY);
+		ptr->Proj = Matrix::CreateOrthographic(width, height, zNear, zFar);
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_ShadowMapTransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている

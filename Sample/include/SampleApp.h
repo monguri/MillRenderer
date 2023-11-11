@@ -19,10 +19,10 @@ public:
 	virtual ~SampleApp();
 
 private:
-	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
-	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
+	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
+	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
@@ -33,6 +33,7 @@ private:
 	ConstantBuffer m_TonemapCB[FrameCount];
 	ConstantBuffer m_LightCB[FrameCount];
 	ConstantBuffer m_CameraCB[FrameCount];
+	ConstantBuffer m_ShadowMapTransformCB[FrameCount];
 	ConstantBuffer m_TransformCB[FrameCount];
 	ConstantBuffer m_MeshCB;
 	std::vector<class Mesh*> m_pMesh;
