@@ -566,7 +566,7 @@ bool SampleApp::OnInit()
 
 	m_RotateAngle = DirectX::XMConvertToRadians(-60.0f);
 
-	// シャドウマップ変換行列用の定数バッファの作成
+	// シャドウマップとシーンの変換行列用の定数バッファの作成
 	{
 		// モデルのサイズから目分量で決めている
 		float zNear = 0.0f;
@@ -590,15 +590,8 @@ bool SampleApp::OnInit()
 			const Matrix& view = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
 			const Matrix& proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
-			// プロジェクション座標の[-w/2,w/2]*[-h/2,h/2]*[zNear,zFar]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
-			const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(0.5f, -0.5f, 1.0f / (zFar - zNear));
-			ptr->ToShadowMap = toShadowMap;
 		}
-	}
 
-	// 変換行列用の定数バッファの作成
-	{
 		for (uint32_t i = 0u; i < FrameCount; i++)
 		{
 			if (!m_TransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
@@ -614,6 +607,10 @@ bool SampleApp::OnInit()
 			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
 			CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+			// プロジェクション座標の[-w/2,w/2]*[-h/2,h/2]*[zNear,zFar]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
+			const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(0.5f, -0.5f, 1.0f / (zFar - zNear));
+			ptr->ToShadowMap = toShadowMap;
 		}
 	}
 
@@ -765,10 +762,6 @@ void SampleApp::DrawShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3
 		const Matrix& view = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
 		const Matrix& proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
 		ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
-		// プロジェクション座標の[-w/2,w/2]*[-h/2,h/2]*[zNear,zFar]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
-		const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(0.5f, -0.5f, 1.0f / (zFar - zNear));
-		ptr->ToShadowMap = toShadowMap;
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
@@ -797,6 +790,13 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 		ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+		float zNear = 0.0f;
+		float zFar = 40.0f;
+
+		// プロジェクション座標の[-w/2,w/2]*[-h/2,h/2]*[zNear,zFar]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
+		const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(0.5f, -0.5f, 1.0f / (zFar - zNear));
+		ptr->ToShadowMap = toShadowMap;
 	}
 
 	// カメラバッファの更新
