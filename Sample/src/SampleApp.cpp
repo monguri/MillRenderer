@@ -568,11 +568,10 @@ bool SampleApp::OnInit()
 
 	// シャドウマップ変換行列用の定数バッファの作成
 	{
-		float width = static_cast<float>(m_ShadowMapTarget.GetDesc().Width);
-		float height = static_cast<float>(m_ShadowMapTarget.GetDesc().Height);
-		//TODO:nearとfarは適当
+		// モデルのサイズから目分量で決めている
 		float zNear = 0.0f;
 		float zFar = 40.0f;
+		float widthHeight = 40.0f;
 
 		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
 		Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
@@ -588,7 +587,7 @@ bool SampleApp::OnInit()
 
 			CbTransform* ptr = m_ShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
 			ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
-			ptr->Proj = Matrix::CreateOrthographic(width, height, zNear, zFar);
+			ptr->Proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
 		}
 	}
 
@@ -753,15 +752,14 @@ void SampleApp::DrawShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3
 	{
 		float width = static_cast<float>(m_ShadowMapTarget.GetDesc().Width);
 		float height = static_cast<float>(m_ShadowMapTarget.GetDesc().Height);
-		//TODO:nearとfarは適当
+		// モデルのサイズから目分量で決めている
 		float zNear = 0.0f;
-		float zFar = 1000.0f;
+		float zFar = 40.0f;
+		float widthHeight = 40.0f;
 
 		CbTransform* ptr = m_ShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
-		ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * zFar * 0.5f, Vector3::Zero, Vector3::UnitY);
-		//ptr->Proj = Matrix::CreateOrthographic(width, height, zNear, zFar);
-		//TODO:適当に目分量
-		ptr->Proj = Matrix::CreateOrthographic(50.0f, 50.0f, zNear, zFar);
+		ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		ptr->Proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
