@@ -281,8 +281,11 @@ bool SampleApp::OnInit()
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::LinearWrap)
-			//.AddStaticCmpSmp(ShaderStage::PS, 3, SamplerState::PointClamp) //TODO: SponzaRenderに合わせた
+#if 1
+			.AddStaticCmpSmp(ShaderStage::PS, 3, SamplerState::PointClamp)
+#else
 			.AddStaticSmp(ShaderStage::PS, 3, SamplerState::PointClamp)
+#endif
 			.AllowIL()
 			.End();
 
@@ -310,8 +313,8 @@ bool SampleApp::OnInit()
 		desc.SampleDesc.Quality = 0;
 
 		//// TODO:SponzaRendererの数字を何も考えずに使っている
-		//desc.RasterizerState.SlopeScaledDepthBias = -1.5f;
-		//desc.RasterizerState.DepthBias = -100;
+		//desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+		//desc.RasterizerState.DepthBias = 100;
 
 		// AlphaModeがOpaqueのシャドウマップ描画用
 		std::wstring vsPath;
