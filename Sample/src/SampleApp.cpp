@@ -604,7 +604,7 @@ bool SampleApp::OnInit()
 			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 			const Matrix& view = m_Camera.GetView();
-			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
+			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 100.0f);
 			CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
@@ -787,7 +787,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 		const Matrix& view = m_Camera.GetView();
-		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
+		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 100.0f);
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 		ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
