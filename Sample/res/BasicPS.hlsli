@@ -10,6 +10,7 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
+	float3 ShadowCoord : TEXCOORD2;
 };
 
 struct PSOutput
@@ -45,6 +46,9 @@ SamplerState MetallicRoughnessSmp : register(s1);
 
 Texture2D NormalMap : register(t2);
 SamplerState NormalSmp : register(s2);
+
+Texture2D ShadowMap : register(t3);
+SamplerComparisonState ShadowSmp : register(s3);
 
 float SmoothDistanceAttenuation
 (

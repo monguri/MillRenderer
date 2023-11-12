@@ -12,6 +12,7 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
+	float3 ShadowCoord : TEXCOORD2;
 };
 
 cbuffer CbTransform : register(b0)

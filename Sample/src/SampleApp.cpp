@@ -191,7 +191,7 @@ bool SampleApp::OnInit()
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_DSV],
-			nullptr,
+			m_pPool[POOL_TYPE_RES], // シャドウマップなのでSRVも作る
 			2048, // TODO:ModelViewerを参考にした
 			2048, // TODO:ModelViewerを参考にした
 			DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
@@ -268,7 +268,7 @@ bool SampleApp::OnInit()
     // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
 	{
 		RootSignature::Desc desc;
-		desc.Begin(8)
+		desc.Begin(9)
 			.SetCBV(ShaderStage::VS, 0, 0)
 			.SetCBV(ShaderStage::VS, 1, 1)
 			.SetCBV(ShaderStage::PS, 2, 1)
@@ -277,9 +277,11 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 5, 0)
 			.SetSRV(ShaderStage::PS, 6, 1)
 			.SetSRV(ShaderStage::PS, 7, 2)
+			.SetSRV(ShaderStage::PS, 8, 3)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::LinearWrap)
+			.AddStaticCmpSmp(ShaderStage::PS, 3, SamplerState::PointClamp) //TODO: SponzaRenderに合わせた
 			.AllowIL()
 			.End();
 
@@ -842,6 +844,7 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 		pCmdList->SetGraphicsRootDescriptorTable(5, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
 		pCmdList->SetGraphicsRootDescriptorTable(6, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
 		pCmdList->SetGraphicsRootDescriptorTable(7, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
+		pCmdList->SetGraphicsRootDescriptorTable(8, m_ShadowMapTarget.GetHandleSRV()->HandleGPU);
 
 		m_pMesh[i]->Draw(pCmdList);
 	}

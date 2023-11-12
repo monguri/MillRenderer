@@ -1,6 +1,44 @@
 #include "DepthTarget.h"
 #include "DescriptorPool.h"
 
+namespace
+{
+	DXGI_FORMAT GetSRVFormat(DXGI_FORMAT DSVFormat) // referenced PixelBuffer::GetDepthFormat() of Model Viewer.
+	{
+		switch (DSVFormat)
+		{
+			// 32-bit Z w/ Stencil
+			case DXGI_FORMAT_R32G8X24_TYPELESS:
+			case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+			case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+			case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+				return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+
+			// No Stencil
+			case DXGI_FORMAT_R32_TYPELESS:
+			case DXGI_FORMAT_D32_FLOAT:
+			case DXGI_FORMAT_R32_FLOAT:
+				return DXGI_FORMAT_R32_FLOAT;
+
+			// 24-bit Z
+			case DXGI_FORMAT_R24G8_TYPELESS:
+			case DXGI_FORMAT_D24_UNORM_S8_UINT:
+			case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+			case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+				return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+
+			// 16-bit Z w/o Stencil
+			case DXGI_FORMAT_R16_TYPELESS:
+			case DXGI_FORMAT_D16_UNORM:
+			case DXGI_FORMAT_R16_UNORM:
+				return DXGI_FORMAT_R16_UNORM;
+
+			default:
+				return DXGI_FORMAT_UNKNOWN;
+		}
+	}
+}
+
 DepthTarget::DepthTarget()
 : m_pTarget(nullptr)
 , m_pHandleDSV(nullptr)
@@ -111,7 +149,7 @@ bool DepthTarget::Init
 	if (pPoolSRV != nullptr)
 	{
 		m_SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		m_SRVDesc.Format = format;
+		m_SRVDesc.Format = GetSRVFormat(format);
 		m_SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		m_SRVDesc.Texture2D.MostDetailedMip = 0;
 		m_SRVDesc.Texture2D.MipLevels = 1;
@@ -148,6 +186,11 @@ void DepthTarget::Term()
 DescriptorHandle* DepthTarget::GetHandleDSV() const
 {
 	return m_pHandleDSV;
+}
+
+DescriptorHandle* DepthTarget::GetHandleSRV() const
+{
+	return m_pHandleSRV;
 }
 
 ID3D12Resource* DepthTarget::GetResource() const

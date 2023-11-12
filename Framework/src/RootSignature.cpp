@@ -157,6 +157,70 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 	return *this;
 }
 
+RootSignature::Desc& RootSignature::Desc::AddStaticCmpSmp(ShaderStage stage, uint32_t reg, SamplerState state)
+{
+	D3D12_STATIC_SAMPLER_DESC desc = {};
+	desc.MipLODBias = D3D12_DEFAULT_MIP_LOD_BIAS;
+	desc.MaxAnisotropy = 1;
+	desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // DirectX::CommonStates::DepthDefaultの仕様に合わせる
+	desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE; // zFarを1にしているので、zFarで初期化する。
+	desc.MinLOD = 0.0f;
+	desc.MaxLOD = D3D12_FLOAT32_MAX;
+	desc.ShaderRegister = reg;
+	desc.RegisterSpace = 0;
+	desc.ShaderVisibility = D3D12_SHADER_VISIBILITY(stage);
+	CheckStage(stage);
+
+	switch (state)
+	{
+		case PointWrap:
+			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			break;
+		case PointClamp:
+			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			break;
+		case LinearWrap:
+			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			break;
+		case LinearClamp:
+			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			break;
+		case AnisotropicWrap:
+			desc.Filter = D3D12_FILTER_COMPARISON_ANISOTROPIC;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.MaxAnisotropy = D3D12_MAX_MAXANISOTROPY;
+			break;
+		case AnisotropicClamp:
+			desc.Filter = D3D12_FILTER_COMPARISON_ANISOTROPIC;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.MaxAnisotropy = D3D12_MAX_MAXANISOTROPY;
+			break;
+		default:
+			ELOG("Error : RootSignature::Desc::AddStaticCmpSmp Failed. Invalid SamplerState = %d.", state);
+			break;
+	}
+
+	m_Samplers.push_back(desc);
+
+	return *this;
+}
+
 RootSignature::Desc& RootSignature::Desc::AllowIL()
 {
 	m_Flags |= D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;

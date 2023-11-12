@@ -40,6 +40,7 @@ public:
 		Desc& SetUAV(ShaderStage stage, int index, uint32_t reg);
 		Desc& SetSmp(ShaderStage stage, int index, uint32_t reg);
 		Desc& AddStaticSmp(ShaderStage stage, uint32_t reg, SamplerState state);
+		Desc& AddStaticCmpSmp(ShaderStage stage, uint32_t reg, SamplerState state);
 		Desc& AllowIL();
 		Desc& AllowSO();
 		Desc& End();
