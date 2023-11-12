@@ -18,6 +18,7 @@ struct VSOutput
 cbuffer CbTransform : register(b0)
 {
 	float4x4 ViewProj : packoffset(c0);
+	float4x4 ToShadowMap : packoffset(c4);
 }
 
 cbuffer CbMesh : register(b1)
@@ -32,10 +33,12 @@ VSOutput main(VSInput input)
 	float4 localPos = float4(input.Position, 1.0f);
 	float4 worldPos = mul(World, localPos);
 	float4 projPos = mul(ViewProj, worldPos);
+	float4 shadowPos = mul(ToShadowMap, projPos);
 
 	output.Position = projPos;
 	output.TexCoord = input.TexCoord;
 	output.WorldPos = worldPos.xyz;
+	output.ShadowCoord = shadowPos.xyz;
 
 	float3 N = normalize(mul((float3x3)World, input.Normal));
 	float3 T = normalize(mul((float3x3)World, input.Tangent));
