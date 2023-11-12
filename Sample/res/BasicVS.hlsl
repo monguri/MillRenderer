@@ -17,8 +17,7 @@ struct VSOutput
 
 cbuffer CbTransform : register(b0)
 {
-	float4x4 View : packoffset(c0);
-	float4x4 Proj : packoffset(c4);
+	float4x4 ViewProj : packoffset(c0);
 }
 
 cbuffer CbMesh : register(b1)
@@ -32,8 +31,7 @@ VSOutput main(VSInput input)
 
 	float4 localPos = float4(input.Position, 1.0f);
 	float4 worldPos = mul(World, localPos);
-	float4 viewPos = mul(View, worldPos);
-	float4 projPos = mul(Proj, viewPos);
+	float4 projPos = mul(ViewProj, worldPos);
 
 	output.Position = projPos;
 	output.TexCoord = input.TexCoord;

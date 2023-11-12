@@ -41,8 +41,7 @@ namespace
 
 	struct alignas(256) CbTransform
 	{
-		Matrix View;
-		Matrix Proj;
+		Matrix ViewProj;
 	};
 
 	struct alignas(256) CbLight
@@ -585,9 +584,12 @@ bool SampleApp::OnInit()
 				return false;
 			}
 
+			const Matrix& view = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+			const Matrix& proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+			Matrix viewProj = view;
+			viewProj *= proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 			CbTransform* ptr = m_ShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
-			ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
-			ptr->Proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+			ptr->ViewProj = viewProj;
 		}
 	}
 
@@ -601,16 +603,16 @@ bool SampleApp::OnInit()
 				return false;
 			}
 
-			const Vector3& eyePos = Vector3(0.0f, 0.0f, 1.0f);
-			const Vector3& targetPos = Vector3::Zero;
-			const Vector3& upward = Vector3::UnitY;
-
 			constexpr float fovY = DirectX::XMConvertToRadians(37.5f);
 			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
-			CbTransform* ptr = m_TransformCB[i].GetPtr<CbTransform>();
-			ptr->View = Matrix::CreateLookAt(eyePos, targetPos, upward);
-			ptr->Proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
+			const Matrix& view = m_Camera.GetView();
+			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
+			Matrix viewProj = view;
+			viewProj *= proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+			CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+			ptr->ViewProj = viewProj;
 		}
 	}
 
@@ -757,9 +759,13 @@ void SampleApp::DrawShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3
 		float zFar = 40.0f;
 		float widthHeight = 40.0f;
 
+		const Matrix& view = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+		Matrix viewProj = view;
+		viewProj *= proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
 		CbTransform* ptr = m_ShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
-		ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
-		ptr->Proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+		ptr->ViewProj = viewProj;
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
@@ -784,9 +790,13 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		constexpr float fovY = DirectX::XMConvertToRadians(37.5f);
 		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
+		const Matrix& view = m_Camera.GetView();
+		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
+		Matrix viewProj = view;
+		viewProj *= proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
-		ptr->View = m_Camera.GetView();
-		ptr->Proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 1000.0f);
+		ptr->ViewProj = viewProj;
 	}
 
 	// カメラバッファの更新
