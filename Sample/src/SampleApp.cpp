@@ -42,7 +42,7 @@ namespace
 	struct alignas(256) CbTransform
 	{
 		Matrix ViewProj;
-		Matrix ToShadowMap;
+		Matrix ModelToShadowMap;
 	};
 
 	struct alignas(256) CbLight
@@ -578,6 +578,10 @@ bool SampleApp::OnInit()
 		Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
 		lightForward.Normalize();
 
+		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
 		for (uint32_t i = 0u; i < FrameCount; i++)
 		{
 			if (!m_ShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
@@ -587,10 +591,7 @@ bool SampleApp::OnInit()
 			}
 
 			CbTransform* ptr = m_ShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
-
-			const Matrix& view = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
-			const Matrix& proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
-			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->ViewProj = shadowViewProj;
 		}
 
 		for (uint32_t i = 0u; i < FrameCount; i++)
@@ -611,7 +612,7 @@ bool SampleApp::OnInit()
 
 			// プロジェクション座標の[-w/2,w/2]*[-h/2,h/2]*[zNear,zFar]をシャドウマップ用座標[0,1]*[1,0]*[0,1]に変換する
 			const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(1.0f / widthHeight, -1.0f / widthHeight, 1.0f / (zFar - zNear)) * Matrix::CreateTranslation(0.5f, 0.5f, -zNear);
-			ptr->ToShadowMap = toShadowMap;
+			ptr->ModelToShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		}
 	}
 
@@ -796,9 +797,13 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		float zFar = 40.0f;
 		float widthHeight = 40.0f;
 
+		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
 		// プロジェクション座標の[-w/2,w/2]*[-h/2,h/2]*[zNear,zFar]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
 		const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(1.0f / widthHeight, -1.0f / widthHeight, 1.0f / (zFar - zNear)) * Matrix::CreateTranslation(0.5f, 0.5f, -zNear);
-		ptr->ToShadowMap = toShadowMap;
+		ptr->ModelToShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
 	// カメラバッファの更新
