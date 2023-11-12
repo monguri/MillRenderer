@@ -306,9 +306,9 @@ bool SampleApp::OnInit()
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 
-		// TODO:SponzaRendererの数字を何も考えずに使っている
-		desc.RasterizerState.SlopeScaledDepthBias = -1.5f;
-		desc.RasterizerState.DepthBias = -100;
+		//// TODO:SponzaRendererの数字を何も考えずに使っている
+		//desc.RasterizerState.SlopeScaledDepthBias = -1.5f;
+		//desc.RasterizerState.DepthBias = -100;
 
 		// AlphaModeがOpaqueのシャドウマップ描画用
 		std::wstring vsPath;
@@ -326,7 +326,6 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		// PSは実行しないので設定しない
@@ -359,6 +358,7 @@ bool SampleApp::OnInit()
 
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RasterizerState = DirectX::CommonStates::CullNone;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -570,7 +570,7 @@ bool SampleApp::OnInit()
 		float height = static_cast<float>(m_ShadowMapTarget.GetDesc().Height);
 		//TODO:nearとfarは適当
 		float zNear = 0.0f;
-		float zFar = 1000.0f;
+		float zFar = 40.0f;
 
 		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
 		Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
@@ -585,7 +585,7 @@ bool SampleApp::OnInit()
 			}
 
 			CbTransform* ptr = m_ShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
-			ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * zFar * 0.5f, Vector3::Zero, Vector3::UnitY);
+			ptr->View = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
 			ptr->Proj = Matrix::CreateOrthographic(width, height, zNear, zFar);
 		}
 	}
