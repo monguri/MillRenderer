@@ -609,8 +609,8 @@ bool SampleApp::OnInit()
 			CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
-			// プロジェクション座標の[-w/2,w/2]*[-h/2,h/2]*[zNear,zFar]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
-			const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(0.5f, -0.5f, 1.0f / (zFar - zNear));
+			// プロジェクション座標の[-w/2,w/2]*[-h/2,h/2]*[zNear,zFar]をシャドウマップ用座標[0,1]*[1,0]*[0,1]に変換する
+			const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(1.0f / widthHeight, -1.0f / widthHeight, 1.0f / (zFar - zNear)) * Matrix::CreateTranslation(0.5f, 0.5f, -zNear);
 			ptr->ToShadowMap = toShadowMap;
 		}
 	}
@@ -794,9 +794,10 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 		float zNear = 0.0f;
 		float zFar = 40.0f;
+		float widthHeight = 40.0f;
 
 		// プロジェクション座標の[-w/2,w/2]*[-h/2,h/2]*[zNear,zFar]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
-		const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(0.5f, -0.5f, 1.0f / (zFar - zNear));
+		const Matrix& toShadowMap = Matrix::CreateTranslation(0.0f, 0.0f, -zNear) * Matrix::CreateScale(1.0f / widthHeight, -1.0f / widthHeight, 1.0f / (zFar - zNear)) * Matrix::CreateTranslation(0.5f, 0.5f, -zNear);
 		ptr->ToShadowMap = toShadowMap;
 	}
 
