@@ -312,9 +312,9 @@ bool SampleApp::OnInit()
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 
-		//// TODO:SponzaRendererの数字を何も考えずに使っている
-		//desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-		//desc.RasterizerState.DepthBias = 100;
+		// TODO:SponzaRendererの数字を何も考えずに使っている
+		desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+		desc.RasterizerState.DepthBias = 100;
 
 		// AlphaModeがOpaqueのシャドウマップ描画用
 		std::wstring vsPath;
@@ -578,7 +578,7 @@ bool SampleApp::OnInit()
 		float widthHeight = 40.0f;
 
 		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
-		Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
+		Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 10.0f, 1.0f), matrix);
 		lightForward.Normalize();
 
 		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
@@ -679,7 +679,7 @@ void SampleApp::OnRender()
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	//m_RotateAngle += 0.01f;
 	const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
-	Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 1.0f, 1.0f), matrix);
+	Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 10.0f, 1.0f), matrix);
 	lightForward.Normalize();
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
@@ -822,7 +822,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		CbLight* ptr = m_LightCB[m_FrameIndex].GetPtr<CbLight>();
 		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f);
 		ptr->LightForward = lightForward;
-		ptr->LightIntensity = 5.0f;
+		ptr->LightIntensity = 15.0f;
 	}
 
 	//TODO:DrawShadowMapと重複してるがとりあえず
