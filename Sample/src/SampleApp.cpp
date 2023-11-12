@@ -281,7 +281,8 @@ bool SampleApp::OnInit()
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::LinearWrap)
-			.AddStaticCmpSmp(ShaderStage::PS, 3, SamplerState::PointClamp) //TODO: SponzaRenderに合わせた
+			//.AddStaticCmpSmp(ShaderStage::PS, 3, SamplerState::PointClamp) //TODO: SponzaRenderに合わせた
+			.AddStaticSmp(ShaderStage::PS, 3, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
 

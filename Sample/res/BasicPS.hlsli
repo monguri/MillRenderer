@@ -48,7 +48,8 @@ Texture2D NormalMap : register(t2);
 SamplerState NormalSmp : register(s2);
 
 Texture2D ShadowMap : register(t3);
-SamplerComparisonState ShadowSmp : register(s3);
+//SamplerComparisonState ShadowSmp : register(s3);
+SamplerState ShadowSmp : register(s3);
 
 float SmoothDistanceAttenuation
 (
@@ -207,9 +208,15 @@ PSOutput main(VSOutput input)
 
 	float3 BRDF = (diffuse + specular);
 
-	float isShadow = ShadowMap.SampleCmpLevelZero(ShadowSmp, input.ShadowCoord.xy, input.ShadowCoord.z);
+	//float shadowMult = ShadowMap.SampleCmpLevelZero(ShadowSmp, input.ShadowCoord.xy, input.ShadowCoord.z);
+	float shadowVal = ShadowMap.Sample(ShadowSmp, input.ShadowCoord.xy);
+	float shadowMult = 1.0f;
+	if (input.ShadowCoord.z > shadowVal)
+	{
+		shadowMult = 0.0f;
+	}
 
-	output.Color.rgb = BRDF * NL * LightColor * LightIntensity * isShadow;
+	output.Color.rgb = BRDF * NL * LightColor * LightIntensity * shadowMult;
 	output.Color.a = 1.0f;
 	return output;
 }
