@@ -207,7 +207,9 @@ PSOutput main(VSOutput input)
 
 	float3 BRDF = (diffuse + specular);
 
-	output.Color.rgb = BRDF * NL * LightColor * LightIntensity;
+	float isShadow = ShadowMap.SampleCmpLevelZero(ShadowSmp, input.ShadowCoord.xy, input.ShadowCoord.z);
+
+	output.Color.rgb = BRDF * NL * LightColor * LightIntensity * isShadow;
 	output.Color.a = 1.0f;
 	return output;
 }
