@@ -4,6 +4,8 @@
 #define MIN_DIST (0.01)
 #endif // MIN_DIST
 
+#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+
 struct VSOutput
 {
 	float4 Position : SV_POSITION;
@@ -48,7 +50,7 @@ Texture2D NormalMap : register(t2);
 SamplerState NormalSmp : register(s2);
 
 Texture2D ShadowMap : register(t3);
-#if 1
+#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 SamplerComparisonState ShadowSmp : register(s3);
 #else
 SamplerState ShadowSmp : register(s3);
@@ -211,7 +213,7 @@ PSOutput main(VSOutput input)
 
 	float3 BRDF = (diffuse + specular);
 
-#if 1
+#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 	float shadowMult = ShadowMap.SampleCmpLevelZero(ShadowSmp, input.ShadowCoord.xy, input.ShadowCoord.z);
 #else
 	float shadowVal = ShadowMap.Sample(ShadowSmp, input.ShadowCoord.xy);

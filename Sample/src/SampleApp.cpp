@@ -9,6 +9,8 @@
 #include "InlineUtil.h"
 #include "RootSignature.h"
 
+#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+
 using namespace DirectX::SimpleMath;
 
 namespace
@@ -281,7 +283,7 @@ bool SampleApp::OnInit()
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::LinearWrap)
-#if 1
+#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 			.AddStaticCmpSmp(ShaderStage::PS, 3, SamplerState::PointClamp)
 #else
 			.AddStaticSmp(ShaderStage::PS, 3, SamplerState::PointClamp)
