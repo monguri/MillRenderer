@@ -52,6 +52,7 @@ namespace
 		Vector3 LightColor;
 		float LightIntensity;
 		Vector3 LightForward;
+		float ShadowTexelSize;
 	};
 
 	struct alignas(256) CbCamera
@@ -194,8 +195,8 @@ bool SampleApp::OnInit()
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_DSV],
 			m_pPool[POOL_TYPE_RES], // シャドウマップなのでSRVも作る
-			2048, // TODO:ModelViewerを参考にした
-			2048, // TODO:ModelViewerを参考にした
+			SHADOW_MAP_SIZE,
+			SHADOW_MAP_SIZE,
 			DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
 			1.0f,
 			0
@@ -825,6 +826,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f);
 		ptr->LightForward = lightForward;
 		ptr->LightIntensity = 15.0f;
+		ptr->ShadowTexelSize = 1.0f / SHADOW_MAP_SIZE;
 	}
 
 	//TODO:DrawShadowMapと重複してるがとりあえず

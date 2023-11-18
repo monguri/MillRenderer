@@ -4,7 +4,7 @@
 #define MIN_DIST (0.01)
 #endif // MIN_DIST
 
-#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+//#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
 struct VSOutput
 {
@@ -25,6 +25,7 @@ cbuffer CbLight : register(b1)
 	float3 LightColor : packoffset(c0);
 	float LightIntensity : packoffset(c0.w);
 	float3 LightForward : packoffset(c1);
+	float ShadowTexelSize : packoffset(c1.w);
 };
 
 cbuffer CbCamera : register(b2)
@@ -173,6 +174,22 @@ float3 EvaluateSpotLightLagarde
 	return saturate(dot(N, L)) * lightColor * att / F_PI;
 }
 
+float GetDirectionalShadowMultiplier(float3 ShadowCoord)
+{
+#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+	float result = ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy, ShadowCoord.z);
+#else
+	float shadowVal = ShadowMap.Sample(ShadowSmp, ShadowCoord.xy).x;
+	float result = 1.0f;
+	if (ShadowCoord.z > shadowVal)
+	{
+		result = 0.0f;
+	}
+#endif
+
+	return result;
+}
+
 PSOutput main(VSOutput input)
 {
 	PSOutput output = (PSOutput)0;
@@ -213,17 +230,7 @@ PSOutput main(VSOutput input)
 
 	float3 BRDF = (diffuse + specular);
 
-#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-	float shadowMult = ShadowMap.SampleCmpLevelZero(ShadowSmp, input.ShadowCoord.xy, input.ShadowCoord.z);
-#else
-	float shadowVal = ShadowMap.Sample(ShadowSmp, input.ShadowCoord.xy);
-	 TODO: temporary indirect lighting
-	float shadowMult = 0.5f;
-	if (input.ShadowCoord.z > shadowVal)
-	{
-		shadowMult = 0.0f;
-	}
-#endif
+	float shadowMult = GetDirectionalShadowMultiplier(input.ShadowCoord);
 	// TODO: temporary indirect lighting
 	shadowMult = shadowMult * 0.5f + 0.5f;
 

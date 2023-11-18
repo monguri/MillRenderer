@@ -19,6 +19,8 @@ public:
 	virtual ~SampleApp();
 
 private:
+	static const uint32_t SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerÇéQçlÇ…ÇµÇΩ
+
 	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
