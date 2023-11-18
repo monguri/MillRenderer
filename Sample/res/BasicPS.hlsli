@@ -29,12 +29,45 @@ cbuffer CbDirectionalLight : register(b1)
 	float ShadowTexelSize : packoffset(c1.w);
 };
 
-cbuffer CbCamera : register(b2)
+// TODO:Use ConstantBuffer<>
+cbuffer CbPointLight1 : register(b2)
+{
+	float3 LightPosition1 : packoffset(c0);
+	float LightInvSqrRadius1 : packoffset(c0.w);
+	float3 LightColor1 : packoffset(c1);
+	float LightIntensity1 : packoffset(c1.w);
+};
+
+cbuffer CbPointLight2 : register(b3)
+{
+	float3 LightPosition2 : packoffset(c0);
+	float LightInvSqrRadius2 : packoffset(c0.w);
+	float3 LightColor2: packoffset(c1);
+	float LightIntensity2: packoffset(c1.w);
+};
+
+cbuffer CbPointLight3 : register(b4)
+{
+	float3 LightPosition3 : packoffset(c0);
+	float LightInvSqrRadius3 : packoffset(c0.w);
+	float3 LightColor3 : packoffset(c1);
+	float LightIntensity3 : packoffset(c1.w);
+};
+
+cbuffer CbPointLight4 : register(b5)
+{
+	float3 LightPosition4 : packoffset(c0);
+	float LightInvSqrRadius4 : packoffset(c0.w);
+	float3 LightColor4 : packoffset(c1);
+	float LightIntensity4 : packoffset(c1.w);
+};
+
+cbuffer CbCamera : register(b6)
 {
 	float3 CameraPosition : packoffset(c0);
 };
 
-cbuffer CbMaterial : register(b3)
+cbuffer CbMaterial : register(b7)
 {
 	float3 BaseColorFactor;
 	float MetallicFactor;

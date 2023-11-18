@@ -6,7 +6,7 @@ struct VSOutput
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
 };
 
-cbuffer CbMaterial : register(b3)
+cbuffer CbMaterial : register(b7)
 {
 	float3 BaseColorFactor;
 	float MetallicFactor;
