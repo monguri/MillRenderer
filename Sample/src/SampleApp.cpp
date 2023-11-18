@@ -47,7 +47,7 @@ namespace
 		Matrix ModelToShadowMap;
 	};
 
-	struct alignas(256) CbLight
+	struct alignas(256) CbDirectionalLight
 	{
 		Vector3 LightColor;
 		float LightIntensity;
@@ -170,7 +170,7 @@ bool SampleApp::OnInit()
 	{
 		for (uint32_t i = 0u; i < FrameCount; i++)
 		{
-			if (!m_LightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbLight)))
+			if (!m_DirectionalLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDirectionalLight)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -647,7 +647,7 @@ void SampleApp::OnTerm()
 	for (uint32_t i = 0; i < FrameCount; i++)
 	{
 		m_TonemapCB[i].Term();
-		m_LightCB[i].Term();
+		m_DirectionalLightCB[i].Term();
 		m_CameraCB[i].Term();
 		m_ShadowMapTransformCB[i].Term();
 		m_TransformCB[i].Term();
@@ -824,7 +824,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	// ライトバッファの更新
 	{
-		CbLight* ptr = m_LightCB[m_FrameIndex].GetPtr<CbLight>();
+		CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
 		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f);
 		ptr->LightForward = lightForward;
 		ptr->LightIntensity = 15.0f;
@@ -835,7 +835,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_LightCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandleGPU());
 
 	//TODO:DrawShadowMapと重複してるがとりあえず

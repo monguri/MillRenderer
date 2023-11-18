@@ -21,7 +21,7 @@ struct PSOutput
 	float4 Color : SV_TARGET0;
 };
 
-cbuffer CbLight : register(b1)
+cbuffer CbDirectionalLight : register(b1)
 {
 	float3 LightColor : packoffset(c0);
 	float LightIntensity : packoffset(c0.w);

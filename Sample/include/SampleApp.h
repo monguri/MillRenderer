@@ -33,7 +33,7 @@ private:
 	DepthTarget m_SceneDepthTarget;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_TonemapCB[FrameCount];
-	ConstantBuffer m_LightCB[FrameCount];
+	ConstantBuffer m_DirectionalLightCB[FrameCount];
 	ConstantBuffer m_CameraCB[FrameCount];
 	ConstantBuffer m_ShadowMapTransformCB[FrameCount];
 	ConstantBuffer m_TransformCB[FrameCount];
