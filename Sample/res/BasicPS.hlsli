@@ -4,7 +4,8 @@
 #define MIN_DIST (0.01)
 #endif // MIN_DIST
 
-//#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+//#define SINGLE_SAMPLE_SHADOW_MAP
 
 struct VSOutput
 {
@@ -177,15 +178,49 @@ float3 EvaluateSpotLightLagarde
 float GetDirectionalShadowMultiplier(float3 ShadowCoord)
 {
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+	#ifdef SINGLE_SAMPLE_SHADOW_MAP
 	float result = ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy, ShadowCoord.z);
-#else
+	#else // SINGLE_SAMPLE_SHADOW_MAP
+	const float Dilation = 2.0f;
+	float d1 = Dilation * ShadowTexelSize * 0.125f;
+	float d2 = Dilation * ShadowTexelSize * 0.875f;
+	float d3 = Dilation * ShadowTexelSize * 0.625;
+	float d4 = Dilation * ShadowTexelSize * 0.375;
+	float result = (2.0f * ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy, ShadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy + float2(-d2, d1), ShadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy + float2(-d1, d2), ShadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy + float2(d2, d1), ShadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy + float2(d1, d2), ShadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy + float2(-d4, d3), ShadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy + float2(-d3, d4), ShadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy + float2(d4, d3), ShadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, ShadowCoord.xy + float2(d3, d4), ShadowCoord.z)) / 10.0f;
+	#endif // SINGLE_SAMPLE_SHADOW_MAP
+#else // USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+	#ifdef SINGLE_SAMPLE_SHADOW_MAP
 	float shadowVal = ShadowMap.Sample(ShadowSmp, ShadowCoord.xy).x;
 	float result = 1.0f;
 	if (ShadowCoord.z > shadowVal)
 	{
 		result = 0.0f;
 	}
-#endif
+	#else // SINGLE_SAMPLE_SHADOW_MAP
+	const float Dilation = 2.0f;
+	float d1 = Dilation * ShadowTexelSize * 0.125f;
+	float d2 = Dilation * ShadowTexelSize * 0.875f;
+	float d3 = Dilation * ShadowTexelSize * 0.625;
+	float d4 = Dilation * ShadowTexelSize * 0.375;
+	float result = (2.0f * ((ShadowCoord.z > ShadowMap.Sample(ShadowSmp, ShadowCoord.xy).x) ? 0.0f : 1.0f)
+		+ ((ShadowCoord.z > ShadowMap.Sample(ShadowSmp, ShadowCoord.xy + float2(-d2, d1)).x) ? 0.0f : 1.0f)
+		+ ((ShadowCoord.z > ShadowMap.Sample(ShadowSmp, ShadowCoord.xy + float2(-d1, d2)).x) ? 0.0f : 1.0f)
+		+ ((ShadowCoord.z > ShadowMap.Sample(ShadowSmp, ShadowCoord.xy + float2(d2, d1)).x) ? 0.0f : 1.0f)
+		+ ((ShadowCoord.z > ShadowMap.Sample(ShadowSmp, ShadowCoord.xy + float2(d1, d2)).x) ? 0.0f : 1.0f)
+		+ ((ShadowCoord.z > ShadowMap.Sample(ShadowSmp, ShadowCoord.xy + float2(-d4, d3)).x) ? 0.0f : 1.0f)
+		+ ((ShadowCoord.z > ShadowMap.Sample(ShadowSmp, ShadowCoord.xy + float2(-d3, d4)).x) ? 0.0f : 1.0f)
+		+ ((ShadowCoord.z > ShadowMap.Sample(ShadowSmp, ShadowCoord.xy + float2(d4, d3)).x) ? 0.0f : 1.0f)
+		+ ((ShadowCoord.z > ShadowMap.Sample(ShadowSmp, ShadowCoord.xy + float2(d3, d4)).x) ? 0.0f : 1.0f)) / 10.0f;
+	#endif // SINGLE_SAMPLE_SHADOW_MAP
+#endif // USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
 	return result;
 }
