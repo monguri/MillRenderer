@@ -83,6 +83,8 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_PrevCursorX(0)
 , m_PrevCursorY(0)
 , m_RotateAngle(0.0f)
+, m_ShadowMapViewport()
+, m_ShadowMapScissor()
 {
 }
 
