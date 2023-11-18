@@ -55,6 +55,14 @@ namespace
 		float ShadowTexelSize;
 	};
 
+	struct alignas(256) CbPointLight
+	{
+		Vector3 LightPosition;
+		float LightInvSqrRadius;
+		Vector3 LightColor;
+		float LightIntensity;
+	};
+
 	struct alignas(256) CbCamera
 	{
 		Vector3 CameraPosition;
@@ -71,6 +79,16 @@ namespace
 	UINT16 inline GetChromaticityCoord(double value)
 	{
 		return UINT16(value * 50000);
+	}
+
+	CbPointLight ComputePointLight(const Vector3& pos, float radius, const Vector3& color, float intensity)
+	{
+		CbPointLight result;
+		result.LightPosition = pos;
+		result.LightInvSqrRadius = 1.0f / (radius * radius);
+		result.LightColor = color;
+		result.LightIntensity = intensity;
+		return result;
 	}
 }
 
@@ -166,7 +184,7 @@ bool SampleApp::OnInit()
 		future.wait();
 	}
 
-	// ライトバッファの設定
+	// ディレクショナルライトバッファの設定
 	{
 		for (uint32_t i = 0u; i < FrameCount; i++)
 		{
@@ -176,6 +194,32 @@ bool SampleApp::OnInit()
 				return false;
 			}
 		}
+	}
+
+	// ポイントライトバッファの設定
+	{
+		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+		{
+			if (!m_PointLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbPointLight)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+		}
+
+		// ポイントライトは動かさないないので毎フレームの更新はしない
+
+		CbPointLight* ptr = m_PointLightCB[0].GetPtr<CbPointLight>();
+		*ptr = ComputePointLight(Vector3(0.0f, 0.25f, 0.75f), 2.0f, Vector3(1.0f, 0.5f, 0.0f), 100.0f);
+
+		ptr = m_PointLightCB[1].GetPtr<CbPointLight>();
+		*ptr = ComputePointLight(Vector3(0.0f, 0.25f, 0.75f), 2.0f, Vector3(1.0f, 0.5f, 0.0f), 100.0f);
+
+		ptr = m_PointLightCB[2].GetPtr<CbPointLight>();
+		*ptr = ComputePointLight(Vector3(0.0f, 0.25f, 0.75f), 2.0f, Vector3(1.0f, 0.5f, 0.0f), 100.0f);
+
+		ptr = m_PointLightCB[3].GetPtr<CbPointLight>();
+		*ptr = ComputePointLight(Vector3(0.0f, 0.25f, 0.75f), 2.0f, Vector3(1.0f, 0.5f, 0.0f), 100.0f);
 	}
 
 	// カメラバッファの設定
@@ -651,6 +695,11 @@ void SampleApp::OnTerm()
 		m_CameraCB[i].Term();
 		m_ShadowMapTransformCB[i].Term();
 		m_TransformCB[i].Term();
+	}
+
+	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+	{
+		m_PointLightCB[i].Term();
 	}
 
 	m_MeshCB.Term();

@@ -20,6 +20,7 @@ public:
 
 private:
 	static const uint32_t SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerÇéQçlÇ…ÇµÇΩ
+	static const uint32_t NUM_POINT_LIGHTS = 4;
 
 	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
@@ -34,6 +35,7 @@ private:
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_TonemapCB[FrameCount];
 	ConstantBuffer m_DirectionalLightCB[FrameCount];
+	ConstantBuffer m_PointLightCB[4];
 	ConstantBuffer m_CameraCB[FrameCount];
 	ConstantBuffer m_ShadowMapTransformCB[FrameCount];
 	ConstantBuffer m_TransformCB[FrameCount];
