@@ -210,16 +210,16 @@ bool SampleApp::OnInit()
 		// ポイントライトは動かさないないので毎フレームの更新はしない
 
 		CbPointLight* ptr = m_PointLightCB[0].GetPtr<CbPointLight>();
-		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 2.0f, Vector3(1.0f, 1.0f, 1.0f), 10.0f);
+		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 2.0f, Vector3(1.0f, 1.0f, 1.0f), 0.1f);
 
 		ptr = m_PointLightCB[1].GetPtr<CbPointLight>();
-		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 2.0f, Vector3(1.0f, 0.0f, 0.0f), 10.0f);
+		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 2.0f, Vector3(1.0f, 1.0f, 1.0f), 0.1f);
 
 		ptr = m_PointLightCB[2].GetPtr<CbPointLight>();
-		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 2.0f, Vector3(0.0f, 1.0f, 0.0f), 10.0f);
+		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 2.0f, Vector3(1.0f, 1.0f, 1.0f), 0.1f);
 
 		ptr = m_PointLightCB[3].GetPtr<CbPointLight>();
-		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 2.0f, Vector3(0.0f, 0.0f, 1.0f), 10.0f);
+		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 2.0f, Vector3(1.0f, 1.0f, 1.0f), 0.1f);
 	}
 
 	// カメラバッファの設定
@@ -620,8 +620,6 @@ bool SampleApp::OnInit()
 			return false;
 		}
 	}
-
-	m_RotateAngle = DirectX::XMConvertToRadians(-60.0f);
 
 	// シャドウマップとシーンの変換行列用の定数バッファの作成
 	{
