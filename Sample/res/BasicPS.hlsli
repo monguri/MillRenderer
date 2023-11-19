@@ -263,8 +263,8 @@ float3 EvaluateDirectionalLight
 )
 {
 	float shadowMult = GetDirectionalShadowMultiplier(shadowCoord);
-	// TODO: temporary indirect lighting
-	shadowMult = shadowMult * 0.5f + 0.5f;
+	//// TODO: temporary indirect lighting
+	//shadowMult = shadowMult * 0.5f + 0.5f;
 	return lightColor * shadowMult;
 }
 
@@ -301,26 +301,44 @@ PSOutput main(VSOutput input)
 	float3 dirLightH = normalize(V + dirLightL);
 	float dirLightNH = saturate(dot(N, dirLightH));
 	float dirLightNL = saturate(dot(N, dirLightL));
-
 	float3 dirLightSpecular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, dirLightNH, NV, dirLightNL);
 	float3 dirLightTerm = EvaluateDirectionalLight(input.ShadowCoord, LightColor) * LightIntensity;
 	float3 dirLightColor = (diffuse * dirLightNL + dirLightSpecular) * dirLightTerm;
 
 	// PointLight 4
+	float3 pointLight1L = normalize(LightPosition1 - input.WorldPos);
+	float3 pointLight1H = normalize(V + pointLight1L);
+	float pointLight1NH = saturate(dot(N, pointLight1H));
+	float pointLight1NL = saturate(dot(N, pointLight1L));
+	float3 pointLight1Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight1NH, NV, pointLight1NL);
+	float3 pointLight1Term = EvaluatePointLight(N, input.WorldPos, LightPosition1, LightInvSqrRadius1, LightColor1) * LightIntensity1;
+	float3 pointLight1Color = (diffuse * pointLight1NL + pointLight1Specular) * pointLight1Term;
 
-#if 0
-	float3 pointLightMult1 = EvaluatePointLight(N, input.WorldPos, LightPosition1, LightInvSqrRadius1, LightColor1) * LightIntensity1;
-	float3 pointLightMult2 = EvaluatePointLight(N, input.WorldPos, LightPosition2, LightInvSqrRadius2, LightColor2) * LightIntensity2;
-	float3 pointLightMult3 = EvaluatePointLight(N, input.WorldPos, LightPosition3, LightInvSqrRadius3, LightColor3) * LightIntensity3;
-	float3 pointLightMult4 = EvaluatePointLight(N, input.WorldPos, LightPosition4, LightInvSqrRadius4, LightColor4) * LightIntensity4;
-#else
-	float3 pointLightMult1 = float3(0, 0, 0);
-	float3 pointLightMult2 = float3(0, 0, 0);
-	float3 pointLightMult3 = float3(0, 0, 0);
-	float3 pointLightMult4 = float3(0, 0, 0);
-#endif
+	float3 pointLight2L = normalize(LightPosition2 - input.WorldPos);
+	float3 pointLight2H = normalize(V + pointLight2L);
+	float pointLight2NH = saturate(dot(N, pointLight2H));
+	float pointLight2NL = saturate(dot(N, pointLight2L));
+	float3 pointLight2Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight2NH, NV, pointLight2NL);
+	float3 pointLight2Term = EvaluatePointLight(N, input.WorldPos, LightPosition2, LightInvSqrRadius2, LightColor2) * LightIntensity2;
+	float3 pointLight2Color = (diffuse * pointLight2NL + pointLight2Specular) * pointLight2Term;
 
-	output.Color.rgb = dirLightColor;
+	float3 pointLight3L = normalize(LightPosition3 - input.WorldPos);
+	float3 pointLight3H = normalize(V + pointLight3L);
+	float pointLight3NH = saturate(dot(N, pointLight3H));
+	float pointLight3NL = saturate(dot(N, pointLight3L));
+	float3 pointLight3Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight3NH, NV, pointLight3NL);
+	float3 pointLight3Term = EvaluatePointLight(N, input.WorldPos, LightPosition3, LightInvSqrRadius3, LightColor3) * LightIntensity3;
+	float3 pointLight3Color = (diffuse * pointLight3NL + pointLight3Specular) * pointLight3Term;
+
+	float3 pointLight4L = normalize(LightPosition4 - input.WorldPos);
+	float3 pointLight4H = normalize(V + pointLight4L);
+	float pointLight4NH = saturate(dot(N, pointLight4H));
+	float pointLight4NL = saturate(dot(N, pointLight4L));
+	float3 pointLight4Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight4NH, NV, pointLight4NL);
+	float3 pointLight4Term = EvaluatePointLight(N, input.WorldPos, LightPosition4, LightInvSqrRadius4, LightColor4) * LightIntensity4;
+	float3 pointLight4Color = (diffuse * pointLight4NL + pointLight4Specular) * pointLight4Term;
+
+	output.Color.rgb = dirLightColor + pointLight1Color + pointLight2Color + pointLight3Color + pointLight4Color;
 	output.Color.a = 1.0f;
 	return output;
 }
