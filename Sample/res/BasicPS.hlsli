@@ -300,7 +300,7 @@ PSOutput main(VSOutput input)
 
 	float shadowMult = GetDirectionalShadowMultiplier(input.ShadowCoord);
 	// TODO: temporary indirect lighting
-	//shadowMult = shadowMult * 0.5f + 0.5f;
+	shadowMult = shadowMult * 0.5f + 0.5f;
 	float3 DirectionalLightMult = NL * LightColor * LightIntensity * shadowMult;
 
 	float3 pointLightMult1 = EvaluatePointLight(N, input.WorldPos, LightPosition1, LightInvSqrRadius1, LightColor1) * LightIntensity1;
