@@ -290,25 +290,33 @@ PSOutput main(VSOutput input)
 	float3 diffuse = ComputeLambert(Kd);
 
 	float3 Ks = baseColor.rgb * metallic;
-	float3 specular = 0.0f;
-	if (NV > 0.0f)
+	float3 specularMultNL = 0.0f;
+	if (NV > 0.0f) // surface is perpendicular to camera vector. do as no specular.
 	{
-		specular = ComputeGGX(Ks, roughness, NH, NV, NL);
+		specularMultNL = ComputeGGX_MultiplyNdotL(Ks, roughness, NH, NV, NL);
 	}
 
-	float3 BRDF = (diffuse + specular);
+	float3 BRDFMultNL = (diffuse * NL + specularMultNL);
 
 	float shadowMult = GetDirectionalShadowMultiplier(input.ShadowCoord);
 	// TODO: temporary indirect lighting
 	shadowMult = shadowMult * 0.5f + 0.5f;
-	float3 DirectionalLightMult = NL * LightColor * LightIntensity * shadowMult;
+	// NL is premultiplied to BRDF result term.
+	float3 DirectionalLightMult = LightColor * LightIntensity * shadowMult;
 
+#if 0
 	float3 pointLightMult1 = EvaluatePointLight(N, input.WorldPos, LightPosition1, LightInvSqrRadius1, LightColor1) * LightIntensity1;
 	float3 pointLightMult2 = EvaluatePointLight(N, input.WorldPos, LightPosition2, LightInvSqrRadius2, LightColor2) * LightIntensity2;
 	float3 pointLightMult3 = EvaluatePointLight(N, input.WorldPos, LightPosition3, LightInvSqrRadius3, LightColor3) * LightIntensity3;
 	float3 pointLightMult4 = EvaluatePointLight(N, input.WorldPos, LightPosition4, LightInvSqrRadius4, LightColor4) * LightIntensity4;
+#else
+	float3 pointLightMult1 = float3(0, 0, 0);
+	float3 pointLightMult2 = float3(0, 0, 0);
+	float3 pointLightMult3 = float3(0, 0, 0);
+	float3 pointLightMult4 = float3(0, 0, 0);
+#endif
 
-	output.Color.rgb = BRDF * (DirectionalLightMult + pointLightMult1 + pointLightMult2 + pointLightMult3 + pointLightMult4);
+	output.Color.rgb = BRDFMultNL * (DirectionalLightMult + pointLightMult1 + pointLightMult2 + pointLightMult3 + pointLightMult4);
 	output.Color.a = 1.0f;
 	return output;
 }

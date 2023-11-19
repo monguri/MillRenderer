@@ -44,7 +44,7 @@ float3 ComputePhong
 	return Ks * ((shininess + 2.0f) / (2.0f * F_PI)) * pow(LdotR, shininess);
 }
 
-float3 ComputeGGX
+float3 ComputeGGX_MultiplyNdotL
 (
 	float3 Ks,
 	float roughness,
@@ -58,6 +58,6 @@ float3 ComputeGGX
 	float G = G2_Smith(NdotL, NdotV, a);
 	float3 F = SchlickFresnel(Ks, NdotL);
 
-	return (D * G * F) / (4.0f * NdotV * NdotL);
+	return (D * G * F) / (4.0f * NdotV); // NdotL becomes 0, so pre-multiply NdotL before the lighting term.
 }
 #endif // BRDF_HLSLI
