@@ -60,4 +60,23 @@ float3 ComputeGGX_MultiplyNdotL
 
 	return (D * G * F) / (4.0f * NdotV); // NdotL becomes 0, so pre-multiply NdotL before the lighting term.
 }
+
+float3 ComputeGGXSpecular_MultiplyNdotL
+(
+	float3 Ks,
+	float roughness,
+	float NdotH,
+	float NdotV,
+	float NdotL
+)
+{
+	float3 specularMultNL = 0.0f;
+	if (NdotV > 0.0f) // surface is perpendicular to camera vector. do as no specular.
+	{
+		specularMultNL = ComputeGGX_MultiplyNdotL(Ks, roughness, NdotH, NdotV, NdotL);
+	}
+
+	return specularMultNL;
+}
+
 #endif // BRDF_HLSLI
