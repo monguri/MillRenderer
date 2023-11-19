@@ -267,6 +267,32 @@ bool SampleApp::OnInit()
 		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 	}
 
+	// スポットライトバッファの設定
+	{
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			if (!m_SpotLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSpotLight)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+		}
+
+		// スポットライトは動かさないないので毎フレームの更新はしない
+
+		CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
+		// 少し黄色っぽい光
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
+
+		ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
+		// 少し黄色っぽい光
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 10.0f, 0.0f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
+
+		ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
+		// 少し黄色っぽい光
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
+	}
+
 	// カメラバッファの設定
 	{
 		for (uint32_t i = 0u; i < FrameCount; i++)
@@ -747,6 +773,11 @@ void SampleApp::OnTerm()
 	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 	{
 		m_PointLightCB[i].Term();
+	}
+
+	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+	{
+		m_SpotLightCB[i].Term();
 	}
 
 	m_MeshCB.Term();
