@@ -210,16 +210,20 @@ bool SampleApp::OnInit()
 		// ポイントライトは動かさないないので毎フレームの更新はしない
 
 		CbPointLight* ptr = m_PointLightCB[0].GetPtr<CbPointLight>();
-		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 2.0f, Vector3(1.0f, 1.0f, 1.0f), 0.1f);
+		// 少し黄色っぽい光
+		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 
 		ptr = m_PointLightCB[1].GetPtr<CbPointLight>();
-		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 2.0f, Vector3(1.0f, 1.0f, 1.0f), 0.1f);
+		// 少し黄色っぽい光
+		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 
 		ptr = m_PointLightCB[2].GetPtr<CbPointLight>();
-		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 2.0f, Vector3(1.0f, 1.0f, 1.0f), 0.1f);
+		// 少し黄色っぽい光
+		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 
 		ptr = m_PointLightCB[3].GetPtr<CbPointLight>();
-		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 2.0f, Vector3(1.0f, 1.0f, 1.0f), 0.1f);
+		// 少し黄色っぽい光
+		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 	}
 
 	// カメラバッファの設定
@@ -876,7 +880,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	// ライトバッファの更新
 	{
 		CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
-		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f);
+		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f); // 白色光
 		ptr->LightForward = lightForward;
 		ptr->LightIntensity = 15.0f;
 		ptr->ShadowTexelSize = 1.0f / SHADOW_MAP_SIZE;
