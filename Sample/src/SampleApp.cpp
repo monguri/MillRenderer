@@ -63,6 +63,19 @@ namespace
 		float LightIntensity;
 	};
 
+	struct alignas(256) CbSpotLight
+	{
+		Vector3 LightPosition;
+		float LightInvSqrRadius;
+		Vector3 LightColor;
+		float LightIntensity;
+		Vector3 LightForward;
+		float LightAngleScale;
+		float LightAngleOffset;
+		int LightType;
+		float Padding[2];
+	};
+
 	struct alignas(256) CbCamera
 	{
 		Vector3 CameraPosition;
@@ -88,6 +101,34 @@ namespace
 		result.LightInvSqrRadius = 1.0f / (radius * radius);
 		result.LightColor = color;
 		result.LightIntensity = intensity;
+		return result;
+	}
+
+	CbSpotLight ComputeSpotLight
+	(
+		int lightType,
+		const Vector3& dir,
+		const Vector3& pos,
+		float radius,
+		const Vector3& color,
+		float intensity,
+		float innerAngle,
+		float outerAngle
+	)
+	{
+		float cosInnerAngle = cosf(innerAngle);
+		float cosOuterAngle = cosf(outerAngle);
+
+		CbSpotLight result;
+		result.LightPosition = pos;
+		result.LightInvSqrRadius = 1.0f / (radius * radius);
+		result.LightColor = color;
+		result.LightIntensity = intensity;
+		result.LightForward = dir;
+		// 0除算が発生しないよう、cosInnerとcosOuterの差は下限を0.001に設定しておく
+		result.LightAngleScale = 1.0f / DirectX::XMMax(0.001f, (cosInnerAngle - cosOuterAngle));
+		result.LightAngleOffset = -cosOuterAngle * result.LightAngleScale;
+		result.LightType = lightType;
 		return result;
 	}
 }
