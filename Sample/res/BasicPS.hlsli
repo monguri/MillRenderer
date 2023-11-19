@@ -279,7 +279,6 @@ PSOutput main(VSOutput input)
 	float NH = saturate(dot(N, H));
 	float NV = saturate(dot(N, V));
 	float NL = saturate(dot(N, L));
-	float VH = saturate(dot(V, H));
 
 	baseColor.rgb *= BaseColorFactor;
 	float2 metallicRoughness = MetallicRoughnessMap.Sample(MetallicRoughnessSmp, input.TexCoord).bg;
