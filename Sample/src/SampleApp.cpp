@@ -147,7 +147,7 @@ namespace
 		float outerAngle
 	)
 	{
-		const Matrix& spotLightShadowView = Matrix::CreateLookAt(pos, pos + dir, Vector3::UnitY);
+		const Matrix& spotLightShadowView = Matrix::CreateLookAt(pos, pos + dir * radius, Vector3::UnitY);
 		const Matrix& spotLightShadowProj = Matrix::CreatePerspectiveFieldOfView(outerAngle * 2.0f, 1.0f, radius * 0.05f, radius * 1.0f); // パラメータはModelViewerを参考にした
 		return spotLightShadowView * spotLightShadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
