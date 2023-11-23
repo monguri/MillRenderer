@@ -318,6 +318,8 @@ PSOutput main(VSOutput input)
 
 	baseColor.rgb *= BaseColorFactor;
 
+	// metallic value is G. roughness value is B.
+	// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
 	float2 metallicRoughness = MetallicRoughnessMap.Sample(MetallicRoughnessSmp, input.TexCoord).bg;
 	float metallic = metallicRoughness.x * MetallicFactor;
 	float roughness = metallicRoughness.y * RoughnessFactor;
