@@ -469,7 +469,7 @@ bool SampleApp::OnInit()
     // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
 	{
 		RootSignature::Desc desc;
-		desc.Begin(16)
+		desc.Begin(19)
 			.SetCBV(ShaderStage::VS, 0, 0)
 			.SetCBV(ShaderStage::VS, 1, 1)
 			.SetCBV(ShaderStage::PS, 2, 0)
@@ -487,6 +487,9 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 13, 1)
 			.SetSRV(ShaderStage::PS, 14, 2)
 			.SetSRV(ShaderStage::PS, 15, 3)
+			.SetSRV(ShaderStage::PS, 16, 4)
+			.SetSRV(ShaderStage::PS, 17, 5)
+			.SetSRV(ShaderStage::PS, 18, 6)
 
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
@@ -1152,6 +1155,10 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 		pCmdList->SetGraphicsRootDescriptorTable(13, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
 		pCmdList->SetGraphicsRootDescriptorTable(14, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
 		pCmdList->SetGraphicsRootDescriptorTable(15, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(16 + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+		}
 
 		m_pMesh[i]->Draw(pCmdList);
 	}

@@ -127,6 +127,10 @@ Texture2D NormalMap : register(t2);
 SamplerState NormalSmp : register(s2);
 
 Texture2D DirLightShadowMap : register(t3);
+Texture2D SpotLight1ShadowMap : register(t4);
+Texture2D SpotLight2ShadowMap : register(t5);
+Texture2D SpotLight3ShadowMap : register(t6);
+
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 SamplerComparisonState ShadowSmp : register(s3);
 #else
@@ -382,7 +386,8 @@ PSOutput main(VSOutput input)
 	float3 spotLight1Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, spotLight1NH, NV, spotLight1NL);
 	//TODO: not branching by type
 	float3 spotLight1Term = EvaluateSpotLight(N, input.WorldPos, SpotLight1Position, SpotLight1InvSqrRadius, SpotLight1Forward, SpotLight1Color, SpotLight1AngleScale, SpotLight1AngleOffset) * SpotLight1Intensity;
-	float3 spotLight1Color = (diffuse * spotLight1NL + spotLight1Specular) * spotLight1Term;
+	float spotLight1ShadowMult = GetShadowMultiplier(SpotLight1ShadowMap, SpotLight1ShadowTexelSize, input.SpotLight1ShadowCoord);
+	float3 spotLight1Color = (diffuse * spotLight1NL + spotLight1Specular) * spotLight1Term * spotLight1ShadowMult;
 
 	float3 spotLight2L = normalize(SpotLight2Position - input.WorldPos);
 	float3 spotLight2H = normalize(V + spotLight2L);
@@ -391,7 +396,8 @@ PSOutput main(VSOutput input)
 	float3 spotLight2Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, spotLight2NH, NV, spotLight2NL);
 	//TODO: not branching by type
 	float3 spotLight2Term = EvaluateSpotLight(N, input.WorldPos, SpotLight2Position, SpotLight2InvSqrRadius, SpotLight2Forward, SpotLight2Color, SpotLight2AngleScale, SpotLight2AngleOffset) * SpotLight2Intensity;
-	float3 spotLight2Color = (diffuse * spotLight2NL + spotLight2Specular) * spotLight2Term;
+	float spotLight2ShadowMult = GetShadowMultiplier(SpotLight2ShadowMap, SpotLight2ShadowTexelSize, input.SpotLight2ShadowCoord);
+	float3 spotLight2Color = (diffuse * spotLight2NL + spotLight2Specular) * spotLight2Term * spotLight2ShadowMult;
 
 	float3 spotLight3L = normalize(SpotLight3Position - input.WorldPos);
 	float3 spotLight3H = normalize(V + spotLight3L);
@@ -400,7 +406,8 @@ PSOutput main(VSOutput input)
 	float3 spotLight3Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, spotLight3NH, NV, spotLight3NL);
 	//TODO: not branching by type
 	float3 spotLight3Term = EvaluateSpotLight(N, input.WorldPos, SpotLight3Position, SpotLight3InvSqrRadius, SpotLight3Forward, SpotLight3Color, SpotLight3AngleScale, SpotLight3AngleOffset) * SpotLight3Intensity;
-	float3 spotLight3Color = (diffuse * spotLight3NL + spotLight3Specular) * spotLight3Term;
+	float spotLight3ShadowMult = GetShadowMultiplier(SpotLight3ShadowMap, SpotLight3ShadowTexelSize, input.SpotLight3ShadowCoord);
+	float3 spotLight3Color = (diffuse * spotLight3NL + spotLight3Specular) * spotLight3Term * spotLight3ShadowMult;
 
 	output.Color.rgb = dirLightColor + pointLight1Color + pointLight2Color + pointLight3Color + pointLight4Color + spotLight1Color + spotLight2Color + spotLight3Color;
 	output.Color.a = 1.0f;
