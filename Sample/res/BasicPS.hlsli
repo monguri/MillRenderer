@@ -245,30 +245,30 @@ float3 EvaluateSpotLightLagarde
 	return lightColor * att / F_PI;
 }
 
-float GetDirectionalShadowMultiplier(float3 shadowCoord)
+float GetShadowMultiplier(Texture2D ShadowMap, float ShadowMapTexelSize, float3 shadowCoord)
 {
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 	#ifdef SINGLE_SAMPLE_SHADOW_MAP
-	float result = DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z);
+	float result = ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z);
 	#else // SINGLE_SAMPLE_SHADOW_MAP
 	const float Dilation = 2.0f;
-	float d1 = Dilation * DirLightShadowTexelSize * 0.125f;
-	float d2 = Dilation * DirLightShadowTexelSize * 0.875f;
-	float d3 = Dilation * DirLightShadowTexelSize * 0.625;
-	float d4 = Dilation * DirLightShadowTexelSize * 0.375;
-	float result = (2.0f * DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z)
-		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d2, d1), shadowCoord.z)
-		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d1, d2), shadowCoord.z)
-		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d2, d1), shadowCoord.z)
-		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d1, d2), shadowCoord.z)
-		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d4, d3), shadowCoord.z)
-		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d3, d4), shadowCoord.z)
-		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d4, d3), shadowCoord.z)
-		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d3, d4), shadowCoord.z)) / 10.0f;
+	float d1 = Dilation * ShadowMapTexelSize * 0.125f;
+	float d2 = Dilation * ShadowMapTexelSize * 0.875f;
+	float d3 = Dilation * ShadowMapTexelSize * 0.625;
+	float d4 = Dilation * ShadowMapTexelSize * 0.375;
+	float result = (2.0f * ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d2, d1), shadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d1, d2), shadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d2, d1), shadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d1, d2), shadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d4, d3), shadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d3, d4), shadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d4, d3), shadowCoord.z)
+		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d3, d4), shadowCoord.z)) / 10.0f;
 	#endif // SINGLE_SAMPLE_SHADOW_MAP
 #else // USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 	#ifdef SINGLE_SAMPLE_SHADOW_MAP
-	float shadowVal = DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy).x;
+	float shadowVal = ShadowMap.Sample(ShadowSmp, shadowCoord.xy).x;
 	float result = 1.0f;
 	if (shadowCoord.z > shadowVal)
 	{
@@ -276,19 +276,19 @@ float GetDirectionalShadowMultiplier(float3 shadowCoord)
 	}
 	#else // SINGLE_SAMPLE_SHADOW_MAP
 	const float Dilation = 2.0f;
-	float d1 = Dilation * DirLightShadowTexelSize * 0.125f;
-	float d2 = Dilation * DirLightShadowTexelSize * 0.875f;
-	float d3 = Dilation * DirLightShadowTexelSize * 0.625;
-	float d4 = Dilation * DirLightShadowTexelSize * 0.375;
-	float result = (2.0f * ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d2, d1)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d1, d2)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d2, d1)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d1, d2)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d4, d3)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d3, d4)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d4, d3)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d3, d4)).x) ? 0.0f : 1.0f)) / 10.0f;
+	float d1 = Dilation * ShadowMapTexelSize * 0.125f;
+	float d2 = Dilation * ShadowMapTexelSize * 0.875f;
+	float d3 = Dilation * ShadowMapTexelSize * 0.625;
+	float d4 = Dilation * ShadowMapTexelSize * 0.375;
+	float result = (2.0f * ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d2, d1)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d1, d2)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d2, d1)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d1, d2)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d4, d3)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d3, d4)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d4, d3)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d3, d4)).x) ? 0.0f : 1.0f)) / 10.0f;
 	#endif // SINGLE_SAMPLE_SHADOW_MAP
 #endif // USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
@@ -301,7 +301,7 @@ float3 EvaluateDirectionalLight
 	float3 lightColor
 )
 {
-	float shadowMult = GetDirectionalShadowMultiplier(shadowCoord);
+	float shadowMult = GetShadowMultiplier(DirLightShadowMap, DirLightShadowTexelSize, shadowCoord);
 	//// TODO: temporary indirect lighting
 	//shadowMult = shadowMult * 0.5f + 0.5f;
 	return lightColor * shadowMult;
