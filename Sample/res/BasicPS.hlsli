@@ -36,43 +36,43 @@ cbuffer CbMaterial : register(b1)
 
 cbuffer CbDirectionalLight : register(b2)
 {
-	float3 LightColor : packoffset(c0);
-	float LightIntensity : packoffset(c0.w);
-	float3 LightForward : packoffset(c1);
-	float ShadowTexelSize : packoffset(c1.w);
+	float3 DirLightColor: packoffset(c0);
+	float DirLightIntensity: packoffset(c0.w);
+	float3 DirLightForward : packoffset(c1);
+	float DirLightShadowTexelSize : packoffset(c1.w);
 };
 
 // TODO:Use ConstantBuffer<>
 cbuffer CbPointLight1 : register(b3)
 {
-	float3 LightPosition1 : packoffset(c0);
-	float LightInvSqrRadius1 : packoffset(c0.w);
-	float3 LightColor1 : packoffset(c1);
-	float LightIntensity1 : packoffset(c1.w);
+	float3 PointLight1Position : packoffset(c0);
+	float PointLight1InvSqrRadius : packoffset(c0.w);
+	float3 PointLight1Color : packoffset(c1);
+	float PointLight1Intensity : packoffset(c1.w);
 };
 
 cbuffer CbPointLight2 : register(b4)
 {
-	float3 LightPosition2 : packoffset(c0);
-	float LightInvSqrRadius2 : packoffset(c0.w);
-	float3 LightColor2: packoffset(c1);
-	float LightIntensity2: packoffset(c1.w);
+	float3 PointLight2Position : packoffset(c0);
+	float PointLight2InvSqrRadius : packoffset(c0.w);
+	float3 PointLight2Color: packoffset(c1);
+	float PointLight2Intensity: packoffset(c1.w);
 };
 
 cbuffer CbPointLight3 : register(b5)
 {
-	float3 LightPosition3 : packoffset(c0);
-	float LightInvSqrRadius3 : packoffset(c0.w);
-	float3 LightColor3 : packoffset(c1);
-	float LightIntensity3 : packoffset(c1.w);
+	float3 PointLight3Position : packoffset(c0);
+	float PointLight3InvSqrRadius : packoffset(c0.w);
+	float3 PointLight3Color : packoffset(c1);
+	float PointLight3Intensity : packoffset(c1.w);
 };
 
 cbuffer CbPointLight4 : register(b6)
 {
-	float3 LightPosition4 : packoffset(c0);
-	float LightInvSqrRadius4 : packoffset(c0.w);
-	float3 LightColor4 : packoffset(c1);
-	float LightIntensity4 : packoffset(c1.w);
+	float3 PointLight4Position : packoffset(c0);
+	float PointLight4InvSqrRadius : packoffset(c0.w);
+	float3 PointLight4Color : packoffset(c1);
+	float PointLight4Intensity : packoffset(c1.w);
 };
 
 Texture2D BaseColorMap : register(t0);
@@ -213,10 +213,10 @@ float GetDirectionalShadowMultiplier(float3 shadowCoord)
 	float result = ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z);
 	#else // SINGLE_SAMPLE_SHADOW_MAP
 	const float Dilation = 2.0f;
-	float d1 = Dilation * ShadowTexelSize * 0.125f;
-	float d2 = Dilation * ShadowTexelSize * 0.875f;
-	float d3 = Dilation * ShadowTexelSize * 0.625;
-	float d4 = Dilation * ShadowTexelSize * 0.375;
+	float d1 = Dilation * DirLightShadowTexelSize * 0.125f;
+	float d2 = Dilation * DirLightShadowTexelSize * 0.875f;
+	float d3 = Dilation * DirLightShadowTexelSize * 0.625;
+	float d4 = Dilation * DirLightShadowTexelSize * 0.375;
 	float result = (2.0f * ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z)
 		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d2, d1), shadowCoord.z)
 		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d1, d2), shadowCoord.z)
@@ -237,10 +237,10 @@ float GetDirectionalShadowMultiplier(float3 shadowCoord)
 	}
 	#else // SINGLE_SAMPLE_SHADOW_MAP
 	const float Dilation = 2.0f;
-	float d1 = Dilation * ShadowTexelSize * 0.125f;
-	float d2 = Dilation * ShadowTexelSize * 0.875f;
-	float d3 = Dilation * ShadowTexelSize * 0.625;
-	float d4 = Dilation * ShadowTexelSize * 0.375;
+	float d1 = Dilation * DirLightShadowTexelSize * 0.125f;
+	float d2 = Dilation * DirLightShadowTexelSize * 0.875f;
+	float d3 = Dilation * DirLightShadowTexelSize * 0.625;
+	float d4 = Dilation * DirLightShadowTexelSize * 0.375;
 	float result = (2.0f * ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy).x) ? 0.0f : 1.0f)
 		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d2, d1)).x) ? 0.0f : 1.0f)
 		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d1, d2)).x) ? 0.0f : 1.0f)
@@ -297,45 +297,45 @@ PSOutput main(VSOutput input)
 	float NV = saturate(dot(N, V));
 
 	// DirectionalLight
-	float3 dirLightL = normalize(LightForward);
+	float3 dirLightL = normalize(DirLightForward);
 	float3 dirLightH = normalize(V + dirLightL);
 	float dirLightNH = saturate(dot(N, dirLightH));
 	float dirLightNL = saturate(dot(N, dirLightL));
 	float3 dirLightSpecular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, dirLightNH, NV, dirLightNL);
-	float3 dirLightTerm = EvaluateDirectionalLight(input.ShadowCoord, LightColor) * LightIntensity;
-	float3 dirLightColor = (diffuse * dirLightNL + dirLightSpecular) * dirLightTerm;
+	float3 dirLightTerm = EvaluateDirectionalLight(input.ShadowCoord, DirLightColor) * DirLightIntensity;
+	float3 dirLightColor= (diffuse * dirLightNL + dirLightSpecular) * dirLightTerm;
 
-	// PointLight 4
-	float3 pointLight1L = normalize(LightPosition1 - input.WorldPos);
+	// 4 PointLight
+	float3 pointLight1L = normalize(PointLight1Position - input.WorldPos);
 	float3 pointLight1H = normalize(V + pointLight1L);
 	float pointLight1NH = saturate(dot(N, pointLight1H));
 	float pointLight1NL = saturate(dot(N, pointLight1L));
 	float3 pointLight1Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight1NH, NV, pointLight1NL);
-	float3 pointLight1Term = EvaluatePointLight(N, input.WorldPos, LightPosition1, LightInvSqrRadius1, LightColor1) * LightIntensity1;
+	float3 pointLight1Term = EvaluatePointLight(N, input.WorldPos, PointLight1Position, PointLight1InvSqrRadius, PointLight1Color) * PointLight1Intensity;
 	float3 pointLight1Color = (diffuse * pointLight1NL + pointLight1Specular) * pointLight1Term;
 
-	float3 pointLight2L = normalize(LightPosition2 - input.WorldPos);
+	float3 pointLight2L = normalize(PointLight2Position - input.WorldPos);
 	float3 pointLight2H = normalize(V + pointLight2L);
 	float pointLight2NH = saturate(dot(N, pointLight2H));
 	float pointLight2NL = saturate(dot(N, pointLight2L));
 	float3 pointLight2Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight2NH, NV, pointLight2NL);
-	float3 pointLight2Term = EvaluatePointLight(N, input.WorldPos, LightPosition2, LightInvSqrRadius2, LightColor2) * LightIntensity2;
+	float3 pointLight2Term = EvaluatePointLight(N, input.WorldPos, PointLight2Position, PointLight2InvSqrRadius, PointLight2Color) * PointLight2Intensity;
 	float3 pointLight2Color = (diffuse * pointLight2NL + pointLight2Specular) * pointLight2Term;
 
-	float3 pointLight3L = normalize(LightPosition3 - input.WorldPos);
+	float3 pointLight3L = normalize(PointLight3Position - input.WorldPos);
 	float3 pointLight3H = normalize(V + pointLight3L);
 	float pointLight3NH = saturate(dot(N, pointLight3H));
 	float pointLight3NL = saturate(dot(N, pointLight3L));
 	float3 pointLight3Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight3NH, NV, pointLight3NL);
-	float3 pointLight3Term = EvaluatePointLight(N, input.WorldPos, LightPosition3, LightInvSqrRadius3, LightColor3) * LightIntensity3;
+	float3 pointLight3Term = EvaluatePointLight(N, input.WorldPos, PointLight3Position, PointLight3InvSqrRadius, PointLight3Color) * PointLight3Intensity;
 	float3 pointLight3Color = (diffuse * pointLight3NL + pointLight3Specular) * pointLight3Term;
 
-	float3 pointLight4L = normalize(LightPosition4 - input.WorldPos);
+	float3 pointLight4L = normalize(PointLight4Position - input.WorldPos);
 	float3 pointLight4H = normalize(V + pointLight4L);
 	float pointLight4NH = saturate(dot(N, pointLight4H));
 	float pointLight4NL = saturate(dot(N, pointLight4L));
 	float3 pointLight4Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight4NH, NV, pointLight4NL);
-	float3 pointLight4Term = EvaluatePointLight(N, input.WorldPos, LightPosition4, LightInvSqrRadius4, LightColor4) * LightIntensity4;
+	float3 pointLight4Term = EvaluatePointLight(N, input.WorldPos, PointLight4Position, PointLight4InvSqrRadius, PointLight4Color) * PointLight4Intensity;
 	float3 pointLight4Color = (diffuse * pointLight4NL + pointLight4Specular) * pointLight4Term;
 
 	output.Color.rgb = dirLightColor + pointLight1Color + pointLight2Color + pointLight3Color + pointLight4Color;
