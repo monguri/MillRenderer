@@ -329,6 +329,7 @@ PSOutput main(VSOutput input)
 
 	float3 N = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 	N = mul(input.InvTangentBasis, N);
+	N = normalize(N);
 	float3 V = normalize(CameraPosition - input.WorldPos);
 	float NV = saturate(dot(N, V));
 
