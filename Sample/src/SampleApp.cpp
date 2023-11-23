@@ -282,15 +282,15 @@ bool SampleApp::OnInit()
 
 		CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 100.0f, Vector3(1.0f, 0.0f, 0.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
 
 		ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 10.0f, 0.0f), 100.0f, Vector3(1.0f, 0.0f, 0.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 10.0f, 0.0f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
 
 		ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 100.0f, Vector3(1.0f, 0.0f, 0.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
 	}
 
 	// カメラバッファの設定
