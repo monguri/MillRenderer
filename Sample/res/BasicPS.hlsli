@@ -195,7 +195,7 @@ float3 EvaluateSpotLight
 	float sqrDist = dot(unnormalizedLightVector, unnormalizedLightVector);
 	float att = 1.0f / max(sqrDist, MIN_DIST * MIN_DIST);
 	float3 L = normalize(unnormalizedLightVector);
-	att *= GetAngleAttenuation(-L, lightForward, lightAngleScale, lightAngleOffset);
+	att *= GetAngleAttenuation(L, lightForward, lightAngleScale, lightAngleOffset);
 	return lightColor * att / F_PI;
 }
 
@@ -217,7 +217,7 @@ float3 EvaluateSpotLightKaris
 	float3 L = normalize(unnormalizedLightVector);
 	att *= SmoothDistanceAttenuation(sqrDist, lightInvRadiusSq);
 	att /= (sqrDist + 1.0f);
-	att *= GetAngleAttenuation(-L, lightForward, lightAngleScale, lightAngleOffset);
+	att *= GetAngleAttenuation(L, lightForward, lightAngleScale, lightAngleOffset);
 	return lightColor * att / F_PI;
 }
 
@@ -238,7 +238,7 @@ float3 EvaluateSpotLightLagarde
 	float att = 1.0f / max(sqrDist, MIN_DIST * MIN_DIST);
 	float3 L = normalize(unnormalizedLightVector);
 	att *= GetDistanceAttenuation(unnormalizedLightVector, lightInvRadiusSq);
-	att *= GetAngleAttenuation(-L, lightForward, lightAngleScale, lightAngleOffset);
+	att *= GetAngleAttenuation(L, lightForward, lightAngleScale, lightAngleOffset);
 	return lightColor * att / F_PI;
 }
 
