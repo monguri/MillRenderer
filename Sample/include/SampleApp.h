@@ -42,7 +42,7 @@ private:
 	ConstantBuffer m_SpotLightCB[NUM_SPOT_LIGHTS];
 	ConstantBuffer m_CameraCB[FrameCount];
 	ConstantBuffer m_DirLightShadowMapTransformCB[FrameCount];
-	ConstantBuffer m_SpotLightShadowMapTransformCB[FrameCount];
+	ConstantBuffer m_SpotLightShadowMapTransformCB[NUM_SPOT_LIGHTS];
 	ConstantBuffer m_TransformCB[FrameCount];
 	ConstantBuffer m_MeshCB;
 	std::vector<class Mesh*> m_pMesh;
