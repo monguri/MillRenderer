@@ -124,7 +124,9 @@ namespace
 		result.LightInvSqrRadius = 1.0f / (radius * radius);
 		result.LightColor = color;
 		result.LightIntensity = intensity;
-		result.LightForward = dir;
+		Vector3 normalizedDir = dir;
+		normalizedDir.Normalize();
+		result.LightForward = normalizedDir;
 		// 0除算が発生しないよう、cosInnerとcosOuterの差は下限を0.001に設定しておく
 		result.LightAngleScale = 1.0f / DirectX::XMMax(0.001f, (cosInnerAngle - cosOuterAngle));
 		result.LightAngleOffset = -cosOuterAngle * result.LightAngleScale;
@@ -281,16 +283,16 @@ bool SampleApp::OnInit()
 		// スポットライトは動かさないので毎フレームの更新はしない
 
 		CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
-		// 少し黄色っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 20.0f, Vector3(1.0f, 0.5f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
+		// 少し赤っぽい光
+		*ptr = ComputeSpotLight(0, Vector3(6.0f, 10.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 20.0f, Vector3(1.0f, 0.5f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
 
 		ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
-		// 少し黄色っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 1.0f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
+		// 少し緑っぽい光
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 10.0f, -2.0f), Vector3(0.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 1.0f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
 
 		ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
-		// 少し黄色っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 0.5f, 1.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
+		// 少し青っぽい光
+		*ptr = ComputeSpotLight(0, Vector3(-6.0f, 10.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 0.5f, 1.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
 	}
 
 	// カメラバッファの設定
