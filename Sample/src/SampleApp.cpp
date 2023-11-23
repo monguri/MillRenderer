@@ -348,6 +348,50 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// スポットライト用デプスターゲットの生成
+	{
+		for (uint32_t i = 0; i < NUM_SPOT_LIGHTS; i++)
+		{
+			if (!m_SpotLightShadowMapTarget[i].Init
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_DSV],
+				m_pPool[POOL_TYPE_RES], // シャドウマップなのでSRVも作る
+				SPOT_LIGHT_SHADOW_MAP_SIZE,
+				SPOT_LIGHT_SHADOW_MAP_SIZE,
+				DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
+				1.0f,
+				0
+			))
+			{
+				ELOG("Error : DepthTarget::Init() Failed.");
+				return false;
+			}
+		}
+
+		{
+			m_SpotLightShadowMapViewport.TopLeftX = 0;
+			m_SpotLightShadowMapViewport.TopLeftY = 0;
+			m_SpotLightShadowMapViewport.Width = static_cast<float>(m_SpotLightShadowMapTarget[0].GetDesc().Width);
+			m_SpotLightShadowMapViewport.Height = static_cast<float>(m_SpotLightShadowMapTarget[0].GetDesc().Height);
+			m_SpotLightShadowMapViewport.MinDepth = 0.0f;
+			m_SpotLightShadowMapViewport.MaxDepth = 1.0f;
+		}
+
+		// TODO:ModelViewerだと内部で以下の処理がある
+		//// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
+		//m_Scissor.left = 1;
+		//m_Scissor.top = 1;
+		//m_Scissor.right = (LONG)Width - 2;
+		//m_Scissor.bottom = (LONG)Height - 2;
+		{
+			m_SpotLightShadowMapScissor.left = 0;
+			m_SpotLightShadowMapScissor.right = (LONG)m_SpotLightShadowMapTarget[0].GetDesc().Width;
+			m_SpotLightShadowMapScissor.top = 0;
+			m_SpotLightShadowMapScissor.bottom = (LONG)m_SpotLightShadowMapTarget[0].GetDesc().Height;
+		}
+	}
+
 	// シーン用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.2f, 0.2f, 0.2f, 1.0f};
@@ -799,6 +843,12 @@ void SampleApp::OnTerm()
 	m_Material.Term();
 
 	m_DirLightShadowMapTarget.Term();
+
+	for (uint32_t i = 0; i < NUM_SPOT_LIGHTS; i++)
+	{
+		m_SpotLightShadowMapTarget[i].Term();
+	}
+
 	m_SceneColorTarget.Term();
 	m_SceneDepthTarget.Term();
 

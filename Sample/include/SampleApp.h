@@ -32,6 +32,7 @@ private:
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
 	DepthTarget m_DirLightShadowMapTarget;
+	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SceneColorTarget;
 	DepthTarget m_SceneDepthTarget;
 	VertexBuffer m_QuadVB;
@@ -41,6 +42,7 @@ private:
 	ConstantBuffer m_SpotLightCB[NUM_SPOT_LIGHTS];
 	ConstantBuffer m_CameraCB[FrameCount];
 	ConstantBuffer m_DirLightShadowMapTransformCB[FrameCount];
+	ConstantBuffer m_SpotLightShadowMapTransformCB[FrameCount];
 	ConstantBuffer m_TransformCB[FrameCount];
 	ConstantBuffer m_MeshCB;
 	std::vector<class Mesh*> m_pMesh;
@@ -55,6 +57,8 @@ private:
 	int m_PrevCursorY;
 	D3D12_VIEWPORT m_DirLightShadowMapViewport;
 	D3D12_RECT m_DirLightShadowMapScissor;
+	D3D12_VIEWPORT m_SpotLightShadowMapViewport;
+	D3D12_RECT m_SpotLightShadowMapScissor;
 
 	virtual bool OnInit() override;
 	virtual void OnTerm() override;
