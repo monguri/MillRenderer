@@ -836,6 +836,39 @@ bool SampleApp::OnInit()
 		ptr->World = Matrix::Identity;
 	}
 
+	{
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
+		ID3D12DescriptorHeap* const pHeaps[] = {
+			m_pPool[POOL_TYPE_RES]->GetHeap()
+		};
+
+		pCmd->SetDescriptorHeaps(1, pHeaps);
+		
+		pCmd->RSSetViewports(1, &m_SpotLightShadowMapViewport);
+		pCmd->RSSetScissorRects(1, &m_SpotLightShadowMapScissor);
+
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+			const DescriptorHandle* handleDSV = m_SpotLightShadowMapTarget[i].GetHandleDSV();
+
+			pCmd->OMSetRenderTargets(0, nullptr, FALSE, &handleDSV->HandleCPU);
+
+			m_SpotLightShadowMapTarget[i].ClearView(pCmd);
+
+			// TODO:PSOがOpaqueとMaskで切り替わっているのでライトごとでなくまとめるべきかも
+			DrawSpotLightShadowMap(pCmd, i);
+
+			DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+	}
 	return true;
 }
 
@@ -995,7 +1028,24 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Opaqueマテリアルのメッシュの描画
+	pCmdList->SetPipelineState(m_pSceneDepthOpaquePSO.Get());
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+
+	// Mask, DoubleSidedマテリアルのメッシュの描画
+	pCmdList->SetPipelineState(m_pSceneDepthMaskPSO.Get());
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+}
+
+void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx)
+{
+	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
+
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Opaqueマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSceneDepthOpaquePSO.Get());
@@ -1063,8 +1113,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		pCmdList->SetGraphicsRootDescriptorTable(9 + i, m_SpotLightCB[i].GetHandleGPU());
 	}
 
-	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Opaqueマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
