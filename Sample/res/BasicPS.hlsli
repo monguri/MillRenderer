@@ -88,6 +88,7 @@ cbuffer CbSpotLight1 : register(b7)
 	float SpotLight1AngleScale : packoffset(c2.w);
 	float SpotLight1AngleOffset : packoffset(c3);
 	int SpotLight1Type : packoffset(c3.y);
+	float SpotLight1ShadowTexelSize : packoffset(c3.z);
 };
 
 cbuffer CbSpotLight2 : register(b8)
@@ -100,6 +101,7 @@ cbuffer CbSpotLight2 : register(b8)
 	float SpotLight2AngleScale : packoffset(c2.w);
 	float SpotLight2AngleOffset : packoffset(c3);
 	int SpotLight2Type : packoffset(c3.y);
+	float SpotLight2ShadowTexelSize : packoffset(c3.z);
 };
 
 cbuffer CbSpotLight3 : register(b9)
@@ -112,6 +114,7 @@ cbuffer CbSpotLight3 : register(b9)
 	float SpotLight3AngleScale : packoffset(c2.w);
 	float SpotLight3AngleOffset : packoffset(c3);
 	int SpotLight3Type : packoffset(c3.y);
+	float SpotLight3ShadowTexelSize : packoffset(c3.z);
 };
 
 Texture2D BaseColorMap : register(t0);

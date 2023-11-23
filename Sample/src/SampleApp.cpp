@@ -55,7 +55,7 @@ namespace
 		Vector3 LightColor;
 		float LightIntensity;
 		Vector3 LightForward;
-		float ShadowTexelSize;
+		float ShadowMapTexelSize;
 	};
 
 	struct alignas(256) CbPointLight
@@ -76,7 +76,8 @@ namespace
 		float LightAngleScale;
 		float LightAngleOffset;
 		int LightType;
-		float Padding[2];
+		float ShadowMapTexelSize;
+		float Padding[1];
 	};
 
 	struct alignas(256) CbCamera
@@ -116,7 +117,8 @@ namespace
 		const Vector3& color,
 		float intensity,
 		float innerAngle,
-		float outerAngle
+		float outerAngle,
+		uint32_t shadowMapSize
 	)
 	{
 		float cosInnerAngle = cosf(innerAngle);
@@ -133,6 +135,7 @@ namespace
 		// 0除算が発生しないよう、cosInnerとcosOuterの差は下限を0.001に設定しておく
 		result.LightAngleScale = 1.0f / DirectX::XMMax(0.001f, (cosInnerAngle - cosOuterAngle));
 		result.LightAngleOffset = -cosOuterAngle * result.LightAngleScale;
+		result.ShadowMapTexelSize = 1.0f / shadowMapSize;
 		result.LightType = lightType;
 		return result;
 	}
@@ -307,21 +310,21 @@ bool SampleApp::OnInit()
 
 		CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 		// 少し赤っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(6.0f, 10.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 20.0f, Vector3(1.0f, 0.5f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
+		*ptr = ComputeSpotLight(0, Vector3(6.0f, 10.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 20.0f, Vector3(1.0f, 0.5f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
 		CbTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>();
 		tptr->ViewProj = ComputeSpotLightViewProj(Vector3(6.0f, 10.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 20.0f, DirectX::XMConvertToRadians(10.0f));
 
 		ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
 		// 少し緑っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 10.0f, -2.0f), Vector3(0.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 1.0f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 10.0f, -2.0f), Vector3(0.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 1.0f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
 		tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>();
 		tptr->ViewProj = ComputeSpotLightViewProj(Vector3(0.0f, 10.0f, -2.0f), Vector3(0.0f, 10.0f, 0.0f), 20.0f, DirectX::XMConvertToRadians(10.0f));
 
 		ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
 		// 少し青っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(-6.0f, 10.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 0.5f, 1.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
+		*ptr = ComputeSpotLight(0, Vector3(-6.0f, 10.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 0.5f, 1.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
 		tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>();
 		tptr->ViewProj = ComputeSpotLightViewProj(Vector3(-6.0f, 10.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 20.0f, DirectX::XMConvertToRadians(10.0f));
@@ -1098,7 +1101,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f); // 白色光
 		ptr->LightForward = lightForward;
 		ptr->LightIntensity = 5.0f;
-		ptr->ShadowTexelSize = 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE;
+		ptr->ShadowMapTexelSize = 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE;
 	}
 
 	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
