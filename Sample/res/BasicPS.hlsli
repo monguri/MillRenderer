@@ -295,18 +295,6 @@ float GetShadowMultiplier(Texture2D ShadowMap, float ShadowMapTexelSize, float3 
 	return result;
 }
 
-float3 EvaluateDirectionalLight
-(
-	float3 shadowCoord,
-	float3 lightColor
-)
-{
-	float shadowMult = GetShadowMultiplier(DirLightShadowMap, DirLightShadowTexelSize, shadowCoord);
-	//// TODO: temporary indirect lighting
-	//shadowMult = shadowMult * 0.5f + 0.5f;
-	return lightColor * shadowMult;
-}
-
 PSOutput main(VSOutput input)
 {
 	PSOutput output = (PSOutput)0;
@@ -344,8 +332,11 @@ PSOutput main(VSOutput input)
 	float dirLightNH = saturate(dot(N, dirLightH));
 	float dirLightNL = saturate(dot(N, dirLightL));
 	float3 dirLightSpecular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, dirLightNH, NV, dirLightNL);
-	float3 dirLightTerm = EvaluateDirectionalLight(input.DirLightShadowCoord, DirLightColor) * DirLightIntensity;
-	float3 dirLightColor= (diffuse * dirLightNL + dirLightSpecular) * dirLightTerm;
+	float3 dirLightTerm = DirLightColor * DirLightIntensity;
+	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, DirLightShadowTexelSize, input.DirLightShadowCoord);
+	//// TODO: temporary indirect lighting
+	//dirLightShadowMult = dirLightShadowMult * 0.5f + 0.5f;
+	float3 dirLightColor = (diffuse * dirLightNL + dirLightSpecular) * dirLightTerm * dirLightShadowMult;
 
 	// 4 point light
 	float3 pointLight1L = normalize(PointLight1Position - input.WorldPos);
