@@ -282,15 +282,15 @@ bool SampleApp::OnInit()
 
 		CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 100.0f, Vector3(1.0f, 0.0f, 0.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
 
 		ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 10.0f, 0.0f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 10.0f, 0.0f), 100.0f, Vector3(1.0f, 0.0f, 0.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
 
 		ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 10.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
+		*ptr = ComputeSpotLight(0, Vector3(0.0f, 1.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 100.0f, Vector3(1.0f, 0.0f, 0.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(20.0f));
 	}
 
 	// カメラバッファの設定
@@ -388,7 +388,7 @@ bool SampleApp::OnInit()
     // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
 	{
 		RootSignature::Desc desc;
-		desc.Begin(13)
+		desc.Begin(16)
 			.SetCBV(ShaderStage::VS, 0, 0)
 			.SetCBV(ShaderStage::VS, 1, 1)
 			.SetCBV(ShaderStage::PS, 2, 0)
@@ -398,11 +398,14 @@ bool SampleApp::OnInit()
 			.SetCBV(ShaderStage::PS, 6, 4)
 			.SetCBV(ShaderStage::PS, 7, 5)
 			.SetCBV(ShaderStage::PS, 8, 6)
+			.SetCBV(ShaderStage::PS, 9, 7)
+			.SetCBV(ShaderStage::PS, 10, 8)
+			.SetCBV(ShaderStage::PS, 11, 9)
 
-			.SetSRV(ShaderStage::PS, 9, 0)
-			.SetSRV(ShaderStage::PS, 10, 1)
-			.SetSRV(ShaderStage::PS, 11, 2)
-			.SetSRV(ShaderStage::PS, 12, 3)
+			.SetSRV(ShaderStage::PS, 12, 0)
+			.SetSRV(ShaderStage::PS, 13, 1)
+			.SetSRV(ShaderStage::PS, 14, 2)
+			.SetSRV(ShaderStage::PS, 15, 3)
 
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
@@ -971,6 +974,11 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		pCmdList->SetGraphicsRootDescriptorTable(5 + i, m_PointLightCB[i].GetHandleGPU());
 	}
 
+	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(9 + i, m_SpotLightCB[i].GetHandleGPU());
+	}
+
 	//TODO:DrawShadowMapと重複してるがとりあえず
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 本のサンプルでは漏れている
 
@@ -1000,10 +1008,10 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 		}
 
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_Material.GetBufferHandle(materialId));
-		pCmdList->SetGraphicsRootDescriptorTable(9, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
-		pCmdList->SetGraphicsRootDescriptorTable(10, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-		pCmdList->SetGraphicsRootDescriptorTable(11, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
-		pCmdList->SetGraphicsRootDescriptorTable(12, m_ShadowMapTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(12, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
+		pCmdList->SetGraphicsRootDescriptorTable(13, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+		pCmdList->SetGraphicsRootDescriptorTable(14, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
+		pCmdList->SetGraphicsRootDescriptorTable(15, m_ShadowMapTarget.GetHandleSRV()->HandleGPU);
 
 		m_pMesh[i]->Draw(pCmdList);
 	}
