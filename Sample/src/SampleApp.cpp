@@ -45,6 +45,11 @@ namespace
 	{
 		Matrix ViewProj;
 		Matrix ModelToDirLightShadowMap;
+#if 0 //TODO:シャドウマップ利用パスで追加する
+		Matrix ModelToSpotLight1ShadowMap;
+		Matrix ModelToSpotLight2ShadowMap;
+		Matrix ModelToSpotLight3ShadowMap;
+#endif
 	};
 
 	struct alignas(256) CbDirectionalLight
@@ -132,6 +137,19 @@ namespace
 		result.LightAngleOffset = -cosOuterAngle * result.LightAngleScale;
 		result.LightType = lightType;
 		return result;
+	}
+
+	Matrix ComputeSpotLightViewProj
+	(
+		const Vector3& dir,
+		const Vector3& pos,
+		float radius,
+		float outerAngle
+	)
+	{
+		const Matrix& spotLightShadowView = Matrix::CreateLookAt(pos, pos + dir, Vector3::UnitY);
+		const Matrix& spotLightShadowProj = Matrix::CreatePerspectiveFieldOfView(outerAngle * 2.0f, 1.0f, radius * 0.05f, radius * 1.0f); // パラメータはModelViewerを参考にした
+		return spotLightShadowView * spotLightShadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 }
 
@@ -278,21 +296,34 @@ bool SampleApp::OnInit()
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
-		}
 
-		// スポットライトは動かさないので毎フレームの更新はしない
+			if (!m_SpotLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+		}
 
 		CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 		// 少し赤っぽい光
 		*ptr = ComputeSpotLight(0, Vector3(6.0f, 10.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 20.0f, Vector3(1.0f, 0.5f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
 
+		CbTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>();
+		tptr->ViewProj = ComputeSpotLightViewProj(Vector3(6.0f, 10.0f, 0.0f), Vector3(-5.0f, 10.0f, 0.0f), 20.0f, DirectX::XMConvertToRadians(10.0f));
+
 		ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
 		// 少し緑っぽい光
 		*ptr = ComputeSpotLight(0, Vector3(0.0f, 10.0f, -2.0f), Vector3(0.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 1.0f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
 
+		tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>();
+		tptr->ViewProj = ComputeSpotLightViewProj(Vector3(0.0f, 10.0f, -2.0f), Vector3(0.0f, 10.0f, 0.0f), 20.0f, DirectX::XMConvertToRadians(10.0f));
+
 		ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
 		// 少し青っぽい光
 		*ptr = ComputeSpotLight(0, Vector3(-6.0f, 10.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 20.0f, Vector3(0.5f, 0.5f, 1.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f));
+
+		tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>();
+		tptr->ViewProj = ComputeSpotLightViewProj(Vector3(-6.0f, 10.0f, 0.0f), Vector3(5.0f, 10.0f, 0.0f), 20.0f, DirectX::XMConvertToRadians(10.0f));
 	}
 
 	// カメラバッファの設定
@@ -350,7 +381,7 @@ bool SampleApp::OnInit()
 
 	// スポットライト用デプスターゲットの生成
 	{
-		for (uint32_t i = 0; i < NUM_SPOT_LIGHTS; i++)
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
 			if (!m_SpotLightShadowMapTarget[i].Init
 			(
@@ -751,12 +782,12 @@ bool SampleApp::OnInit()
 		float widthHeight = 40.0f;
 
 		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
-		Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 10.0f, 1.0f), matrix);
-		lightForward.Normalize();
+		Vector3 dirLightForward = Vector3::TransformNormal(Vector3(1.0f, 10.0f, 1.0f), matrix);
+		dirLightForward.Normalize();
 
-		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
-		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
-		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		const Matrix& dirLightShadowView = Matrix::CreateLookAt(Vector3::Zero + dirLightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& dirLightShadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+		const Matrix& dirLightShadowViewProj = dirLightShadowView * dirLightShadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
 		for (uint32_t i = 0u; i < FrameCount; i++)
 		{
@@ -767,7 +798,7 @@ bool SampleApp::OnInit()
 			}
 
 			CbTransform* ptr = m_DirLightShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
-			ptr->ViewProj = shadowViewProj;
+			ptr->ViewProj = dirLightShadowViewProj;
 		}
 
 		for (uint32_t i = 0u; i < FrameCount; i++)
@@ -789,7 +820,7 @@ bool SampleApp::OnInit()
 			// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
 			const Matrix& toDirLightShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
 			// World行列はMatrix::Identityとする
-			ptr->ModelToDirLightShadowMap = shadowViewProj * toDirLightShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->ModelToDirLightShadowMap = dirLightShadowViewProj * toDirLightShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		}
 	}
 
@@ -829,6 +860,7 @@ void SampleApp::OnTerm()
 	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 	{
 		m_SpotLightCB[i].Term();
+		m_SpotLightShadowMapTransformCB[i].Term();
 	}
 
 	m_MeshCB.Term();
@@ -844,7 +876,7 @@ void SampleApp::OnTerm()
 
 	m_DirLightShadowMapTarget.Term();
 
-	for (uint32_t i = 0; i < NUM_SPOT_LIGHTS; i++)
+	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 	{
 		m_SpotLightShadowMapTarget[i].Term();
 	}
