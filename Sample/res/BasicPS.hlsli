@@ -13,7 +13,7 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
-	float3 ShadowCoord : TEXCOORD2;
+	float3 DirLightShadowCoord : TEXCOORD2;
 };
 
 struct PSOutput
@@ -120,7 +120,7 @@ SamplerState MetallicRoughnessSmp : register(s1);
 Texture2D NormalMap : register(t2);
 SamplerState NormalSmp : register(s2);
 
-Texture2D ShadowMap : register(t3);
+Texture2D DirLightShadowMap : register(t3);
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 SamplerComparisonState ShadowSmp : register(s3);
 #else
@@ -246,26 +246,26 @@ float GetDirectionalShadowMultiplier(float3 shadowCoord)
 {
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 	#ifdef SINGLE_SAMPLE_SHADOW_MAP
-	float result = ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z);
+	float result = DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z);
 	#else // SINGLE_SAMPLE_SHADOW_MAP
 	const float Dilation = 2.0f;
 	float d1 = Dilation * DirLightShadowTexelSize * 0.125f;
 	float d2 = Dilation * DirLightShadowTexelSize * 0.875f;
 	float d3 = Dilation * DirLightShadowTexelSize * 0.625;
 	float d4 = Dilation * DirLightShadowTexelSize * 0.375;
-	float result = (2.0f * ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z)
-		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d2, d1), shadowCoord.z)
-		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d1, d2), shadowCoord.z)
-		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d2, d1), shadowCoord.z)
-		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d1, d2), shadowCoord.z)
-		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d4, d3), shadowCoord.z)
-		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d3, d4), shadowCoord.z)
-		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d4, d3), shadowCoord.z)
-		+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d3, d4), shadowCoord.z)) / 10.0f;
+	float result = (2.0f * DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z)
+		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d2, d1), shadowCoord.z)
+		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d1, d2), shadowCoord.z)
+		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d2, d1), shadowCoord.z)
+		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d1, d2), shadowCoord.z)
+		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d4, d3), shadowCoord.z)
+		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d3, d4), shadowCoord.z)
+		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d4, d3), shadowCoord.z)
+		+ DirLightShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d3, d4), shadowCoord.z)) / 10.0f;
 	#endif // SINGLE_SAMPLE_SHADOW_MAP
 #else // USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 	#ifdef SINGLE_SAMPLE_SHADOW_MAP
-	float shadowVal = ShadowMap.Sample(ShadowSmp, shadowCoord.xy).x;
+	float shadowVal = DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy).x;
 	float result = 1.0f;
 	if (shadowCoord.z > shadowVal)
 	{
@@ -277,15 +277,15 @@ float GetDirectionalShadowMultiplier(float3 shadowCoord)
 	float d2 = Dilation * DirLightShadowTexelSize * 0.875f;
 	float d3 = Dilation * DirLightShadowTexelSize * 0.625;
 	float d4 = Dilation * DirLightShadowTexelSize * 0.375;
-	float result = (2.0f * ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d2, d1)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d1, d2)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d2, d1)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d1, d2)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d4, d3)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d3, d4)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d4, d3)).x) ? 0.0f : 1.0f)
-		+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d3, d4)).x) ? 0.0f : 1.0f)) / 10.0f;
+	float result = (2.0f * ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d2, d1)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d1, d2)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d2, d1)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d1, d2)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d4, d3)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d3, d4)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d4, d3)).x) ? 0.0f : 1.0f)
+		+ ((shadowCoord.z > DirLightShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d3, d4)).x) ? 0.0f : 1.0f)) / 10.0f;
 	#endif // SINGLE_SAMPLE_SHADOW_MAP
 #endif // USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
@@ -341,7 +341,7 @@ PSOutput main(VSOutput input)
 	float dirLightNH = saturate(dot(N, dirLightH));
 	float dirLightNL = saturate(dot(N, dirLightL));
 	float3 dirLightSpecular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, dirLightNH, NV, dirLightNL);
-	float3 dirLightTerm = EvaluateDirectionalLight(input.ShadowCoord, DirLightColor) * DirLightIntensity;
+	float3 dirLightTerm = EvaluateDirectionalLight(input.DirLightShadowCoord, DirLightColor) * DirLightIntensity;
 	float3 dirLightColor= (diffuse * dirLightNL + dirLightSpecular) * dirLightTerm;
 
 	// 4 point light

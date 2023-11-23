@@ -19,7 +19,8 @@ public:
 	virtual ~SampleApp();
 
 private:
-	static const uint32_t SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
+	static const uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
+	static const uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 	static const uint32_t NUM_POINT_LIGHTS = 4;
 	static const uint32_t NUM_SPOT_LIGHTS = 3;
 
@@ -30,7 +31,7 @@ private:
 	RootSignature m_SceneRootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
-	DepthTarget m_ShadowMapTarget;
+	DepthTarget m_DirLightShadowMapTarget;
 	ColorTarget m_SceneColorTarget;
 	DepthTarget m_SceneDepthTarget;
 	VertexBuffer m_QuadVB;
@@ -39,7 +40,7 @@ private:
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
 	ConstantBuffer m_SpotLightCB[NUM_SPOT_LIGHTS];
 	ConstantBuffer m_CameraCB[FrameCount];
-	ConstantBuffer m_ShadowMapTransformCB[FrameCount];
+	ConstantBuffer m_DirLightShadowMapTransformCB[FrameCount];
 	ConstantBuffer m_TransformCB[FrameCount];
 	ConstantBuffer m_MeshCB;
 	std::vector<class Mesh*> m_pMesh;
@@ -52,8 +53,8 @@ private:
 	Camera m_Camera;
 	int m_PrevCursorX;
 	int m_PrevCursorY;
-	D3D12_VIEWPORT m_ShadowMapViewport;
-	D3D12_RECT m_ShadowMapScissor;
+	D3D12_VIEWPORT m_DirLightShadowMapViewport;
+	D3D12_RECT m_DirLightShadowMapScissor;
 
 	virtual bool OnInit() override;
 	virtual void OnTerm() override;
@@ -61,7 +62,7 @@ private:
 	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 	void ChangeDisplayMode(bool hdr);
 	void DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
-	void DrawShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
+	void DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
 };
