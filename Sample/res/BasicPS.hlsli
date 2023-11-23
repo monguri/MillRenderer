@@ -14,6 +14,9 @@ struct VSOutput
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
 	float3 DirLightShadowCoord : TEXCOORD2;
+	float3 SpotLight1ShadowCoord : TEXCOORD3;
+	float3 SpotLight2ShadowCoord : TEXCOORD4;
+	float3 SpotLight3ShadowCoord : TEXCOORD5;
 };
 
 struct PSOutput

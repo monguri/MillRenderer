@@ -45,11 +45,9 @@ namespace
 	{
 		Matrix ViewProj;
 		Matrix ModelToDirLightShadowMap;
-#if 0 //TODO:シャドウマップ利用パスで追加する
 		Matrix ModelToSpotLight1ShadowMap;
 		Matrix ModelToSpotLight2ShadowMap;
 		Matrix ModelToSpotLight3ShadowMap;
-#endif
 	};
 
 	struct alignas(256) CbDirectionalLight
@@ -824,6 +822,9 @@ bool SampleApp::OnInit()
 			const Matrix& toDirLightShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
 			// World行列はMatrix::Identityとする
 			ptr->ModelToDirLightShadowMap = dirLightShadowViewProj * toDirLightShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->ModelToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toDirLightShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->ModelToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toDirLightShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->ModelToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toDirLightShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		}
 	}
 

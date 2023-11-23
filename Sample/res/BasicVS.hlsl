@@ -13,12 +13,18 @@ struct VSOutput
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
 	float3 DirLightShadowCoord : TEXCOORD2;
+	float3 SpotLight1ShadowCoord : TEXCOORD3;
+	float3 SpotLight2ShadowCoord : TEXCOORD4;
+	float3 SpotLight3ShadowCoord : TEXCOORD5;
 };
 
 cbuffer CbTransform : register(b0)
 {
 	float4x4 ViewProj : packoffset(c0);
 	float4x4 ModelToDirLightShadowMap : packoffset(c4);
+	float4x4 ModelToSpotLight1ShadowMap : packoffset(c8);
+	float4x4 ModelToSpotLight2ShadowMap : packoffset(c12);
+	float4x4 ModelToSpotLight3ShadowMap : packoffset(c16);
 }
 
 cbuffer CbMesh : register(b1)
@@ -33,12 +39,22 @@ VSOutput main(VSInput input)
 	float4 localPos = float4(input.Position, 1.0f);
 	float4 worldPos = mul(World, localPos);
 	float4 projPos = mul(ViewProj, worldPos);
-	float4 shadowPos = mul(ModelToDirLightShadowMap, localPos);
 
 	output.Position = projPos;
 	output.TexCoord = input.TexCoord;
 	output.WorldPos = worldPos.xyz;
-	output.DirLightShadowCoord = shadowPos.xyz;
+
+	float4 dirLightShadowPos = mul(ModelToDirLightShadowMap, localPos);
+	output.DirLightShadowCoord = dirLightShadowPos.xyz;
+
+	float4 spotLight1ShadowPos = mul(ModelToSpotLight1ShadowMap, localPos);
+	output.SpotLight1ShadowCoord = spotLight1ShadowPos.xyz;
+
+	float4 spotLight2ShadowPos = mul(ModelToSpotLight2ShadowMap, localPos);
+	output.SpotLight2ShadowCoord = spotLight2ShadowPos.xyz;
+
+	float4 spotLight3ShadowPos = mul(ModelToSpotLight3ShadowMap, localPos);
+	output.SpotLight3ShadowCoord = spotLight3ShadowPos.xyz;
 
 	float3 N = normalize(mul((float3x3)World, input.Normal));
 	float3 T = normalize(mul((float3x3)World, input.Tangent));
