@@ -41,7 +41,7 @@ VSOutput main(VSInput input)
 	float4 projPos = mul(ViewProj, worldPos);
 
 	output.Position = projPos;
-	output.TexCoord = input.TexCoord;
+	output.TexCoord = 1.0f - input.TexCoord;
 	output.WorldPos = worldPos.xyz;
 
 	float4 dirLightShadowPos = mul(ModelToDirLightShadowMap, localPos);
