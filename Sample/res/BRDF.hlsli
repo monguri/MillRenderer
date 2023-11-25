@@ -5,78 +5,60 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
-float3 SchlickFresnel(float3 specular, float NL)
+//
+// Implementation is based on glTF2.0 BRDF sample implementation.
+// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
+//
+float3 SchlickFresnel(float3 f0, float VH)
 {
-	return specular + (1.0f - specular) * pow((1.0f - NL), 5.0f);
+	return f0 + (1.0f - f0) * pow((1.0f - VH), 5.0f);
 }
 
-float D_GGX(float a, float NH)
+float D_GGX(float NH, float alpha)
 {
-	float a4 = a * a * a * a;
-	float f = (NH * a4 - NH) * NH + 1;
-	return a4 / max(1e-6f, (F_PI * f * f));
+    float a = NH * alpha;
+    float k = alpha / (1.0f - NH * NH + a * a);
+    return k * k * (1.0f / F_PI);
 }
 
-float G2_Smith(float NL, float NV, float a)
+float V_SmithGGXCorrelated(float NL, float NV, float alpha)
 {
-	float a2 = a * a;
-	float NL2 = NL * NL;
-	float NV2 = NV * NV;
-
-	float Lambda_V = (-1.0f + sqrt(a2 * (1.0f - NV2) / max(NV2, 1e-8f) + 1.0f)) * 0.5f;
-	float Lambda_L = (-1.0f + sqrt(a2 * (1.0f - NL2) / max(NL2, 1e-8f) + 1.0f)) * 0.5f;
-
-	return 1.0f / max(1.0f + Lambda_V + Lambda_L, 1e-8f);
+	float a2 = alpha * alpha;
+    float GGXV = NL * sqrt(NV * NV * (1.0f - a2) + a2);
+    float GGXL = NV * sqrt(NL * NL * (1.0f - a2) + a2);
+    return 0.5f / (GGXV + GGXL);
 }
 
-float3 ComputeLambert(float3 Kd)
+float3 ComputeF0(float3 baseColor, float metallic)
 {
-	return Kd / F_PI;
+	return lerp(0.04f, baseColor, metallic);
 }
 
-float3 ComputePhong
+float3 ComputeBRDF
 (
-	float3 Ks,
-	float3 shininess,
-	float3 LdotR
-)
-{
-	return Ks * ((shininess + 2.0f) / (2.0f * F_PI)) * pow(LdotR, shininess);
-}
-
-float3 ComputeGGX_MultiplyNdotL
-(
-	float3 Ks,
+	float3 baseColor,
+	float metallic,
 	float roughness,
+	float VdotH,
 	float NdotH,
 	float NdotV,
 	float NdotL
 )
 {
-	float a = roughness * roughness;
-	float D = D_GGX(a, NdotH);
-	float G = G2_Smith(NdotL, NdotV, a);
-	float3 F = SchlickFresnel(Ks, NdotL);
+	float3 cDiff = lerp(baseColor, 0.0f, metallic);
+	float3 f0 = ComputeF0(baseColor, metallic);
 
-	return (D * G * F) / (4.0f * NdotV); // NdotL becomes 0, so pre-multiply NdotL before the lighting term.
-}
+	// use lambert for diffuse
+	float3 diffuseTerm = cDiff * (1.0f / F_PI);
 
-float3 ComputeGGXSpecular_MultiplyNdotL
-(
-	float3 Ks,
-	float roughness,
-	float NdotH,
-	float NdotV,
-	float NdotL
-)
-{
-	float3 specularMultNL = 0.0f;
-	if (NdotV > 0.0f) // surface is perpendicular to camera vector. do as no specular.
-	{
-		specularMultNL = ComputeGGX_MultiplyNdotL(Ks, roughness, NdotH, NdotV, NdotL);
-	}
+	float alpha = roughness * roughness;
+	float D = D_GGX(alpha, NdotH);
+	float V = V_SmithGGXCorrelated(NdotL, NdotV, alpha);
+	float3 specularTerm = D * V;
 
-	return specularMultNL;
+	float3 F = SchlickFresnel(f0, VdotH);
+
+	return NdotL * lerp(diffuseTerm, specularTerm, F);
 }
 
 #endif // BRDF_HLSLI

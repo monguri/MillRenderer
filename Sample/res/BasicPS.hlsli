@@ -175,6 +175,40 @@ float3 EvaluatePointLight
 	return lightColor * att / (4.0f * F_PI);
 }
 
+float3 EvaluatePointLightReflection
+(
+	float3 baseColor,
+	float metallic,
+	float roughness,
+	float3 N,
+	float3 V,
+	float3 worldPos,
+	float3 lightPos,
+	float invRadiusSq,
+	float3 color,
+	float intensity
+)
+{
+	float3 L = normalize(lightPos - worldPos);
+	float3 H = normalize(V + L);
+	float VH = saturate(dot(V, H));
+	float NH = saturate(dot(N, H));
+	float NV = saturate(dot(N, V));
+	float NL = saturate(dot(N, L));
+	float3 brdf = ComputeBRDF
+	(
+		baseColor,
+		metallic,
+		roughness,
+		VH,
+		NH,
+		NV,
+		NL 
+	);
+	float3 light = EvaluatePointLight(N, worldPos, lightPos, invRadiusSq, color) * intensity;
+	return brdf * light;
+}
+
 float GetAngleAttenuation
 (
 	float3 normalizedLightVector,
@@ -302,6 +336,49 @@ float GetShadowMultiplier(Texture2D ShadowMap, float ShadowMapTexelSize, float3 
 	return result;
 }
 
+float3 EvaluateSpotLightReflection
+(
+	float3 baseColor,
+	float metallic,
+	float roughness,
+	float3 N,
+	float3 V,
+	float3 worldPos,
+	float3 lightPos,
+	float invSqrRadius,
+	float3 forward,
+	float3 color,
+	float angleScale,
+	float angleOffset,
+	float intensity,
+	Texture2D shadowMap,
+	float shadowTexelSize,
+	float3 shadowCoord
+)
+{
+	float3 L = normalize(lightPos - worldPos);
+	float3 H = normalize(V + L);
+	float VH = saturate(dot(V, H));
+	float NH = saturate(dot(N, H));
+	float NV = saturate(dot(N, V));
+	float NL = saturate(dot(N, L));
+	float3 brdf = ComputeBRDF
+	(
+		baseColor,
+		metallic,
+		roughness,
+		VH,
+		NH,
+		NV,
+		NL 
+	);
+
+	//TODO: not branching by type
+	float3 light = EvaluateSpotLight(N, worldPos, lightPos, invSqrRadius, forward, color, angleScale, angleOffset) * intensity;
+	float shadow = GetShadowMultiplier(shadowMap, shadowTexelSize, shadowCoord);
+	return brdf * light * shadow;
+}
+
 PSOutput main(VSOutput input)
 {
 	PSOutput output = (PSOutput)0;
@@ -322,11 +399,6 @@ PSOutput main(VSOutput input)
 	float metallic = metallicRoughness.x * MetallicFactor;
 	float roughness = metallicRoughness.y * RoughnessFactor;
 
-	float3 Kd = baseColor.rgb * (1.0f - metallic);
-	float3 Ks = baseColor.rgb * metallic;
-
-	float3 diffuse = ComputeLambert(Kd);
-
 	float3 N = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 	N = mul(input.InvTangentBasis, N);
 	N = normalize(N);
@@ -336,80 +408,149 @@ PSOutput main(VSOutput input)
 	// directional light
 	float3 dirLightL = normalize(-DirLightForward);
 	float3 dirLightH = normalize(V + dirLightL);
+	float dirLightVH = saturate(dot(V, dirLightH));
 	float dirLightNH = saturate(dot(N, dirLightH));
 	float dirLightNL = saturate(dot(N, dirLightL));
-	float3 dirLightSpecular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, dirLightNH, NV, dirLightNL);
-	float3 dirLightTerm = DirLightColor * DirLightIntensity;
+	float3 dirLightBRDF = ComputeBRDF
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		dirLightVH,
+		dirLightNH,
+		NV,
+		dirLightNL 
+	);
 	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, DirLightShadowTexelSize, input.DirLightShadowCoord);
-	//// TODO: temporary indirect lighting
-	//dirLightShadowMult = dirLightShadowMult * 0.5f + 0.5f;
-	float3 dirLightColor = (diffuse * dirLightNL + dirLightSpecular) * dirLightTerm * dirLightShadowMult;
+	float3 dirLightReflection = dirLightBRDF * DirLightColor * DirLightIntensity * dirLightShadowMult;
 
 	// 4 point light
-	float3 pointLight1L = normalize(PointLight1Position - input.WorldPos);
-	float3 pointLight1H = normalize(V + pointLight1L);
-	float pointLight1NH = saturate(dot(N, pointLight1H));
-	float pointLight1NL = saturate(dot(N, pointLight1L));
-	float3 pointLight1Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight1NH, NV, pointLight1NL);
-	float3 pointLight1Term = EvaluatePointLight(N, input.WorldPos, PointLight1Position, PointLight1InvSqrRadius, PointLight1Color) * PointLight1Intensity;
-	float3 pointLight1Color = (diffuse * pointLight1NL + pointLight1Specular) * pointLight1Term;
+	float3 pointLight1Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		input.WorldPos,
+		PointLight1Position,
+		PointLight1InvSqrRadius,
+		PointLight1Color,
+		PointLight1Intensity
+	);
 
-	float3 pointLight2L = normalize(PointLight2Position - input.WorldPos);
-	float3 pointLight2H = normalize(V + pointLight2L);
-	float pointLight2NH = saturate(dot(N, pointLight2H));
-	float pointLight2NL = saturate(dot(N, pointLight2L));
-	float3 pointLight2Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight2NH, NV, pointLight2NL);
-	float3 pointLight2Term = EvaluatePointLight(N, input.WorldPos, PointLight2Position, PointLight2InvSqrRadius, PointLight2Color) * PointLight2Intensity;
-	float3 pointLight2Color = (diffuse * pointLight2NL + pointLight2Specular) * pointLight2Term;
+	float3 pointLight2Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		input.WorldPos,
+		PointLight2Position,
+		PointLight2InvSqrRadius,
+		PointLight2Color,
+		PointLight2Intensity
+	);
 
-	float3 pointLight3L = normalize(PointLight3Position - input.WorldPos);
-	float3 pointLight3H = normalize(V + pointLight3L);
-	float pointLight3NH = saturate(dot(N, pointLight3H));
-	float pointLight3NL = saturate(dot(N, pointLight3L));
-	float3 pointLight3Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight3NH, NV, pointLight3NL);
-	float3 pointLight3Term = EvaluatePointLight(N, input.WorldPos, PointLight3Position, PointLight3InvSqrRadius, PointLight3Color) * PointLight3Intensity;
-	float3 pointLight3Color = (diffuse * pointLight3NL + pointLight3Specular) * pointLight3Term;
+	float3 pointLight3Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		input.WorldPos,
+		PointLight3Position,
+		PointLight3InvSqrRadius,
+		PointLight3Color,
+		PointLight3Intensity
+	);
 
-	float3 pointLight4L = normalize(PointLight4Position - input.WorldPos);
-	float3 pointLight4H = normalize(V + pointLight4L);
-	float pointLight4NH = saturate(dot(N, pointLight4H));
-	float pointLight4NL = saturate(dot(N, pointLight4L));
-	float3 pointLight4Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, pointLight4NH, NV, pointLight4NL);
-	float3 pointLight4Term = EvaluatePointLight(N, input.WorldPos, PointLight4Position, PointLight4InvSqrRadius, PointLight4Color) * PointLight4Intensity;
-	float3 pointLight4Color = (diffuse * pointLight4NL + pointLight4Specular) * pointLight4Term;
+	float3 pointLight4Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		input.WorldPos,
+		PointLight4Position,
+		PointLight4InvSqrRadius,
+		PointLight4Color,
+		PointLight4Intensity
+	);
 
 	// 3 spot light
-	float3 spotLight1L = normalize(SpotLight1Position - input.WorldPos);
-	float3 spotLight1H = normalize(V + spotLight1L);
-	float spotLight1NH = saturate(dot(N, spotLight1H));
-	float spotLight1NL = saturate(dot(N, spotLight1L));
-	float3 spotLight1Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, spotLight1NH, NV, spotLight1NL);
-	//TODO: not branching by type
-	float3 spotLight1Term = EvaluateSpotLight(N, input.WorldPos, SpotLight1Position, SpotLight1InvSqrRadius, SpotLight1Forward, SpotLight1Color, SpotLight1AngleScale, SpotLight1AngleOffset) * SpotLight1Intensity;
-	float spotLight1ShadowMult = GetShadowMultiplier(SpotLight1ShadowMap, SpotLight1ShadowTexelSize, input.SpotLight1ShadowCoord);
-	float3 spotLight1Color = (diffuse * spotLight1NL + spotLight1Specular) * spotLight1Term * spotLight1ShadowMult;
+	float3 spotLight1Reflection = EvaluateSpotLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		input.WorldPos,
+		SpotLight1Position,
+		SpotLight1InvSqrRadius,
+		SpotLight1Forward,
+		SpotLight1Color,
+		SpotLight1AngleScale,
+		SpotLight1AngleOffset,
+		SpotLight1Intensity,
+		SpotLight1ShadowMap,
+		SpotLight1ShadowTexelSize,
+		input.SpotLight1ShadowCoord
+	);
 
-	float3 spotLight2L = normalize(SpotLight2Position - input.WorldPos);
-	float3 spotLight2H = normalize(V + spotLight2L);
-	float spotLight2NH = saturate(dot(N, spotLight2H));
-	float spotLight2NL = saturate(dot(N, spotLight2L));
-	float3 spotLight2Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, spotLight2NH, NV, spotLight2NL);
-	//TODO: not branching by type
-	float3 spotLight2Term = EvaluateSpotLight(N, input.WorldPos, SpotLight2Position, SpotLight2InvSqrRadius, SpotLight2Forward, SpotLight2Color, SpotLight2AngleScale, SpotLight2AngleOffset) * SpotLight2Intensity;
-	float spotLight2ShadowMult = GetShadowMultiplier(SpotLight2ShadowMap, SpotLight2ShadowTexelSize, input.SpotLight2ShadowCoord);
-	float3 spotLight2Color = (diffuse * spotLight2NL + spotLight2Specular) * spotLight2Term * spotLight2ShadowMult;
+	float3 spotLight2Reflection = EvaluateSpotLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		input.WorldPos,
+		SpotLight2Position,
+		SpotLight2InvSqrRadius,
+		SpotLight2Forward,
+		SpotLight2Color,
+		SpotLight2AngleScale,
+		SpotLight2AngleOffset,
+		SpotLight2Intensity,
+		SpotLight2ShadowMap,
+		SpotLight2ShadowTexelSize,
+		input.SpotLight2ShadowCoord
+	);
 
-	float3 spotLight3L = normalize(SpotLight3Position - input.WorldPos);
-	float3 spotLight3H = normalize(V + spotLight3L);
-	float spotLight3NH = saturate(dot(N, spotLight3H));
-	float spotLight3NL = saturate(dot(N, spotLight3L));
-	float3 spotLight3Specular = ComputeGGXSpecular_MultiplyNdotL(Ks, roughness, spotLight3NH, NV, spotLight3NL);
-	//TODO: not branching by type
-	float3 spotLight3Term = EvaluateSpotLight(N, input.WorldPos, SpotLight3Position, SpotLight3InvSqrRadius, SpotLight3Forward, SpotLight3Color, SpotLight3AngleScale, SpotLight3AngleOffset) * SpotLight3Intensity;
-	float spotLight3ShadowMult = GetShadowMultiplier(SpotLight3ShadowMap, SpotLight3ShadowTexelSize, input.SpotLight3ShadowCoord);
-	float3 spotLight3Color = (diffuse * spotLight3NL + spotLight3Specular) * spotLight3Term * spotLight3ShadowMult;
+	float3 spotLight3Reflection = EvaluateSpotLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		input.WorldPos,
+		SpotLight3Position,
+		SpotLight3InvSqrRadius,
+		SpotLight3Forward,
+		SpotLight3Color,
+		SpotLight3AngleScale,
+		SpotLight3AngleOffset,
+		SpotLight3Intensity,
+		SpotLight3ShadowMap,
+		SpotLight3ShadowTexelSize,
+		input.SpotLight3ShadowCoord
+	);
 
-	output.Color.rgb = dirLightColor + pointLight1Color + pointLight2Color + pointLight3Color + pointLight4Color + spotLight1Color + spotLight2Color + spotLight3Color;
+	output.Color.rgb =
+		dirLightReflection
+		+ pointLight1Reflection
+		+ pointLight2Reflection
+		+ pointLight3Reflection
+		+ pointLight4Reflection
+		+ spotLight1Reflection
+		+ spotLight2Reflection
+		+ spotLight3Reflection;
 	output.Color.a = 1.0f;
 	return output;
 }

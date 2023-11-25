@@ -28,12 +28,12 @@ float3 IntegrateDFG_Only(float NdotV, float roughness)
 			float NdotH = saturate(dot(N, H));
 			float VdotH = saturate(dot(V, H));
 
-			float G = G2_Smith(NdotL, NdotV, roughness);
-			float GVis = G * VdotH / max(NdotV * NdotH, 1e-8f);
+			float V = V_SmithGGXCorrelated(NdotL, NdotV, a) * NdotL / NdotH;
+			float VVis = V * VdotH * NdotL / max(NdotH, 1e-8f);
 			float Fc = pow(1.0f - VdotH, 5.0f);
 
-			acc.x += (1 - Fc) * GVis;
-			acc.y += Fc * GVis;
+			acc.x += (1 - Fc) * VVis;
+			acc.y += Fc * VVis;
 		}
 	}
 
