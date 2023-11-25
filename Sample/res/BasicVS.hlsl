@@ -45,16 +45,17 @@ VSOutput main(VSInput input)
 	output.WorldPos = worldPos.xyz;
 
 	float4 dirLightShadowPos = mul(ModelToDirLightShadowMap, localPos);
-	output.DirLightShadowCoord = dirLightShadowPos.xyz;
+	// dividing by w is not necessary because it is 1 by orthogonal.
+	output.DirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
 
 	float4 spotLight1ShadowPos = mul(ModelToSpotLight1ShadowMap, localPos);
-	output.SpotLight1ShadowCoord = spotLight1ShadowPos.xyz;
+	output.SpotLight1ShadowCoord = spotLight1ShadowPos.xyz / spotLight1ShadowPos.w;
 
 	float4 spotLight2ShadowPos = mul(ModelToSpotLight2ShadowMap, localPos);
-	output.SpotLight2ShadowCoord = spotLight2ShadowPos.xyz;
+	output.SpotLight2ShadowCoord = spotLight2ShadowPos.xyz / spotLight2ShadowPos.w;
 
 	float4 spotLight3ShadowPos = mul(ModelToSpotLight3ShadowMap, localPos);
-	output.SpotLight3ShadowCoord = spotLight3ShadowPos.xyz;
+	output.SpotLight3ShadowCoord = spotLight3ShadowPos.xyz / spotLight3ShadowPos.w;
 
 	float3 N = normalize(mul((float3x3)World, input.Normal));
 	float3 T = normalize(mul((float3x3)World, input.Tangent));
