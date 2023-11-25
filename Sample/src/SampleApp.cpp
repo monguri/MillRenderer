@@ -148,8 +148,7 @@ namespace
 		float outerAngle
 	)
 	{
-		// lightVectorは逆方向で扱っているので符号反転
-		Vector3 normalizedDir = -dir;
+		Vector3 normalizedDir = dir;
 		normalizedDir.Normalize();
 		const Matrix& spotLightShadowView = Matrix::CreateLookAt(pos, pos + normalizedDir * radius, Vector3::UnitY);
 		const Matrix& spotLightShadowProj = Matrix::CreatePerspectiveFieldOfView(outerAngle * 2.0f, 1.0f, radius * 0.05f, radius * 1.0f); // パラメータはModelViewerを参考にした
@@ -308,7 +307,7 @@ bool SampleApp::OnInit()
 			}
 		}
 
-		const Vector3& SpotLight1Dir = Vector3(20.0f, 4.0f, 0.0f);
+		const Vector3& SpotLight1Dir = Vector3(-20.0f, -4.0f, 0.0f);
 		const Vector3& SpotLight1Pos = Vector3(0.0f, 4.0f, 0.0f);
 		CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 		// 少し赤っぽい光
@@ -316,7 +315,7 @@ bool SampleApp::OnInit()
 		CbTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>();
 		tptr->ViewProj = ComputeSpotLightViewProj(SpotLight1Dir, SpotLight1Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 
-		const Vector3& SpotLight2Dir = Vector3(0.0f, 10.0f, -2.0f);
+		const Vector3& SpotLight2Dir = Vector3(0.0f, -10.0f, 2.0f);
 		const Vector3& SpotLight2Pos = Vector3(0.0f, 10.0f, 0.0f);
 		ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
 		// 少し緑っぽい光
@@ -325,7 +324,7 @@ bool SampleApp::OnInit()
 		tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>();
 		tptr->ViewProj = ComputeSpotLightViewProj(SpotLight2Dir, SpotLight2Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 
-		const Vector3& SpotLight3Dir = Vector3(-20.0f, 4.0f, 0.0f);
+		const Vector3& SpotLight3Dir = Vector3(20.0f, -4.0f, 0.0f);
 		const Vector3& SpotLight3Pos = Vector3(0.0f, 4.0f, 0.0f);
 		ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
 		// 少し青っぽい光
@@ -794,10 +793,10 @@ bool SampleApp::OnInit()
 		float widthHeight = 40.0f;
 
 		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
-		Vector3 dirLightForward = Vector3::TransformNormal(Vector3(1.0f, 10.0f, 1.0f), matrix);
+		Vector3 dirLightForward = Vector3::TransformNormal(Vector3(-1.0f, -10.0f, -1.0f), matrix);
 		dirLightForward.Normalize();
 
-		const Matrix& dirLightShadowView = Matrix::CreateLookAt(Vector3::Zero + dirLightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& dirLightShadowView = Matrix::CreateLookAt(Vector3::Zero - dirLightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
 		const Matrix& dirLightShadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
 		const Matrix& dirLightShadowViewProj = dirLightShadowView * dirLightShadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
@@ -948,7 +947,7 @@ void SampleApp::OnRender()
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	//m_RotateAngle += 0.01f;
 	const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
-	Vector3 lightForward = Vector3::TransformNormal(Vector3(1.0f, 10.0f, 1.0f), matrix);
+	Vector3 lightForward = Vector3::TransformNormal(Vector3(-1.0f, -10.0f, -1.0f), matrix);
 	lightForward.Normalize();
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
@@ -1034,7 +1033,7 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 
 		CbTransform* ptr = m_DirLightShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
 
-		const Matrix& view = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& view = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
 		const Matrix& proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
 		ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
@@ -1087,7 +1086,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		float zFar = 40.0f;
 		float widthHeight = 40.0f;
 
-		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero + lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
 		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
 		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
