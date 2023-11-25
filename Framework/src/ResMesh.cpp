@@ -124,7 +124,8 @@ namespace
 			dstMesh.Vertices[i] = MeshVertex(
 				DirectX::XMFLOAT3(pPosition->x, pPosition->y, pPosition->z),
 				DirectX::XMFLOAT3(pNormal->x, pNormal->y, pNormal->z),
-				DirectX::XMFLOAT2(pTexCoord->x, pTexCoord->y),
+				// TODO:Assimp‚ÅglTFƒtƒ@ƒCƒ‹‚©‚çŽæ“¾‚µ‚½TexCoord‚ÌV‚Í’Êí‚ÌV‚Æ‚Íã‰º‚ª‹t‚É‚È‚Á‚Ä‚¢‚é‚æ‚¤‚È‚Ì‚Åˆê’U‚±‚±‚Åã‰º”½“]‚³‚¹‚é
+				DirectX::XMFLOAT2(pTexCoord->x, 1.0f - pTexCoord->y),
 				DirectX::XMFLOAT3(pTangent->x, pTangent->y, pTangent->z)
 			);
 		}
