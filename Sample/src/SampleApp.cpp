@@ -308,8 +308,8 @@ bool SampleApp::OnInit()
 			}
 		}
 
-		const Vector3& SpotLight1Dir = Vector3(20.0f, 5.0f, 0.0f);
-		const Vector3& SpotLight1Pos = Vector3(0.0f, 2.0f, 0.0f);
+		const Vector3& SpotLight1Dir = Vector3(20.0f, 4.0f, 0.0f);
+		const Vector3& SpotLight1Pos = Vector3(0.0f, 4.0f, 0.0f);
 		CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 		// 少し赤っぽい光
 		*ptr = ComputeSpotLight(0, SpotLight1Dir, SpotLight1Pos, 20.0f, Vector3(1.0f, 0.5f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
@@ -325,8 +325,8 @@ bool SampleApp::OnInit()
 		tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>();
 		tptr->ViewProj = ComputeSpotLightViewProj(SpotLight2Dir, SpotLight2Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 
-		const Vector3& SpotLight3Dir = Vector3(-20.0f, 5.0f, 0.0f);
-		const Vector3& SpotLight3Pos = Vector3(0.0f, 2.0f, 0.0f);
+		const Vector3& SpotLight3Dir = Vector3(-20.0f, 4.0f, 0.0f);
+		const Vector3& SpotLight3Pos = Vector3(0.0f, 4.0f, 0.0f);
 		ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
 		// 少し青っぽい光
 		*ptr = ComputeSpotLight(0, SpotLight3Dir, SpotLight3Pos, 20.0f, Vector3(0.5f, 0.5f, 1.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
