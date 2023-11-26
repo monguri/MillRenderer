@@ -79,6 +79,7 @@ namespace
 		flag |= aiProcess_GenUVCoords;
 		flag |= aiProcess_RemoveRedundantMaterials;
 		flag |= aiProcess_OptimizeMeshes;
+		flag |= aiProcess_ConvertToLeftHanded;
 
 		const aiScene* pScene = importer.ReadFile(path, flag);
 		if (pScene == nullptr)
@@ -124,10 +125,7 @@ namespace
 			dstMesh.Vertices[i] = MeshVertex(
 				DirectX::XMFLOAT3(pPosition->x, pPosition->y, pPosition->z),
 				DirectX::XMFLOAT3(pNormal->x, pNormal->y, pNormal->z),
-				// TODO:Assimp‚ÅglTFƒtƒ@ƒCƒ‹‚©‚çŽæ“¾‚µ‚½TexCoord‚ÌV‚Í’Êí‚ÌV‚Æ‚Íã‰º‚ª‹t‚É‚È‚Á‚Ä‚¢‚é‚æ‚¤‚È‚Ì‚Åˆê’U‚±‚±‚Åã‰º”½“]‚³‚¹‚é
-				// https://github.com/assimp/assimp/issues/2102
-				// https://github.com/assimp/assimp/issues/2849
-				DirectX::XMFLOAT2(pTexCoord->x, 1.0f - pTexCoord->y),
+				DirectX::XMFLOAT2(pTexCoord->x, pTexCoord->y),
 				DirectX::XMFLOAT3(pTangent->x, pTangent->y, pTangent->z)
 			);
 		}
