@@ -79,7 +79,11 @@ namespace
 		flag |= aiProcess_GenUVCoords;
 		flag |= aiProcess_RemoveRedundantMaterials;
 		flag |= aiProcess_OptimizeMeshes;
-		flag |= aiProcess_ConvertToLeftHanded;
+		// TODO:AssimpでglTFファイルから取得したTexCoordのVは通常のVとは上下が逆になっているようなので一旦ここで上下反転させる
+		// https://github.com/assimp/assimp/issues/2102
+		// https://github.com/assimp/assimp/issues/2849
+		// TODO:aiProcess_ConvertToLeftHandedだと法線方向が逆になってライティングがおかしくなった
+		flag |= aiProcess_FlipUVs;
 
 		const aiScene* pScene = importer.ReadFile(path, flag);
 		if (pScene == nullptr)
