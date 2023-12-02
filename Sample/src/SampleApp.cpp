@@ -470,6 +470,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// SSAO用カラーターゲットの生成
+	{
+		float clearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+		if (!m_SSAO_Target.Init
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R8_UNORM,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
     // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
 	{
 		RootSignature::Desc desc;
@@ -1026,6 +1046,8 @@ void SampleApp::OnTerm()
 	m_SceneColorTarget.Term();
 	m_SceneDepthTarget.Term();
 
+	m_SSAO_Target.Term();
+
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
 	m_pSceneDepthOpaquePSO.Reset();
@@ -1098,7 +1120,16 @@ void SampleApp::OnRender()
 
 	// SSAOパス
 	{
-		//DrawSSAO(pCmd);
+		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+		const DescriptorHandle* handleRTV = m_SSAO_Target.GetHandleRTV();
+		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+		m_SSAO_Target.ClearView(pCmd);
+
+		DrawSSAO(pCmd);
+
+		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	// トーンマップを適用してフレームバッファに描画するパス
@@ -1287,6 +1318,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 }
 
@@ -1311,6 +1343,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 }
 

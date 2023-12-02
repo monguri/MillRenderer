@@ -37,6 +37,7 @@ private:
 	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SceneColorTarget;
 	DepthTarget m_SceneDepthTarget;
+	ColorTarget m_SSAO_Target;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_TonemapCB[FrameCount];
 	ConstantBuffer m_DirectionalLightCB[FrameCount];
