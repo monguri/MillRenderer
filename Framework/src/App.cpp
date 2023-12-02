@@ -314,24 +314,6 @@ bool App::InitD3D()
 		}
 	}
 
-	// Create depth stencil buffer.
-	{
-		if (!m_DepthTarget.Init
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_DSV],
-			nullptr,
-			m_Width,
-			m_Height,
-			DXGI_FORMAT_D32_FLOAT,
-			1.0f,
-			0
-		))
-		{
-			return false;
-		}
-	}
-
 	// Create fence.
 	{
 		if (!m_Fence.Init(m_pDevice.Get()))
@@ -379,8 +361,6 @@ void App::TermD3D()
 	{
 		m_ColorTarget[i].Term();
 	}
-
-	m_DepthTarget.Term();
 
 	m_CommandList.Term();
 

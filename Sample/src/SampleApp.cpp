@@ -629,8 +629,8 @@ bool SampleApp::OnInit()
 
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
-		desc.DSVFormat = m_DepthTarget.GetDSVDesc().Format;
+		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
+		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 
@@ -754,7 +754,7 @@ bool SampleApp::OnInit()
 		desc.SampleMask = UINT_MAX;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_SSAO_Target.GetRTVDesc().Format;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 
