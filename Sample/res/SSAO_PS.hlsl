@@ -4,6 +4,9 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 };
 
+Texture2D DepthMap : register(t0);
+SamplerState DepthSmp : register(s0);
+
 float4 main() : SV_TARGET0
 {
 	return float4(1.0f, 1.0f, 1.0f, 1.0f);

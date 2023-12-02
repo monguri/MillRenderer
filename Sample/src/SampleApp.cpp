@@ -457,7 +457,7 @@ bool SampleApp::OnInit()
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_DSV],
-			nullptr,
+			m_pPool[POOL_TYPE_RES],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_D32_FLOAT,
@@ -677,7 +677,9 @@ bool SampleApp::OnInit()
     // SSAO用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(0)
+		desc.Begin(2)
+			.SetSRV(ShaderStage::PS, 0, 0)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AllowIL()
 			.End();
 
@@ -1308,8 +1310,8 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 //TODO:SSパスは処理を共通化したい
 void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 {
-	// TODO:Tonemapの処理のままになっているので修正
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
