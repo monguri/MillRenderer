@@ -654,6 +654,23 @@ bool SampleApp::OnInit()
 		}
 	}
 
+    // SSAO用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin(2)
+			.SetCBV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 0)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
+			.AllowIL()
+			.End();
+
+		if (!m_SSAORootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
     // トーンマップ用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -938,6 +955,8 @@ void SampleApp::OnTerm()
 
 	m_SceneRootSig.Term();
 
+	m_SSAORootSig.Term();
+
 	m_pTonemapPSO.Reset();
 	m_TonemapRootSig.Term();
 }
@@ -996,6 +1015,11 @@ void SampleApp::OnRender()
 
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
+
+	// SSAOパス
+	{
+		DrawSSAO(pCmd);
 	}
 
 	// トーンマップを適用してフレームバッファに描画するパス
@@ -1169,6 +1193,10 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 
 		m_pMesh[i]->Draw(pCmdList);
 	}
+}
+
+void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
+{
 }
 
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
