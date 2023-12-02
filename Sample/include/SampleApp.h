@@ -29,7 +29,8 @@ private:
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;
-	RootSignature m_SSAORootSig;
+	ComPtr<ID3D12PipelineState> m_pSSAO_PSO;
+	RootSignature m_SSAO_RootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
 	DepthTarget m_DirLightShadowMapTarget;

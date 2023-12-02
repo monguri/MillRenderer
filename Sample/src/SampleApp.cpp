@@ -657,16 +657,94 @@ bool SampleApp::OnInit()
     // SSAO用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(2)
-			.SetCBV(ShaderStage::PS, 0, 0)
-			.SetSRV(ShaderStage::PS, 1, 0)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
+		desc.Begin(0)
 			.AllowIL()
 			.End();
 
-		if (!m_SSAORootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!m_SSAO_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // SSAO用パイプラインステートの生成
+	// TODO:スクリーンスペース系は処理を共通化したい
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"SSAO_PS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		D3D12_INPUT_ELEMENT_DESC elements[2];
+		elements[0].SemanticName = "POSITION";
+		elements[0].SemanticIndex = 0;
+		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
+		elements[0].InputSlot = 0;
+		elements[0].AlignedByteOffset = 0;
+		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		elements[0].InstanceDataStepRate = 0;
+
+		elements[1].SemanticName = "TEXCOORD";
+		elements[1].SemanticIndex = 0;
+		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+		elements[1].InputSlot = 0;
+		elements[1].AlignedByteOffset = 8;
+		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		elements[1].InstanceDataStepRate = 0;
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout.pInputElementDescs = elements;
+		desc.InputLayout.NumElements = 2;
+		desc.pRootSignature = m_SSAO_RootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
+		desc.SampleMask = UINT_MAX;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSSAO_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 			return false;
 		}
 	}
@@ -955,7 +1033,8 @@ void SampleApp::OnTerm()
 
 	m_SceneRootSig.Term();
 
-	m_SSAORootSig.Term();
+	m_pSSAO_PSO.Reset();
+	m_SSAO_RootSig.Term();
 
 	m_pTonemapPSO.Reset();
 	m_TonemapRootSig.Term();
@@ -1019,7 +1098,7 @@ void SampleApp::OnRender()
 
 	// SSAOパス
 	{
-		DrawSSAO(pCmd);
+		//DrawSSAO(pCmd);
 	}
 
 	// トーンマップを適用してフレームバッファに描画するパス
@@ -1195,8 +1274,20 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 	}
 }
 
+//TODO:SSパスは処理を共通化したい
 void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 {
+	// TODO:Tonemapの処理のままになっているので修正
+	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+	pCmdList->DrawInstanced(3, 1, 0, 0);
 }
 
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
