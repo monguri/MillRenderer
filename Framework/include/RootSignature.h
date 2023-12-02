@@ -22,6 +22,8 @@ enum SamplerState
 	PointClamp,
 	LinearWrap,
 	LinearClamp,
+	MinMagLinearMipPointWrap,
+	MinMagLinearMipPointClamp,
 	AnisotropicWrap,
 	AnisotropicClamp,
 };

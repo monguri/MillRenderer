@@ -499,9 +499,9 @@ bool SampleApp::OnInit()
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::LinearWrap)
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-			.AddStaticCmpSmp(ShaderStage::PS, 3, SamplerState::LinearClamp)
+			.AddStaticCmpSmp(ShaderStage::PS, 3, SamplerState::MinMagLinearMipPointClamp)
 #else
-			.AddStaticSmp(ShaderStage::PS, 3, SamplerState::LinearClamp)
+			.AddStaticSmp(ShaderStage::PS, 3, SamplerState::MinMagLinearMipPointClamp)
 #endif
 			.AllowIL()
 			.End();

@@ -133,6 +133,18 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			break;
+		case MinMagLinearMipPointWrap:
+			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			break;
+		case MinMagLinearMipPointClamp:
+			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			break;
 		case AnisotropicWrap:
 			desc.Filter = D3D12_FILTER_ANISOTROPIC;
 			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -193,6 +205,18 @@ RootSignature::Desc& RootSignature::Desc::AddStaticCmpSmp(ShaderStage stage, uin
 			break;
 		case LinearClamp:
 			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			break;
+		case MinMagLinearMipPointWrap:
+			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			break;
+		case MinMagLinearMipPointClamp:
+			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
