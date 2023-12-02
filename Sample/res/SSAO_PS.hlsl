@@ -7,7 +7,8 @@ struct VSOutput
 Texture2D DepthMap : register(t0);
 SamplerState DepthSmp : register(s0);
 
-float4 main() : SV_TARGET0
+float4 main(const VSOutput input) : SV_TARGET0
 {
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float4 result = DepthMap.Sample(DepthSmp, input.TexCoord);
+	return result;
 }
