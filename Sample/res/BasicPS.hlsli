@@ -333,7 +333,7 @@ float GetShadowMultiplier(Texture2D ShadowMap, float ShadowMapTexelSize, float3 
 	#endif // SINGLE_SAMPLE_SHADOW_MAP
 #endif // USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
-	return result;
+	return result * result;
 }
 
 float3 EvaluateSpotLightReflection
