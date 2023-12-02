@@ -109,7 +109,7 @@ bool App::InitWnd()
 	rc.right = static_cast<LONG>(m_Width);
 	rc.bottom = static_cast<LONG>(m_Height);
 
-	LONG style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+	LONG style = WS_OVERLAPPEDWINDOW;
 	AdjustWindowRect(&rc, style, FALSE);
 
 	m_hWnd = CreateWindowEx
