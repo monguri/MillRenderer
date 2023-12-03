@@ -19,6 +19,7 @@ public:
 	virtual ~SampleApp();
 
 private:
+	static const float FOV_Y_DEGREE;
 	static const uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
 	static const uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 	static const uint32_t NUM_POINT_LIGHTS = 4;
@@ -39,6 +40,7 @@ private:
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_SSAO_Target;
 	VertexBuffer m_QuadVB;
+	ConstantBuffer m_SSAO_CB[FrameCount];
 	ConstantBuffer m_TonemapCB[FrameCount];
 	ConstantBuffer m_DirectionalLightCB[FrameCount];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];

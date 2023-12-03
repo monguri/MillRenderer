@@ -18,14 +18,35 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 };
 
+cbuffer CbSSAO : register(b0)
+{
+	int Width;
+	int Height;
+	float InvTanHalfFov;
+}
+
 Texture2D DepthMap : register(t0);
 SamplerState DepthSmp : register(s0);
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
+	float3 fovFix = float3(InvTanHalfFov, InvTanHalfFov * Width / Height, 1.0f);
+	float3 invFovFix = 1.0f / fovFix;
+
 	float depth = DepthMap.Sample(DepthSmp, input.TexCoord).r;
 	float ActualAORadius = AORadiusInShader * depth;
 	float2 randomVec = float2(0, 1) * ActualAORadius;
+
+	// [-1,1]x[-1,1]
+	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
+	// TODO:why screenPos * (1.0f - depth) is necessary?
+	// [-1,1]x[-1,1]x[0,1]
+	float3 viewSpacePos = float3(screenPos * (1.0f - depth), depth);
+
+	float2 fovFixXY = fovFix.xy * (1.0f / min(1.0f - depth, 1e-6f));
+	float4 randomBase = float4(randomVec, -randomVec.y, randomVec.x) * float4(fovFixXY, fovFixXY);
+
+	float accum = 0;
 
 	for (int i = 0; i < SAMPLESET_ARRAY_SIZE; i++)
 	{
@@ -33,7 +54,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 		for (uint step = 0; step < SAMPLE_STEP; step++)
 		{
-			float scale = (step + 1) / SAMPLESET_ARRAY_SIZE;
+			float scale = (step + 1) / SAMPLE_STEP;
+
 		}
 	}
 

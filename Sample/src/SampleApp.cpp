@@ -28,14 +28,6 @@ namespace
 		TONEMAP_GT,
 	};
 
-	struct alignas(256) CbTonemap
-	{
-		int Type;
-		int ColorSpace;
-		float BaseLuminance;
-		float MaxLuminance;
-	};
-
 	struct alignas(256) CbMesh
 	{
 		Matrix World;
@@ -91,6 +83,21 @@ namespace
 		float MetallicFactor;
 		float RoughnessFactor;
 		float AlphaCutoff;
+	};
+
+	struct alignas(256) CbSSAO
+	{
+		int Width;
+		int Height;
+		float InvTanHalfFov;
+	};
+
+	struct alignas(256) CbTonemap
+	{
+		int Type;
+		int ColorSpace;
+		float BaseLuminance;
+		float MaxLuminance;
 	};
 
 	UINT16 inline GetChromaticityCoord(double value)
@@ -155,6 +162,8 @@ namespace
 		return spotLightShadowView * spotLightShadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 }
+
+const float SampleApp::FOV_Y_DEGREE = 37.5f;
 
 SampleApp::SampleApp(uint32_t width, uint32_t height)
 : App(width, height, DXGI_FORMAT_R10G10B10A2_UNORM)
@@ -678,7 +687,8 @@ bool SampleApp::OnInit()
 	{
 		RootSignature::Desc desc;
 		desc.Begin(2)
-			.SetSRV(ShaderStage::PS, 0, 0)
+			.SetCBV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 0)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AllowIL()
 			.End();
@@ -868,7 +878,7 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// トーンマップ用頂点バッファの生成
+	// スクリーンスペースパス用頂点バッファの生成
 	{
 		struct Vertex
 		{
@@ -890,6 +900,21 @@ bool SampleApp::OnInit()
 		ptr[1].px = 3.0f; ptr[1].py = 1.0f; ptr[1].tx = 2.0f; ptr[1].ty = -1.0f;
 		ptr[2].px = -1.0f; ptr[2].py = -3.0f; ptr[2].tx = 0.0f; ptr[2].ty = 1.0f;
 		m_QuadVB.Unmap();
+	}
+
+	// SSAO用定数バッファの作成
+	for (uint32_t i = 0; i < FrameCount; i++)
+	{
+		if (!m_SSAO_CB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAO)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbSSAO* ptr = m_SSAO_CB[i].GetPtr<CbSSAO>();
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(FOV_Y_DEGREE));
 	}
 
 	// トーンマップ用定数バッファの作成
@@ -937,7 +962,7 @@ bool SampleApp::OnInit()
 				return false;
 			}
 
-			constexpr float fovY = DirectX::XMConvertToRadians(37.5f);
+			constexpr float fovY = DirectX::XMConvertToRadians(FOV_Y_DEGREE);
 			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 			const Matrix& view = m_Camera.GetView();
@@ -1009,6 +1034,7 @@ void SampleApp::OnTerm()
 
 	for (uint32_t i = 0; i < FrameCount; i++)
 	{
+		m_SSAO_CB[i].Term();
 		m_TonemapCB[i].Term();
 		m_DirectionalLightCB[i].Term();
 		m_CameraCB[i].Term();
@@ -1210,7 +1236,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 {
 	// 変換行列用の定数バッファの更新
 	{
-		constexpr float fovY = DirectX::XMConvertToRadians(37.5f);
+		constexpr float fovY = DirectX::XMConvertToRadians(FOV_Y_DEGREE);
 		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 		const Matrix& view = m_Camera.GetView();
@@ -1311,7 +1337,8 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 {
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_CB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
