@@ -49,8 +49,8 @@ float2 WedgeNoNormal(float2 screenSpacePosCenter, float2 localRandom, float3 inv
 	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
 	float2 screenSpacePosR = screenSpacePosCenter - localRandom;
 
-	float absL = DepthMap.Sample(DepthSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r;
-	float absR = DepthMap.Sample(DepthSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r;
+	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
 
 	float3 samplePositionL = ReconstructCSPos(absL, screenSpacePosL);
 	float3 samplePositionR = ReconstructCSPos(absR, screenSpacePosR);
