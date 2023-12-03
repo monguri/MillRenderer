@@ -89,6 +89,8 @@ namespace
 	{
 		int Width;
 		int Height;
+		float Near;
+		float Far;
 		float InvTanHalfFov;
 	};
 
@@ -162,8 +164,6 @@ namespace
 		return spotLightShadowView * spotLightShadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 }
-
-const float SampleApp::FOV_Y_DEGREE = 37.5f;
 
 SampleApp::SampleApp(uint32_t width, uint32_t height)
 : App(width, height, DXGI_FORMAT_R10G10B10A2_UNORM)
@@ -914,7 +914,9 @@ bool SampleApp::OnInit()
 		CbSSAO* ptr = m_SSAO_CB[i].GetPtr<CbSSAO>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(FOV_Y_DEGREE));
+		ptr->Near = CAMERA_NEAR;
+		ptr->Far = CAMERA_FAR;
+		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
 	}
 
 	// トーンマップ用定数バッファの作成
@@ -962,11 +964,11 @@ bool SampleApp::OnInit()
 				return false;
 			}
 
-			constexpr float fovY = DirectX::XMConvertToRadians(FOV_Y_DEGREE);
+			constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 			const Matrix& view = m_Camera.GetView();
-			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 100.0f);
+			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
 			CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
@@ -1236,11 +1238,11 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 {
 	// 変換行列用の定数バッファの更新
 	{
-		constexpr float fovY = DirectX::XMConvertToRadians(FOV_Y_DEGREE);
+		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 		const Matrix& view = m_Camera.GetView();
-		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 0.1f, 100.0f);
+		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 		ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
