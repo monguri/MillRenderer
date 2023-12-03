@@ -14,7 +14,6 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 #define SAMPLE_STEP 2
 
 static const float AORadiusInShader = 0.125f;
-static const float ScaleRadiusInWorldSpace = 0.125f;
 
 struct VSOutput
 {
@@ -90,9 +89,9 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
 
 	// [-1,1]x[-1,1]
-	float2 screenSpacePos = input.TexCoord * float2(2, -2) + float2(-1, 1);
+	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 	// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
-	float3 viewSpacePosition = ReconstructCSPos(sceneDepth, screenSpacePos);
+	float3 viewSpacePosition = ReconstructCSPos(sceneDepth, screenPos);
 
 	float actualAORadius = AORadiusInShader * sceneDepth;
 
@@ -100,6 +99,9 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	float2 fovFixXY = fovFix.xy * (1.0f / viewSpacePosition.z);
 	float4 randomBase = float4(randomVec, -randomVec.y, randomVec.x) * float4(fovFixXY, fovFixXY);
+
+	// [-1,1]x[-1,1]
+	float2 screenSpacePos = viewSpacePosition.xy / viewSpacePosition.z;
 
 	float2 weightAccumulator = 0.0001f;
 
