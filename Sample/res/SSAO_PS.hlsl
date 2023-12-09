@@ -14,6 +14,8 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 #define SAMPLE_STEP 2
 
 static const float AORadiusInShader = 0.125f;
+static const float AmbientOcclusionPower = 2.0f;
+static const float AmbientOcclusionIntensity = 0.5f;
 
 struct VSOutput
 {
@@ -123,5 +125,9 @@ float4 main(const VSOutput input) : SV_TARGET0
 		weightAccumulator += float2((1 - localAllumulator.x) * (1 - localAllumulator.x) * localAllumulator.y, localAllumulator.y);
 	}
 
-	return float4(weightAccumulator.x / weightAccumulator.y, 0, 0, 1);
+	float result = weightAccumulator.x / weightAccumulator.y;
+	// abs() to prevent shader warning
+	result = 1 - (1 - pow(abs(result), AmbientOcclusionPower)) * AmbientOcclusionIntensity;
+
+	return float4(result, 0, 0, 1);
 }
