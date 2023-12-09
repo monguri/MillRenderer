@@ -107,6 +107,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	float2 weightAccumulator = 0.0001f;
 
+	// disk random loop
 	for (int i = 0; i < SAMPLESET_ARRAY_SIZE; i++)
 	{
 		float2 unrotatedRandom = OcclusionSamplesOffsets[i];
@@ -114,9 +115,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 		float2 localAllumulator = 0.0f;
 
+		// ray-march loop
 		for (uint step = 0; step < SAMPLE_STEP; step++)
 		{
-			float scale = (step + 1) / SAMPLE_STEP;
+			float scale = (step + 1) / (float)SAMPLE_STEP;
 
 			float2 stepSample = WedgeNoNormal(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition);
 			localAllumulator = lerp(localAllumulator, float2(max(localAllumulator.x, stepSample.x), 1), stepSample.y);
