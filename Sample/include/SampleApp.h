@@ -46,7 +46,6 @@ private:
 	ColorTarget m_AmbientLightTarget;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_SSAO_CB[FrameCount];
-	ConstantBuffer m_AmbientLightCB[FrameCount];
 	ConstantBuffer m_TonemapCB[FrameCount];
 	ConstantBuffer m_DirectionalLightCB[FrameCount];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];

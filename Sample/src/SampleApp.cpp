@@ -94,11 +94,6 @@ namespace
 		float InvTanHalfFov;
 	};
 
-	struct alignas(256) CbAmbientLight
-	{
-		float Intensity;
-	};
-
 	struct alignas(256) CbTonemap
 	{
 		int Type;
@@ -809,10 +804,9 @@ bool SampleApp::OnInit()
     // AmbientLight用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(3)
-			.SetCBV(ShaderStage::PS, 0, 0)
-			.SetSRV(ShaderStage::PS, 1, 0)
-			.SetSRV(ShaderStage::PS, 2, 1)
+		desc.Begin(2)
+			.SetSRV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 1)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AllowIL()
@@ -1044,19 +1038,6 @@ bool SampleApp::OnInit()
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
 	}
 
-	// AmbientLight用定数バッファの作成
-	for (uint32_t i = 0; i < FrameCount; i++)
-	{
-		if (!m_AmbientLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbAmbientLight)))
-		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
-
-		CbAmbientLight* ptr = m_AmbientLightCB[i].GetPtr<CbAmbientLight>();
-		ptr->Intensity = 0.1f;
-	}
-
 	// トーンマップ用定数バッファの作成
 	for (uint32_t i = 0; i < FrameCount; i++)
 	{
@@ -1175,7 +1156,6 @@ void SampleApp::OnTerm()
 	for (uint32_t i = 0; i < FrameCount; i++)
 	{
 		m_SSAO_CB[i].Term();
-		m_AmbientLightCB[i].Term();
 		m_TonemapCB[i].Term();
 		m_DirectionalLightCB[i].Term();
 		m_CameraCB[i].Term();
@@ -1514,9 +1494,8 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 {
 	pCmdList->SetGraphicsRootSignature(m_AmbientLightRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_AmbientLightCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_SSAO_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pAmbientLightPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
