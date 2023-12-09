@@ -15,7 +15,7 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 
 static const float AORadiusInShader = 0.125f;
 static const float AmbientOcclusionPower = 2.0f;
-static const float AmbientOcclusionIntensity = 0.5f;
+static const float AmbientOcclusionIntensity = 2.0f;
 
 struct VSOutput
 {
@@ -34,6 +34,25 @@ cbuffer CbSSAO : register(b0)
 
 Texture2D DepthMap : register(t0);
 SamplerState DepthSmp : register(s0);
+
+static const uint3 k = uint3(0x456789abu, 0x6789ab45u, 0x89ab4567u);
+static const uint3 u = uint3(1, 2, 3);
+static const uint UINT_MAX = 0xffffffffu;
+
+uint2 uhash22(uint2 n)
+{
+	n ^= (n.yx << u.xy);
+	n ^= (n.yx >> u.xy);
+	n *= k.xy;
+	n ^= (n.yx << u.xy);
+	return n * k.xy;
+}
+
+float2 hash22(float2 p)
+{
+	uint2 n = asuint(p);
+	return float2(uhash22(n)) / UINT_MAX;
+}
 
 float ConvertFromDeviceZtoLinearZ(float deviceZ)
 {
@@ -97,7 +116,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	float actualAORadius = AORadiusInShader * sceneDepth;
 
-	float2 randomVec = float2(0, 1) * actualAORadius;
+	float2 randomVec = normalize(max(hash22(input.TexCoord), 0.000001f)) * actualAORadius;
 
 	float2 fovFixXY = fovFix.xy * (1.0f / viewSpacePosition.z);
 	float4 randomBase = float4(randomVec, -randomVec.y, randomVec.x) * float4(fovFixXY, fovFixXY);
