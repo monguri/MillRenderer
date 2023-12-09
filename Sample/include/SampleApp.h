@@ -34,6 +34,8 @@ private:
 	RootSignature m_SceneRootSig;
 	ComPtr<ID3D12PipelineState> m_pSSAO_PSO;
 	RootSignature m_SSAO_RootSig;
+	ComPtr<ID3D12PipelineState> m_pAmbientLightPSO;
+	RootSignature m_AmbientLightRootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
 	DepthTarget m_DirLightShadowMapTarget;
@@ -41,8 +43,10 @@ private:
 	ColorTarget m_SceneColorTarget;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_SSAO_Target;
+	ColorTarget m_AmbientLightTarget;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_SSAO_CB[FrameCount];
+	ConstantBuffer m_AmbientLightCB[FrameCount];
 	ConstantBuffer m_TonemapCB[FrameCount];
 	ConstantBuffer m_DirectionalLightCB[FrameCount];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
@@ -77,5 +81,6 @@ private:
 	void DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
 	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList);
+	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
 };

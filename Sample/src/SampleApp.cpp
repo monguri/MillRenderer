@@ -94,6 +94,11 @@ namespace
 		float InvTanHalfFov;
 	};
 
+	struct alignas(256) CbAmbientLight
+	{
+		float Intensity;
+	};
+
 	struct alignas(256) CbTonemap
 	{
 		int Type;
@@ -499,6 +504,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// AmbientLight用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_AmbientLightTarget.Init
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R10G10B10A2_UNORM,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
     // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
 	{
 		RootSignature::Desc desc;
@@ -781,6 +806,106 @@ bool SampleApp::OnInit()
 		}
 	}
 
+    // AmbientLight用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin(3)
+			.SetCBV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 0)
+			.SetSRV(ShaderStage::PS, 2, 1)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
+			.AllowIL()
+			.End();
+
+		if (!m_AmbientLightRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // AmbientLight用パイプラインステートの生成
+	// TODO:スクリーンスペース系は処理を共通化したい
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"AmbientLightPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		D3D12_INPUT_ELEMENT_DESC elements[2];
+		elements[0].SemanticName = "POSITION";
+		elements[0].SemanticIndex = 0;
+		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
+		elements[0].InputSlot = 0;
+		elements[0].AlignedByteOffset = 0;
+		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		elements[0].InstanceDataStepRate = 0;
+
+		elements[1].SemanticName = "TEXCOORD";
+		elements[1].SemanticIndex = 0;
+		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+		elements[1].InputSlot = 0;
+		elements[1].AlignedByteOffset = 8;
+		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		elements[1].InstanceDataStepRate = 0;
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout.pInputElementDescs = elements;
+		desc.InputLayout.NumElements = 2;
+		desc.pRootSignature = m_AmbientLightRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
+		desc.SampleMask = UINT_MAX;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_AmbientLightTarget.GetRTVDesc().Format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pAmbientLightPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // トーンマップ用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -919,6 +1044,19 @@ bool SampleApp::OnInit()
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
 	}
 
+	// AmbientLight用定数バッファの作成
+	for (uint32_t i = 0; i < FrameCount; i++)
+	{
+		if (!m_AmbientLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbAmbientLight)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbAmbientLight* ptr = m_AmbientLightCB[i].GetPtr<CbAmbientLight>();
+		ptr->Intensity = 10.0f;
+	}
+
 	// トーンマップ用定数バッファの作成
 	for (uint32_t i = 0; i < FrameCount; i++)
 	{
@@ -1037,6 +1175,7 @@ void SampleApp::OnTerm()
 	for (uint32_t i = 0; i < FrameCount; i++)
 	{
 		m_SSAO_CB[i].Term();
+		m_AmbientLightCB[i].Term();
 		m_TonemapCB[i].Term();
 		m_DirectionalLightCB[i].Term();
 		m_CameraCB[i].Term();
@@ -1078,6 +1217,8 @@ void SampleApp::OnTerm()
 
 	m_SSAO_Target.Term();
 
+	m_AmbientLightTarget.Term();
+
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
 	m_pSceneDepthOpaquePSO.Reset();
@@ -1087,6 +1228,9 @@ void SampleApp::OnTerm()
 
 	m_pSSAO_PSO.Reset();
 	m_SSAO_RootSig.Term();
+
+	m_pAmbientLightPSO.Reset();
+	m_AmbientLightRootSig.Term();
 
 	m_pTonemapPSO.Reset();
 	m_TonemapRootSig.Term();
@@ -1160,6 +1304,20 @@ void SampleApp::OnRender()
 		DrawSSAO(pCmd);
 
 		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
+
+	// AmbientLightパス
+	{
+		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+		const DescriptorHandle* handleRTV = m_AmbientLightTarget.GetHandleRTV();
+		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+		m_AmbientLightTarget.ClearView(pCmd);
+
+		DrawAmbientLight(pCmd);
+
+		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	// トーンマップを適用してフレームバッファに描画するパス
@@ -1353,6 +1511,23 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 }
 
+void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
+{
+	pCmdList->SetGraphicsRootSignature(m_AmbientLightRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_AmbientLightCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pAmbientLightPSO.Get());
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+}
+
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 {
 	{
@@ -1365,7 +1540,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
