@@ -460,6 +460,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// シーン用ノーマルターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_SceneNormalTarget.Init
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R10G10B10A2_UNORM,
+			clearColor
+		))
+		{
+			ELOG("Error : NormalTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// シーン用デプスターゲットの生成
 	{
 		if (!m_SceneDepthTarget.Init
@@ -657,8 +677,9 @@ bool SampleApp::OnInit()
 		}
 
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.NumRenderTargets = 1;
+		desc.NumRenderTargets = 2;
 		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
+		desc.RTVFormats[1] = m_SceneNormalTarget.GetRTVDesc().Format;
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
@@ -1193,6 +1214,7 @@ void SampleApp::OnTerm()
 	}
 
 	m_SceneColorTarget.Term();
+	m_SceneNormalTarget.Term();
 	m_SceneDepthTarget.Term();
 
 	m_SSAO_Target.Term();
@@ -1253,14 +1275,16 @@ void SampleApp::OnRender()
 	// シーンをレンダーターゲットに描画するパス
 	{
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		DirectX::TransitionResource(pCmd, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-		const DescriptorHandle* handleRTV = m_SceneColorTarget.GetHandleRTV();
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[2] = { m_SceneColorTarget.GetHandleRTV()->HandleCPU, m_SceneNormalTarget.GetHandleRTV()->HandleCPU };
 		const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
 
-		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, &handleDSV->HandleCPU);
+		pCmd->OMSetRenderTargets(2, rtvs, FALSE, &handleDSV->HandleCPU);
 
 		m_SceneColorTarget.ClearView(pCmd);
+		m_SceneNormalTarget.ClearView(pCmd);
 		m_SceneDepthTarget.ClearView(pCmd);
 
 		pCmd->RSSetViewports(1, &m_Viewport);
@@ -1269,6 +1293,7 @@ void SampleApp::OnRender()
 		DrawScene(pCmd, lightForward);
 
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmd, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 

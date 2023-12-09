@@ -41,6 +41,7 @@ private:
 	DepthTarget m_DirLightShadowMapTarget;
 	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SceneColorTarget;
+	ColorTarget m_SceneNormalTarget;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_SSAO_Target;
 	ColorTarget m_AmbientLightTarget;
