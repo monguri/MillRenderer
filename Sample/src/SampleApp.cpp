@@ -1054,7 +1054,7 @@ bool SampleApp::OnInit()
 		}
 
 		CbAmbientLight* ptr = m_AmbientLightCB[i].GetPtr<CbAmbientLight>();
-		ptr->Intensity = 10.0f;
+		ptr->Intensity = 0.1f;
 	}
 
 	// トーンマップ用定数バッファの作成
@@ -1516,6 +1516,7 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_AmbientLightRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_AmbientLightCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_SSAO_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pAmbientLightPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
