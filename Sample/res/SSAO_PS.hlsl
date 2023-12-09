@@ -118,7 +118,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 		{
 			float scale = (step + 1) / SAMPLE_STEP;
 
-			float2 stepSample = WedgeNoNormal(screenSpacePos, localRandom, invFovFix, viewSpacePosition);
+			float2 stepSample = WedgeNoNormal(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition);
 			localAllumulator = lerp(localAllumulator, float2(max(localAllumulator.x, stepSample.x), 1), stepSample.y);
 		}
 
