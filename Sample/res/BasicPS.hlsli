@@ -22,7 +22,7 @@ struct VSOutput
 struct PSOutput
 {
 	float4 Color : SV_TARGET0;
-	float3 Normal : SV_TARGET1;
+	float4 Normal : SV_TARGET1;
 };
 
 cbuffer CbCamera : register(b0)
@@ -554,6 +554,7 @@ PSOutput main(VSOutput input)
 		+ spotLight3Reflection;
 	output.Color.a = 1.0f;
 
-	output.Normal = (N + 1.0f) * 0.5f;
+	output.Normal.xyz = (N + 1.0f) * 0.5f;
+	output.Normal.a = 1.0f;
 	return output;
 }
