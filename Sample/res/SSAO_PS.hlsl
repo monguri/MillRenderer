@@ -142,7 +142,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float3 viewSpaceNormal = normalize(mul((float3x3)WorldToView, worldNormal));
 
 	// [-1,1]x[-1,1]
-	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
+	float2 screenPos = input.TexCoord * float2(2, -2) - 1;
 	// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
 	float3 viewSpacePosition = ReconstructCSPos(sceneDepth, screenPos);
 
