@@ -92,6 +92,7 @@ namespace
 		float Near;
 		float Far;
 		float InvTanHalfFov;
+		Matrix WorldToView;
 	};
 
 	struct alignas(256) CbTonemap
@@ -1059,6 +1060,8 @@ bool SampleApp::OnInit()
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
+		const Matrix& view = m_Camera.GetView();
+		ptr->WorldToView = view.Invert();
 	}
 
 	// トーンマップ用定数バッファの作成
@@ -1506,7 +1509,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_CB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);

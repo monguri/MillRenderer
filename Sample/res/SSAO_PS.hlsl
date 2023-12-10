@@ -2,7 +2,7 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
-#define USE_NOMARLS 1
+#define USE_NORMALS 1
 
 #define SAMPLESET_ARRAY_SIZE 3
 static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
@@ -33,6 +33,7 @@ cbuffer CbSSAO : register(b0)
 	float Near;
 	float Far;
 	float InvTanHalfFov;
+	float4x4 WorldToView;
 }
 
 Texture2D DepthMap : register(t0);
@@ -116,6 +117,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
 
 	float3 worldNormal = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0 - 1.0f;
+	float3 viewSpaceNormal = mul((float3x3)WorldToView, worldNormal);
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
@@ -123,6 +125,11 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float3 viewSpacePosition = ReconstructCSPos(sceneDepth, screenPos);
 
 	float actualAORadius = AORadiusInShader * sceneDepth;
+
+	if (USE_NORMALS)
+	{
+		viewSpacePosition += AmbientOcclusionBias * sceneDepth * viewSpaceNormal * fovFix;
+	}
 
 	float2 randomVec = normalize(max(hash22(input.TexCoord), 0.000001f)) * actualAORadius;
 
