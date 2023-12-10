@@ -2,6 +2,8 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
+#define USE_NOMARLS 1
+
 #define SAMPLESET_ARRAY_SIZE 3
 static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 {
@@ -11,11 +13,12 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 	float2(-0.58f, 0.814f) 
 };
 
-#define SAMPLE_STEP 2
+#define SAMPLE_STEPS 2
 
 static const float AORadiusInShader = 0.125f;
 static const float AmbientOcclusionPower = 2.0f;
 static const float AmbientOcclusionIntensity = 2.0f;
+static const float AmbientOcclusionBias = 0.00003f;
 
 struct VSOutput
 {
@@ -34,6 +37,9 @@ cbuffer CbSSAO : register(b0)
 
 Texture2D DepthMap : register(t0);
 SamplerState DepthSmp : register(s0);
+
+Texture2D NormalMap : register(t1);
+SamplerState NormalSmp : register(s1);
 
 static const uint3 k = uint3(0x456789abu, 0x6789ab45u, 0x89ab4567u);
 static const uint3 u = uint3(1, 2, 3);
@@ -109,6 +115,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float deviceZ = DepthMap.Sample(DepthSmp, input.TexCoord).r;
 	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
 
+	float3 worldNormal = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0 - 1.0f;
+
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 	// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
@@ -135,9 +143,9 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float2 localAllumulator = 0.0f;
 
 		// ray-march loop
-		for (uint step = 0; step < SAMPLE_STEP; step++)
+		for (uint step = 0; step < SAMPLE_STEPS; step++)
 		{
-			float scale = (step + 1) / (float)SAMPLE_STEP;
+			float scale = (step + 1) / (float)SAMPLE_STEPS;
 
 			float2 stepSample = WedgeNoNormal(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition);
 			localAllumulator = lerp(localAllumulator, float2(max(localAllumulator.x, stepSample.x), 1), stepSample.y);

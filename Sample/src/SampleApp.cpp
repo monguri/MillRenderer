@@ -727,10 +727,12 @@ bool SampleApp::OnInit()
     // SSAO用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(2)
+		desc.Begin(3)
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
+			.SetSRV(ShaderStage::PS, 2, 1)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
 			.AllowIL()
 			.End();
 
@@ -1504,6 +1506,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_CB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
