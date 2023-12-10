@@ -1506,6 +1506,12 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 //TODO:SSパスは処理を共通化したい
 void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 {
+	{
+		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
+		const Matrix& view = m_Camera.GetView();
+		ptr->WorldToView = view.Invert();
+	}
+
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_CB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
