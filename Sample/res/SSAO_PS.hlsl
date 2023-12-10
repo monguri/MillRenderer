@@ -17,7 +17,7 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 
 static const float AORadiusInShader = 0.125f;
 static const float AmbientOcclusionPower = 2.0f;
-static const float AmbientOcclusionIntensity = 2.0f;
+static const float AmbientOcclusionIntensity = 0.5f;
 static const float AmbientOcclusionBias = 0.00003f;
 
 struct VSOutput
