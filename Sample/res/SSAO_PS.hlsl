@@ -71,6 +71,28 @@ float3 ReconstructCSPos(float sceneDepth, float2 screenPos)
 	return float3(screenPos * sceneDepth, sceneDepth);
 }
 
+float3 WedgeWithNormal(float2 screenSpacePosCenter, float2 localRandom, float3 invFovFix, float3 viewSpacePosition, float3 viewSpaceNormal, float invHaloSize)
+{
+	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
+	float2 screenSpacePosR = screenSpacePosCenter - localRandom;
+
+	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+
+	float3 samplePositionL = ReconstructCSPos(absL, screenSpacePosL);
+	float3 samplePositionR = ReconstructCSPos(absR, screenSpacePosR);
+
+	float3 deltaL = (samplePositionL - viewSpacePosition) * invFovFix;
+	float3 deltaR = (samplePositionR - viewSpacePosition) * invFovFix;
+
+	float invNormalAngleL = saturate(dot(deltaL, viewSpaceNormal) * rsqrt(dot(deltaL, deltaL)));
+	float invNormalAngleR = saturate(dot(deltaR, viewSpaceNormal) * rsqrt(dot(deltaR, deltaR)));
+
+	float weight = saturate(1.0f - length(deltaL) * invHaloSize) * saturate(1.0f - length(deltaR) * invHaloSize);;
+
+	return float3(invNormalAngleL, invNormalAngleR, weight);
+}
+
 float2 WedgeNoNormal(float2 screenSpacePosCenter, float2 localRandom, float3 invFovFix, float3 viewSpacePosition)
 {
 	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
@@ -90,7 +112,7 @@ float2 WedgeNoNormal(float2 screenSpacePosCenter, float2 localRandom, float3 inv
 	float left = viewSpacePosition.z - absL;
 	float right = viewSpacePosition.z - absR;
 
-	float normAngle = acos(dot(deltaL, deltaR) / sqrt(dot(deltaL, deltaL) * dot(deltaR, deltaR))) / F_PI;
+	float normAngle = acos(dot(deltaL, deltaR) * rsqrt(dot(deltaL, deltaL) * dot(deltaR, deltaR))) / F_PI;
 
 	if (left + right < flatSurfaceBias)
 	{
@@ -117,7 +139,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
 
 	float3 worldNormal = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0 - 1.0f;
-	float3 viewSpaceNormal = mul((float3x3)WorldToView, worldNormal);
+	float3 viewSpaceNormal = normalize(mul((float3x3)WorldToView, worldNormal));
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
@@ -139,6 +161,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 	// [-1,1]x[-1,1]
 	float2 screenSpacePos = viewSpacePosition.xy / viewSpacePosition.z;
 
+	float invHaloSize = 1.0f / (actualAORadius * fovFixXY.x * 2);
+
 	float2 weightAccumulator = 0.0001f;
 
 	// disk random loop
@@ -147,18 +171,37 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float2 unrotatedRandom = OcclusionSamplesOffsets[i];
 		float2 localRandom = (unrotatedRandom.x * randomBase.xy + unrotatedRandom.y * randomBase.zw);
 
-		float2 localAllumulator = 0.0f;
-
-		// ray-march loop
-		for (uint step = 0; step < SAMPLE_STEPS; step++)
+		if (USE_NORMALS)
 		{
-			float scale = (step + 1) / (float)SAMPLE_STEPS;
+			float3 localAllumulator = 0.0f;
 
-			float2 stepSample = WedgeNoNormal(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition);
-			localAllumulator = lerp(localAllumulator, float2(max(localAllumulator.x, stepSample.x), 1), stepSample.y);
+			// ray-march loop
+			for (uint step = 0; step < SAMPLE_STEPS; step++)
+			{
+				float scale = (step + 1) / (float)SAMPLE_STEPS;
+
+				float3 stepSample = WedgeWithNormal(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition, viewSpaceNormal, invHaloSize);
+				localAllumulator = lerp(localAllumulator, float3(max(localAllumulator.xy, stepSample.xy), 1), stepSample.z);
+			}
+
+			weightAccumulator += float2((1 - localAllumulator.x) * (1 - localAllumulator.x) * localAllumulator.z, localAllumulator.z);
+			weightAccumulator += float2((1 - localAllumulator.y) * (1 - localAllumulator.y) * localAllumulator.z, localAllumulator.z);
 		}
+		else
+		{
+			float2 localAllumulator = 0.0f;
 
-		weightAccumulator += float2((1 - localAllumulator.x) * (1 - localAllumulator.x) * localAllumulator.y, localAllumulator.y);
+			// ray-march loop
+			for (uint step = 0; step < SAMPLE_STEPS; step++)
+			{
+				float scale = (step + 1) / (float)SAMPLE_STEPS;
+
+				float2 stepSample = WedgeNoNormal(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition);
+				localAllumulator = lerp(localAllumulator, float2(max(localAllumulator.x, stepSample.x), 1), stepSample.y);
+			}
+
+			weightAccumulator += float2((1 - localAllumulator.x) * (1 - localAllumulator.x) * localAllumulator.y, localAllumulator.y);
+		}
 	}
 
 	float result = weightAccumulator.x / weightAccumulator.y;
