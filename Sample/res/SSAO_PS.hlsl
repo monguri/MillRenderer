@@ -2,7 +2,9 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
-#define USE_NORMALS 1
+#define OPTIMIZATION_O1 1
+
+#define USE_NORMALS 0
 
 #define SAMPLESET_ARRAY_SIZE 3
 static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
@@ -71,7 +73,7 @@ float3 ReconstructCSPos(float sceneDepth, float2 screenPos)
 	return float3(screenPos * sceneDepth, sceneDepth);
 }
 
-float3 WedgeWithNormal(float2 screenSpacePosCenter, float2 localRandom, float3 invFovFix, float3 viewSpacePosition, float3 viewSpaceNormal, float invHaloSize)
+float3 WedgeWithNormal(float2 screenSpacePosCenter, float2 localRandom, float3 invFovFix, float3 viewSpacePosition, float3 scaledViewSpaceNormal, float invHaloSize)
 {
 	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
 	float2 screenSpacePosR = screenSpacePosCenter - localRandom;
@@ -85,10 +87,15 @@ float3 WedgeWithNormal(float2 screenSpacePosCenter, float2 localRandom, float3 i
 	float3 deltaL = (samplePositionL - viewSpacePosition) * invFovFix;
 	float3 deltaR = (samplePositionR - viewSpacePosition) * invFovFix;
 
-	float invNormalAngleL = saturate(dot(deltaL, viewSpaceNormal) * rsqrt(dot(deltaL, deltaL)));
-	float invNormalAngleR = saturate(dot(deltaR, viewSpaceNormal) * rsqrt(dot(deltaR, deltaR)));
-
-	float weight = saturate(1.0f - length(deltaL) * invHaloSize) * saturate(1.0f - length(deltaR) * invHaloSize);;
+#if OPTIMIZATION_O1 
+	float invNormalAngleL = saturate(dot(deltaL, scaledViewSpaceNormal) / dot(deltaL, deltaL));
+	float invNormalAngleR = saturate(dot(deltaR, scaledViewSpaceNormal) / dot(deltaR, deltaR));
+	float weight = 1.0f;
+#else
+	float invNormalAngleL = saturate(dot(deltaL, scaledViewSpaceNormal) * rsqrt(dot(deltaL, deltaL)));
+	float invNormalAngleR = saturate(dot(deltaR, scaledViewSpaceNormal) * rsqrt(dot(deltaR, deltaR)));
+	float weight = saturate(1.0f - length(deltaL) * invHaloSize) * saturate(1.0f - length(deltaR) * invHaloSize);
+#endif
 
 	return float3(invNormalAngleL, invNormalAngleR, weight);
 }
@@ -163,6 +170,11 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	float invHaloSize = 1.0f / (actualAORadius * fovFixXY.x * 2);
 
+	float3 scaledViewSpaceNormal = viewSpaceNormal;
+#if OPTIMIZATION_O1 
+	scaledViewSpaceNormal *= 0.08f * sceneDepth;
+#endif
+
 	float2 weightAccumulator = 0.0001f;
 
 	// disk random loop
@@ -180,7 +192,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 			{
 				float scale = (step + 1) / (float)SAMPLE_STEPS;
 
-				float3 stepSample = WedgeWithNormal(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition, viewSpaceNormal, invHaloSize);
+				float3 stepSample = WedgeWithNormal(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition, scaledViewSpaceNormal, invHaloSize);
 				localAllumulator = lerp(localAllumulator, float3(max(localAllumulator.xy, stepSample.xy), 1), stepSample.z);
 			}
 
