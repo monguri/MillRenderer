@@ -71,7 +71,7 @@ bool IndexBuffer::Init
 
 		memcpy(ptr, pInitData, desc.Width);
 
-		m_pIB->Unmap(0, nullptr);
+		Unmap();
 	}
 
 	m_Count = count;

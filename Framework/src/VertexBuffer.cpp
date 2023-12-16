@@ -72,7 +72,7 @@ bool VertexBuffer::Init
 
 		memcpy(ptr, pInitData, size);
 
-		m_pVB->Unmap(0, nullptr);
+		Unmap();
 	}
 
 	return true;
