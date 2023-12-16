@@ -19,8 +19,8 @@ public:
 
 	void Term();
 
-	uint32_t* Map();
-	void Unmap();
+	uint32_t* Map() const;
+	void Unmap() const;
 
 	D3D12_INDEX_BUFFER_VIEW GetView() const;
 	size_t GetCount() const;

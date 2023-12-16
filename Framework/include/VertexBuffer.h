@@ -31,7 +31,7 @@ public:
 	void Term();
 
 	void* Map() const;
-	void Unmap();
+	void Unmap() const;
 
 	template<typename T>
 	T* Map() const

@@ -96,7 +96,7 @@ void* VertexBuffer::Map() const
 	return ptr;
 }
 
-void VertexBuffer::Unmap()
+void VertexBuffer::Unmap() const
 {
 	m_pVB->Unmap(0, nullptr);
 }

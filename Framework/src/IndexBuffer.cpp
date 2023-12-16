@@ -85,7 +85,7 @@ void IndexBuffer::Term()
 	memset(&m_View, 0, sizeof(m_View));
 }
 
-uint32_t* IndexBuffer::Map()
+uint32_t* IndexBuffer::Map() const
 {
 	uint32_t* ptr;
 	HRESULT hr = m_pIB->Map(0, nullptr, reinterpret_cast<void**>(&ptr));
@@ -97,7 +97,7 @@ uint32_t* IndexBuffer::Map()
 	return ptr;
 }
 
-void IndexBuffer::Unmap()
+void IndexBuffer::Unmap() const
 {
 	m_pIB->Unmap(0, nullptr);
 }
