@@ -172,7 +172,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	float3 scaledViewSpaceNormal = viewSpaceNormal;
 #if OPTIMIZATION_O1 
-	scaledViewSpaceNormal *= 0.08f * sceneDepth;
+	scaledViewSpaceNormal *= 8.0f * sceneDepth;
 #endif
 
 	float2 weightAccumulator = 0.0001f;
