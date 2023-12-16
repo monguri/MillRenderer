@@ -34,6 +34,39 @@ public:
 		IDXGISwapChain* pSwapChain
 	);
 
+	bool Init
+	(
+		ID3D12Device* pDevice,
+		DescriptorPool* pPoolSRV,
+		uint32_t width,
+		uint32_t height,
+		DXGI_FORMAT format,
+		size_t pixelSize,
+		const void* pInitData
+	);
+
+	template<typename T>
+	bool Init
+	(
+		ID3D12Device* pDevice,
+		DescriptorPool* pPoolSRV,
+		uint32_t width,
+		uint32_t height,
+		DXGI_FORMAT format,
+		const T* pInitData
+	)
+	{
+		return Init(
+			pDevice,
+			pPoolSRV,
+			width,
+			height,
+			format,
+			sizeof(T),
+			pInitData
+		);
+	}
+
 	void Term();
 
 	DescriptorHandle* GetHandleRTV() const;

@@ -44,6 +44,7 @@ private:
 	ColorTarget m_SceneNormalTarget;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_SSAO_Target;
+	ColorTarget m_SSAO_RandomizationTarget;
 	ColorTarget m_AmbientLightTarget;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_SSAO_CB[FrameCount];

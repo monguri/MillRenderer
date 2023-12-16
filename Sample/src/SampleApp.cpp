@@ -520,6 +520,28 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// SSAO用ランダム値生成用カラーターゲットの生成
+	{
+		// サイズはUEのSSAORandomizationテクスチャを参考にした
+		static constexpr uint32_t SSAO_RANDOMIZATIN_TEXTURE_SIZE = 64;
+
+		std::vector<uint16_t> texData(SSAO_RANDOMIZATIN_TEXTURE_SIZE * SSAO_RANDOMIZATIN_TEXTURE_SIZE);
+
+		if (!m_SSAO_RandomizationTarget.Init<uint16_t>
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			SSAO_RANDOMIZATIN_TEXTURE_SIZE,
+			SSAO_RANDOMIZATIN_TEXTURE_SIZE,
+			DXGI_FORMAT_R8G8_UNORM,
+			texData.data() // TODO:書き込んだデータを渡す
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// AmbientLight用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -1223,6 +1245,7 @@ void SampleApp::OnTerm()
 	m_SceneDepthTarget.Term();
 
 	m_SSAO_Target.Term();
+	m_SSAO_RandomizationTarget.Term();
 
 	m_AmbientLightTarget.Term();
 

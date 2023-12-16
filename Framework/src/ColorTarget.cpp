@@ -228,6 +228,108 @@ bool ColorTarget::InitFromBackBuffer
 	return true;
 }
 
+bool ColorTarget::Init
+(
+	ID3D12Device* pDevice,
+	DescriptorPool* pPoolSRV,
+	uint32_t width,
+	uint32_t height,
+	DXGI_FORMAT format,
+	size_t pixelSize,
+	const void* pInitData
+)
+{
+	if (pDevice == nullptr || pPoolSRV == nullptr || width == 0 || height == 0 || pInitData == nullptr)
+	{
+		return false;
+	}
+
+	assert(m_pPoolSRV == nullptr);
+	assert(m_pHandleSRV == nullptr);
+
+	m_pPoolSRV = pPoolSRV;
+	m_pPoolSRV->AddRef();
+
+	m_pHandleSRV = pPoolSRV->AllocHandle();
+	if (m_pHandleSRV == nullptr)
+	{
+		return false;
+	}
+
+	// Upload用バッファ作成
+	ComPtr<ID3D12Resource> m_pUploadBuffer;
+
+	D3D12_HEAP_PROPERTIES prop = {};
+	prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	prop.CreationNodeMask = 1;
+	prop.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER; // Upload用のものはD3D12_RESOURCE_DIMENSION_TEXTURE2DでなくBufferで作らねばならない
+	desc.Alignment = 0;
+	desc.Width = pixelSize * width * height;
+	desc.Height = 1;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	HRESULT hr = pDevice->CreateCommittedResource
+	(
+		&prop,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_pUploadBuffer.GetAddressOf())
+	);
+	if (FAILED(hr))
+	{
+		return false;
+	}
+
+	{
+		void* ptr;
+		hr = m_pUploadBuffer->Map(0, nullptr, &ptr);
+		if (FAILED(hr) || ptr == nullptr)
+		{
+			return false;
+		}
+
+		memcpy(ptr, pInitData, pixelSize * width * height);
+
+		m_pUploadBuffer->Unmap(0, nullptr);
+	}
+
+#if 0
+	if (pPoolSRV != nullptr)
+	{
+		m_SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		m_SRVDesc.Format = format;
+		m_SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		m_SRVDesc.Texture2D.MostDetailedMip = 0;
+		m_SRVDesc.Texture2D.MipLevels = 1;
+		m_SRVDesc.Texture2D.PlaneSlice = 0;
+		m_SRVDesc.Texture2D.ResourceMinLODClamp = 0;
+
+		pDevice->CreateShaderResourceView(
+			m_pTarget.Get(),
+			&m_SRVDesc,
+			m_pHandleSRV->HandleCPU
+		);
+	}
+#endif
+
+	// TODO:コピー後にm_pUploadBuffer解放
+	return true;
+}
+
+
 void ColorTarget::Term()
 {
 	m_pTarget.Reset();
