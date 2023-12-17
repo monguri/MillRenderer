@@ -258,56 +258,9 @@ bool ColorTarget::InitFromData
 		return false;
 	}
 
-	// Upload用バッファ作成
-	ComPtr<ID3D12Resource> m_pUploadBuffer;
-	{
-		D3D12_HEAP_PROPERTIES prop = {};
-		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
-		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		prop.CreationNodeMask = 1;
-		prop.VisibleNodeMask = 1;
-
-		D3D12_RESOURCE_DESC desc = {};
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER; // Upload用のものはD3D12_RESOURCE_DIMENSION_TEXTURE2DでなくBufferで作らねばならない
-		desc.Alignment = 0;
-		desc.Width = pixelSize * width * height;
-		desc.Height = 1;
-		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Format = DXGI_FORMAT_UNKNOWN;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
-		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-		HRESULT hr = pDevice->CreateCommittedResource
-		(
-			&prop,
-			D3D12_HEAP_FLAG_NONE,
-			&desc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(m_pUploadBuffer.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			return false;
-		}
-
-		void* ptr;
-		hr = m_pUploadBuffer->Map(0, nullptr, &ptr);
-		if (FAILED(hr) || ptr == nullptr)
-		{
-			return false;
-		}
-
-		memcpy(ptr, pInitData, pixelSize * width * height);
-
-		m_pUploadBuffer->Unmap(0, nullptr);
-	}
-
-	// テクスチャ作成とコピー
+	// テクスチャ作成
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+	UINT64 texBytes;
 	{
 		D3D12_HEAP_PROPERTIES prop = {};
 		prop.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -357,9 +310,59 @@ bool ColorTarget::InitFromData
 			m_pHandleSRV->HandleCPU
 		);
 
-		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
-		pDevice->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, nullptr, nullptr, nullptr);
+		pDevice->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, nullptr, nullptr, &texBytes);
+	}
 
+	// Upload用バッファ作成
+	{
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		prop.CreationNodeMask = 1;
+		prop.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER; // Upload用のものはD3D12_RESOURCE_DIMENSION_TEXTURE2DでなくBufferで作らねばならない
+		desc.Alignment = 0;
+		desc.Width = texBytes;
+		desc.Height = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		HRESULT hr = pDevice->CreateCommittedResource
+		(
+			&prop,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pUploadBuffer.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		void* ptr;
+		hr = m_pUploadBuffer->Map(0, nullptr, &ptr);
+		if (FAILED(hr) || ptr == nullptr)
+		{
+			return false;
+		}
+
+		memcpy(reinterpret_cast<unsigned char*>(ptr) + footprint.Offset, pInitData, pixelSize * width * height);
+
+		m_pUploadBuffer->Unmap(0, nullptr);
+	}
+
+	// テクスチャ作成とコピー
+	{
 		D3D12_TEXTURE_COPY_LOCATION src;
 		src.pResource = m_pUploadBuffer.Get();
 		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
@@ -375,8 +378,6 @@ bool ColorTarget::InitFromData
 		DirectX::TransitionResource(pCmdList, GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
-	m_pUploadBuffer.Reset();
-
 	return true;
 }
 
@@ -384,6 +385,7 @@ bool ColorTarget::InitFromData
 void ColorTarget::Term()
 {
 	m_pTarget.Reset();
+	m_pUploadBuffer.Reset(); // TODO:本当はコピーのExecuteCommandLists後にすぐ消せるのだが。
 
 	if (m_pHandleRTV != nullptr && m_pPoolRTV != nullptr)
 	{

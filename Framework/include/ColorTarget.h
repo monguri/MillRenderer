@@ -85,6 +85,7 @@ public:
 
 private:
 	ComPtr<ID3D12Resource> m_pTarget;
+	ComPtr<ID3D12Resource> m_pUploadBuffer;
 	DescriptorHandle* m_pHandleRTV;
 	DescriptorHandle* m_pHandleSRV;
 	DescriptorPool* m_pPoolRTV;
