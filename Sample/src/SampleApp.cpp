@@ -527,7 +527,23 @@ bool SampleApp::OnInit()
 		// サイズはUEのSSAORandomizationテクスチャを参考にした
 		static constexpr uint32_t SSAO_RANDOMIZATIN_TEXTURE_SIZE = 64;
 
+		Vector3 baseColors[16];
+		uint32_t reorder[16] = { 0, 11, 7, 3, 10, 4, 15, 12, 6, 8, 1, 14, 13, 2, 9, 5 };
+
+		for (uint32_t pos = 0; pos < 16; pos++)
+		{
+			uint32_t w = reorder[pos];
+			float ww = w / 16.0f * DirectX::XM_PI;
+
+		}
+
 		std::vector<uint16_t> texData(SSAO_RANDOMIZATIN_TEXTURE_SIZE * SSAO_RANDOMIZATIN_TEXTURE_SIZE);
+		for (uint32_t y = 0; y < SSAO_RANDOMIZATIN_TEXTURE_SIZE; y++)
+		{
+			for (uint32_t x = 0; x < SSAO_RANDOMIZATIN_TEXTURE_SIZE; x++)
+			{
+			}
+		}
 
 		if (!m_SSAO_RandomizationTarget.InitFromData<uint16_t>
 		(
