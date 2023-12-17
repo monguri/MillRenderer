@@ -1,5 +1,6 @@
 #include "ColorTarget.h"
 #include "DescriptorPool.h"
+#include <DirectXHelpers.h>
 
 namespace
 {
@@ -231,6 +232,7 @@ bool ColorTarget::InitFromBackBuffer
 bool ColorTarget::InitFromData
 (
 	ID3D12Device* pDevice,
+	ID3D12GraphicsCommandList* pCmdList,
 	DescriptorPool* pPoolSRV,
 	uint32_t width,
 	uint32_t height,
@@ -258,42 +260,41 @@ bool ColorTarget::InitFromData
 
 	// Upload用バッファ作成
 	ComPtr<ID3D12Resource> m_pUploadBuffer;
-
-	D3D12_HEAP_PROPERTIES prop = {};
-	prop.Type = D3D12_HEAP_TYPE_UPLOAD;
-	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	prop.CreationNodeMask = 1;
-	prop.VisibleNodeMask = 1;
-
-	D3D12_RESOURCE_DESC desc = {};
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER; // Upload用のものはD3D12_RESOURCE_DIMENSION_TEXTURE2DでなくBufferで作らねばならない
-	desc.Alignment = 0;
-	desc.Width = pixelSize * width * height;
-	desc.Height = 1;
-	desc.DepthOrArraySize = 1;
-	desc.MipLevels = 1;
-	desc.Format = DXGI_FORMAT_UNKNOWN;
-	desc.SampleDesc.Count = 1;
-	desc.SampleDesc.Quality = 0;
-	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-	HRESULT hr = pDevice->CreateCommittedResource
-	(
-		&prop,
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(m_pUploadBuffer.GetAddressOf())
-	);
-	if (FAILED(hr))
 	{
-		return false;
-	}
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		prop.CreationNodeMask = 1;
+		prop.VisibleNodeMask = 1;
 
-	{
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER; // Upload用のものはD3D12_RESOURCE_DIMENSION_TEXTURE2DでなくBufferで作らねばならない
+		desc.Alignment = 0;
+		desc.Width = pixelSize * width * height;
+		desc.Height = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		HRESULT hr = pDevice->CreateCommittedResource
+		(
+			&prop,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pUploadBuffer.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
 		void* ptr;
 		hr = m_pUploadBuffer->Map(0, nullptr, &ptr);
 		if (FAILED(hr) || ptr == nullptr)
@@ -306,9 +307,42 @@ bool ColorTarget::InitFromData
 		m_pUploadBuffer->Unmap(0, nullptr);
 	}
 
-#if 0
-	if (pPoolSRV != nullptr)
+	// テクスチャ作成とコピー
 	{
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.Type = D3D12_HEAP_TYPE_DEFAULT;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		prop.CreationNodeMask = 1;
+		prop.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		desc.Alignment = 0;
+		desc.Width = UINT64(width);
+		desc.Height = height;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+		HRESULT hr = pDevice->CreateCommittedResource
+		(
+			&prop,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_COPY_DEST, // コピー用の状態にしておく
+			nullptr,
+			IID_PPV_ARGS(m_pTarget.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
 		m_SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		m_SRVDesc.Format = format;
 		m_SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -322,10 +356,27 @@ bool ColorTarget::InitFromData
 			&m_SRVDesc,
 			m_pHandleSRV->HandleCPU
 		);
-	}
-#endif
 
-	// TODO:コピー後にm_pUploadBuffer解放
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+		pDevice->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, nullptr, nullptr, nullptr);
+
+		D3D12_TEXTURE_COPY_LOCATION src;
+		src.pResource = m_pUploadBuffer.Get();
+		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		src.PlacedFootprint = footprint;
+
+		D3D12_TEXTURE_COPY_LOCATION dst;
+		dst.pResource = m_pTarget.Get();
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst.SubresourceIndex = 0;
+
+		pCmdList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+		DirectX::TransitionResource(pCmdList, GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
+
+	m_pUploadBuffer.Reset();
+
 	return true;
 }
 

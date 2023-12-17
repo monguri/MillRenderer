@@ -522,6 +522,8 @@ bool SampleApp::OnInit()
 
 	// SSAO用ランダム値生成用カラーターゲットの生成
 	{
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
 		// サイズはUEのSSAORandomizationテクスチャを参考にした
 		static constexpr uint32_t SSAO_RANDOMIZATIN_TEXTURE_SIZE = 64;
 
@@ -530,6 +532,7 @@ bool SampleApp::OnInit()
 		if (!m_SSAO_RandomizationTarget.InitFromData<uint16_t>
 		(
 			m_pDevice.Get(),
+			pCmd,
 			m_pPool[POOL_TYPE_RES],
 			SSAO_RANDOMIZATIN_TEXTURE_SIZE,
 			SSAO_RANDOMIZATIN_TEXTURE_SIZE,
@@ -540,6 +543,11 @@ bool SampleApp::OnInit()
 			ELOG("Error : ColorTarget::Init() Failed.");
 			return false;
 		}
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
 	}
 
 	// AmbientLight用カラーターゲットの生成

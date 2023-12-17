@@ -37,6 +37,7 @@ public:
 	bool InitFromData
 	(
 		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
 		DescriptorPool* pPoolSRV,
 		uint32_t width,
 		uint32_t height,
@@ -49,6 +50,7 @@ public:
 	bool InitFromData
 	(
 		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
 		DescriptorPool* pPoolSRV,
 		uint32_t width,
 		uint32_t height,
@@ -58,6 +60,7 @@ public:
 	{
 		return InitFromData(
 			pDevice,
+			pCmdList,
 			pPoolSRV,
 			width,
 			height,
