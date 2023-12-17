@@ -56,7 +56,7 @@ ColorTarget::~ColorTarget()
 	Term();
 }
 
-bool ColorTarget::Init
+bool ColorTarget::InitRenderTarget
 (
 	ID3D12Device* pDevice,
 	DescriptorPool* pPoolRTV,
@@ -228,7 +228,7 @@ bool ColorTarget::InitFromBackBuffer
 	return true;
 }
 
-bool ColorTarget::Init
+bool ColorTarget::InitFromData
 (
 	ID3D12Device* pDevice,
 	DescriptorPool* pPoolSRV,

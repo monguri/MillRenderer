@@ -14,7 +14,7 @@ public:
 	ColorTarget();
 	~ColorTarget();
 
-	bool Init
+	bool InitRenderTarget
 	(
 		ID3D12Device* pDevice,
 		DescriptorPool* pPoolRTV,
@@ -34,7 +34,7 @@ public:
 		IDXGISwapChain* pSwapChain
 	);
 
-	bool Init
+	bool InitFromData
 	(
 		ID3D12Device* pDevice,
 		DescriptorPool* pPoolSRV,
@@ -46,7 +46,7 @@ public:
 	);
 
 	template<typename T>
-	bool Init
+	bool InitFromData
 	(
 		ID3D12Device* pDevice,
 		DescriptorPool* pPoolSRV,
@@ -56,7 +56,7 @@ public:
 		const T* pInitData
 	)
 	{
-		return Init(
+		return InitFromData(
 			pDevice,
 			pPoolSRV,
 			width,

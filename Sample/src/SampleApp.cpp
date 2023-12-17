@@ -445,7 +445,7 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.2f, 0.2f, 0.2f, 1.0f};
 
-		if (!m_SceneColorTarget.Init
+		if (!m_SceneColorTarget.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -465,7 +465,7 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_SceneNormalTarget.Init
+		if (!m_SceneNormalTarget.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -504,7 +504,7 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-		if (!m_SSAO_Target.Init
+		if (!m_SSAO_Target.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -527,7 +527,7 @@ bool SampleApp::OnInit()
 
 		std::vector<uint16_t> texData(SSAO_RANDOMIZATIN_TEXTURE_SIZE * SSAO_RANDOMIZATIN_TEXTURE_SIZE);
 
-		if (!m_SSAO_RandomizationTarget.Init<uint16_t>
+		if (!m_SSAO_RandomizationTarget.InitFromData<uint16_t>
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RES],
@@ -546,7 +546,7 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_AmbientLightTarget.Init
+		if (!m_AmbientLightTarget.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
