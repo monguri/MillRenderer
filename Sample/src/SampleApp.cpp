@@ -164,6 +164,17 @@ namespace
 		const Matrix& spotLightShadowProj = Matrix::CreatePerspectiveFieldOfView(outerAngle * 2.0f, 1.0f, radius * 0.05f, radius * 1.0f); // パラメータはModelViewerを参考にした
 		return spotLightShadowView * spotLightShadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
+
+	// @param x assumed to be in this range: -1..1
+	// @return 0..255
+	uint8_t Quantize8SignedByte(float x)
+	{
+		// -1..1 -> 0..1
+		float y = x * 0.5f + 0.5f;
+
+		uint32_t ret = (uint32_t)(y * 255.0f + 0.5f);
+		return (uint8_t)ret;
+	}
 }
 
 SampleApp::SampleApp(uint32_t width, uint32_t height)
@@ -525,9 +536,12 @@ bool SampleApp::OnInit()
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 		// サイズはUEのSSAORandomizationテクスチャを参考にした
-		static constexpr uint32_t SSAO_RANDOMIZATIN_TEXTURE_SIZE = 64;
+		const uint32_t SSAO_RANDOMIZATIN_TEXTURE_SIZE = 64;
 
-		Vector3 baseColors[16];
+		const float ANGLE_OFF2 = 198;
+		const float ANGLE_OFF3 = 23;
+		
+		uint8_t baseColors[16][2];
 		uint32_t reorder[16] = { 0, 11, 7, 3, 10, 4, 15, 12, 6, 8, 1, 14, 13, 2, 9, 5 };
 
 		for (uint32_t pos = 0; pos < 16; pos++)
@@ -535,6 +549,12 @@ bool SampleApp::OnInit()
 			uint32_t w = reorder[pos];
 			float ww = w / 16.0f * DirectX::XM_PI;
 
+			float lenm = 1.0f - (sinf(ANGLE_OFF2 * w * 0.01f) * 0.5f + 0.5f) * ANGLE_OFF3 * 0.01f;
+			float s = sinf(ww) * lenm;
+			float c = cosf(ww) * lenm;
+
+			baseColors[pos][0] = Quantize8SignedByte(c); 
+			baseColors[pos][1] = Quantize8SignedByte(s); 
 		}
 
 		std::vector<uint16_t> texData(SSAO_RANDOMIZATIN_TEXTURE_SIZE * SSAO_RANDOMIZATIN_TEXTURE_SIZE);
@@ -542,6 +562,10 @@ bool SampleApp::OnInit()
 		{
 			for (uint32_t x = 0; x < SSAO_RANDOMIZATIN_TEXTURE_SIZE; x++)
 			{
+				uint8_t* dest = (uint8_t*)&texData[x + y * SSAO_RANDOMIZATIN_TEXTURE_SIZE];
+				uint32_t index = (x % 4) + (y % 4) * 4;
+				dest[0] = baseColors[index][0];
+				dest[1] = baseColors[index][1];
 			}
 		}
 
