@@ -356,13 +356,15 @@ bool ColorTarget::InitFromData
 			return false;
 		}
 
-		memcpy(reinterpret_cast<unsigned char*>(ptr) + footprint.Offset, pInitData, pixelSize * width * height);
-		//for (uint32_t y = 0; y < height; y++)
-		//{
-		//	uint8_t* ptr = (uint8_t*)pInitData + footprint.Offset + y * footprint.Footprint.RowPitch;
-		//	//memcpy(ptr, (uint8_t*)pInitData + pixelSize * y * width, pixelSize * width);
-		//	//memcpy(ptr, &((uint16_t*)pInitData)[y * width], pixelSize * width);
-		//}
+		for (uint32_t y = 0; y < height; y++)
+		{
+			for (uint32_t x = 0; x < height; x++)
+			{
+				uint8_t* src = (uint8_t*)pInitData + (x + y * height) * pixelSize;
+				uint8_t* dest = reinterpret_cast<uint8_t*>(ptr) + x * pixelSize + y * footprint.Footprint.RowPitch;
+				memcpy(dest, src, pixelSize);
+			}
+		}
 
 		m_pUploadBuffer->Unmap(0, nullptr);
 	}
