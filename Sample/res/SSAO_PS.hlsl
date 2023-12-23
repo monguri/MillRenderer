@@ -44,6 +44,9 @@ SamplerState DepthSmp : register(s0);
 Texture2D NormalMap : register(t1);
 SamplerState NormalSmp : register(s1);
 
+Texture2D RandomNormalTex : register(t2);
+SamplerState RandomNormalSmp : register(s2);
+
 static const uint3 k = uint3(0x456789abu, 0x6789ab45u, 0x89ab4567u);
 static const uint3 u = uint3(1, 2, 3);
 static const uint UINT_MAX = 0xffffffffu;
@@ -145,7 +148,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float deviceZ = DepthMap.Sample(DepthSmp, input.TexCoord).r;
 	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
 
-	float3 worldNormal = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0 - 1.0f;
+	float3 worldNormal = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 	float3 viewSpaceNormal = normalize(mul((float3x3)WorldToView, worldNormal));
 
 	// [-1,1]x[-1,1]
@@ -160,7 +163,11 @@ float4 main(const VSOutput input) : SV_TARGET0
 		viewSpacePosition += AmbientOcclusionBias * sceneDepth * viewSpaceNormal * fovFix;
 	}
 
+#if 1
 	float2 randomVec = normalize(max(hash22(input.TexCoord), 0.000001f)) * actualAORadius;
+#else
+	float2 randomVec = (RandomNormalTex.Sample(RandomNormalSmp, input.TexCoord).rg * 2.0f - 1.0f) * actualAORadius;
+#endif
 
 	float2 fovFixXY = fovFix.xy * (1.0f / viewSpacePosition.z);
 	float4 randomBase = float4(randomVec, -randomVec.y, randomVec.x) * float4(fovFixXY, fovFixXY);
