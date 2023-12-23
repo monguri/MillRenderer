@@ -4,7 +4,7 @@
 
 #define OPTIMIZATION_O1 1
 
-#define USE_NORMALS 0
+#define USE_NORMALS 1
 
 #define SAMPLESET_ARRAY_SIZE 3
 static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
@@ -68,7 +68,9 @@ float2 hash22(float2 p)
 
 float ConvertFromDeviceZtoLinearZ(float deviceZ)
 {
-	return deviceZ * (Far - Near) + Near;
+	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
+	// deviceZ = ((Far * linearZ) / (Far - Near) - Far * Near / (Far - Near)) / linearZ
+	return (Far * Near) / (Far - deviceZ * (Far - Near));
 }
 
 float3 ReconstructCSPos(float sceneDepth, float2 screenPos)
