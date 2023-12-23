@@ -356,6 +356,7 @@ bool ColorTarget::InitFromData
 			return false;
 		}
 
+		// ˆê—v‘f‚¸‚Â‘‚«‚ñ‚Å‚¢‚­‚Ì‚ÍUE‚ÌFSystemTextures::InitializeFeatureLevelDependentTextures()‚ğQl‚É‚µ‚Ä‚¢‚é
 		for (uint32_t y = 0; y < height; y++)
 		{
 			for (uint32_t x = 0; x < height; x++)
