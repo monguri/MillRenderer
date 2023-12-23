@@ -280,7 +280,7 @@ bool ColorTarget::InitFromData
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 		HRESULT hr = pDevice->CreateCommittedResource
 		(
