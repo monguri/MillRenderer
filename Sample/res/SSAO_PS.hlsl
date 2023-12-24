@@ -32,6 +32,8 @@ cbuffer CbSSAO : register(b0)
 {
 	int Width;
 	int Height;
+	float2 RandomationSize;
+	float2 TemporalOffset;
 	float Near;
 	float Far;
 	float InvTanHalfFov;
@@ -144,6 +146,8 @@ float2 WedgeNoNormal(float2 screenSpacePosCenter, float2 localRandom, float3 inv
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
+	float2 viewportUVtoRandomUV = float2(Width, Height) / RandomationSize;
+
 	float3 fovFix = float3(InvTanHalfFov, InvTanHalfFov * Width / Height, 1.0f);
 	float3 invFovFix = 1.0f / fovFix;
 
@@ -165,10 +169,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 		viewSpacePosition += AmbientOcclusionBias * sceneDepth * viewSpaceNormal * fovFix;
 	}
 
-#if 1
+#if 0
 	float2 randomVec = normalize(max(hash22(input.TexCoord), 0.000001f)) * actualAORadius;
 #else
-	float2 randomVec = (RandomNormalTex.Sample(RandomNormalSmp, input.TexCoord).rg * 2.0f - 1.0f) * actualAORadius;
+	float2 randomVec = (RandomNormalTex.Sample(RandomNormalSmp, input.TexCoord * viewportUVtoRandomUV + TemporalOffset).rg * 2.0f - 1.0f) * actualAORadius;
 #endif
 
 	float2 fovFixXY = fovFix.xy * (1.0f / viewSpacePosition.z);

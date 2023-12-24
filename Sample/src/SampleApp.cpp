@@ -89,6 +89,8 @@ namespace
 	{
 		int Width;
 		int Height;
+		Vector2 RandomationSize;
+		Vector2 TemporalOffset;
 		float Near;
 		float Far;
 		float InvTanHalfFov;
@@ -188,6 +190,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_RotateAngle(0.0f)
 , m_DirLightShadowMapViewport()
 , m_DirLightShadowMapScissor()
+, m_TemporalAASampleIndex(0)
 {
 }
 
@@ -1129,6 +1132,9 @@ bool SampleApp::OnInit()
 		CbSSAO* ptr = m_SSAO_CB[i].GetPtr<CbSSAO>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
+		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTarget.GetDesc().Width, (float)m_SSAO_RandomizationTarget.GetDesc().Height);
+		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
+		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
@@ -1318,6 +1324,12 @@ void SampleApp::OnTerm()
 
 void SampleApp::OnRender()
 {
+	m_TemporalAASampleIndex++;
+	if (m_TemporalAASampleIndex >= TEMPORAL_AA_SAMPLES)
+	{
+		m_TemporalAASampleIndex = 0;
+	}
+
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	//m_RotateAngle += 0.01f;
 	const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
@@ -1581,6 +1593,8 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 {
 	{
 		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
+		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
+		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		const Matrix& view = m_Camera.GetView();
 		ptr->WorldToView = view.Invert();
 	}

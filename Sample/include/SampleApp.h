@@ -27,6 +27,8 @@ private:
 	static constexpr uint32_t NUM_POINT_LIGHTS = 4;
 	static constexpr uint32_t NUM_SPOT_LIGHTS = 3;
 
+	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11;
+
 	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
@@ -71,6 +73,7 @@ private:
 	D3D12_RECT m_DirLightShadowMapScissor;
 	D3D12_VIEWPORT m_SpotLightShadowMapViewport;
 	D3D12_RECT m_SpotLightShadowMapScissor;
+	uint32_t m_TemporalAASampleIndex;
 
 	virtual bool OnInit() override;
 	virtual void OnTerm() override;
