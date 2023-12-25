@@ -1138,8 +1138,7 @@ bool SampleApp::OnInit()
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
-		const Matrix& view = m_Camera.GetView();
-		ptr->WorldToView = view.Invert();
+		ptr->WorldToView = m_Camera.GetView();
 	}
 
 	// トーンマップ用定数バッファの作成
@@ -1595,8 +1594,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
-		const Matrix& view = m_Camera.GetView();
-		ptr->WorldToView = view.Invert();
+		ptr->WorldToView = m_Camera.GetView();
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
