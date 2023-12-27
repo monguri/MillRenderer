@@ -4,7 +4,7 @@
 
 #define OPTIMIZATION_O1 1
 
-#define USE_NORMALS 1
+#define USE_NORMALS 0
 
 #define SAMPLESET_ARRAY_SIZE 3
 static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
