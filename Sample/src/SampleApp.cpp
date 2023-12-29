@@ -591,6 +591,9 @@ bool SampleApp::OnInit()
 
 		ID3D12CommandList* pLists[] = {pCmd};
 		m_pQueue->ExecuteCommandLists(1, pLists);
+
+		// Wait command queue finishing.
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
 	// AmbientLight用カラーターゲットの生成
@@ -605,6 +608,26 @@ bool SampleApp::OnInit()
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R10G10B10A2_UNORM,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
+	// CSテスト用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_CSTestTarget.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
 			clearColor
 		))
 		{
@@ -1099,7 +1122,8 @@ bool SampleApp::OnInit()
     // CSテスト用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(0)
+		desc.Begin(1)
+			.SetUAV(ShaderStage::ALL, 0, 0)
 			.End();
 
 		if (!m_CSTestRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
@@ -1129,7 +1153,7 @@ bool SampleApp::OnInit()
 		}
 
 		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_TonemapRootSig.GetPtr();
+		desc.pRootSignature = m_CSTestRootSig.GetPtr();
 		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
 		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
 		desc.NodeMask = 0;
@@ -1272,40 +1296,6 @@ bool SampleApp::OnInit()
 	{
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
-		//ID3D12DescriptorHeap* const pHeaps[] = {
-		//	m_pPool[POOL_TYPE_RES]->GetHeap()
-		//};
-
-		//pCmd->SetDescriptorHeaps(1, pHeaps);
-		
-		pCmd->SetGraphicsRootSignature(m_CSTestRootSig.GetPtr());
-		pCmd->SetPipelineState(m_pCSTestPSO.Get());
-
-		//DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-		//m_SpotLightShadowMapTarget[i].ClearView(pCmd);
-
-		// TODO:PSOがOpaqueとMaskで切り替わっているのでライトごとでなくまとめるべきかも
-		//pCmd->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandleGPU());
-		//pCmd->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
-
-		UINT NumGroupX = 16;
-		UINT NumGroupY = 16;
-		UINT NumGroupZ = 1;
-		pCmd->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
-
-		//DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-		pCmd->Close();
-
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
-	}
-
-	// CSテスト
-	{
-		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
-
 		ID3D12DescriptorHeap* const pHeaps[] = {
 			m_pPool[POOL_TYPE_RES]->GetHeap()
 		};
@@ -1335,6 +1325,45 @@ bool SampleApp::OnInit()
 
 		ID3D12CommandList* pLists[] = {pCmd};
 		m_pQueue->ExecuteCommandLists(1, pLists);
+
+		// Wait command queue finishing.
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
+	}
+
+	// CSテスト
+	{
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
+		ID3D12DescriptorHeap* const pHeaps[] = {
+			m_pPool[POOL_TYPE_RES]->GetHeap()
+		};
+
+		pCmd->SetDescriptorHeaps(1, pHeaps);
+		
+		pCmd->SetComputeRootSignature(m_CSTestRootSig.GetPtr());
+		pCmd->SetPipelineState(m_pCSTestPSO.Get());
+
+		DirectX::TransitionResource(pCmd, m_CSTestTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		m_CSTestTarget.ClearView(pCmd);
+
+		// TODO:PSOがOpaqueとMaskで切り替わっているのでライトごとでなくまとめるべきかも
+		pCmd->SetComputeRootDescriptorTable(0, m_CSTestTarget.GetHandleSRV()->HandleGPU);
+
+		UINT NumGroupX = 16;
+		UINT NumGroupY = 16;
+		UINT NumGroupZ = 1;
+		pCmd->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+		DirectX::TransitionResource(pCmd, m_CSTestTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+
+		// Wait command queue finishing.
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
 	return true;
@@ -1391,6 +1420,8 @@ void SampleApp::OnTerm()
 	m_SSAO_RandomizationTarget.Term();
 
 	m_AmbientLightTarget.Term();
+
+	m_CSTestTarget.Term();
 
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();

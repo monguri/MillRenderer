@@ -50,6 +50,7 @@ private:
 	ColorTarget m_SSAO_Target;
 	ColorTarget m_SSAO_RandomizationTarget;
 	ColorTarget m_AmbientLightTarget;
+	ColorTarget m_CSTestTarget;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_SSAO_CB[FrameCount];
 	ConstantBuffer m_TonemapCB[FrameCount];

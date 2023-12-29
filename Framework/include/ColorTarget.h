@@ -25,6 +25,17 @@ public:
 		float clearColor[4]
 	);
 
+	bool InitUnorderedAccessTarget
+	(
+		ID3D12Device* pDevice,
+		DescriptorPool* pPoolUAV,
+		DescriptorPool* pPoolSRV,
+		uint32_t width,
+		uint32_t height,
+		DXGI_FORMAT format,
+		float clearColor[4]
+	);
+
 	bool InitFromBackBuffer
 	(
 		ID3D12Device* pDevice,
@@ -73,12 +84,14 @@ public:
 	void Term();
 
 	DescriptorHandle* GetHandleRTV() const;
+	DescriptorHandle* GetHandleUAV() const;
 	DescriptorHandle* GetHandleSRV() const;
 
 	ID3D12Resource* GetResource() const;
 	D3D12_RESOURCE_DESC GetDesc() const;
 
 	D3D12_RENDER_TARGET_VIEW_DESC GetRTVDesc() const;
+	D3D12_UNORDERED_ACCESS_VIEW_DESC GetUAVDesc() const;
 	D3D12_SHADER_RESOURCE_VIEW_DESC GetSRVDesc() const;
 
 	void ClearView(ID3D12GraphicsCommandList* pCmdList);
@@ -87,10 +100,13 @@ private:
 	ComPtr<ID3D12Resource> m_pTarget;
 	ComPtr<ID3D12Resource> m_pUploadBuffer;
 	DescriptorHandle* m_pHandleRTV;
+	DescriptorHandle* m_pHandleUAV;
 	DescriptorHandle* m_pHandleSRV;
 	DescriptorPool* m_pPoolRTV;
+	DescriptorPool* m_pPoolUAV;
 	DescriptorPool* m_pPoolSRV;
 	D3D12_RENDER_TARGET_VIEW_DESC m_RTVDesc;
+	D3D12_UNORDERED_ACCESS_VIEW_DESC m_UAVDesc;
 	D3D12_SHADER_RESOURCE_VIEW_DESC m_SRVDesc;
 	float m_ClearColor[4];
 
