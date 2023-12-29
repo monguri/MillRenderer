@@ -1272,6 +1272,40 @@ bool SampleApp::OnInit()
 	{
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
+		//ID3D12DescriptorHeap* const pHeaps[] = {
+		//	m_pPool[POOL_TYPE_RES]->GetHeap()
+		//};
+
+		//pCmd->SetDescriptorHeaps(1, pHeaps);
+		
+		pCmd->SetGraphicsRootSignature(m_CSTestRootSig.GetPtr());
+		pCmd->SetPipelineState(m_pCSTestPSO.Get());
+
+		//DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+		//m_SpotLightShadowMapTarget[i].ClearView(pCmd);
+
+		// TODO:PSOがOpaqueとMaskで切り替わっているのでライトごとでなくまとめるべきかも
+		//pCmd->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandleGPU());
+		//pCmd->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
+
+		UINT NumGroupX = 16;
+		UINT NumGroupY = 16;
+		UINT NumGroupZ = 1;
+		pCmd->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+		//DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+	}
+
+	// CSテスト
+	{
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
 		ID3D12DescriptorHeap* const pHeaps[] = {
 			m_pPool[POOL_TYPE_RES]->GetHeap()
 		};
@@ -1302,6 +1336,7 @@ bool SampleApp::OnInit()
 		ID3D12CommandList* pLists[] = {pCmd};
 		m_pQueue->ExecuteCommandLists(1, pLists);
 	}
+
 	return true;
 }
 
