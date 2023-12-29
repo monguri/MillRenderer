@@ -578,6 +578,11 @@ DescriptorHandle* ColorTarget::GetHandleRTV() const
 	return m_pHandleRTV;
 }
 
+DescriptorHandle* ColorTarget::GetHandleUAV() const
+{
+	return m_pHandleUAV;
+}
+
 DescriptorHandle* ColorTarget::GetHandleSRV() const
 {
 	return m_pHandleSRV;

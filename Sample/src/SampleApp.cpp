@@ -1347,8 +1347,7 @@ bool SampleApp::OnInit()
 
 		m_CSTestTarget.ClearView(pCmd);
 
-		// TODO:PSOがOpaqueとMaskで切り替わっているのでライトごとでなくまとめるべきかも
-		pCmd->SetComputeRootDescriptorTable(0, m_CSTestTarget.GetHandleSRV()->HandleGPU);
+		pCmd->SetComputeRootDescriptorTable(0, m_CSTestTarget.GetHandleUAV()->HandleGPU);
 
 		UINT NumGroupX = 16;
 		UINT NumGroupY = 16;
