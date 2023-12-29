@@ -1349,8 +1349,13 @@ bool SampleApp::OnInit()
 
 		pCmd->SetComputeRootDescriptorTable(0, m_CSTestTarget.GetHandleUAV()->HandleGPU);
 
-		UINT NumGroupX = 16;
-		UINT NumGroupY = 16;
+		// シェーダ側と合わせている
+		const size_t GROUP_SIZE_X = 8;
+		const size_t GROUP_SIZE_Y = 8;
+
+		// グループ数は切り上げ
+		UINT NumGroupX = (m_Width + GROUP_SIZE_X - 1) / GROUP_SIZE_X;
+		UINT NumGroupY = (m_Height + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
 		UINT NumGroupZ = 1;
 		pCmd->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
