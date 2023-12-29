@@ -40,6 +40,8 @@ private:
 	RootSignature m_AmbientLightRootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
+	ComPtr<ID3D12PipelineState> m_pCSTestPSO;
+	RootSignature m_CSTestRootSig;
 	DepthTarget m_DirLightShadowMapTarget;
 	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SceneColorTarget;

@@ -1096,6 +1096,58 @@ bool SampleApp::OnInit()
 		}
 	}
 
+    // CSテスト用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin(0)
+			.End();
+
+		if (!m_CSTestRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // CSテスト用パイプラインステートの生成
+	{
+		std::wstring csPath;
+
+		if (!SearchFilePath(L"CSTestCS.cso", csPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pCSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_TonemapRootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pCSTestPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
 	// スクリーンスペースパス用頂点バッファの生成
 	{
 		struct Vertex
@@ -1319,6 +1371,9 @@ void SampleApp::OnTerm()
 
 	m_pTonemapPSO.Reset();
 	m_TonemapRootSig.Term();
+
+	m_pCSTestPSO.Reset();
+	m_CSTestRootSig.Term();
 }
 
 void SampleApp::OnRender()
