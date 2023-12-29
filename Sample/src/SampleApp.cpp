@@ -1268,6 +1268,7 @@ bool SampleApp::OnInit()
 		ptr->World = Matrix::Identity;
 	}
 
+	// スポットライトのシャドウマップの作成
 	{
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
@@ -1398,7 +1399,7 @@ void SampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 	
-	// シャドウマップ描画パス
+	// ディレクショナルライトのシャドウマップ描画パス
 	{
 		DirectX::TransitionResource(pCmd, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
