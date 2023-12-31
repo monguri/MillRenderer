@@ -97,6 +97,11 @@ namespace
 		Matrix WorldToView;
 	};
 
+	struct alignas(256) CbTemporalAA
+	{
+		Matrix ClipToPrevClip;
+	};
+
 	struct alignas(256) CbTonemap
 	{
 		int Type;
@@ -1044,8 +1049,9 @@ bool SampleApp::OnInit()
     // CSテスト用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(1)
-			.SetUAV(ShaderStage::ALL, 0, 0)
+		desc.Begin(2)
+			.SetCBV(ShaderStage::ALL, 0, 0)
+			.SetUAV(ShaderStage::ALL, 1, 0)
 			.End();
 
 		if (!m_TemporalAA_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
@@ -1236,6 +1242,19 @@ bool SampleApp::OnInit()
 		ptr->WorldToView = m_Camera.GetView();
 	}
 
+	// TemporalAA用定数バッファの作成
+	for (uint32_t i = 0; i < FrameCount; i++)
+	{
+		if (!m_TemporalAA_CB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTemporalAA)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbTemporalAA* ptr = m_TemporalAA_CB[i].GetPtr<CbTemporalAA>();
+		ptr->ClipToPrevClip = Matrix::Identity;
+	}
+
 	// トーンマップ用定数バッファの作成
 	for (uint32_t i = 0; i < FrameCount; i++)
 	{
@@ -1358,12 +1377,13 @@ void SampleApp::OnTerm()
 
 	for (uint32_t i = 0; i < FrameCount; i++)
 	{
-		m_SSAO_CB[i].Term();
-		m_TonemapCB[i].Term();
 		m_DirectionalLightCB[i].Term();
 		m_CameraCB[i].Term();
 		m_DirLightShadowMapTransformCB[i].Term();
 		m_TransformCB[i].Term();
+		m_SSAO_CB[i].Term();
+		m_TemporalAA_CB[i].Term();
+		m_TonemapCB[i].Term();
 	}
 
 	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
@@ -1545,9 +1565,6 @@ void SampleApp::OnRender()
 
 	// TemporalAAパス
 	{
-		pCmd->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
-		pCmd->SetPipelineState(m_pTemporalAA_PSO.Get());
-
 		DirectX::TransitionResource(pCmd, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 		m_TemporalAATarget.ClearView(pCmd);
@@ -1775,10 +1792,15 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoAA)
 {
-	// TODO:
-	//ptr->ClipToPrevClip = viewProjNoAA.Invert() * m_PrevViewProjMatrixNoAA;
+	{
+		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
+		ptr->ClipToPrevClip = viewProjNoAA.Invert() * m_PrevViewProjMatrixNoAA;
+	}
 
-	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAATarget.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
+	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAA_CB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_TemporalAATarget.GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;

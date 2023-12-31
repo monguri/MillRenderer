@@ -52,8 +52,6 @@ private:
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_TemporalAATarget;
 	VertexBuffer m_QuadVB;
-	ConstantBuffer m_SSAO_CB[FrameCount];
-	ConstantBuffer m_TonemapCB[FrameCount];
 	ConstantBuffer m_DirectionalLightCB[FrameCount];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
 	ConstantBuffer m_SpotLightCB[NUM_SPOT_LIGHTS];
@@ -62,6 +60,9 @@ private:
 	ConstantBuffer m_SpotLightShadowMapTransformCB[NUM_SPOT_LIGHTS];
 	ConstantBuffer m_TransformCB[FrameCount];
 	ConstantBuffer m_MeshCB;
+	ConstantBuffer m_SSAO_CB[FrameCount];
+	ConstantBuffer m_TemporalAA_CB[FrameCount];
+	ConstantBuffer m_TonemapCB[FrameCount];
 	std::vector<class Mesh*> m_pMesh;
 	Material m_Material;
 	float m_RotateAngle;
