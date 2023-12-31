@@ -77,17 +77,18 @@ private:
 	D3D12_VIEWPORT m_SpotLightShadowMapViewport;
 	D3D12_RECT m_SpotLightShadowMapScissor;
 	uint32_t m_TemporalAASampleIndex;
+	DirectX::SimpleMath::Matrix m_PrevViewProjMatrixNoAA;
 
 	virtual bool OnInit() override;
 	virtual void OnTerm() override;
 	virtual void OnRender() override;
 	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 	void ChangeDisplayMode(bool hdr);
-	void DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
+	void DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj);
 	void DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
-	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList);
+	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoAA);
 	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
 };

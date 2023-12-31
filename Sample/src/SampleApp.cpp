@@ -95,6 +95,7 @@ namespace
 		float Far;
 		float InvTanHalfFov;
 		Matrix WorldToView;
+		Matrix ClipToPrevClip;
 	};
 
 	struct alignas(256) CbTonemap
@@ -208,6 +209,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_DirLightShadowMapViewport()
 , m_DirLightShadowMapScissor()
 , m_TemporalAASampleIndex(0)
+, m_PrevViewProjMatrixNoAA(Matrix::Identity)
 {
 }
 
@@ -1232,6 +1234,7 @@ bool SampleApp::OnInit()
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
 		ptr->WorldToView = m_Camera.GetView();
+		ptr->ClipToPrevClip = Matrix::Identity;
 	}
 
 	// トーンマップ用定数バッファの作成
@@ -1472,6 +1475,22 @@ void SampleApp::OnRender()
 		m_TemporalAASampleIndex = 0;
 	}
 
+	float sampleX = Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f;
+	float sampleY = Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f;
+
+	constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
+	float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
+
+	const Matrix& view = m_Camera.GetView();
+	Matrix proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+	const Matrix& viewProjNoAA = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+	// UEのTAAのジッタを参考にしている
+	proj.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
+	proj.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
+
+	const Matrix& viewProjWithAA = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	//m_RotateAngle += 0.01f;
 	const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
@@ -1522,7 +1541,7 @@ void SampleApp::OnRender()
 		pCmd->RSSetViewports(1, &m_Viewport);
 		pCmd->RSSetScissorRects(1, &m_Scissor);
 
-		DrawScene(pCmd, lightForward);
+		DrawScene(pCmd, lightForward, viewProjWithAA);
 
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -1538,10 +1557,12 @@ void SampleApp::OnRender()
 
 		m_SSAO_Target.ClearView(pCmd);
 
-		DrawSSAO(pCmd);
+		DrawSSAO(pCmd, viewProjNoAA);
 
 		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
+
+	m_PrevViewProjMatrixNoAA = viewProjNoAA;
 
 	// AmbientLightパス
 	{
@@ -1629,25 +1650,12 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 }
 
-void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward)
+void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj)
 {
 	// 変換行列用の定数バッファの更新
 	{
-		float sampleX = Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f;
-		float sampleY = Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f;
-
-		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
-		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
-
-		const Matrix& view = m_Camera.GetView();
-		Matrix proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
-
-		// UEのTAAのジッタを参考にしている
-		proj.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
-		proj.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
-
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
-		ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->ViewProj = viewProj;
 
 		float zNear = 0.0f;
 		float zFar = 40.0f;
@@ -1739,13 +1747,14 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 }
 
 //TODO:SSパスは処理を共通化したい
-void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const Matrix& viewProjNoAA)
 {
 	{
 		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->WorldToView = m_Camera.GetView();
+		ptr->ClipToPrevClip = viewProjNoAA.Invert() * m_PrevViewProjMatrixNoAA;
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
