@@ -177,6 +177,23 @@ namespace
 		uint32_t ret = (uint32_t)(y * 255.0f + 0.5f);
 		return (uint8_t)ret;
 	}
+
+	// [ Halton 1964, "Radical-inverse quasi-random point sequence" ]
+	float Halton(uint32_t index, uint32_t base)
+	{
+		float result = 0.0f;
+		float invBase = 1.0f / float(base);
+		float fraction = invBase;
+
+		while (index > 0)
+		{
+			result += float(index % base) * fraction;
+			index /= base;
+			fraction *= invBase;
+		}
+
+		return result;
+	}
 }
 
 SampleApp::SampleApp(uint32_t width, uint32_t height)
@@ -1616,11 +1633,19 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 {
 	// 変換行列用の定数バッファの更新
 	{
+		float sampleX = Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f;
+		float sampleY = Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f;
+
 		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 		const Matrix& view = m_Camera.GetView();
-		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+		Matrix proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+
+		// UEのTAAのジッタを参考にしている
+		proj.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
+		proj.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
+
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 		ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
