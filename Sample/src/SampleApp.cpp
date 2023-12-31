@@ -1065,7 +1065,7 @@ bool SampleApp::OnInit()
 	{
 		std::wstring csPath;
 
-		if (!SearchFilePath(L"CSTestCS.cso", csPath))
+		if (!SearchFilePath(L"TemporalAA_CS.cso", csPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;

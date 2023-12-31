@@ -60,7 +60,7 @@
     <FxCompile Include="..\res\AmbientLightPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\CSTestCS.hlsl">
+    <FxCompile Include="..\res\TemporalAA_CS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>
