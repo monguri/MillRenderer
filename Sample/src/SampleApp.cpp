@@ -1028,7 +1028,7 @@ bool SampleApp::OnInit()
 		desc.Begin(2)
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearWrap)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
 
