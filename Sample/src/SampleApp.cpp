@@ -1469,33 +1469,41 @@ void SampleApp::OnTerm()
 
 void SampleApp::OnRender()
 {
-	m_TemporalAASampleIndex++;
-	if (m_TemporalAASampleIndex >= TEMPORAL_AA_SAMPLES)
+	// テンポラルジッタ関連
+	Matrix viewProjNoAA;
+	Matrix viewProjWithAA;
 	{
-		m_TemporalAASampleIndex = 0;
+		m_TemporalAASampleIndex++;
+		if (m_TemporalAASampleIndex >= TEMPORAL_AA_SAMPLES)
+		{
+			m_TemporalAASampleIndex = 0;
+		}
+
+		float sampleX = Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f;
+		float sampleY = Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f;
+
+		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
+		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
+
+		const Matrix& view = m_Camera.GetView();
+		Matrix proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+		viewProjNoAA = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+		// UEのTAAのジッタを参考にしている
+		proj.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
+		proj.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
+
+		viewProjWithAA = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
-	float sampleX = Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f;
-	float sampleY = Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f;
-
-	constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
-	float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
-
-	const Matrix& view = m_Camera.GetView();
-	Matrix proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
-	const Matrix& viewProjNoAA = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
-	// UEのTAAのジッタを参考にしている
-	proj.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
-	proj.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
-
-	const Matrix& viewProjWithAA = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
-	//m_RotateAngle += 0.01f;
-	const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
-	Vector3 lightForward = Vector3::TransformNormal(Vector3(-1.0f, -10.0f, -1.0f), matrix);
-	lightForward.Normalize();
+	Vector3 lightForward;
+	{
+		//m_RotateAngle += 0.01f;
+		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
+		lightForward = Vector3::TransformNormal(Vector3(-1.0f, -10.0f, -1.0f), matrix);
+		lightForward.Normalize();
+	}
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
