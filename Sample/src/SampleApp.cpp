@@ -95,7 +95,6 @@ namespace
 		float Far;
 		float InvTanHalfFov;
 		Matrix WorldToView;
-		Matrix ClipToPrevClip;
 	};
 
 	struct alignas(256) CbTonemap
@@ -1235,7 +1234,6 @@ bool SampleApp::OnInit()
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
 		ptr->WorldToView = m_Camera.GetView();
-		ptr->ClipToPrevClip = Matrix::Identity;
 	}
 
 	// トーンマップ用定数バッファの作成
@@ -1526,12 +1524,10 @@ void SampleApp::OnRender()
 
 		m_SSAO_Target.ClearView(pCmd);
 
-		DrawSSAO(pCmd, viewProjNoAA);
+		DrawSSAO(pCmd);
 
 		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
-
-	m_PrevViewProjMatrixNoAA = viewProjNoAA;
 
 	// AmbientLightパス
 	{
@@ -1549,8 +1545,21 @@ void SampleApp::OnRender()
 
 	// TemporalAAパス
 	{
-		DrawTemporalAA(pCmd);
+		pCmd->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
+		pCmd->SetPipelineState(m_pTemporalAA_PSO.Get());
+
+		DirectX::TransitionResource(pCmd, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+		m_TemporalAATarget.ClearView(pCmd);
+
+		DirectX::TransitionResource(pCmd, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		DrawTemporalAA(pCmd, viewProjNoAA);
+
+		DirectX::TransitionResource(pCmd, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
+
+	m_PrevViewProjMatrixNoAA = viewProjNoAA;
 
 	// トーンマップを適用してフレームバッファに描画するパス
 	{
@@ -1721,14 +1730,13 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 }
 
 //TODO:SSパスは処理を共通化したい
-void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const Matrix& viewProjNoAA)
+void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 {
 	{
 		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->WorldToView = m_Camera.GetView();
-		ptr->ClipToPrevClip = viewProjNoAA.Invert() * m_PrevViewProjMatrixNoAA;
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
@@ -1765,16 +1773,10 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 }
 
-void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoAA)
 {
-	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
-
-	DirectX::TransitionResource(pCmdList, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-	m_TemporalAATarget.ClearView(pCmdList);
-
-	DirectX::TransitionResource(pCmdList, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	// TODO:
+	//ptr->ClipToPrevClip = viewProjNoAA.Invert() * m_PrevViewProjMatrixNoAA;
 
 	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAATarget.GetHandleUAV()->HandleGPU);
 
@@ -1787,8 +1789,6 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList)
 	UINT NumGroupY = (m_Height + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
-
-	DirectX::TransitionResource(pCmdList, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)

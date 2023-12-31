@@ -39,7 +39,6 @@ cbuffer CbSSAO : register(b0)
 	float Far;
 	float InvTanHalfFov;
 	float4x4 WorldToView;
-	float4x4 ClipToPrevClip;
 }
 
 Texture2D DepthMap : register(t0);
