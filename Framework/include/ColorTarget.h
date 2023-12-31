@@ -29,6 +29,7 @@ public:
 	(
 		ID3D12Device* pDevice,
 		DescriptorPool* pPoolUAV,
+		DescriptorPool* pPoolRTV,
 		DescriptorPool* pPoolSRV,
 		uint32_t width,
 		uint32_t height,

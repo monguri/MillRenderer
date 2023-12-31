@@ -206,6 +206,7 @@ bool ColorTarget::InitUnorderedAccessTarget
 (
 	ID3D12Device* pDevice,
 	DescriptorPool* pPoolUAV,
+	DescriptorPool* pPoolRTV,
 	DescriptorPool* pPoolSRV,
 	uint32_t width,
 	uint32_t height,
@@ -213,7 +214,7 @@ bool ColorTarget::InitUnorderedAccessTarget
 	float clearColor[4]
 )
 {
-	if (pDevice == nullptr || pPoolUAV == nullptr || width == 0 || height == 0)
+	if (pDevice == nullptr || pPoolUAV == nullptr || pPoolRTV == nullptr || width == 0 || height == 0)
 	{
 		return false;
 	}
@@ -226,6 +227,18 @@ bool ColorTarget::InitUnorderedAccessTarget
 
 	m_pHandleUAV = pPoolUAV->AllocHandle();
 	if (m_pHandleUAV == nullptr)
+	{
+		return false;
+	}
+
+	assert(m_pPoolRTV == nullptr);
+	assert(m_pHandleRTV == nullptr);
+
+	m_pPoolRTV = pPoolRTV;
+	m_pPoolRTV->AddRef();
+
+	m_pHandleRTV = pPoolRTV->AllocHandle();
+	if (m_pHandleRTV == nullptr)
 	{
 		return false;
 	}
@@ -260,12 +273,19 @@ bool ColorTarget::InitUnorderedAccessTarget
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	m_ClearColor[0] = clearColor[0];
 	m_ClearColor[1] = clearColor[1];
 	m_ClearColor[2] = clearColor[2];
 	m_ClearColor[3] = clearColor[3];
+
+	D3D12_CLEAR_VALUE clearValue;
+	clearValue.Format = format;
+	clearValue.Color[0] = clearColor[0];
+	clearValue.Color[1] = clearColor[1];
+	clearValue.Color[2] = clearColor[2];
+	clearValue.Color[3] = clearColor[3];
 
 	HRESULT hr = pDevice->CreateCommittedResource
 	(
@@ -273,7 +293,7 @@ bool ColorTarget::InitUnorderedAccessTarget
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		nullptr, // D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS‚Ìê‡‚Ínull‚É‚¹‚Ë‚ÎƒGƒ‰[
+		&clearValue,
 		IID_PPV_ARGS(m_pTarget.GetAddressOf())
 	);
 	if (FAILED(hr))
@@ -291,6 +311,17 @@ bool ColorTarget::InitUnorderedAccessTarget
 		nullptr,
 		&m_UAVDesc,
 		m_pHandleUAV->HandleCPU
+	);
+
+	m_RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	m_RTVDesc.Format = format;
+	m_RTVDesc.Texture2D.MipSlice = 0;
+	m_RTVDesc.Texture2D.PlaneSlice = 0;
+
+	pDevice->CreateRenderTargetView(
+		m_pTarget.Get(),
+		&m_RTVDesc,
+		m_pHandleRTV->HandleCPU
 	);
 
 	if (pPoolSRV != nullptr)
@@ -621,13 +652,5 @@ D3D12_SHADER_RESOURCE_VIEW_DESC ColorTarget::GetSRVDesc() const
 
 void ColorTarget::ClearView(ID3D12GraphicsCommandList* pCmdList)
 {
-	if (m_pHandleRTV != nullptr)
-	{
-		pCmdList->ClearRenderTargetView(m_pHandleRTV->HandleCPU, m_ClearColor, 0, nullptr);
-	}
-
-	if (m_pHandleUAV != nullptr)
-	{
-		pCmdList->ClearUnorderedAccessViewFloat(m_pHandleUAV->HandleGPU, m_pHandleUAV->HandleCPU, m_pTarget.Get(), m_ClearColor, 0, nullptr);
-	}
+	pCmdList->ClearRenderTargetView(m_pHandleRTV->HandleCPU, m_ClearColor, 0, nullptr);
 }

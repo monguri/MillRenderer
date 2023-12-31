@@ -643,6 +643,7 @@ bool SampleApp::OnInit()
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RTV],
 			m_pPool[POOL_TYPE_RES],
 			m_Width,
 			m_Height,
@@ -1769,9 +1770,11 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
 
-	DirectX::TransitionResource(pCmdList, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	m_TemporalAATarget.ClearView(pCmdList);
+
+	DirectX::TransitionResource(pCmdList, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAATarget.GetHandleUAV()->HandleGPU);
 
