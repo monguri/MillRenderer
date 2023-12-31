@@ -2,9 +2,10 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
-#define OPTIMIZATION_O1 1
+#define OPTIMIZATION_O1 0
 
 #define USE_NORMALS 0
+#define USE_NORMALS_MONGURI 1
 
 #define SAMPLESET_ARRAY_SIZE 3
 static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
@@ -105,6 +106,43 @@ float3 WedgeWithNormal(float2 screenSpacePosCenter, float2 localRandom, float3 i
 #endif
 
 	return float3(invNormalAngleL, invNormalAngleR, weight);
+}
+
+float2 WedgeWithNormalMonguri(float2 screenSpacePosCenter, float2 localRandom, float3 invFovFix, float3 viewSpacePosition, float3 scaledViewSpaceNormal, float invHaloSize)
+{
+	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
+	float2 screenSpacePosR = screenSpacePosCenter - localRandom;
+
+	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+
+	float3 samplePositionL = ReconstructCSPos(absL, screenSpacePosL);
+	float3 samplePositionR = ReconstructCSPos(absR, screenSpacePosR);
+
+	// TODO: if deltaL and deltaR is same direction?
+	float3 deltaL = (samplePositionL - viewSpacePosition) * invFovFix;
+	float3 deltaR = (samplePositionR - viewSpacePosition) * invFovFix;
+
+	float normAngle = acos(dot(deltaL, deltaR) * rsqrt(dot(deltaL, deltaL) * dot(deltaR, deltaR))) / F_PI;
+
+	float dotLtoN = dot(deltaL, scaledViewSpaceNormal) / length(deltaL);
+	if (dotLtoN < 0.0f)
+	{
+		float clampAngle = acos(dotLtoN) / F_PI - 0.5f;
+		normAngle -= clampAngle;
+	}
+
+	float dotRtoN = dot(deltaR, scaledViewSpaceNormal) / length(deltaR);
+	if (dotRtoN < 0.0f)
+	{
+		float clampAngle = acos(dotRtoN) / F_PI - 0.5f;
+		normAngle -= clampAngle;
+	}
+
+	// TODO
+	float weight = 1.0f;
+
+	return float2(1 - normAngle, weight);
 }
 
 float2 WedgeNoNormal(float2 screenSpacePosCenter, float2 localRandom, float3 invFovFix, float3 viewSpacePosition)
@@ -211,6 +249,21 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 			weightAccumulator += float2((1 - localAllumulator.x) * (1 - localAllumulator.x) * localAllumulator.z, localAllumulator.z);
 			weightAccumulator += float2((1 - localAllumulator.y) * (1 - localAllumulator.y) * localAllumulator.z, localAllumulator.z);
+		}
+		else if (USE_NORMALS_MONGURI)
+		{
+			float2 localAllumulator = 0.0f;
+
+			// ray-march loop
+			for (uint step = 0; step < SAMPLE_STEPS; step++)
+			{
+				float scale = (step + 1) / (float)SAMPLE_STEPS;
+
+				float2 stepSample = WedgeWithNormalMonguri(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition, scaledViewSpaceNormal, invHaloSize);
+				localAllumulator = lerp(localAllumulator, float2(max(localAllumulator.x, stepSample.x), 1), stepSample.y);
+			}
+
+			weightAccumulator += float2((1 - localAllumulator.x) * (1 - localAllumulator.x) * localAllumulator.y, localAllumulator.y);
 		}
 		else
 		{
