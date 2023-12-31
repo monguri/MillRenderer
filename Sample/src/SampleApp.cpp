@@ -635,18 +635,18 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// CSテスト用カラーターゲットの生成
+	// TemporalAA用ターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_CSTestTarget.InitUnorderedAccessTarget
+		if (!m_TemporalAATarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RES],
 			m_pPool[POOL_TYPE_RES],
 			m_Width,
 			m_Height,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
 			clearColor
 		))
 		{
@@ -1041,6 +1041,59 @@ bool SampleApp::OnInit()
 		}
 	}
 
+    // CSテスト用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin(1)
+			.SetUAV(ShaderStage::ALL, 0, 0)
+			.End();
+
+		if (!m_TemporalAA_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // CSテスト用パイプラインステートの生成
+	{
+		std::wstring csPath;
+
+		if (!SearchFilePath(L"CSTestCS.cso", csPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pCSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_TemporalAA_RootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pTemporalAA_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // トーンマップ用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -1134,59 +1187,6 @@ bool SampleApp::OnInit()
 		if (FAILED(hr))
 		{
 			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
-
-    // CSテスト用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin(1)
-			.SetUAV(ShaderStage::ALL, 0, 0)
-			.End();
-
-		if (!m_CSTestRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // CSテスト用パイプラインステートの生成
-	{
-		std::wstring csPath;
-
-		if (!SearchFilePath(L"CSTestCS.cso", csPath))
-		{
-			ELOG("Error : Vertex Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pCSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
-			return false;
-		}
-
-		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_CSTestRootSig.GetPtr();
-		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
-		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
-		desc.NodeMask = 0;
-		desc.CachedPSO.pCachedBlob = nullptr;
-		desc.CachedPSO.CachedBlobSizeInBytes = 0;
-		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-
-		hr = m_pDevice->CreateComputePipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pCSTestPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
 			return false;
 		}
 	}
@@ -1350,46 +1350,6 @@ bool SampleApp::OnInit()
 		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
-	// CSテスト
-	{
-		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
-
-		ID3D12DescriptorHeap* const pHeaps[] = {
-			m_pPool[POOL_TYPE_RES]->GetHeap()
-		};
-
-		pCmd->SetDescriptorHeaps(1, pHeaps);
-		
-		pCmd->SetComputeRootSignature(m_CSTestRootSig.GetPtr());
-		pCmd->SetPipelineState(m_pCSTestPSO.Get());
-
-		DirectX::TransitionResource(pCmd, m_CSTestTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		m_CSTestTarget.ClearView(pCmd);
-
-		pCmd->SetComputeRootDescriptorTable(0, m_CSTestTarget.GetHandleUAV()->HandleGPU);
-
-		// シェーダ側と合わせている
-		const size_t GROUP_SIZE_X = 8;
-		const size_t GROUP_SIZE_Y = 8;
-
-		// グループ数は切り上げ
-		UINT NumGroupX = (m_Width + GROUP_SIZE_X - 1) / GROUP_SIZE_X;
-		UINT NumGroupY = (m_Height + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
-		UINT NumGroupZ = 1;
-		pCmd->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
-
-		DirectX::TransitionResource(pCmd, m_CSTestTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-		pCmd->Close();
-
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
-
-		// Wait command queue finishing.
-		m_Fence.Wait(m_pQueue.Get(), INFINITE);
-	}
-
 	return true;
 }
 
@@ -1445,7 +1405,7 @@ void SampleApp::OnTerm()
 
 	m_AmbientLightTarget.Term();
 
-	m_CSTestTarget.Term();
+	m_TemporalAATarget.Term();
 
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
@@ -1460,11 +1420,11 @@ void SampleApp::OnTerm()
 	m_pAmbientLightPSO.Reset();
 	m_AmbientLightRootSig.Term();
 
+	m_pTemporalAA_PSO.Reset();
+	m_TemporalAA_RootSig.Term();
+
 	m_pTonemapPSO.Reset();
 	m_TonemapRootSig.Term();
-
-	m_pCSTestPSO.Reset();
-	m_CSTestRootSig.Term();
 }
 
 void SampleApp::OnRender()
@@ -1584,6 +1544,11 @@ void SampleApp::OnRender()
 		DrawAmbientLight(pCmd);
 
 		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
+
+	// TemporalAAパス
+	{
+		DrawTemporalAA(pCmd);
 	}
 
 	// トーンマップを適用してフレームバッファに描画するパス
@@ -1797,6 +1762,30 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
+}
+
+void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList)
+{
+	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
+
+	DirectX::TransitionResource(pCmdList, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	m_TemporalAATarget.ClearView(pCmdList);
+
+	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAATarget.GetHandleUAV()->HandleGPU);
+
+	// シェーダ側と合わせている
+	const size_t GROUP_SIZE_X = 8;
+	const size_t GROUP_SIZE_Y = 8;
+
+	// グループ数は切り上げ
+	UINT NumGroupX = (m_Width + GROUP_SIZE_X - 1) / GROUP_SIZE_X;
+	UINT NumGroupY = (m_Height + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
+	UINT NumGroupZ = 1;
+	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+	DirectX::TransitionResource(pCmdList, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)

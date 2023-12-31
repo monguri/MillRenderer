@@ -62,7 +62,6 @@ namespace
 			case DXGI_FORMAT_R32_FLOAT:
 				return DXGI_FORMAT_R32_FLOAT;
 			default:
-				assert(false);
 				return result;
 		}
 	}
