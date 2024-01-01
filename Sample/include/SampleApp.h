@@ -50,6 +50,7 @@ private:
 	ColorTarget m_SSAO_Target;
 	ColorTarget m_SSAO_RandomizationTarget;
 	ColorTarget m_AmbientLightTarget;
+	ColorTarget m_TemporalAA_HistoryTarget;
 	ColorTarget m_TemporalAA_Target;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_DirectionalLightCB[FrameCount];
