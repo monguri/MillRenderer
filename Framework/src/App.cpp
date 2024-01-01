@@ -232,7 +232,7 @@ bool App::InitD3D()
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		desc.BufferCount = FrameCount;
+		desc.BufferCount = FRAME_COUNT;
 		desc.OutputWindow = m_hWnd;
 		desc.Windowed = TRUE;
 		desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
@@ -297,7 +297,7 @@ bool App::InitD3D()
 
 	// Create command list.
 	{
-		if (!m_CommandList.Init(m_pDevice.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT, FrameCount))
+		if (!m_CommandList.Init(m_pDevice.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT, FRAME_COUNT))
 		{
 			return false;
 		}
@@ -305,7 +305,7 @@ bool App::InitD3D()
 
 	// Create render target view.
 	{
-		for (uint32_t i = 0u; i < FrameCount; ++i)
+		for (uint32_t i = 0u; i < FRAME_COUNT; ++i)
 		{
 			if (!m_ColorTarget[i].InitFromBackBuffer(m_pDevice.Get(), m_pPool[POOL_TYPE_RTV], true, i, m_pSwapChain.Get()))
 			{
@@ -357,7 +357,7 @@ void App::TermD3D()
 
 	m_Fence.Term();
 
-	for (uint32_t i = 0u; i < FrameCount; ++i)
+	for (uint32_t i = 0u; i < FRAME_COUNT; ++i)
 	{
 		m_ColorTarget[i].Term();
 	}

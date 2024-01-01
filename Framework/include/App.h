@@ -40,7 +40,7 @@ protected:
 	};
 
 	// Number of frame buffers
-	static const uint32_t FrameCount = 2;
+	static const uint32_t FRAME_COUNT = 2;
 
 	// Window
 	HINSTANCE m_hInst;
@@ -53,7 +53,7 @@ protected:
 	ComPtr<ID3D12CommandQueue> m_pQueue;
 	ComPtr<IDXGISwapChain4> m_pSwapChain;
 	DescriptorPool* m_pPool[POOL_COUNT];
-	ColorTarget m_ColorTarget[FrameCount];
+	ColorTarget m_ColorTarget[FRAME_COUNT];
 	CommandList m_CommandList;
 	Fence m_Fence;
 	uint32_t m_FrameIndex;

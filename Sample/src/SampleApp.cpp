@@ -299,7 +299,7 @@ bool SampleApp::OnInit()
 
 	// ディレクショナルライトバッファの設定
 	{
-		for (uint32_t i = 0u; i < FrameCount; i++)
+		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
 			if (!m_DirectionalLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDirectionalLight)))
 			{
@@ -385,7 +385,7 @@ bool SampleApp::OnInit()
 
 	// カメラバッファの設定
 	{
-		for (uint32_t i = 0u; i < FrameCount; i++)
+		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
 			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCamera)))
 			{
@@ -1224,7 +1224,7 @@ bool SampleApp::OnInit()
 	}
 
 	// SSAO用定数バッファの作成
-	for (uint32_t i = 0; i < FrameCount; i++)
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
 		if (!m_SSAO_CB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAO)))
 		{
@@ -1245,7 +1245,7 @@ bool SampleApp::OnInit()
 	}
 
 	// TemporalAA用定数バッファの作成
-	for (uint32_t i = 0; i < FrameCount; i++)
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
 		if (!m_TemporalAA_CB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTemporalAA)))
 		{
@@ -1260,7 +1260,7 @@ bool SampleApp::OnInit()
 	}
 
 	// トーンマップ用定数バッファの作成
-	for (uint32_t i = 0; i < FrameCount; i++)
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
 		if (!m_TonemapCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTonemap)))
 		{
@@ -1284,7 +1284,7 @@ bool SampleApp::OnInit()
 		const Matrix& dirLightShadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
 		const Matrix& dirLightShadowViewProj = dirLightShadowView * dirLightShadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
-		for (uint32_t i = 0u; i < FrameCount; i++)
+		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
 			if (!m_DirLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
 			{
@@ -1296,7 +1296,7 @@ bool SampleApp::OnInit()
 			ptr->ViewProj = dirLightShadowViewProj;
 		}
 
-		for (uint32_t i = 0u; i < FrameCount; i++)
+		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
 			if (!m_TransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
 			{
@@ -1379,7 +1379,7 @@ void SampleApp::OnTerm()
 {
 	m_QuadVB.Term();
 
-	for (uint32_t i = 0; i < FrameCount; i++)
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
 		m_DirectionalLightCB[i].Term();
 		m_CameraCB[i].Term();
