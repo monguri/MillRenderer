@@ -217,7 +217,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_DirLightShadowMapViewport()
 , m_DirLightShadowMapScissor()
 , m_TemporalAASampleIndex(0)
-, m_PrevViewProjMatrixNoAA(Matrix::Identity)
+, m_PrevViewProjNoJitter(Matrix::Identity)
 {
 }
 
@@ -1599,7 +1599,7 @@ void SampleApp::OnRender()
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_DstIdx].GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
-	m_PrevViewProjMatrixNoAA = viewProjNoJitter;
+	m_PrevViewProjNoJitter = viewProjNoJitter;
 
 	// トーンマップを適用してフレームバッファに描画するパス
 	{
@@ -1817,7 +1817,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 {
 	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
-		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjMatrixNoAA;
+		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
 	}
 
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());

@@ -78,7 +78,7 @@ private:
 	D3D12_VIEWPORT m_SpotLightShadowMapViewport;
 	D3D12_RECT m_SpotLightShadowMapScissor;
 	uint32_t m_TemporalAASampleIndex;
-	DirectX::SimpleMath::Matrix m_PrevViewProjMatrixNoAA;
+	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitter;
 
 	virtual bool OnInit() override;
 	virtual void OnTerm() override;
