@@ -1053,11 +1053,12 @@ bool SampleApp::OnInit()
     // TemporalAA用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(4)
+		desc.Begin(5)
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetSRV(ShaderStage::ALL, 1, 0)
 			.SetSRV(ShaderStage::ALL, 2, 1)
-			.SetUAV(ShaderStage::ALL, 3, 0)
+			.SetSRV(ShaderStage::ALL, 3, 2)
+			.SetUAV(ShaderStage::ALL, 4, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -1588,12 +1589,14 @@ void SampleApp::OnRender()
 
 	// TemporalAAパス
 	{
+		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_SrcIdx].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_DstIdx].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		DrawTemporalAA(pCmd, viewProjNoJitter, TempAA_SrcIdx, TempAA_DstIdx);
 
+		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_SrcIdx].GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_DstIdx].GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -1823,9 +1826,10 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAA_CB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_TemporalAA_Target[TempAA_SrcIdx].GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_TemporalAA_Target[TempAA_DstIdx].GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_TemporalAA_Target[TempAA_SrcIdx].GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_TemporalAA_Target[TempAA_DstIdx].GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
