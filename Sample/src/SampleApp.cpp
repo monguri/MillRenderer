@@ -647,7 +647,7 @@ bool SampleApp::OnInit()
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RES],
-			m_pPool[POOL_TYPE_RTV],
+			nullptr, // RTVは作らない。クリアする必要がないので
 			m_pPool[POOL_TYPE_RES],
 			m_Width,
 			m_Height,

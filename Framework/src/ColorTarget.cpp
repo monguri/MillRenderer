@@ -71,6 +71,8 @@ ColorTarget::ColorTarget()
 : m_pTarget(nullptr)
 , m_pHandleRTV(nullptr)
 , m_pPoolRTV(nullptr)
+, m_pHandleUAV(nullptr)
+, m_pPoolUAV(nullptr)
 , m_pHandleSRV(nullptr)
 , m_pPoolSRV(nullptr)
 {
@@ -214,7 +216,7 @@ bool ColorTarget::InitUnorderedAccessTarget
 	float clearColor[4]
 )
 {
-	if (pDevice == nullptr || pPoolUAV == nullptr || pPoolRTV == nullptr || width == 0 || height == 0)
+	if (pDevice == nullptr || pPoolUAV == nullptr || width == 0 || height == 0)
 	{
 		return false;
 	}
@@ -234,13 +236,16 @@ bool ColorTarget::InitUnorderedAccessTarget
 	assert(m_pPoolRTV == nullptr);
 	assert(m_pHandleRTV == nullptr);
 
-	m_pPoolRTV = pPoolRTV;
-	m_pPoolRTV->AddRef();
-
-	m_pHandleRTV = pPoolRTV->AllocHandle();
-	if (m_pHandleRTV == nullptr)
+	if (pPoolRTV != nullptr)
 	{
-		return false;
+		m_pPoolRTV = pPoolRTV;
+		m_pPoolRTV->AddRef();
+
+		m_pHandleRTV = pPoolRTV->AllocHandle();
+		if (m_pHandleRTV == nullptr)
+		{
+			return false;
+		}
 	}
 
 	if (pPoolSRV != nullptr)
@@ -313,16 +318,19 @@ bool ColorTarget::InitUnorderedAccessTarget
 		m_pHandleUAV->HandleCPU
 	);
 
-	m_RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-	m_RTVDesc.Format = format;
-	m_RTVDesc.Texture2D.MipSlice = 0;
-	m_RTVDesc.Texture2D.PlaneSlice = 0;
+	if (pPoolRTV != nullptr)
+	{
+		m_RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		m_RTVDesc.Format = format;
+		m_RTVDesc.Texture2D.MipSlice = 0;
+		m_RTVDesc.Texture2D.PlaneSlice = 0;
 
-	pDevice->CreateRenderTargetView(
-		m_pTarget.Get(),
-		&m_RTVDesc,
-		m_pHandleRTV->HandleCPU
-	);
+		pDevice->CreateRenderTargetView(
+			m_pTarget.Get(),
+			&m_RTVDesc,
+			m_pHandleRTV->HandleCPU
+		);
+	}
 
 	if (pPoolSRV != nullptr)
 	{
@@ -652,5 +660,8 @@ D3D12_SHADER_RESOURCE_VIEW_DESC ColorTarget::GetSRVDesc() const
 
 void ColorTarget::ClearView(ID3D12GraphicsCommandList* pCmdList)
 {
-	pCmdList->ClearRenderTargetView(m_pHandleRTV->HandleCPU, m_ClearColor, 0, nullptr);
+	if (m_pHandleRTV != nullptr)
+	{
+		pCmdList->ClearRenderTargetView(m_pHandleRTV->HandleCPU, m_ClearColor, 0, nullptr);
+	}
 }
