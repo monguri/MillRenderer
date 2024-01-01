@@ -643,7 +643,7 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_TemporalAATarget.InitUnorderedAccessTarget
+		if (!m_TemporalAA_Target.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RES],
@@ -1424,7 +1424,7 @@ void SampleApp::OnTerm()
 
 	m_AmbientLightTarget.Term();
 
-	m_TemporalAATarget.Term();
+	m_TemporalAA_Target.Term();
 
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
@@ -1565,15 +1565,15 @@ void SampleApp::OnRender()
 
 	// TemporalAAパス
 	{
-		DirectX::TransitionResource(pCmd, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		DirectX::TransitionResource(pCmd, m_TemporalAA_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-		m_TemporalAATarget.ClearView(pCmd);
+		m_TemporalAA_Target.ClearView(pCmd);
 
-		DirectX::TransitionResource(pCmd, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmd, m_TemporalAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		DrawTemporalAA(pCmd, viewProjNoAA);
 
-		DirectX::TransitionResource(pCmd, m_TemporalAATarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmd, m_TemporalAA_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	m_PrevViewProjMatrixNoAA = viewProjNoAA;
@@ -1800,7 +1800,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAA_CB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_TemporalAATarget.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_TemporalAA_Target.GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
