@@ -2,6 +2,7 @@ cbuffer CbTemporalAA : register(b0)
 {
 	int Width;
 	int Height;
+	int bSkipTemporalAA;
 	float4x4 ClipToPrevClip;
 }
 
@@ -16,8 +17,17 @@ void main(uint3 DTid : SV_DispatchThreadID)
 {
 	float2 uv = (DTid.xy + 0.5f) / float2(Width, Height);
 
-	// TODO: just a average
 	float3 curColor = ColorMap.SampleLevel(PointClampSmp, uv, 0).xyz;
 	float3 histColor = HitoryMap.SampleLevel(PointClampSmp, uv, 0).xyz;
-	OutResult[DTid.xy] = float4((curColor + histColor) * 0.5f, 1.0f);
+
+	if (bSkipTemporalAA)
+	{
+		// just copy
+		OutResult[DTid.xy] = float4(curColor, 1.0f);
+	}
+	else
+	{
+		// TODO: just a average
+		OutResult[DTid.xy] = float4((curColor + histColor) * 0.5f, 1.0f);
+	}
 }

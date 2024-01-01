@@ -10,6 +10,7 @@
 #include "RootSignature.h"
 
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+#define SKIP_TEMPORAL_AA true
 
 using namespace DirectX::SimpleMath;
 
@@ -101,6 +102,7 @@ namespace
 	{
 		int Width;
 		int Height;
+		int bSkipTemporalAA;
 		Matrix ClipToPrevClip;
 	};
 
@@ -1259,6 +1261,7 @@ bool SampleApp::OnInit()
 		CbTemporalAA* ptr = m_TemporalAA_CB[i].GetPtr<CbTemporalAA>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
+		ptr->bSkipTemporalAA = (SKIP_TEMPORAL_AA ? 1 : 0);
 		ptr->ClipToPrevClip = Matrix::Identity;
 	}
 
@@ -1538,7 +1541,14 @@ void SampleApp::OnRender()
 		pCmd->RSSetViewports(1, &m_Viewport);
 		pCmd->RSSetScissorRects(1, &m_Scissor);
 
-		DrawScene(pCmd, lightForward, viewProjWithAA);
+		if (SKIP_TEMPORAL_AA)
+		{
+			DrawScene(pCmd, lightForward, viewProjNoAA);
+		}
+		else
+		{
+			DrawScene(pCmd, lightForward, viewProjWithAA);
+		}
 
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
