@@ -191,7 +191,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
 
 	float3 worldNormal = NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
-	float3 viewSpaceNormal = normalize(mul(worldNormal, (float3x3)WorldToView));
+	float3 viewSpaceNormal = normalize(mul((float3x3)WorldToView, worldNormal));
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
