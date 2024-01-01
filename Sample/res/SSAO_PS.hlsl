@@ -31,6 +31,7 @@ struct VSOutput
 
 cbuffer CbSSAO : register(b0)
 {
+	float4x4 WorldToView;
 	int Width;
 	int Height;
 	float2 RandomationSize;
@@ -38,7 +39,6 @@ cbuffer CbSSAO : register(b0)
 	float Near;
 	float Far;
 	float InvTanHalfFov;
-	float4x4 WorldToView;
 }
 
 Texture2D DepthMap : register(t0);

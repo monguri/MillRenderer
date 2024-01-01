@@ -76,6 +76,7 @@ namespace
 	struct alignas(256) CbCamera
 	{
 		Vector3 CameraPosition;
+		float Padding[1];
 	};
 
 	struct alignas(256) CbMaterial
@@ -84,10 +85,12 @@ namespace
 		float MetallicFactor;
 		float RoughnessFactor;
 		float AlphaCutoff;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbSSAO
 	{
+		Matrix WorldToView;
 		int Width;
 		int Height;
 		Vector2 RandomationSize;
@@ -95,7 +98,7 @@ namespace
 		float Near;
 		float Far;
 		float InvTanHalfFov;
-		Matrix WorldToView;
+		float Padding[3];
 	};
 
 	struct alignas(256) CbTemporalAA
