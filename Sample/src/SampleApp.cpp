@@ -99,6 +99,8 @@ namespace
 
 	struct alignas(256) CbTemporalAA
 	{
+		int Width;
+		int Height;
 		Matrix ClipToPrevClip;
 	};
 
@@ -1252,6 +1254,8 @@ bool SampleApp::OnInit()
 		}
 
 		CbTemporalAA* ptr = m_TemporalAA_CB[i].GetPtr<CbTemporalAA>();
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
 		ptr->ClipToPrevClip = Matrix::Identity;
 	}
 
@@ -1823,7 +1827,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_TemporalAA_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
