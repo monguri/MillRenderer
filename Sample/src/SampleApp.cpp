@@ -10,7 +10,7 @@
 #include "RootSignature.h"
 
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-#define SKIP_TEMPORAL_AA true
+#define ENABLE_TEMPORAL_AA true
 
 using namespace DirectX::SimpleMath;
 
@@ -102,7 +102,7 @@ namespace
 	{
 		int Width;
 		int Height;
-		int bSkipTemporalAA;
+		int bEnableTemporalAA;
 		Matrix ClipToPrevClip;
 	};
 
@@ -1261,7 +1261,7 @@ bool SampleApp::OnInit()
 		CbTemporalAA* ptr = m_TemporalAA_CB[i].GetPtr<CbTemporalAA>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->bSkipTemporalAA = (SKIP_TEMPORAL_AA ? 1 : 0);
+		ptr->bEnableTemporalAA = (ENABLE_TEMPORAL_AA ? 1 : 0);
 		ptr->ClipToPrevClip = Matrix::Identity;
 	}
 
@@ -1462,8 +1462,8 @@ void SampleApp::OnTerm()
 void SampleApp::OnRender()
 {
 	// テンポラルジッタ関連
-	Matrix viewProjNoAA;
-	Matrix viewProjWithAA;
+	Matrix viewProjNoJitter;
+	Matrix viewProjWithJitter;
 	{
 		m_TemporalAASampleIndex++;
 		if (m_TemporalAASampleIndex >= TEMPORAL_AA_SAMPLES)
@@ -1479,13 +1479,13 @@ void SampleApp::OnRender()
 
 		const Matrix& view = m_Camera.GetView();
 		Matrix proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
-		viewProjNoAA = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		viewProjNoJitter = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
 		// UEのTAAのジッタを参考にしている
 		proj.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
 		proj.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
 
-		viewProjWithAA = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		viewProjWithJitter = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
@@ -1541,13 +1541,13 @@ void SampleApp::OnRender()
 		pCmd->RSSetViewports(1, &m_Viewport);
 		pCmd->RSSetScissorRects(1, &m_Scissor);
 
-		if (SKIP_TEMPORAL_AA)
+		if (ENABLE_TEMPORAL_AA)
 		{
-			DrawScene(pCmd, lightForward, viewProjNoAA);
+			DrawScene(pCmd, lightForward, viewProjWithJitter);
 		}
 		else
 		{
-			DrawScene(pCmd, lightForward, viewProjWithAA);
+			DrawScene(pCmd, lightForward, viewProjNoJitter);
 		}
 
 		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -1592,14 +1592,14 @@ void SampleApp::OnRender()
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_SrcIdx].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_DstIdx].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-		DrawTemporalAA(pCmd, viewProjNoAA, TempAA_SrcIdx, TempAA_DstIdx);
+		DrawTemporalAA(pCmd, viewProjNoJitter, TempAA_SrcIdx, TempAA_DstIdx);
 
 		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_SrcIdx].GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_DstIdx].GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
-	m_PrevViewProjMatrixNoAA = viewProjNoAA;
+	m_PrevViewProjMatrixNoAA = viewProjNoJitter;
 
 	// トーンマップを適用してフレームバッファに描画するパス
 	{
@@ -1813,11 +1813,11 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 }
 
-void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoAA, uint32_t TempAA_SrcIdx, uint32_t TempAA_DstIdx)
+void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, uint32_t TempAA_SrcIdx, uint32_t TempAA_DstIdx)
 {
 	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
-		ptr->ClipToPrevClip = viewProjNoAA.Invert() * m_PrevViewProjMatrixNoAA;
+		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjMatrixNoAA;
 	}
 
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
