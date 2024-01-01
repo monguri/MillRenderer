@@ -22,7 +22,7 @@ cbuffer CbTonemap : register(b0)
 }
 
 Texture2D ColorMap : register(t0);
-SamplerState ColorSmp : register(s0);
+SamplerState PointClampSmp : register(s0);
 
 float4 ColorSpaceConvert(float4 color)
 {
@@ -152,7 +152,7 @@ float4 ApplyOETF(float4 color)
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	float4 result = ColorMap.Sample(ColorSmp, input.TexCoord);
+	float4 result = ColorMap.Sample(PointClampSmp, input.TexCoord);
 	result = ColorSpaceConvert(result);
 	result = Tonemapping(result);
 	result = ApplyOETF(result);
