@@ -15,6 +15,9 @@ RWTexture2D<float4> OutResult : register(u0);
 void main(uint3 DTid : SV_DispatchThreadID)
 {
 	float2 uv = (DTid.xy + 0.5f) / float2(Width, Height);
-	// TODO: now just copy
-	OutResult[DTid.xy] = ColorMap.SampleLevel(PointClampSmp, uv, 0);
+
+	// TODO: just a average
+	float3 curColor = ColorMap.SampleLevel(PointClampSmp, uv, 0).xyz;
+	float3 histColor = HitoryMap.SampleLevel(PointClampSmp, uv, 0).xyz;
+	OutResult[DTid.xy] = float4((curColor + histColor) * 0.5f, 1.0f);
 }
