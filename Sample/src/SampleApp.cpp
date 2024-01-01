@@ -1043,13 +1043,14 @@ bool SampleApp::OnInit()
 		}
 	}
 
-    // CSテスト用ルートシグニチャの生成
+    // TemporalAA用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(3)
+		desc.Begin(4)
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetSRV(ShaderStage::ALL, 1, 0)
-			.SetUAV(ShaderStage::ALL, 2, 0)
+			.SetSRV(ShaderStage::ALL, 2, 1)
+			.SetUAV(ShaderStage::ALL, 3, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -1060,7 +1061,7 @@ bool SampleApp::OnInit()
 		}
 	}
 
-    // CSテスト用パイプラインステートの生成
+    // TemporalAA用パイプラインステートの生成
 	{
 		std::wstring csPath;
 
@@ -1795,8 +1796,9 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAA_CB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_TemporalAA_Target.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_TemporalAA_Target.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_TemporalAA_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_TemporalAA_Target.GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;

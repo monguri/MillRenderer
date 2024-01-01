@@ -3,8 +3,9 @@ cbuffer CbTemporalAA : register(b0)
 	float4x4 ClipToPrevClip;
 }
 
-Texture2D HitoryBuffer : register(t0);
-SamplerState HistorySmp : register(s0);
+Texture2D ColorMap : register(t0);
+Texture2D HitoryMap : register(t1);
+SamplerState PointClampSmp : register(s0);
 
 RWTexture2D<float4> OutResult : register(u0);
 
