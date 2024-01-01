@@ -643,22 +643,6 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_TemporalAA_HistoryTarget.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
-			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
-			m_Width,
-			m_Height,
-			DXGI_FORMAT_R16G16B16A16_FLOAT,
-			clearColor
-		))
-		{
-			ELOG("Error : ColorTarget::Init() Failed.");
-			return false;
-		}
-
 		if (!m_TemporalAA_Target.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
@@ -1067,8 +1051,9 @@ bool SampleApp::OnInit()
 		RootSignature::Desc desc;
 		desc.Begin(3)
 			.SetCBV(ShaderStage::ALL, 0, 0)
-			.SetUAV(ShaderStage::ALL, 1, 0)
-			.SetUAV(ShaderStage::ALL, 2, 1)
+			.SetSRV(ShaderStage::ALL, 1, 0)
+			.SetUAV(ShaderStage::ALL, 2, 0)
+			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
 		if (!m_TemporalAA_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
@@ -1441,7 +1426,6 @@ void SampleApp::OnTerm()
 
 	m_AmbientLightTarget.Term();
 
-	m_TemporalAA_HistoryTarget.Term();
 	m_TemporalAA_Target.Term();
 
 	m_pSceneOpaquePSO.Reset();
@@ -1583,18 +1567,10 @@ void SampleApp::OnRender()
 
 	// TemporalAAパス
 	{
-		DirectX::TransitionResource(pCmd, m_TemporalAA_HistoryTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		DirectX::TransitionResource(pCmd, m_TemporalAA_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-		m_TemporalAA_HistoryTarget.ClearView(pCmd);
-		m_TemporalAA_Target.ClearView(pCmd);
-
-		DirectX::TransitionResource(pCmd, m_TemporalAA_HistoryTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		DirectX::TransitionResource(pCmd, m_TemporalAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmd, m_TemporalAA_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		DrawTemporalAA(pCmd, viewProjNoAA);
 
-		DirectX::TransitionResource(pCmd, m_TemporalAA_HistoryTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
@@ -1822,7 +1798,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAA_CB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_TemporalAA_HistoryTarget.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_TemporalAA_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_TemporalAA_Target.GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
