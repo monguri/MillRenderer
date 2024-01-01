@@ -1,9 +1,9 @@
 cbuffer CbTemporalAA : register(b0)
 {
+	float4x4 ClipToPrevClip;
 	int Width;
 	int Height;
 	int bEnableTemporalAA;
-	float4x4 ClipToPrevClip;
 }
 
 Texture2D DepthMap : register(t0);
@@ -23,8 +23,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float deviceZ = DepthMap.SampleLevel(PointClampSmp, uv, 0).r;
 
 	float4 clipPos = float4(screenPos, deviceZ, 1);
-	//float4 prevClipPos = mul(clipPos, ClipToPrevClip); // TODO:mul invert?
-	float4 prevClipPos = mul(ClipToPrevClip, clipPos); // TODO:mul invert?
+	float4 prevClipPos = mul(ClipToPrevClip, clipPos);
 	float2 prevScreenPos = prevClipPos.xy / prevClipPos.w;
 	float2 prevUV = prevScreenPos * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
 

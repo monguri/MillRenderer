@@ -100,10 +100,11 @@ namespace
 
 	struct alignas(256) CbTemporalAA
 	{
+		Matrix ClipToPrevClip;
 		int Width;
 		int Height;
 		int bEnableTemporalAA;
-		Matrix ClipToPrevClip;
+		float Padding[1];
 	};
 
 	struct alignas(256) CbTonemap
@@ -1818,10 +1819,10 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, uint32_t TempAA_SrcIdx, uint32_t TempAA_DstIdx)
 {
-	{
+	//{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
 		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
-	}
+	//}
 
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
