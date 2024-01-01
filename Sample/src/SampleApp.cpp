@@ -686,12 +686,10 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 18, 6)
 
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::AnisotropicWrap)
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::AnisotropicWrap)
-			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::AnisotropicWrap)
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-			.AddStaticCmpSmp(ShaderStage::PS, 3, SamplerState::MinMagLinearMipPointClamp)
+			.AddStaticCmpSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
 #else
-			.AddStaticSmp(ShaderStage::PS, 3, SamplerState::MinMagLinearMipPointClamp)
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
 #endif
 			.AllowIL()
 			.End();
@@ -954,7 +952,6 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 1)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
 

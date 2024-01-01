@@ -119,13 +119,9 @@ cbuffer CbSpotLight3 : register(b9)
 };
 
 Texture2D BaseColorMap : register(t0);
-SamplerState BaseColorSmp : register(s0);
-
 Texture2D MetallicRoughnessMap : register(t1);
-SamplerState MetallicRoughnessSmp : register(s1);
-
 Texture2D NormalMap : register(t2);
-SamplerState NormalSmp : register(s2);
+SamplerState AnisotropicWrapSmp : register(s0);
 
 Texture2D DirLightShadowMap : register(t3);
 Texture2D SpotLight1ShadowMap : register(t4);
@@ -133,9 +129,9 @@ Texture2D SpotLight2ShadowMap : register(t5);
 Texture2D SpotLight3ShadowMap : register(t6);
 
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-SamplerComparisonState ShadowSmp : register(s3);
+SamplerComparisonState ShadowSmp : register(s1);
 #else
-SamplerState ShadowSmp : register(s3);
+SamplerState ShadowSmp : register(s1);
 #endif
 
 float SmoothDistanceAttenuation
@@ -384,7 +380,7 @@ PSOutput main(VSOutput input)
 {
 	PSOutput output = (PSOutput)0;
 
-	float4 baseColor = BaseColorMap.Sample(BaseColorSmp, input.TexCoord);
+	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, input.TexCoord);
 #ifdef ALPHA_MODE_MASK
 	if (baseColor.a < AlphaCutoff)
 	{
@@ -396,11 +392,11 @@ PSOutput main(VSOutput input)
 
 	// metallic value is G. roughness value is B.
 	// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
-	float2 metallicRoughness = MetallicRoughnessMap.Sample(MetallicRoughnessSmp, input.TexCoord).bg;
+	float2 metallicRoughness = MetallicRoughnessMap.Sample(AnisotropicWrapSmp, input.TexCoord).bg;
 	float metallic = metallicRoughness.x * MetallicFactor;
 	float roughness = metallicRoughness.y * RoughnessFactor;
 
-	float3 N = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0f - 1.0f;
+	float3 N = NormalMap.Sample(AnisotropicWrapSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 	N = mul(input.InvTangentBasis, N);
 	N = normalize(N);
 	float3 V = normalize(CameraPosition - input.WorldPos);

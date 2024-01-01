@@ -42,13 +42,11 @@ cbuffer CbSSAO : register(b0)
 }
 
 Texture2D DepthMap : register(t0);
-SamplerState DepthSmp : register(s0);
-
 Texture2D NormalMap : register(t1);
-SamplerState NormalSmp : register(s1);
+SamplerState PointClampSmp : register(s0);
 
 Texture2D RandomNormalTex : register(t2);
-SamplerState RandomNormalSmp : register(s2);
+SamplerState PointWrapSmp : register(s1);
 
 static const uint3 k = uint3(0x456789abu, 0x6789ab45u, 0x89ab4567u);
 static const uint3 u = uint3(1, 2, 3);
@@ -86,8 +84,8 @@ float3 WedgeWithNormal(float2 screenSpacePosCenter, float2 localRandom, float3 i
 	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
 	float2 screenSpacePosR = screenSpacePosCenter - localRandom;
 
-	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
-	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(PointClampSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(PointClampSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
 
 	float3 samplePositionL = ReconstructCSPos(absL, screenSpacePosL);
 	float3 samplePositionR = ReconstructCSPos(absR, screenSpacePosR);
@@ -113,8 +111,8 @@ float2 WedgeWithNormalMonguri(float2 screenSpacePosCenter, float2 localRandom, f
 	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
 	float2 screenSpacePosR = screenSpacePosCenter - localRandom;
 
-	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
-	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(PointClampSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(PointClampSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
 
 	float3 samplePositionL = ReconstructCSPos(absL, screenSpacePosL);
 	float3 samplePositionR = ReconstructCSPos(absR, screenSpacePosR);
@@ -150,8 +148,8 @@ float2 WedgeNoNormal(float2 screenSpacePosCenter, float2 localRandom, float3 inv
 	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
 	float2 screenSpacePosR = screenSpacePosCenter - localRandom;
 
-	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
-	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(DepthSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(PointClampSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(PointClampSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
 
 	float3 samplePositionL = ReconstructCSPos(absL, screenSpacePosL);
 	float3 samplePositionR = ReconstructCSPos(absR, screenSpacePosR);
@@ -189,10 +187,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float3 fovFix = float3(InvTanHalfFov, InvTanHalfFov * Width / Height, 1.0f);
 	float3 invFovFix = 1.0f / fovFix;
 
-	float deviceZ = DepthMap.Sample(DepthSmp, input.TexCoord).r;
+	float deviceZ = DepthMap.Sample(PointClampSmp, input.TexCoord).r;
 	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
 
-	float3 worldNormal = NormalMap.Sample(NormalSmp, input.TexCoord).xyz * 2.0f - 1.0f;
+	float3 worldNormal = NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 	float3 viewSpaceNormal = normalize(mul(worldNormal, (float3x3)WorldToView));
 
 	// [-1,1]x[-1,1]
@@ -210,7 +208,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 #if 0
 	float2 randomVec = normalize(max(hash22(input.TexCoord), 0.000001f)) * actualAORadius;
 #else
-	float2 randomVec = (RandomNormalTex.Sample(RandomNormalSmp, input.TexCoord * viewportUVtoRandomUV + TemporalOffset).rg * 2.0f - 1.0f) * actualAORadius;
+	float2 randomVec = (RandomNormalTex.Sample(PointWrapSmp, input.TexCoord * viewportUVtoRandomUV + TemporalOffset).rg * 2.0f - 1.0f) * actualAORadius;
 #endif
 
 	float2 fovFixXY = fovFix.xy * (1.0f / viewSpacePosition.z);
