@@ -13,6 +13,8 @@ SamplerState PointClampSmp : register(s0);
 
 RWTexture2D<float4> OutResult : register(u0);
 
+static const float HISTORY_ALPHA = 0.638511181f; // referenced UE.
+
 [numthreads(8, 8, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
@@ -33,7 +35,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	if (bEnableTemporalAA)
 	{
 		// TODO: just a average
-		OutResult[DTid.xy] = float4((curColor + histColor) * 0.5f, 1.0f);
+		OutResult[DTid.xy] = float4(lerp(histColor, curColor, (1.0f - HISTORY_ALPHA)), 1.0f);
 	}
 	else
 	{
