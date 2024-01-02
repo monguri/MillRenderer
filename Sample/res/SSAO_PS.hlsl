@@ -40,6 +40,7 @@ cbuffer CbSSAO : register(b0)
 	float Near;
 	float Far;
 	float InvTanHalfFov;
+	int bEnableSSAO;
 }
 
 Texture2D DepthMap : register(t0);
@@ -323,5 +324,12 @@ float4 main(const VSOutput input) : SV_TARGET0
 	// abs() to prevent shader warning
 	result = 1 - (1 - pow(abs(result), AmbientOcclusionPower)) * AmbientOcclusionIntensity;
 
-	return float4(result, 0, 0, 1);
+	if (bEnableSSAO)
+	{
+		return float4(result, 0, 0, 1);
+	}
+	else
+	{
+		return float4(1, 0, 0, 1);
+	}
 }

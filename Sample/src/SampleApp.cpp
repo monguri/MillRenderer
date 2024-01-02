@@ -10,6 +10,7 @@
 #include "RootSignature.h"
 
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+#define ENABLE_SSAO true
 #define ENABLE_TEMPORAL_AA true
 
 using namespace DirectX::SimpleMath;
@@ -98,7 +99,8 @@ namespace
 		float Near;
 		float Far;
 		float InvTanHalfFov;
-		float Padding[3];
+		int bEnableSSAO;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -1243,6 +1245,7 @@ bool SampleApp::OnInit()
 		}
 
 		CbSSAO* ptr = m_SSAO_CB[i].GetPtr<CbSSAO>();
+		ptr->WorldToView = m_Camera.GetView();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTarget.GetDesc().Width, (float)m_SSAO_RandomizationTarget.GetDesc().Height);
@@ -1251,7 +1254,7 @@ bool SampleApp::OnInit()
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
-		ptr->WorldToView = m_Camera.GetView();
+		ptr->bEnableSSAO = (ENABLE_SSAO ? 1 : 0);
 	}
 
 	// TemporalAA用定数バッファの作成
