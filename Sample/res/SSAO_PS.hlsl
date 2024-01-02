@@ -5,7 +5,8 @@
 #define OPTIMIZATION_O1 0
 
 #define USE_NORMALS 0
-#define USE_NORMALS_MONGURI 1
+#define USE_NORMALS_MONGURI 0
+#define USE_NORMALS_MONGURI2 1
 
 #define SAMPLESET_ARRAY_SIZE 3
 static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
@@ -143,6 +144,28 @@ float2 WedgeWithNormalMonguri(float2 screenSpacePosCenter, float2 localRandom, f
 	return float2(1 - normAngle, weight);
 }
 
+float3 WedgeWithNormalMonguri2(float2 screenSpacePosCenter, float2 localRandom, float3 invFovFix, float3 viewSpacePosition, float3 scaledViewSpaceNormal, float invHaloSize)
+{
+	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
+	float2 screenSpacePosR = screenSpacePosCenter - localRandom;
+
+	float absL = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(PointClampSmp, screenSpacePosL * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+	float absR = ConvertFromDeviceZtoLinearZ(DepthMap.Sample(PointClampSmp, screenSpacePosR * float2(0.5f, -0.5f) + float2(0.5f, 0.5f)).r);
+
+	float3 samplePositionL = ReconstructCSPos(absL, screenSpacePosL);
+	float3 samplePositionR = ReconstructCSPos(absR, screenSpacePosR);
+
+	float3 deltaL = (samplePositionL - viewSpacePosition) * invFovFix;
+	float3 deltaR = (samplePositionR - viewSpacePosition) * invFovFix;
+
+	float invNormalAngleL = saturate(dot(deltaL, scaledViewSpaceNormal) * rsqrt(dot(deltaL, deltaL)));
+	float invNormalAngleR = saturate(dot(deltaR, scaledViewSpaceNormal) * rsqrt(dot(deltaR, deltaR)));
+	//float weight = saturate(1.0f - length(deltaL) * invHaloSize) * saturate(1.0f - length(deltaR) * invHaloSize);
+	float weight = 1;
+
+	return float3(invNormalAngleL, invNormalAngleR, weight);
+}
+
 float2 WedgeNoNormal(float2 screenSpacePosCenter, float2 localRandom, float3 invFovFix, float3 viewSpacePosition)
 {
 	float2 screenSpacePosL = screenSpacePosCenter + localRandom;
@@ -262,6 +285,22 @@ float4 main(const VSOutput input) : SV_TARGET0
 			}
 
 			weightAccumulator += float2((1 - localAllumulator.x) * (1 - localAllumulator.x) * localAllumulator.y, localAllumulator.y);
+		}
+		else if (USE_NORMALS_MONGURI2)
+		{
+			float3 localAllumulator = 0.0f;
+
+			// ray-march loop
+			for (uint step = 0; step < SAMPLE_STEPS; step++)
+			{
+				float scale = (step + 1) / (float)SAMPLE_STEPS;
+
+				float3 stepSample = WedgeWithNormalMonguri2(screenSpacePos, scale * localRandom, invFovFix, viewSpacePosition, scaledViewSpaceNormal, invHaloSize);
+				localAllumulator = lerp(localAllumulator, float3(max(localAllumulator.xy, stepSample.xy), 1), stepSample.z);
+			}
+
+			weightAccumulator += float2((1 - localAllumulator.x) * (1 - localAllumulator.x) * localAllumulator.z, localAllumulator.z);
+			weightAccumulator += float2((1 - localAllumulator.y) * (1 - localAllumulator.y) * localAllumulator.z, localAllumulator.z);
 		}
 		else
 		{
