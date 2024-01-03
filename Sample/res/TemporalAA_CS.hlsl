@@ -48,8 +48,14 @@ float3 YCoCgToRGB(float3 YCoCg)
 	return float3(R, G, B);
 }
 
+uint GetTileIndex(uint2 GTid, uint2 pixelOffset)
+{
+	uint2 tilePos = GTid + pixelOffset + TILE_BORDER_SIZE;
+	return tilePos.x + tilePos.y * TILE_WIDTH;
+}
+
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
-void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint GTidx : SV_GroupIndex)
+void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid : SV_GroupThreadID, uint GTidx : SV_GroupIndex)
 {
 	//
 	// precache tile colors
@@ -82,14 +88,16 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint GTidx :
 	float2 prevScreenPos = prevClipPos.xy / prevClipPos.w;
 	float2 prevUV = prevScreenPos * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
 
-	float3 curColor = ColorMap.SampleLevel(PointClampSmp, uv, 0).rgb;
+	uint curTileIdx = GetTileIndex(GTidx, uint2(0, 0));
+	float3 curColor = TileColors[curTileIdx];
+	//float3 curColor = ColorMap.Load(float3(DTid, 0)).rgb;
 	curColor = RGBToYCoCg(curColor);
 
 	float3 histColor = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0).rgb;
 	histColor = RGBToYCoCg(histColor);
 
 	//
-	// clamp history color by neighborhood 3x3 color minmax
+	// clamp history color by neighborhood 3x3 current color minmax
 	//
 	float2 pixelUVoffset = float2(1.0f / Width, 1.0f / Height);
 
@@ -99,9 +107,9 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint GTidx :
 	for (uint i = 0; i < 9; i++)
 	{
 		// array of (-1, -1) ... (1, 1) 9 elements
-		int2 indexOffset = int2(i % 3, i / 3) - int2(1, 1);
-
-		float3 neighborColor = ColorMap.SampleLevel(PointClampSmp, uv + indexOffset * pixelUVoffset, 0).rgb;
+		int2 pixelOffset = int2(i % 3, i / 3) - int2(1, 1);
+		uint neighborTileIdx = GetTileIndex(GTidx, pixelOffset);
+		float3 neighborColor = TileColors[neighborTileIdx];
 		neighborColor = RGBToYCoCg(neighborColor);
 
 		neighborMin = min(neighborMin, neighborColor);
