@@ -88,10 +88,10 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	float2 prevScreenPos = prevClipPos.xy / prevClipPos.w;
 	float2 prevUV = prevScreenPos * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
 
-	uint curTileIdx = GetTileIndex(GTidx, uint2(0, 0));
+	uint curTileIdx = GetTileIndex(GTid, uint2(0, 0));
 	float3 curColor = TileColors[curTileIdx];
 	//float3 curColor = ColorMap.Load(float3(DTid, 0)).rgb;
-	curColor = RGBToYCoCg(curColor);
+	//curColor = RGBToYCoCg(curColor);
 
 	float3 histColor = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0).rgb;
 	histColor = RGBToYCoCg(histColor);
@@ -108,9 +108,8 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	{
 		// array of (-1, -1) ... (1, 1) 9 elements
 		int2 pixelOffset = int2(i % 3, i / 3) - int2(1, 1);
-		uint neighborTileIdx = GetTileIndex(GTidx, pixelOffset);
+		uint neighborTileIdx = GetTileIndex(GTid, pixelOffset);
 		float3 neighborColor = TileColors[neighborTileIdx];
-		neighborColor = RGBToYCoCg(neighborColor);
 
 		neighborMin = min(neighborMin, neighborColor);
 		neighborMax = max(neighborMax, neighborColor);
