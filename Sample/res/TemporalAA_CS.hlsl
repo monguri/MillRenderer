@@ -15,8 +15,9 @@ RWTexture2D<float4> OutResult : register(u0);
 
 static const float HISTORY_ALPHA = 0.638511181f; // referenced UE.
 
-static const uint THREAD_GROUP_SIZE = 8;
-static const uint NUM_TILE = (THREAD_GROUP_SIZE + 2 * 1) * (THREAD_GROUP_SIZE + 2 * 1); // 1 is border for 3x3 sample
+static const uint THREAD_GROUP_SIZE_X = 8;
+static const uint THREAD_GROUP_SIZE_Y = 8;
+static const uint NUM_TILE = (THREAD_GROUP_SIZE_X + 2 * 1) * (THREAD_GROUP_SIZE_Y + 2 * 1); // 1 is border for 3x3 sample
 
 groupshared float3 TileColors[NUM_TILE];
 
@@ -42,8 +43,8 @@ float3 YCoCgToRGB(float3 YCoCg)
 	return float3(R, G, B);
 }
 
-[numthreads(THREAD_GROUP_SIZE, THREAD_GROUP_SIZE, 1)]
-void main(uint2 DTid : SV_DispatchThreadID)
+[numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
+void main(uint2 DTid : SV_DispatchThreadID, uint2 GTid : SV_GroupThreadID)
 {
 	float2 uv = (DTid + 0.5f) / float2(Width, Height);
 	// [0, 1] to [-1, 1]
