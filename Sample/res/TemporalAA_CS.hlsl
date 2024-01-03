@@ -17,7 +17,12 @@ static const float HISTORY_ALPHA = 0.638511181f; // referenced UE.
 
 static const uint THREAD_GROUP_SIZE_X = 8;
 static const uint THREAD_GROUP_SIZE_Y = 8;
-static const uint NUM_TILE = (THREAD_GROUP_SIZE_X + 2 * 1) * (THREAD_GROUP_SIZE_Y + 2 * 1); // 1 is border for 3x3 sample
+static const uint THREAD_GROUP_TOTAL = THREAD_GROUP_SIZE_X * THREAD_GROUP_SIZE_Y;
+// 1 is border for 3x3 sample
+static const uint TILE_BORDER_SIZE = 1;
+static const uint TILE_WIDTH = THREAD_GROUP_SIZE_X + 2 * TILE_BORDER_SIZE;
+static const uint TILE_HEIGHT = (THREAD_GROUP_SIZE_Y + 2 * TILE_BORDER_SIZE);
+static const uint NUM_TILE = TILE_WIDTH * TILE_HEIGHT;
 
 groupshared float3 TileColors[NUM_TILE];
 
@@ -44,8 +49,28 @@ float3 YCoCgToRGB(float3 YCoCg)
 }
 
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
-void main(uint2 DTid : SV_DispatchThreadID, uint2 GTid : SV_GroupThreadID)
+void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint GTidx : SV_GroupIndex)
 {
+	//
+	// precache tile colors
+	//
+	uint2 groupTexelOffset = Gid * uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y) - TILE_BORDER_SIZE;
+
+	for (uint tileIdx = GTidx; tileIdx < NUM_TILE; tileIdx += THREAD_GROUP_TOTAL)
+	{
+		uint2 texelLocation = groupTexelOffset + uint2(tileIdx % TILE_WIDTH, tileIdx / TILE_WIDTH);
+		// self clamp to do clamp sampler
+		texelLocation = clamp(texelLocation, uint2(0, 0), uint2(Width - 1, Height - 1));
+
+		float3 rgb = ColorMap[texelLocation].rgb;
+		TileColors[tileIdx] = RGBToYCoCg(rgb);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	//
+	// sample current and history colors
+	//
 	float2 uv = (DTid + 0.5f) / float2(Width, Height);
 	// [0, 1] to [-1, 1]
 	float2 screenPos = uv * float2(2, -2) + float2(-1, 1);
@@ -60,7 +85,12 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GTid : SV_GroupThreadID)
 	float3 curColor = ColorMap.SampleLevel(PointClampSmp, uv, 0).rgb;
 	curColor = RGBToYCoCg(curColor);
 
-	// neighborhood 3x3 rgb clamp
+	float3 histColor = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0).rgb;
+	histColor = RGBToYCoCg(histColor);
+
+	//
+	// clamp history color by neighborhood 3x3 color minmax
+	//
 	float2 pixelUVoffset = float2(1.0f / Width, 1.0f / Height);
 
 	float3 neighborMin = curColor;
@@ -78,10 +108,11 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GTid : SV_GroupThreadID)
 		neighborMax = max(neighborMax, neighborColor);
 	}
 
-	float3 histColor = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0).rgb;
-	histColor = RGBToYCoCg(histColor);
 	histColor = clamp(histColor, neighborMin, neighborMax);
 
+	//
+	// blend current and history color
+	//
 	if (bEnableTemporalAA)
 	{
 		float3 finalColor = lerp(histColor, curColor, (1.0f - HISTORY_ALPHA));
