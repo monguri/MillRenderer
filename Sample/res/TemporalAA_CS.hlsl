@@ -15,6 +15,11 @@ RWTexture2D<float4> OutResult : register(u0);
 
 static const float HISTORY_ALPHA = 0.638511181f; // referenced UE.
 
+static const uint THREAD_GROUP_SIZE = 8;
+static const uint NUM_TILE = (THREAD_GROUP_SIZE + 2 * 1) * (THREAD_GROUP_SIZE + 2 * 1); // 1 is border for 3x3 sample
+
+groupshared float3 TileColors[NUM_TILE];
+
 float3 RGBToYCoCg(float3 RGB)
 {
 	float Y = dot(RGB, float3(1, 2, 1));
@@ -37,10 +42,10 @@ float3 YCoCgToRGB(float3 YCoCg)
 	return float3(R, G, B);
 }
 
-[numthreads(8, 8, 1)]
-void main(uint3 DTid : SV_DispatchThreadID)
+[numthreads(THREAD_GROUP_SIZE, THREAD_GROUP_SIZE, 1)]
+void main(uint2 DTid : SV_DispatchThreadID)
 {
-	float2 uv = (DTid.xy + 0.5f) / float2(Width, Height);
+	float2 uv = (DTid + 0.5f) / float2(Width, Height);
 	// [0, 1] to [-1, 1]
 	float2 screenPos = uv * float2(2, -2) + float2(-1, 1);
 
@@ -80,12 +85,12 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	{
 		float3 finalColor = lerp(histColor, curColor, (1.0f - HISTORY_ALPHA));
 		finalColor = YCoCgToRGB(finalColor);
-		OutResult[DTid.xy] = float4(finalColor, 1.0f);
+		OutResult[DTid] = float4(finalColor, 1.0f);
 	}
 	else
 	{
 		// just copy
 		curColor = YCoCgToRGB(curColor);
-		OutResult[DTid.xy] = float4(curColor, 1.0f);
+		OutResult[DTid] = float4(curColor, 1.0f);
 	}
 }
