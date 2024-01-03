@@ -8,7 +8,7 @@ cbuffer CbTemporalAA : register(b0)
 
 Texture2D DepthMap : register(t0);
 Texture2D ColorMap : register(t1);
-Texture2D HitoryMap : register(t2);
+Texture2D HistoryMap : register(t2);
 SamplerState PointClampSmp : register(s0);
 
 RWTexture2D<float4> OutResult : register(u0);
@@ -30,7 +30,26 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float2 prevUV = prevScreenPos * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
 
 	float3 curColor = ColorMap.SampleLevel(PointClampSmp, uv, 0).rgb;
-	float3 histColor = HitoryMap.SampleLevel(PointClampSmp, prevUV, 0).rgb;
+
+	// neighborhood 3x3 rgb clamp
+	float2 pixelUVoffset = float2(1.0f / Width, 1.0f / Height);
+
+	float3 neighborMin = curColor;
+	float3 neighborMax = curColor;
+
+	for (uint i = 0; i < 9; i++)
+	{
+		// array of (-1, -1) ... (1, 1) 9 elements
+		int2 indexOffset = int2(i % 3, i / 3) - int2(1, 1);
+
+		float3 neighborColor = ColorMap.SampleLevel(PointClampSmp, uv + indexOffset * pixelUVoffset, 0).rgb;
+
+		neighborMin = min(neighborMin, neighborColor);
+		neighborMax = max(neighborMax, neighborColor);
+	}
+
+	float3 histColor = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0).rgb;
+	histColor = clamp(histColor, neighborMin, neighborMax);
 
 	if (bEnableTemporalAA)
 	{
