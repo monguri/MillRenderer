@@ -24,7 +24,7 @@ static const uint TILE_WIDTH = THREAD_GROUP_SIZE_X + 2 * TILE_BORDER_SIZE;
 static const uint TILE_HEIGHT = (THREAD_GROUP_SIZE_Y + 2 * TILE_BORDER_SIZE);
 static const uint NUM_TILE = TILE_WIDTH * TILE_HEIGHT;
 
-groupshared float3 TileColors[NUM_TILE];
+groupshared float3 TileYCoCgColors[NUM_TILE];
 
 float3 RGBToYCoCg(float3 RGB)
 {
@@ -69,7 +69,7 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 		texelLocation = clamp(texelLocation, uint2(0, 0), uint2(Width - 1, Height - 1));
 
 		float3 rgb = ColorMap[texelLocation].rgb;
-		TileColors[tileIdx] = RGBToYCoCg(rgb);
+		TileYCoCgColors[tileIdx] = RGBToYCoCg(rgb);
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -89,7 +89,7 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	float2 prevUV = prevScreenPos * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
 
 	uint curTileIdx = GetTileIndex(GTid, uint2(0, 0));
-	float3 curColor = TileColors[curTileIdx];
+	float3 curColor = TileYCoCgColors[curTileIdx];
 	//float3 curColor = ColorMap.Load(float3(DTid, 0)).rgb;
 	//curColor = RGBToYCoCg(curColor);
 
@@ -109,7 +109,7 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 		// array of (-1, -1) ... (1, 1) 9 elements
 		int2 pixelOffset = int2(i % 3, i / 3) - int2(1, 1);
 		uint neighborTileIdx = GetTileIndex(GTid, pixelOffset);
-		float3 neighborColor = TileColors[neighborTileIdx];
+		float3 neighborColor = TileYCoCgColors[neighborTileIdx];
 
 		neighborMin = min(neighborMin, neighborColor);
 		neighborMax = max(neighborMax, neighborColor);
