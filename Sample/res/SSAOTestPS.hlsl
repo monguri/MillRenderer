@@ -50,12 +50,16 @@ float4 main(const VSOutput input) : SV_TARGET0
 {
 	float deviceZ = DepthMap.Sample(PointClampSmp, input.TexCoord).r;
 	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
-	float normalizedDepth = sceneDepth / 20;
+	float3 worldNormal = NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 
 	float result = 1.0f;
+
 	if (bEnableSSAO)
 	{
-		return float4(normalizedDepth, normalizedDepth, normalizedDepth, 1);
+		//float normalizedDepth = sceneDepth / 20; // 20 is manually adjustetd value
+		//return float4(normalizedDepth, normalizedDepth, normalizedDepth, 1);
+
+		return float4(result, result, result, 1);
 	}
 	else
 	{
