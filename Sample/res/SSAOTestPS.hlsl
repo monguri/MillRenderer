@@ -22,6 +22,7 @@ struct VSOutput
 cbuffer CbSSAO : register(b0)
 {
 	float4x4 ViewMatrix;
+	float4x4 InvViewProjMatrix;
 	int Width;
 	int Height;
 	float2 RandomationSize;
@@ -46,23 +47,31 @@ float ConvertFromDeviceZtoLinearZ(float deviceZ)
 	return (Far * Near) / (Far - deviceZ * (Far - Near));
 }
 
-float3 ConverFromSSPosToVSPos(float2 screenPos, float sceneDepth)
+float3 ConverFromNDCToWS(float4 ndcPos)
 {
-	return float3(screenPos * sceneDepth, sceneDepth);
+	float deviceZ = ndcPos.z;
+	float linearDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
+
+	// linearDepth is clip space w. so multiply w to ndc position to get clip space position.
+	float4 clipPos = ndcPos * -linearDepth;
+	float4 worldPos = mul(InvViewProjMatrix, clipPos);
+	
+	return worldPos.xyz;
 }
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
 	float deviceZ = DepthMap.Sample(PointClampSmp, input.TexCoord).r;
-	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
+	// [-1,1]x[-1,1]
+	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
+	float4 ndcPos = float4(screenPos, deviceZ, 1);
+	float3 worldPos = ConverFromNDCToWS(ndcPos);
 
 	float3 worldNormal = NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 	float3 viewSpaceNormal = normalize(mul((float3x3)ViewMatrix, worldNormal));
 
-	// [-1,1]x[-1,1]
-	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
-	// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
-	float3 viewSpacePosition = ConverFromSSPosToVSPos(screenPos, sceneDepth);
+	//// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
+	//float3 viewSpacePosition = ConverFromSSPosToVSPos(screenPos, sceneDepth);
 
 	float result = 1.0f;
 

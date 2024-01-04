@@ -96,6 +96,7 @@ namespace
 	struct alignas(256) CbSSAO
 	{
 		Matrix ViewMatrix;
+		Matrix InvViewProjMatrix;
 		int Width;
 		int Height;
 		Vector2 RandomationSize;
@@ -1346,7 +1347,8 @@ bool SampleApp::OnInit()
 		}
 
 		CbSSAO* ptr = m_SSAO_CB[i].GetPtr<CbSSAO>();
-		ptr->ViewMatrix = m_Camera.GetView();
+		ptr->ViewMatrix = Matrix::Identity;
+		ptr->InvViewProjMatrix = Matrix::Identity;
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTarget.GetDesc().Width, (float)m_SSAO_RandomizationTarget.GetDesc().Height);
@@ -1676,7 +1678,7 @@ void SampleApp::OnRender()
 
 		m_SSAO_Target.ClearView(pCmd);
 
-		DrawSSAO(pCmd);
+		DrawSSAO(pCmd, viewProjWithJitter);
 
 		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
@@ -1900,13 +1902,14 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 }
 
 //TODO:SSパスは処理を共通化したい
-void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjWithJitter)
 {
 	{
 		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->ViewMatrix = m_Camera.GetView();
+		ptr->InvViewProjMatrix = viewProjWithJitter.Invert();
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
