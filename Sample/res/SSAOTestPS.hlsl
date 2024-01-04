@@ -49,11 +49,15 @@ float ConvertFromDeviceZtoLinearZ(float deviceZ)
 
 float3 ConverFromNDCToWS(float4 ndcPos)
 {
+	// referenced.
+	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
+	// That is left-handed projection matrix.
+	// Matrix::CreatePerspectiveFieldOfView() transform right-handed viewspace to left-handed clip space.
+	// So, referenced that code.
 	float deviceZ = ndcPos.z;
 	float linearDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
-
-	// linearDepth is clip space w. so multiply w to ndc position to get clip space position.
-	float4 clipPos = ndcPos * -linearDepth;
+	float clipPosW = -linearDepth;
+	float4 clipPos = ndcPos * clipPosW;
 	float4 worldPos = mul(InvViewProjMatrix, clipPos);
 	
 	return worldPos.xyz;
