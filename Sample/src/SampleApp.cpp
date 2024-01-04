@@ -15,6 +15,8 @@
 #define ENABLE_SSAO true
 #define ENABLE_TEMPORAL_AA true
 
+#define DEBUG_VIEW_SSAO true
+
 using namespace DirectX::SimpleMath;
 
 namespace
@@ -1626,6 +1628,19 @@ void SampleApp::OnRender()
 
 		DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	}
+
+#if DEBUG_VIEW_SSAO
+	// 最終レンダーターゲットにSSAOバッファをコピーする
+	{
+		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
+
+		pCmd->CopyResource(m_ColorTarget[m_FrameIndex].GetResource(), m_SSAO_Target.GetResource());
+
+		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+	}
+#endif
 
 	pCmd->Close();
 
