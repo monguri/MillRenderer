@@ -12,7 +12,7 @@
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
-#define ENABLE_SSAO false
+#define ENABLE_SSAO true
 #define ENABLE_TEMPORAL_AA true
 
 using namespace DirectX::SimpleMath;
@@ -891,7 +891,7 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		if (!SearchFilePath(L"SSAO_PS.cso", psPath))
+		if (!SearchFilePath(L"SSAOTestPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
