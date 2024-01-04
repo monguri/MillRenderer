@@ -1243,7 +1243,7 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		if (!SearchFilePath(L"CopyTexturePS.cso", psPath))
+		if (!SearchFilePath(L"SampleTexturePS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
