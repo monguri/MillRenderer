@@ -95,7 +95,7 @@ namespace
 
 	struct alignas(256) CbSSAO
 	{
-		Matrix WorldToView;
+		Matrix ViewMatrix;
 		int Width;
 		int Height;
 		Vector2 RandomationSize;
@@ -1346,7 +1346,7 @@ bool SampleApp::OnInit()
 		}
 
 		CbSSAO* ptr = m_SSAO_CB[i].GetPtr<CbSSAO>();
-		ptr->WorldToView = m_Camera.GetView();
+		ptr->ViewMatrix = m_Camera.GetView();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTarget.GetDesc().Width, (float)m_SSAO_RandomizationTarget.GetDesc().Height);
@@ -1906,7 +1906,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
-		ptr->WorldToView = m_Camera.GetView();
+		ptr->ViewMatrix = m_Camera.GetView();
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
@@ -2006,8 +2006,8 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_DebugRenderTargetRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pDebugRenderTargetPSO.Get());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
-	//pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_Target.GetHandleSRV()->HandleGPU);
+	//pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_Target.GetHandleSRV()->HandleGPU);
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);

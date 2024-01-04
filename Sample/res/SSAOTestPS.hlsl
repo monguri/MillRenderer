@@ -21,7 +21,7 @@ struct VSOutput
 
 cbuffer CbSSAO : register(b0)
 {
-	float4x4 WorldToView;
+	float4x4 ViewMatrix;
 	int Width;
 	int Height;
 	float2 RandomationSize;
@@ -46,11 +46,23 @@ float ConvertFromDeviceZtoLinearZ(float deviceZ)
 	return (Far * Near) / (Far - deviceZ * (Far - Near));
 }
 
+float3 ConverFromSSPosToVSPos(float2 screenPos, float sceneDepth)
+{
+	return float3(screenPos * sceneDepth, sceneDepth);
+}
+
 float4 main(const VSOutput input) : SV_TARGET0
 {
 	float deviceZ = DepthMap.Sample(PointClampSmp, input.TexCoord).r;
 	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
+
 	float3 worldNormal = NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
+	float3 viewSpaceNormal = normalize(mul((float3x3)ViewMatrix, worldNormal));
+
+	// [-1,1]x[-1,1]
+	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
+	// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
+	float3 viewSpacePosition = ConverFromSSPosToVSPos(screenPos, sceneDepth);
 
 	float result = 1.0f;
 
