@@ -39,7 +39,26 @@ SamplerState PointClampSmp : register(s0);
 Texture2D RandomNormalTex : register(t2);
 SamplerState PointWrapSmp : register(s1);
 
+float ConvertFromDeviceZtoLinearZ(float deviceZ)
+{
+	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
+	// deviceZ = ((Far * linearZ) / (Far - Near) - Far * Near / (Far - Near)) / linearZ
+	return (Far * Near) / (Far - deviceZ * (Far - Near));
+}
+
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float deviceZ = DepthMap.Sample(PointClampSmp, input.TexCoord).r;
+	float sceneDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
+	float normalizedDepth = sceneDepth / 20;
+
+	float result = 1.0f;
+	if (bEnableSSAO)
+	{
+		return float4(normalizedDepth, normalizedDepth, normalizedDepth, 1);
+	}
+	else
+	{
+		return float4(1, 1, 1, 1);
+	}
 }
