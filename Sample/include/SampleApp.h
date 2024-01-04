@@ -38,10 +38,12 @@ private:
 	RootSignature m_SSAO_RootSig;
 	ComPtr<ID3D12PipelineState> m_pAmbientLightPSO;
 	RootSignature m_AmbientLightRootSig;
-	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
-	RootSignature m_TonemapRootSig;
 	ComPtr<ID3D12PipelineState> m_pTemporalAA_PSO;
 	RootSignature m_TemporalAA_RootSig;
+	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
+	RootSignature m_TonemapRootSig;
+	ComPtr<ID3D12PipelineState> m_pDebugRenderTargetPSO;
+	RootSignature m_DebugRenderTargetRootSig;
 	DepthTarget m_DirLightShadowMapTarget;
 	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SceneColorTarget;
@@ -93,4 +95,5 @@ private:
 	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoAA, uint32_t TempAA_SrcIdx, uint32_t TempAA_DstIdx);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList, uint32_t TempAA_DstIdx);
+	void DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList);
 };
