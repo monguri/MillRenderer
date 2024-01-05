@@ -901,7 +901,7 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		if (!SearchFilePath(L"SSAOTestPS.cso", psPath))
+		if (!SearchFilePath(L"SSAO_PS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;

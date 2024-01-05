@@ -54,7 +54,7 @@
     <FxCompile Include="..\res\DepthMaskPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\SSAO_PS.hlsl">
+    <FxCompile Include="..\res\SSAOOldPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\AmbientLightPS.hlsl">
@@ -63,7 +63,7 @@
     <FxCompile Include="..\res\TemporalAA_CS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\SSAOTestPS.hlsl">
+    <FxCompile Include="..\res\SSAO_PS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\SampleTexturePS.hlsl">
