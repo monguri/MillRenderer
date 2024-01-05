@@ -1422,7 +1422,7 @@ bool SampleApp::OnInit()
 			}
 
 			constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
-			float aspect = static_cast<float>(m_Height) / static_cast<float>(m_Width);
+			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 			const Matrix& view = m_Camera.GetView();
 			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
