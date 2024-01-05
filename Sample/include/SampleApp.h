@@ -19,15 +19,9 @@ public:
 	virtual ~SampleApp();
 
 private:
-	static constexpr float CAMERA_FOV_Y_DEGREE = 37.5f;
-	static constexpr float CAMERA_NEAR = 0.1f;
-	static constexpr float CAMERA_FAR = 100.0f;
 	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
-	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 	static constexpr uint32_t NUM_POINT_LIGHTS = 4;
 	static constexpr uint32_t NUM_SPOT_LIGHTS = 3;
-
-	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11;
 
 	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;

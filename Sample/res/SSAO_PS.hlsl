@@ -41,6 +41,7 @@ cbuffer CbSSAO : register(b0)
 	float Near;
 	float Far;
 	float InvTanHalfFov;
+	float AORadius;
 	int bEnableSSAO;
 }
 

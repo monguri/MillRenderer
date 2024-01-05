@@ -34,6 +34,7 @@ cbuffer CbSSAO : register(b0)
 	float Near;
 	float Far;
 	float InvTanHalfFov;
+	float AORadius;
 	int bEnableSSAO;
 }
 
@@ -110,7 +111,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
 	float invDepth = 1.0f / -viewZ;
 	// under condition that aspect ratio is 1
-	float AORadiusInAspectRatio1SS = AO_RADIUS_IN_VS * invDepth * InvTanHalfFov;
+	float AORadiusInAspectRatio1SS = AORadius * invDepth * InvTanHalfFov;
 	float invAspectRatio = Height / (float)Width;
 	float2 AORadiusInSS = (AORadiusInAspectRatio1SS * invAspectRatio, AORadiusInAspectRatio1SS);
 #if 1
