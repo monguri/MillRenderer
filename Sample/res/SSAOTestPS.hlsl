@@ -60,8 +60,8 @@ float3 ConverFromNDCToWS(float4 ndcPos)
 	// So, referenced that code.
 	float deviceZ = ndcPos.z;
 	float linearDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
-	float clipPosW = -linearDepth;
-	float4 clipPos = ndcPos * clipPosW;
+	// clipPos.w is linearDepth
+	float4 clipPos = ndcPos * linearDepth;
 	float4 worldPos = mul(InvViewProjMatrix, clipPos);
 	
 	return worldPos.xyz;
