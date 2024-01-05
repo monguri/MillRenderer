@@ -13,7 +13,7 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 
 #define SAMPLE_STEPS 2
 
-static const float AO_RADIUS_IN_SS = 0.1f;
+static const float AO_RADIUS_IN_VS = 80.0f;
 static const float AO_POWER = 2.0f;
 static const float AO_INTENSITY = 0.5f;
 
@@ -84,11 +84,13 @@ float3 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 worldPos, fl
 	float3 deltaL = (worldPosL - worldPos);
 	float3 deltaR = (worldPosR - worldPos);
 
-	float invNormalAngleL = saturate(dot(deltaL, worldNormal) / dot(deltaL, deltaL));
-	float invNormalAngleR = saturate(dot(deltaR, worldNormal) / dot(deltaR, deltaR));
+	float cosL = saturate(dot(deltaL, worldNormal) / length(deltaL));
+	float cosR = saturate(dot(deltaR, worldNormal) / length(deltaR));
+	float sinL = sqrt(1.0f - cosL * cosL);
+	float sinR = sqrt(1.0f - cosR * cosR);
 	float weight = 1.0f;
 
-	return float3(invNormalAngleL, invNormalAngleR, weight);
+	return float3(sinL, sinR, weight);
 }
 
 float4 main(const VSOutput input) : SV_TARGET0
@@ -105,6 +107,12 @@ float4 main(const VSOutput input) : SV_TARGET0
 	//// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
 	//float3 viewSpacePosition = ConverFromSSPosToVSPos(screenPos, sceneDepth);
 
+	float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
+	float invDepth = 1.0f / -viewZ;
+	// under condition that aspect ratio is 1
+	float AORadiusInAspectRatio1SS = AO_RADIUS_IN_VS * invDepth * InvTanHalfFov;
+	float aspectRatio = Height / (float)Width;
+	float2 AORadiusInSS = (AORadiusInAspectRatio1SS * aspectRatio, AORadiusInAspectRatio1SS);
 #if 1
 	float2 rotation = float2(0, 1);
 #else
@@ -116,9 +124,9 @@ float4 main(const VSOutput input) : SV_TARGET0
 	for (int i = 0; i < SAMPLESET_ARRAY_SIZE; i++)
 	{
 		float2 unrotatedRandom = OcclusionSamplesOffsets[i];
-		float2 localRandom = (unrotatedRandom.x * rotation + unrotatedRandom.y * float2(-rotation.y, rotation.x)) * AO_RADIUS_IN_SS;
+		float2 localRandom = (unrotatedRandom.x * rotation + unrotatedRandom.y * float2(-rotation.y, rotation.x)) * AORadiusInSS;
 
-		float3 localAllumulator = 0.0f;
+		float3 localAccumulator = 0.0f;
 
 		// ray-march loop
 		for (uint step = 0; step < SAMPLE_STEPS; step++)
@@ -126,11 +134,11 @@ float4 main(const VSOutput input) : SV_TARGET0
 			float scale = (step + 1) / (float)SAMPLE_STEPS;
 
 			float3 stepSample = WedgeWithNormal(screenPos, scale * localRandom, worldPos, worldNormal);
-			localAllumulator = lerp(localAllumulator, float3(max(localAllumulator.xy, stepSample.xy), 1), stepSample.z);
+			localAccumulator += stepSample;
 		}
 
-		weightAccumulator += float2((1 - localAllumulator.x) * (1 - localAllumulator.x) * localAllumulator.z, localAllumulator.z);
-		weightAccumulator += float2((1 - localAllumulator.y) * (1 - localAllumulator.y) * localAllumulator.z, localAllumulator.z);
+		weightAccumulator += float2(localAccumulator.x, localAccumulator.z);
+		weightAccumulator += float2(localAccumulator.y, localAccumulator.z);
 	}
 
 	float result = weightAccumulator.x / weightAccumulator.y;
