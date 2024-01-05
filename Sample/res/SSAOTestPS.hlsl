@@ -99,7 +99,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
 	float3 worldPos = ConverFromNDCToWS(ndcPos);
 
-	float3 worldNormal = NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
+	float3 worldNormal = normalize(NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f);
 	float3 viewSpaceNormal = normalize(mul((float3x3)ViewMatrix, worldNormal));
 
 	//// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
