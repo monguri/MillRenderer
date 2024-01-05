@@ -44,11 +44,12 @@ SamplerState PointClampSmp : register(s0);
 Texture2D RandomNormalTex : register(t2);
 SamplerState PointWrapSmp : register(s1);
 
-float ConvertFromDeviceZtoLinearZ(float deviceZ)
+float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
 	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// deviceZ = ((Far * linearZ) / (Far - Near) - Far * Near / (Far - Near)) / linearZ
-	return (Far * Near) / (Far - deviceZ * (Far - Near));
+	// deviceZ = ((Far * viewZ) / (Far - Near) - Far * Near / (Far - Near)) / viewZ
+	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
+	return (Far * Near) / (deviceZ * (Far - Near) - Far);
 }
 
 float3 ConverFromNDCToWS(float4 ndcPos)
@@ -59,9 +60,9 @@ float3 ConverFromNDCToWS(float4 ndcPos)
 	// Matrix::CreatePerspectiveFieldOfView() transform right-handed viewspace to left-handed clip space.
 	// So, referenced that code.
 	float deviceZ = ndcPos.z;
-	float linearDepth = ConvertFromDeviceZtoLinearZ(deviceZ);
-	// clipPos.w is linearDepth
-	float4 clipPos = ndcPos * linearDepth;
+	float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
+	float clipPosW = -viewZ;
+	float4 clipPos = ndcPos * clipPosW;
 	float4 worldPos = mul(InvViewProjMatrix, clipPos);
 	
 	return worldPos.xyz;
