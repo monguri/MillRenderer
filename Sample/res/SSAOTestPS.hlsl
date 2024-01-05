@@ -13,7 +13,7 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 
 #define SAMPLE_STEPS 2
 
-static const float AO_RADIUS_IN_VS = 0.8f;
+static const float AO_RADIUS_IN_VS = 0.4f;
 static const float AO_POWER = 2.0f;
 static const float AO_INTENSITY = 0.5f;
 
