@@ -60,8 +60,8 @@ float3 ConverFromNDCToWS(float4 ndcPos)
 	// Matrix::CreatePerspectiveFieldOfView() transform right-handed viewspace to left-handed clip space.
 	// So, referenced that code.
 	float deviceZ = ndcPos.z;
-	float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
-	float clipPosW = -viewZ;
+	float viewPosZ = ConvertFromDeviceZtoViewZ(deviceZ);
+	float clipPosW = -viewPosZ;
 	float4 clipPos = ndcPos * clipPosW;
 	float4 worldPos = mul(InvViewProjMatrix, clipPos);
 	
