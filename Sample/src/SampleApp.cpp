@@ -880,8 +880,7 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 2, 1)
 			.SetSRV(ShaderStage::PS, 3, 2)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointClamp)
-			.AddStaticSmp(ShaderStage::PS, 2, SamplerState::PointWrap)
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointWrap)
 			.AllowIL()
 			.End();
 
