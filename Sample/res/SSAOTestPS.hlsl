@@ -13,7 +13,7 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 
 #define SAMPLE_STEPS 2
 
-static const float AO_RADIUS_IN_VS = 80.0f;
+static const float AO_RADIUS_IN_VS = 0.8f;
 static const float AO_POWER = 2.0f;
 static const float AO_INTENSITY = 0.5f;
 
@@ -111,8 +111,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float invDepth = 1.0f / -viewZ;
 	// under condition that aspect ratio is 1
 	float AORadiusInAspectRatio1SS = AO_RADIUS_IN_VS * invDepth * InvTanHalfFov;
-	float aspectRatio = Height / (float)Width;
-	float2 AORadiusInSS = (AORadiusInAspectRatio1SS * aspectRatio, AORadiusInAspectRatio1SS);
+	float invAspectRatio = Height / (float)Width;
+	float2 AORadiusInSS = (AORadiusInAspectRatio1SS * invAspectRatio, AORadiusInAspectRatio1SS);
 #if 1
 	float2 rotation = float2(0, 1);
 #else
