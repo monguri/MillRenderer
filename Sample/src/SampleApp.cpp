@@ -12,10 +12,10 @@
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
-#define ENABLE_SSAO true
-#define ENABLE_TEMPORAL_AA true
+#define ENABLE_SSAO false
+#define ENABLE_TEMPORAL_AA false
 
-#define DEBUG_VIEW_SSAO true
+#define DEBUG_VIEW_SSAO false
 
 using namespace DirectX::SimpleMath;
 
@@ -1422,7 +1422,7 @@ bool SampleApp::OnInit()
 			}
 
 			constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
-			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
+			float aspect = static_cast<float>(m_Height) / static_cast<float>(m_Width);
 
 			const Matrix& view = m_Camera.GetView();
 			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
