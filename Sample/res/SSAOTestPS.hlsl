@@ -113,10 +113,11 @@ float4 main(const VSOutput input) : SV_TARGET0
 	// under condition that aspect ratio is 1
 	float AORadiusInAspectRatio1SS = AORadius * invDepth * InvTanHalfFov;
 	float invAspectRatio = Height / (float)Width;
-	float2 AORadiusInSS = (AORadiusInAspectRatio1SS * invAspectRatio, AORadiusInAspectRatio1SS);
-#if 1
+	float2 AORadiusInSS = float2(AORadiusInAspectRatio1SS * invAspectRatio, AORadiusInAspectRatio1SS);
+#if 0
 	float2 rotation = float2(0, 1);
 #else
+	float2 viewportUVtoRandomUV = float2(Width, Height) / RandomationSize;
 	float2 rotation = (RandomNormalTex.Sample(PointWrapSmp, input.TexCoord * viewportUVtoRandomUV + TemporalOffset).rg * 2.0f - 1.0f);
 #endif
 
