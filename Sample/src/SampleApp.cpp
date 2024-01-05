@@ -13,9 +13,9 @@
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
 #define ENABLE_SSAO true
-#define ENABLE_TEMPORAL_AA false
+#define ENABLE_TEMPORAL_AA true
 
-#define DEBUG_VIEW_SSAO true
+#define DEBUG_VIEW_SSAO false
 
 using namespace DirectX::SimpleMath;
 
@@ -27,7 +27,6 @@ namespace
 
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 
-	static constexpr float SSAO_RADIUS = 0.4f;
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11;
 
 	enum COLOR_SPACE_TYPE
@@ -113,9 +112,8 @@ namespace
 		float Near;
 		float Far;
 		float InvTanHalfFov;
-		float AORadius;
 		int bEnableSSAO;
-		float Padding[1];
+		float Padding[2];
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -1366,7 +1364,6 @@ bool SampleApp::OnInit()
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
-		ptr->AORadius = SSAO_RADIUS;
 		ptr->bEnableSSAO = (ENABLE_SSAO ? 1 : 0);
 	}
 
