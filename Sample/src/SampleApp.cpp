@@ -15,7 +15,7 @@
 #define ENABLE_SSAO true
 #define ENABLE_TEMPORAL_AA true
 
-#define DEBUG_VIEW_SSAO false
+#define DEBUG_VIEW_SSAO true
 
 using namespace DirectX::SimpleMath;
 
@@ -104,7 +104,7 @@ namespace
 	struct alignas(256) CbSSAO
 	{
 		Matrix ViewMatrix;
-		Matrix InvViewProjMatrix;
+		Matrix InvProjMatrix;
 		int Width;
 		int Height;
 		Vector2 RandomationSize;
@@ -1355,7 +1355,7 @@ bool SampleApp::OnInit()
 
 		CbSSAO* ptr = m_SSAO_CB[i].GetPtr<CbSSAO>();
 		ptr->ViewMatrix = Matrix::Identity;
-		ptr->InvViewProjMatrix = Matrix::Identity;
+		ptr->InvProjMatrix = Matrix::Identity;
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTarget.GetDesc().Width, (float)m_SSAO_RandomizationTarget.GetDesc().Height);
@@ -1585,6 +1585,7 @@ void SampleApp::OnRender()
 	// テンポラルジッタ関連
 	Matrix viewProjNoJitter;
 	Matrix viewProjWithJitter;
+	Matrix projWithJitter;
 	{
 		m_TemporalAASampleIndex++;
 		if (m_TemporalAASampleIndex >= TEMPORAL_AA_SAMPLES)
@@ -1603,10 +1604,11 @@ void SampleApp::OnRender()
 		viewProjNoJitter = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
 		// UEのTAAのジッタを参考にしている
-		proj.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
-		proj.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
+		projWithJitter = proj;
+		projWithJitter.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
+		projWithJitter.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
 
-		viewProjWithJitter = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		viewProjWithJitter = view * projWithJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
@@ -1685,7 +1687,7 @@ void SampleApp::OnRender()
 
 		m_SSAO_Target.ClearView(pCmd);
 
-		DrawSSAO(pCmd, viewProjWithJitter);
+		DrawSSAO(pCmd, projWithJitter);
 
 		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
@@ -1909,14 +1911,14 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 }
 
 //TODO:SSパスは処理を共通化したい
-void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjWithJitter)
+void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& projWithJitter)
 {
 	{
 		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->ViewMatrix = m_Camera.GetView();
-		ptr->InvViewProjMatrix = viewProjWithJitter.Invert();
+		ptr->InvProjMatrix = projWithJitter.Invert();
 	}
 
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());

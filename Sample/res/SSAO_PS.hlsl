@@ -33,7 +33,7 @@ struct VSOutput
 cbuffer CbSSAO : register(b0)
 {
 	float4x4 ViewMatrix;
-	float4x4 InvViewProjMatrix;
+	float4x4 InvProjMatrix;
 	int Width;
 	int Height;
 	float2 RandomationSize;

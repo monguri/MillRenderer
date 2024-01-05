@@ -26,7 +26,7 @@ struct VSOutput
 cbuffer CbSSAO : register(b0)
 {
 	float4x4 ViewMatrix;
-	float4x4 InvViewProjMatrix;
+	float4x4 InvProjMatrix;
 	int Width;
 	int Height;
 	float2 RandomationSize;
@@ -52,7 +52,7 @@ float ConvertFromDeviceZtoViewZ(float deviceZ)
 	return (Far * Near) / (deviceZ * (Far - Near) - Far);
 }
 
-float3 ConverFromNDCToWS(float4 ndcPos)
+float3 ConverFromNDCToVS(float4 ndcPos)
 {
 	// referenced.
 	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
@@ -63,12 +63,12 @@ float3 ConverFromNDCToWS(float4 ndcPos)
 	float viewPosZ = ConvertFromDeviceZtoViewZ(deviceZ);
 	float clipPosW = -viewPosZ;
 	float4 clipPos = ndcPos * clipPosW;
-	float4 worldPos = mul(InvViewProjMatrix, clipPos);
+	float4 viewPos = mul(InvProjMatrix, clipPos);
 	
-	return worldPos.xyz;
+	return viewPos.xyz;
 }
 
-float3 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 worldPos, float3 worldNormal)
+float3 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, float3 viewNormal)
 {
 	float2 screenPosL = screenPos + localRandom;
 	float2 screenPosR = screenPos - localRandom;
@@ -78,14 +78,14 @@ float3 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 worldPos, fl
 
 	float4 ndcPosL = float4(screenPosL, deviceZ_L, 1);
 	float4 ndcPosR = float4(screenPosR, deviceZ_R, 1);
-	float3 worldPosL = ConverFromNDCToWS(ndcPosL);
-	float3 worldPosR = ConverFromNDCToWS(ndcPosR);
+	float3 viewPosL = ConverFromNDCToVS(ndcPosL);
+	float3 viewPosR = ConverFromNDCToVS(ndcPosR);
 
-	float3 deltaL = (worldPosL - worldPos);
-	float3 deltaR = (worldPosR - worldPos);
+	float3 deltaL = (viewPosL - viewPos);
+	float3 deltaR = (viewPosR - viewPos);
 
-	float cosL = saturate(dot(deltaL, worldNormal) / length(deltaL));
-	float cosR = saturate(dot(deltaR, worldNormal) / length(deltaR));
+	float cosL = saturate(dot(deltaL, viewNormal) / length(deltaL));
+	float cosR = saturate(dot(deltaR, viewNormal) / length(deltaR));
 	float sinL = sqrt(1.0f - cosL * cosL);
 	float sinR = sqrt(1.0f - cosR * cosR);
 	float weight = 1.0f;
@@ -99,10 +99,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
-	float3 worldPos = ConverFromNDCToWS(ndcPos);
+	float3 viewPos = ConverFromNDCToVS(ndcPos);
 
-	float3 worldNormal = normalize(NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f);
-	float3 viewSpaceNormal = normalize(mul((float3x3)ViewMatrix, worldNormal));
+	float3 worldNormal = NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
+	float3 viewNormal = normalize(mul((float3x3)ViewMatrix, worldNormal));
 
 	//// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
 	//float3 viewSpacePosition = ConverFromSSPosToVSPos(screenPos, sceneDepth);
@@ -134,7 +134,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 		{
 			float scale = (step + 1) / (float)SAMPLE_STEPS;
 
-			float3 stepSample = WedgeWithNormal(screenPos, scale * localRandom, worldPos, worldNormal);
+			float3 stepSample = WedgeWithNormal(screenPos, scale * localRandom, viewPos, viewNormal);
 			localAccumulator += stepSample;
 		}
 
