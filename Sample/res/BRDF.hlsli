@@ -26,7 +26,15 @@ float V_SmithGGXCorrelated(float NL, float NV, float alpha)
 	float a2 = alpha * alpha;
     float GGXV = NL * sqrt(NV * NV * (1.0f - a2) + a2);
     float GGXL = NV * sqrt(NL * NL * (1.0f - a2) + a2);
-    return 0.5f / (GGXV + GGXL);
+	float GGX = GGXV + GGXL;
+	if (GGX > 0.0f)
+	{
+		return 0.5f / GGX;
+	}
+	else
+	{
+		return 0.0f;
+	}
 }
 
 float3 ComputeF0(float3 baseColor, float metallic)
