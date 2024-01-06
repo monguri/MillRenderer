@@ -14,8 +14,9 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 #define SAMPLE_STEPS 2
 
 static const float AO_RADIUS_IN_VS = 0.5f;
-static const float AO_POWER = 1.0f;
-static const float AO_INTENSITY = 1.0f;
+static const float AO_BIAS = 0.005f;
+static const float AO_CONTRAST = 1.0f;
+static const float AO_INTENSITY = 0.5f;
 
 struct VSOutput
 {
@@ -68,7 +69,7 @@ float3 ConverFromNDCToVS(float4 ndcPos)
 	return viewPos.xyz;
 }
 
-float3 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, float3 viewNormal)
+float2 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, float3 viewNormal)
 {
 	float2 screenPosL = screenPos + localRandom;
 	float2 screenPosR = screenPos - localRandom;
@@ -84,11 +85,10 @@ float3 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, flo
 	float3 deltaL = (viewPosL - viewPos);
 	float3 deltaR = (viewPosR - viewPos);
 
-	float invNormalAngleL = saturate(dot(deltaL, viewNormal) / dot(deltaL, deltaL));
-	float invNormalAngleR = saturate(dot(deltaR, viewNormal) / dot(deltaR, deltaR));
-	float weight = 1.0f;
+	float invNormalAngleL = max((dot(deltaL, viewNormal) + viewPos.z * AO_BIAS) / dot(deltaL, deltaL), 0);
+	float invNormalAngleR = max((dot(deltaR, viewNormal) + viewPos.z * AO_BIAS) / dot(deltaR, deltaR), 0);
 
-	return float3(invNormalAngleL, invNormalAngleR, weight);
+	return float2(invNormalAngleL, invNormalAngleR);
 }
 
 // Referenced the paper "The alchemy screen-space ambient obscurance algorithm"
@@ -112,36 +112,35 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float AORadiusInAspectRatio1SS = AO_RADIUS_IN_VS * invDepth * InvTanHalfFov;
 	float invAspectRatio = Height / (float)Width;
 	float2 AORadiusInSS = float2(AORadiusInAspectRatio1SS * invAspectRatio, AORadiusInAspectRatio1SS);
-#if 0
+
+#if 0 // test not to use random normal texture.
 	float2 rotation = float2(0, 1);
 #else
 	float2 viewportUVtoRandomUV = float2(Width, Height) / RandomationSize;
 	float2 rotation = (RandomNormalTex.Sample(PointWrapSmp, input.TexCoord * viewportUVtoRandomUV + TemporalOffset).rg * 2.0f - 1.0f);
 #endif
 
-	float2 weightAccumulator = 0.0001f;
+	float accumulator = 0;
+
 	// disk random loop
 	for (int i = 0; i < SAMPLESET_ARRAY_SIZE; i++)
 	{
 		float2 unrotatedRandom = OcclusionSamplesOffsets[i];
 		float2 localRandom = (unrotatedRandom.x * rotation + unrotatedRandom.y * float2(-rotation.y, rotation.x)) * AORadiusInSS;
 
-		float3 localAccumulator = 0.0f;
-
 		// ray-march loop
 		for (uint step = 0; step < SAMPLE_STEPS; step++)
 		{
 			float scale = (step + 1) / (float)SAMPLE_STEPS;
 
-			float3 stepSample = WedgeWithNormal(screenPos, scale * localRandom, viewPos, viewNormal);
-			localAccumulator += stepSample;
-		}
+			float2 stepSample = WedgeWithNormal(screenPos, scale * localRandom, viewPos, viewNormal);
 
-		weightAccumulator += float2(localAccumulator.x, localAccumulator.z);
-		weightAccumulator += float2(localAccumulator.y, localAccumulator.z);
+			accumulator += (stepSample.x + stepSample.y);
+		}
 	}
 
-	float result = pow(max(1.0f - weightAccumulator.x / weightAccumulator.y * 2.0f * AO_INTENSITY, 0.0f), AO_POWER);
+	float numSample = SAMPLESET_ARRAY_SIZE * SAMPLE_STEPS * 2;
+	float result = pow(max(1.0f - accumulator / numSample * 2.0f * AO_INTENSITY, 0.0f), AO_CONTRAST);
 
 	if (bEnableSSAO)
 	{
