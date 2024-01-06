@@ -13,9 +13,9 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 
 #define SAMPLE_STEPS 2
 
-static const float AO_RADIUS_IN_VS = 0.4f;
-static const float AO_POWER = 2.0f;
-static const float AO_INTENSITY = 0.5f;
+static const float AO_RADIUS_IN_VS = 0.5f;
+static const float AO_POWER = 1.0f;
+static const float AO_INTENSITY = 1.0f;
 
 struct VSOutput
 {
@@ -84,15 +84,14 @@ float3 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, flo
 	float3 deltaL = (viewPosL - viewPos);
 	float3 deltaR = (viewPosR - viewPos);
 
-	float cosL = saturate(dot(deltaL, viewNormal) / length(deltaL));
-	float cosR = saturate(dot(deltaR, viewNormal) / length(deltaR));
-	float sinL = sqrt(1.0f - cosL * cosL);
-	float sinR = sqrt(1.0f - cosR * cosR);
+	float invNormalAngleL = saturate(dot(deltaL, viewNormal) / dot(deltaL, deltaL));
+	float invNormalAngleR = saturate(dot(deltaR, viewNormal) / dot(deltaR, deltaR));
 	float weight = 1.0f;
 
-	return float3(sinL, sinR, weight);
+	return float3(invNormalAngleL, invNormalAngleR, weight);
 }
 
+// Referenced the paper "The alchemy screen-space ambient obscurance algorithm"
 float4 main(const VSOutput input) : SV_TARGET0
 {
 	float deviceZ = DepthMap.Sample(PointClampSmp, input.TexCoord).r;
@@ -142,9 +141,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 		weightAccumulator += float2(localAccumulator.y, localAccumulator.z);
 	}
 
-	float result = weightAccumulator.x / weightAccumulator.y;
-	// abs() to prevent shader warning
-	result = 1 - (1 - pow(abs(result), AO_POWER)) * AO_INTENSITY;
+	float result = pow(max(1.0f - weightAccumulator.x / weightAccumulator.y * 2.0f * AO_INTENSITY, 0.0f), AO_POWER);
 
 	if (bEnableSSAO)
 	{
