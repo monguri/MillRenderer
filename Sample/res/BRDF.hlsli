@@ -11,7 +11,7 @@
 //
 float3 SchlickFresnel(float3 f0, float VH)
 {
-	return f0 + (1.0f - f0) * pow((1.0f - VH), 5.0f);
+	return f0 + (1.0f - f0) * pow(saturate(1.0f - VH), 5.0f);
 }
 
 float D_GGX(float NH, float alpha)
