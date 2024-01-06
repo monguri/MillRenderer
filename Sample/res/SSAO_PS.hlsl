@@ -15,7 +15,7 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 
 static const float AO_RADIUS_IN_VS = 0.5f;
 static const float AO_BIAS = 0.005f;
-static const float AO_CONTRAST = 1.0f;
+static const float AO_CONTRAST = 0.5f;
 static const float AO_INTENSITY = 0.5f;
 
 struct VSOutput
