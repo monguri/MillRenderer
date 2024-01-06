@@ -13,7 +13,7 @@
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
 #define ENABLE_SSAO true
-#define ENABLE_TEMPORAL_AA true
+#define ENABLE_TEMPORAL_AA false
 
 #define DEBUG_VIEW_SSAO true
 
@@ -1592,9 +1592,6 @@ void SampleApp::OnRender()
 		{
 			m_TemporalAASampleIndex = 0;
 		}
-
-		float sampleX = Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f;
-		float sampleY = Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f;
 
 		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
