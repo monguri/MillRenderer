@@ -11,7 +11,17 @@ struct VSOutput
 Texture2D ColorMap : register(t0);
 SamplerState PointClampSmp : register(s0);
 
+float Luminance(float3 linearColor)
+{
+	return dot(linearColor, float3(0.3f, 0.59f, 0.11f));
+}
+
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float3 linearColor = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
+	float luminance = Luminance(linearColor);
+	float bloomLuma = luminance - LUMA_THRESHOLD;
+	float bloomAmount = saturate(bloomLuma * 0.5f);
+
+	return float4(bloomAmount * linearColor, 0);
 }
