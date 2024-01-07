@@ -1248,9 +1248,10 @@ bool SampleApp::OnInit()
     // トーンマップ用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(2)
+		desc.Begin(3)
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
+			.SetSRV(ShaderStage::PS, 2, 1)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
@@ -2150,6 +2151,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, InputColor.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_BloomSetupTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);

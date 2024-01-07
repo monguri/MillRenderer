@@ -22,6 +22,7 @@ cbuffer CbTonemap : register(b0)
 }
 
 Texture2D ColorMap : register(t0);
+Texture2D BloomSetupTexture : register(t1);
 SamplerState PointClampSmp : register(s0);
 
 float4 ColorSpaceConvert(float4 color)
@@ -153,8 +154,12 @@ float4 ApplyOETF(float4 color)
 float4 main(const VSOutput input) : SV_TARGET0
 {
 	float4 result = ColorMap.Sample(PointClampSmp, input.TexCoord);
+	float3 bloomSetup = BloomSetupTexture.Sample(PointClampSmp, input.TexCoord).rgb;
+	if (bloomSetup.r >= 0 && bloomSetup.g >= 0 && bloomSetup.b >= 0)
+	{
 	result = ColorSpaceConvert(result);
 	result = Tonemapping(result);
 	result = ApplyOETF(result);
+	}
 	return result;
 }
