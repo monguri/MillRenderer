@@ -12,6 +12,7 @@ Texture2D HistoryMap : register(t2);
 SamplerState PointClampSmp : register(s0);
 
 RWTexture2D<float4> OutResult : register(u0);
+RWTexture2D<float4> OutHalfResResult : register(u1);
 
 static const float HISTORY_ALPHA = 0.638511181f; // referenced UE.
 
