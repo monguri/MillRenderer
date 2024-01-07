@@ -22,7 +22,8 @@ public:
 		uint32_t width,
 		uint32_t height,
 		DXGI_FORMAT format,
-		float clearColor[4]
+		float clearColor[4],
+		uint32_t mipLevels = 1
 	);
 
 	bool InitUnorderedAccessTarget

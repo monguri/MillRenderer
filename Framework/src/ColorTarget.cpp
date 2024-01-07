@@ -95,7 +95,8 @@ bool ColorTarget::InitRenderTarget
 	uint32_t width,
 	uint32_t height,
 	DXGI_FORMAT format,
-	float clearColor[4]
+	float clearColor[4],
+	uint32_t mipLevels
 )
 {
 	if (pDevice == nullptr || pPoolRTV == nullptr || width == 0 || height == 0)
@@ -140,7 +141,7 @@ bool ColorTarget::InitRenderTarget
 	desc.Width = UINT64(width);
 	desc.Height = height;
 	desc.DepthOrArraySize = 1;
-	desc.MipLevels = 1;
+	desc.MipLevels = mipLevels;
 	desc.Format = format;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
