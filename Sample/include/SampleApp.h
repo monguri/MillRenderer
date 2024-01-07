@@ -36,6 +36,8 @@ private:
 	RootSignature m_TemporalAA_RootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
 	RootSignature m_TonemapRootSig;
+	ComPtr<ID3D12PipelineState> m_pBloomSetupPSO;
+	RootSignature m_BloomSetupRootSig;
 	ComPtr<ID3D12PipelineState> m_pDebugRenderTargetPSO;
 	RootSignature m_DebugRenderTargetRootSig;
 	DepthTarget m_DirLightShadowMapTarget;
