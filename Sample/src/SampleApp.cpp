@@ -684,22 +684,6 @@ bool SampleApp::OnInit()
 				return false;
 			}
 		}
-
-		if (!m_TemporalAA_HalfResTarget.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
-			m_Width / 2,
-			m_Height / 2,
-			DXGI_FORMAT_R16G16B16A16_FLOAT,
-			clearColor
-		))
-		{
-			ELOG("Error : ColorTarget::Init() Failed.");
-			return false;
-		}
 	}
 
     // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
@@ -1087,13 +1071,12 @@ bool SampleApp::OnInit()
     // TemporalAA用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(6)
+		desc.Begin(5)
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetSRV(ShaderStage::ALL, 1, 0)
 			.SetSRV(ShaderStage::ALL, 2, 1)
 			.SetSRV(ShaderStage::ALL, 3, 2)
 			.SetUAV(ShaderStage::ALL, 4, 0)
-			.SetUAV(ShaderStage::ALL, 5, 1)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -1574,8 +1557,6 @@ void SampleApp::OnTerm()
 		m_TemporalAA_Target[i].Term();
 	}
 
-	m_TemporalAA_HalfResTarget.Term();
-
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
 	m_pSceneDepthOpaquePSO.Reset();
@@ -1731,7 +1712,6 @@ void SampleApp::OnRender()
 		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_SrcIdx].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_DstIdx].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		DirectX::TransitionResource(pCmd, m_TemporalAA_HalfResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		DrawTemporalAA(pCmd, viewProjNoJitter, TempAA_SrcIdx, TempAA_DstIdx);
 
@@ -1739,7 +1719,6 @@ void SampleApp::OnRender()
 		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_SrcIdx].GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmd, m_TemporalAA_Target[TempAA_DstIdx].GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmd, m_TemporalAA_HalfResTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	m_PrevViewProjNoJitter = viewProjNoJitter;
@@ -1987,7 +1966,6 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	pCmdList->SetComputeRootDescriptorTable(2, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_TemporalAA_Target[TempAA_SrcIdx].GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, m_TemporalAA_Target[TempAA_DstIdx].GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(5, m_TemporalAA_HalfResTarget.GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;

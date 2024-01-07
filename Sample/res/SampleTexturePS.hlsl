@@ -9,7 +9,7 @@ SamplerState PointClampSmp : register(s0);
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
-#if 1
+#if 0
 	return Texture.Sample(PointClampSmp, input.TexCoord);
 #else
 	// TODO: for SSAO
