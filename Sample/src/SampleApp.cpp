@@ -2120,8 +2120,15 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	pCmdList->SetGraphicsRootDescriptorTable(0, InputColor.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pBloomSetupPSO.Get());
 
-	pCmdList->RSSetViewports(1, &m_Viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	D3D12_VIEWPORT halfResViewport = m_Viewport;
+	halfResViewport.Width *= 0.5f;
+	halfResViewport.Height *= 0.5f;
+	pCmdList->RSSetViewports(1, &halfResViewport);
+
+	D3D12_RECT halfResScissor = m_Scissor;
+	halfResScissor.right /= 2;
+	halfResScissor.bottom /= 2;
+	pCmdList->RSSetScissorRects(1, &halfResScissor);
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
