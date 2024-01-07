@@ -191,7 +191,7 @@ bool ColorTarget::InitRenderTarget
 		m_SRVDesc.Format = format;
 		m_SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		m_SRVDesc.Texture2D.MostDetailedMip = 0;
-		m_SRVDesc.Texture2D.MipLevels = 1;
+		m_SRVDesc.Texture2D.MipLevels = mipLevels;
 		m_SRVDesc.Texture2D.PlaneSlice = 0;
 		m_SRVDesc.Texture2D.ResourceMinLODClamp = 0;
 
