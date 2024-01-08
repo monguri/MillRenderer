@@ -326,8 +326,8 @@ bool App::InitD3D()
 	{
 		m_Viewport.TopLeftX = 0;
 		m_Viewport.TopLeftY = 0;
-		m_Viewport.Width = static_cast<float>(m_Width);
-		m_Viewport.Height = static_cast<float>(m_Height);
+		m_Viewport.Width = (FLOAT)m_Width;
+		m_Viewport.Height = (FLOAT)m_Height;
 		m_Viewport.MinDepth = 0.0f;
 		m_Viewport.MaxDepth = 1.0f;
 	}
@@ -335,9 +335,9 @@ bool App::InitD3D()
 	// Scissor rect settings.
 	{
 		m_Scissor.left = 0;
-		m_Scissor.right = m_Width;
+		m_Scissor.right = (LONG)m_Width;
 		m_Scissor.top = 0;
-		m_Scissor.bottom = m_Height;
+		m_Scissor.bottom = (LONG)m_Height;
 	}
 
 	// Initialize COM to use WIC.
