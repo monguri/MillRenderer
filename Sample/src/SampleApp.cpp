@@ -29,6 +29,8 @@ namespace
 
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11;
 
+	static constexpr uint32_t GAUSSIAN_FILTER_SAMPLES = 32;
+
 	enum COLOR_SPACE_TYPE
 	{
 		COLOR_SPACE_BT709,
@@ -227,6 +229,39 @@ namespace
 		}
 
 		return result;
+	}
+
+	uint32_t Compute1DGaussianFilterKernel(uint32_t kernelRadius, float outOffsets[GAUSSIAN_FILTER_SAMPLES], float outWeights[GAUSSIAN_FILTER_SAMPLES])
+	{
+		float clampedKernelRadius = kernelRadius;
+		if (clampedKernelRadius > GAUSSIAN_FILTER_SAMPLES - 1)
+		{
+			clampedKernelRadius = GAUSSIAN_FILTER_SAMPLES - 1;
+		}
+
+		const float CLIP_SCALE_BY_KERNEL_RADIUS_WINDOW = -16.7f;
+
+		uint32_t sampleCount = 0;
+		float weightSum = 0.0f;
+		for (uint32_t i = -clampedKernelRadius; i <= clampedKernelRadius; i += 2) // TODO:2ピクセルずらしでいいのか？
+		{
+			float dx = fabsf(i);
+			float invSigma = 1.0f / clampedKernelRadius;
+			float gaussian = expf(CLIP_SCALE_BY_KERNEL_RADIUS_WINDOW * dx * dx * invSigma * invSigma);
+
+			outOffsets[sampleCount] = i;
+			outWeights[sampleCount] = gaussian;
+			weightSum += gaussian;
+
+			sampleCount++;
+		}
+
+		for (uint32_t i = 0; i < sampleCount; i++)
+		{
+			outWeights[i] /= weightSum;
+		}
+
+		return sampleCount;
 	}
 }
 
