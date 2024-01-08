@@ -29,8 +29,6 @@ namespace
 
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11;
 
-	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
-
 	enum COLOR_SPACE_TYPE
 	{
 		COLOR_SPACE_BT709,
@@ -692,20 +690,22 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-		if (!m_BloomSetupTarget.InitRenderTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
-			m_Width / 2, // MipLevel=0が半分解像度
-			m_Height / 2, // MipLevel=0が半分解像度
-			DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
-			clearColor,
-			BLOOM_NUM_DOWN_SAMPLE // ダウンサンプルフィルタの段階だけMipLevlを作る
-		))
+		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
 		{
-			ELOG("Error : ColorTarget::Init() Failed.");
-			return false;
+			if (!m_BloomSetupTarget[i].InitRenderTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RTV],
+				m_pPool[POOL_TYPE_RES],
+				m_Width / ((i + 1) * 2),
+				m_Height / ((i + 1) * 2),
+				DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::Init() Failed.");
+				return false;
+			}
 		}
 	}
 
@@ -1230,7 +1230,7 @@ bool SampleApp::OnInit()
 		desc.SampleMask = UINT_MAX;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_BloomSetupTarget.GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_BloomSetupTarget[0].GetRTVDesc().Format;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 
@@ -1677,7 +1677,10 @@ void SampleApp::OnTerm()
 		m_TemporalAA_Target[i].Term();
 	}
 
-	m_BloomSetupTarget.Term();
+	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
+	{
+		m_BloomSetupTarget[i].Term();
+	}
 
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
@@ -1850,14 +1853,14 @@ void SampleApp::OnRender()
 
 	// Bloom前段階パス
 	{
-		DirectX::TransitionResource(pCmd, m_BloomSetupTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		DirectX::TransitionResource(pCmd, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-		const DescriptorHandle* handleRTV = m_BloomSetupTarget.GetHandleRTV();
+		const DescriptorHandle* handleRTV = m_BloomSetupTarget[0].GetHandleRTV();
 		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 		DrawBloomSetup(pCmd, TemporalAA_DstTarget);
 
-		DirectX::TransitionResource(pCmd, m_BloomSetupTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmd, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	// トーンマップを適用してフレームバッファに描画するパス
@@ -2151,7 +2154,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, InputColor.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_BloomSetupTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_BloomSetupTarget[0].GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);

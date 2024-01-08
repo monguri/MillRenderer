@@ -23,6 +23,8 @@ private:
 	static constexpr uint32_t NUM_POINT_LIGHTS = 4;
 	static constexpr uint32_t NUM_SPOT_LIGHTS = 3;
 
+	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
+
 	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
@@ -49,7 +51,7 @@ private:
 	ColorTarget m_SSAO_RandomizationTarget;
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_TemporalAA_Target[FRAME_COUNT];
-	ColorTarget m_BloomSetupTarget;
+	ColorTarget m_BloomSetupTarget[BLOOM_NUM_DOWN_SAMPLE];
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_DirectionalLightCB[FRAME_COUNT];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
