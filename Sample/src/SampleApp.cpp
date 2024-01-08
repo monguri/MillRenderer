@@ -696,15 +696,21 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
+		uint32_t width = m_Width;
+		uint32_t height = m_Height;
+
 		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
 		{
+			width = (width + 1) / 2; // 切り上げ
+			height = (height + 1) / 2; // 切り上げ
+
 			if (!m_BloomSetupTarget[i].InitRenderTarget
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RTV],
 				m_pPool[POOL_TYPE_RES],
-				m_Width / ((i + 1) * 2),
-				m_Height / ((i + 1) * 2),
+				width,
+				height,
 				DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
 				clearColor
 			))
