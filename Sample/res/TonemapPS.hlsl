@@ -83,7 +83,9 @@ float3 GtTonemap(float3 color)
 	float3 w2 = step(m + l0, x);
 	float3 w1 = 1.0f - w0 - w2;
 
-	float3 T = m * pow(x / m, c) + b;
+	// abs is to avoid warning.
+	// warning X3571: pow(f, e) will not work for negative f, use abs(f) or conditionally handle negative values if you expect them
+	float3 T = m * pow(abs(x / m), c) + b;
 	float3 S = P - (P - S1) * exp(CP * (x - S0));
 	float3 L = m + a * (x - m);
 
