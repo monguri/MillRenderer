@@ -42,6 +42,8 @@ private:
 	RootSignature m_TonemapRootSig;
 	ComPtr<ID3D12PipelineState> m_pDownsamplePSO;
 	RootSignature m_DownsampleRootSig;
+	ComPtr<ID3D12PipelineState> m_pFilterPSO;
+	RootSignature m_FilterRootSig;
 	ComPtr<ID3D12PipelineState> m_pDebugRenderTargetPSO;
 	RootSignature m_DebugRenderTargetRootSig;
 	DepthTarget m_DirLightShadowMapTarget;
