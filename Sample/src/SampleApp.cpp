@@ -233,7 +233,7 @@ namespace
 
 	uint32_t Compute1DGaussianFilterKernel(uint32_t kernelRadius, float outOffsets[GAUSSIAN_FILTER_SAMPLES], float outWeights[GAUSSIAN_FILTER_SAMPLES])
 	{
-		float clampedKernelRadius = kernelRadius;
+		int32_t clampedKernelRadius = kernelRadius;
 		if (clampedKernelRadius > GAUSSIAN_FILTER_SAMPLES - 1)
 		{
 			clampedKernelRadius = GAUSSIAN_FILTER_SAMPLES - 1;
@@ -243,13 +243,13 @@ namespace
 
 		uint32_t sampleCount = 0;
 		float weightSum = 0.0f;
-		for (uint32_t i = -clampedKernelRadius; i <= clampedKernelRadius; i += 2) // TODO:2ピクセルずらしでいいのか？
+		for (int32_t i = -clampedKernelRadius; i <= clampedKernelRadius; i += 2) // TODO:2ピクセルずらしでいいのか？
 		{
-			float dx = fabsf(i);
+			float dx = fabsf((float)i);
 			float invSigma = 1.0f / clampedKernelRadius;
 			float gaussian = expf(CLIP_SCALE_BY_KERNEL_RADIUS_WINDOW * dx * dx * invSigma * invSigma);
 
-			outOffsets[sampleCount] = i;
+			outOffsets[sampleCount] = i * 0.5f;
 			outWeights[sampleCount] = gaussian;
 			weightSum += gaussian;
 
