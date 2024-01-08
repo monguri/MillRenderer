@@ -133,6 +133,12 @@ namespace
 		float MaxLuminance;
 	};
 
+	struct alignas(256) CbDownsample
+	{
+		int SrcWidth;
+		int SrcHeight;
+	};
+
 	UINT16 inline GetChromaticityCoord(double value)
 	{
 		return UINT16(value * 50000);
@@ -1346,8 +1352,9 @@ bool SampleApp::OnInit()
     // 汎用ダウンサンプルパス用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(1)
-			.SetSRV(ShaderStage::PS, 0, 0)
+		desc.Begin(2)
+			.SetCBV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 0)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::MinMagLinearMipPointClamp)
 			.AllowIL()
 			.End();
@@ -1609,6 +1616,20 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// 汎用ダウンサンプルパス用定数バッファの作成
+	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++) // ドローコールの数だけ用意する
+	{
+		if (!m_DownsampleCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDownsample)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbDownsample* ptr = m_DownsampleCB[i].GetPtr<CbDownsample>();
+		ptr->SrcWidth = (int)m_BloomSetupTarget[i].GetDesc().Width;
+		ptr->SrcHeight = (int)m_BloomSetupTarget[i].GetDesc().Height;
+	}
+
 	// シャドウマップとシーンの変換行列用の定数バッファの作成
 	{
 		// モデルのサイズから目分量で決めている
@@ -1742,6 +1763,11 @@ void SampleApp::OnTerm()
 	}
 
 	m_MeshCB.Term();
+
+	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
+	{
+		m_DownsampleCB[i].Term();
+	}
 
 	for (size_t i = 0; i < m_pMesh.size(); i++)
 	{
@@ -1878,7 +1904,7 @@ void SampleApp::OnRender()
 
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
 	{
-		DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1]);
+		DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1], i);
 	}
 
 	DrawTonemap(pCmd, TemporalAA_DstTarget);
@@ -2239,7 +2265,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
-void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor)
+void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx)
 {
 	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -2247,10 +2273,11 @@ void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 	pCmdList->SetGraphicsRootSignature(m_DownsampleRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, SrcColor.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_DownsampleCB[CBIdx].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, SrcColor.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pDownsamplePSO.Get());
 
-	DstColor.GetDesc().Width;
+	
 	D3D12_VIEWPORT viewport = m_Viewport;
 	viewport.Width = (FLOAT)DstColor.GetDesc().Width;
 	viewport.Height = (FLOAT)DstColor.GetDesc().Height;

@@ -66,6 +66,7 @@ private:
 	ConstantBuffer m_SSAO_CB[FRAME_COUNT];
 	ConstantBuffer m_TemporalAA_CB[FRAME_COUNT];
 	ConstantBuffer m_TonemapCB[FRAME_COUNT];
+	ConstantBuffer m_DownsampleCB[BLOOM_NUM_DOWN_SAMPLE - 1];
 	std::vector<class Mesh*> m_pMesh;
 	Material m_Material;
 	float m_RotateAngle;
@@ -97,6 +98,6 @@ private:
 	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor);
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
-	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor);
+	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx);
 	void DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList);
 };

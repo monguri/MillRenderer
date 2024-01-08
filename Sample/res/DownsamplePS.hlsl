@@ -4,6 +4,12 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 };
 
+cbuffer CbDownsample : register(b0)
+{
+	int SrcWidth;
+	int SrcHeight;
+}
+
 Texture2D SrcColorMap : register(t0);
 SamplerState LinearClampMipPointSmp : register(s0);
 
