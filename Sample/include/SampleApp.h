@@ -24,6 +24,7 @@ private:
 	static constexpr uint32_t NUM_SPOT_LIGHTS = 3;
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
+	static constexpr uint32_t BLOOM_GAUSSIAN_KERNEL_RADIUS[BLOOM_NUM_DOWN_SAMPLE] = {256, 120, 40, 8, 4, 2}; // UEのポストプロセスのデフォルト値を参考にしている
 
 	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
@@ -56,6 +57,8 @@ private:
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_TemporalAA_Target[FRAME_COUNT];
 	ColorTarget m_BloomSetupTarget[BLOOM_NUM_DOWN_SAMPLE];
+	ColorTarget m_BloomHorizontalTarget[BLOOM_NUM_DOWN_SAMPLE];
+	ColorTarget m_BloomVerticalTarget[BLOOM_NUM_DOWN_SAMPLE];
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_DirectionalLightCB[FRAME_COUNT];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
@@ -69,6 +72,8 @@ private:
 	ConstantBuffer m_TemporalAA_CB[FRAME_COUNT];
 	ConstantBuffer m_TonemapCB[FRAME_COUNT];
 	ConstantBuffer m_DownsampleCB[BLOOM_NUM_DOWN_SAMPLE - 1];
+	ConstantBuffer m_BloomHorizontalCB[BLOOM_NUM_DOWN_SAMPLE];
+	ConstantBuffer m_BloomVerticalCB[BLOOM_NUM_DOWN_SAMPLE];
 	std::vector<class Mesh*> m_pMesh;
 	Material m_Material;
 	float m_RotateAngle;

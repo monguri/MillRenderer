@@ -29,7 +29,7 @@ namespace
 
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11;
 
-	static constexpr uint32_t GAUSSIAN_FILTER_SAMPLES = 32;
+	static constexpr uint32_t GAUSSIAN_FILTER_SAMPLES = 32; // シェーダ側のマクロ定数と同じ値である必要がある
 
 	enum COLOR_SPACE_TYPE
 	{
@@ -139,6 +139,16 @@ namespace
 	{
 		int SrcWidth;
 		int SrcHeight;
+		float Padding[2];
+	};
+
+	struct alignas(256) CbFilter
+	{
+		Vector2 SampleOffsets[GAUSSIAN_FILTER_SAMPLES];
+		float SampleWeights[GAUSSIAN_FILTER_SAMPLES];
+		int NumSample;
+		int bEnableAdditveTexture;
+		float Padding[2]; // TODO:GAUSSIAN_FILTER_SAMPLESが4の倍数なのを前提としている
 	};
 
 	UINT16 inline GetChromaticityCoord(double value)
@@ -740,6 +750,50 @@ bool SampleApp::OnInit()
 			height = (height + 1) / 2; // 切り上げ
 
 			if (!m_BloomSetupTarget[i].InitRenderTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RTV],
+				m_pPool[POOL_TYPE_RES],
+				width,
+				height,
+				DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::Init() Failed.");
+				return false;
+			}
+		}
+	}
+
+	// Bloom後工程用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		uint32_t width = m_Width;
+		uint32_t height = m_Height;
+
+		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
+		{
+			width = (width + 1) / 2; // 切り上げ
+			height = (height + 1) / 2; // 切り上げ
+
+			if (!m_BloomHorizontalTarget[i].InitRenderTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RTV],
+				m_pPool[POOL_TYPE_RES],
+				width,
+				height,
+				DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::Init() Failed.");
+				return false;
+			}
+
+			if (!m_BloomVerticalTarget[i].InitRenderTarget
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RTV],
@@ -1569,7 +1623,7 @@ bool SampleApp::OnInit()
 		desc.SampleMask = UINT_MAX;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_BloomSetupTarget[0].GetRTVDesc().Format; // TODO:フォーマットの指定は必要なのでとりあえず
+		desc.RTVFormats[0] = m_BloomHorizontalTarget[0].GetRTVDesc().Format; // TODO:フォーマットの指定は必要なのでとりあえず
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 
@@ -1744,6 +1798,51 @@ bool SampleApp::OnInit()
 		ptr->ClipToPrevClip = Matrix::Identity;
 	}
 
+	// Bloom後工程用定数バッファの作成
+	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++) // ドローコールの数だけ用意する
+	{
+		float uvOffsets[GAUSSIAN_FILTER_SAMPLES];
+		float weights[GAUSSIAN_FILTER_SAMPLES];
+		uint32_t numSample = Compute1DGaussianFilterKernel(BLOOM_GAUSSIAN_KERNEL_RADIUS[i], uvOffsets, weights);
+
+		// 定数バッファは低解像度からやっていくドローコール順でなく、m_BloomSetupTarget[]の順に
+		// 高解像度から定義している
+
+		{
+			if (!m_BloomHorizontalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDownsample)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+
+			CbFilter* ptr = m_BloomHorizontalCB[i].GetPtr<CbFilter>();
+			for (uint32_t j = 0; j < GAUSSIAN_FILTER_SAMPLES; j++)
+			{
+				ptr->SampleOffsets[j] = Vector2(uvOffsets[j] / m_BloomSetupTarget[i].GetDesc().Width, 0.0f);
+				ptr->SampleWeights[j] = weights[j];
+			}
+			ptr->NumSample = numSample;
+			ptr->bEnableAdditveTexture = false;
+		}
+
+		{
+			if (!m_BloomVerticalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDownsample)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+
+			CbFilter* ptr = m_BloomVerticalCB[i].GetPtr<CbFilter>();
+			for (uint32_t j = 0; j < GAUSSIAN_FILTER_SAMPLES; j++)
+			{
+				ptr->SampleOffsets[j] = Vector2(0.0f, uvOffsets[j] / m_BloomSetupTarget[i].GetDesc().Height);
+				ptr->SampleWeights[j] = weights[j];
+			}
+			ptr->NumSample = numSample;
+			ptr->bEnableAdditveTexture = (i < BLOOM_NUM_DOWN_SAMPLE - 1);
+		}
+	}
+
 	// トーンマップ用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -1907,6 +2006,12 @@ void SampleApp::OnTerm()
 		m_DownsampleCB[i].Term();
 	}
 
+	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
+	{
+		m_BloomHorizontalCB[i].Term();
+		m_BloomVerticalCB[i].Term();
+	}
+
 	for (size_t i = 0; i < m_pMesh.size(); i++)
 	{
 		SafeTerm(m_pMesh[i]);
@@ -1940,6 +2045,12 @@ void SampleApp::OnTerm()
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
 	{
 		m_BloomSetupTarget[i].Term();
+	}
+
+	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
+	{
+		m_BloomHorizontalTarget[i].Term();
+		m_BloomVerticalTarget[i].Term();
 	}
 
 	m_pSceneOpaquePSO.Reset();
