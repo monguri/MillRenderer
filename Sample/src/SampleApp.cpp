@@ -1348,7 +1348,7 @@ bool SampleApp::OnInit()
 		RootSignature::Desc desc;
 		desc.Begin(1)
 			.SetSRV(ShaderStage::PS, 0, 0)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::MinMagLinearMipPointClamp)
 			.AllowIL()
 			.End();
 
@@ -1876,6 +1876,11 @@ void SampleApp::OnRender()
 
 	DrawBloomSetup(pCmd, TemporalAA_DstTarget);
 
+	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
+	{
+		DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1]);
+	}
+
 	DrawTonemap(pCmd, TemporalAA_DstTarget);
 
 #if DEBUG_VIEW_SSAO
@@ -2236,9 +2241,9 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 
 void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor)
 {
-	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	const DescriptorHandle* handleRTV = SrcColor.GetHandleRTV();
+	const DescriptorHandle* handleRTV = DstColor.GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 	pCmdList->SetGraphicsRootSignature(m_DownsampleRootSig.GetPtr());
@@ -2262,7 +2267,7 @@ void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorT
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)

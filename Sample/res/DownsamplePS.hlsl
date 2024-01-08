@@ -4,7 +4,11 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 };
 
+Texture2D SrcColorMap : register(t0);
+SamplerState LinearClampMipPointSmp : register(s0);
+
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float4 result = SrcColorMap.Sample(LinearClampMipPointSmp, input.TexCoord);
+	return result;
 }
