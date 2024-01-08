@@ -1753,144 +1753,34 @@ void SampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 	
-	// ディレクショナルライトのシャドウマップ描画パス
+	DrawDirectionalLightShadowMap(pCmd, lightForward);
+
+	if (ENABLE_TEMPORAL_AA)
 	{
-		DirectX::TransitionResource(pCmd, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-		const DescriptorHandle* handleDSV = m_DirLightShadowMapTarget.GetHandleDSV();
-
-		pCmd->OMSetRenderTargets(0, nullptr, FALSE, &handleDSV->HandleCPU);
-
-		m_DirLightShadowMapTarget.ClearView(pCmd);
-
-		pCmd->RSSetViewports(1, &m_DirLightShadowMapViewport);
-		pCmd->RSSetScissorRects(1, &m_DirLightShadowMapScissor);
-
-		DrawDirectionalLightShadowMap(pCmd, lightForward);
-
-		DirectX::TransitionResource(pCmd, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DrawScene(pCmd, lightForward, viewProjWithJitter);
+	}
+	else
+	{
+		DrawScene(pCmd, lightForward, viewProjNoJitter);
 	}
 
-	// シーンをレンダーターゲットに描画するパス
-	{
-		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		DirectX::TransitionResource(pCmd, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	DrawSSAO(pCmd, projWithJitter);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[2] = { m_SceneColorTarget.GetHandleRTV()->HandleCPU, m_SceneNormalTarget.GetHandleRTV()->HandleCPU };
-		const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
-
-		pCmd->OMSetRenderTargets(2, rtvs, FALSE, &handleDSV->HandleCPU);
-
-		m_SceneColorTarget.ClearView(pCmd);
-		m_SceneNormalTarget.ClearView(pCmd);
-		m_SceneDepthTarget.ClearView(pCmd);
-
-		pCmd->RSSetViewports(1, &m_Viewport);
-		pCmd->RSSetScissorRects(1, &m_Scissor);
-
-		if (ENABLE_TEMPORAL_AA)
-		{
-			DrawScene(pCmd, lightForward, viewProjWithJitter);
-		}
-		else
-		{
-			DrawScene(pCmd, lightForward, viewProjNoJitter);
-		}
-
-		DirectX::TransitionResource(pCmd, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmd, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
-
-	// SSAOパス
-	{
-		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-		const DescriptorHandle* handleRTV = m_SSAO_Target.GetHandleRTV();
-		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
-
-		m_SSAO_Target.ClearView(pCmd);
-
-		DrawSSAO(pCmd, projWithJitter);
-
-		DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
-
-	// AmbientLightパス
-	{
-		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-		const DescriptorHandle* handleRTV = m_AmbientLightTarget.GetHandleRTV();
-		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
-
-		m_AmbientLightTarget.ClearView(pCmd);
-
-		DrawAmbientLight(pCmd);
-
-		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
+	DrawAmbientLight(pCmd);
 
 	const ColorTarget& TemporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
 	const ColorTarget& TemporalAA_DstTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
 
-	// TemporalAAパス
-	{
-		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmd, TemporalAA_SrcTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmd, TemporalAA_DstTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		DrawTemporalAA(pCmd, viewProjNoJitter, TemporalAA_SrcTarget, TemporalAA_DstTarget);
-
-		DirectX::TransitionResource(pCmd, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmd, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmd, TemporalAA_SrcTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmd, TemporalAA_DstTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
+	DrawTemporalAA(pCmd, viewProjNoJitter, TemporalAA_SrcTarget, TemporalAA_DstTarget);
 
 	m_PrevViewProjNoJitter = viewProjNoJitter;
 
-	// Bloom前段階パス
-	{
-		DirectX::TransitionResource(pCmd, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DrawBloomSetup(pCmd, TemporalAA_DstTarget);
 
-		const DescriptorHandle* handleRTV = m_BloomSetupTarget[0].GetHandleRTV();
-		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
-
-		DrawBloomSetup(pCmd, TemporalAA_DstTarget);
-
-		DirectX::TransitionResource(pCmd, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
-
-	// トーンマップを適用してフレームバッファに描画するパス
-	{
-		DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-		const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
-		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
-
-		m_ColorTarget[m_FrameIndex].ClearView(pCmd);
-
-		DrawTonemap(pCmd, TemporalAA_DstTarget);
-
-		DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	}
+	DrawTonemap(pCmd, TemporalAA_DstTarget);
 
 #if DEBUG_VIEW_SSAO
-	// 最終レンダーターゲットにSSAOバッファをコピーする
-	{
-		DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-		const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
-		pCmd->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
-
-		m_ColorTarget[m_FrameIndex].ClearView(pCmd);
-
-		DebugDrawSSAO(pCmd);
-
-		DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	}
+	DebugDrawSSAO(pCmd);
 #endif
 
 	pCmd->Close();
@@ -1919,6 +1809,17 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 		ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
+	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	const DescriptorHandle* handleDSV = m_DirLightShadowMapTarget.GetHandleDSV();
+
+	pCmdList->OMSetRenderTargets(0, nullptr, FALSE, &handleDSV->HandleCPU);
+
+	m_DirLightShadowMapTarget.ClearView(pCmdList);
+
+	pCmdList->RSSetViewports(1, &m_DirLightShadowMapViewport);
+	pCmdList->RSSetScissorRects(1, &m_DirLightShadowMapScissor);
+
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
@@ -1932,6 +1833,8 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSceneDepthMaskPSO.Get());
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+
+	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx)
@@ -1990,6 +1893,22 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		ptr->ShadowMapTexelSize = 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE;
 	}
 
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[2] = { m_SceneColorTarget.GetHandleRTV()->HandleCPU, m_SceneNormalTarget.GetHandleRTV()->HandleCPU };
+	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+
+	pCmdList->OMSetRenderTargets(2, rtvs, FALSE, &handleDSV->HandleCPU);
+
+	m_SceneColorTarget.ClearView(pCmdList);
+	m_SceneNormalTarget.ClearView(pCmdList);
+	m_SceneDepthTarget.ClearView(pCmdList);
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+
 	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
@@ -2015,6 +1934,10 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
@@ -2058,6 +1981,13 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 		ptr->InvProjMatrix = projWithJitter.Invert();
 	}
 
+	DirectX::TransitionResource(pCmdList, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_SSAO_Target.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_SSAO_Target.ClearView(pCmdList);
+
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_CB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
@@ -2073,10 +2003,19 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 {
+	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_AmbientLightTarget.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_AmbientLightTarget.ClearView(pCmdList);
+
 	pCmdList->SetGraphicsRootSignature(m_AmbientLightRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_Target.GetHandleSRV()->HandleGPU);
@@ -2090,14 +2029,21 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor)
 {
-	//{
+	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
 		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
-	//}
+	}
+
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
@@ -2116,10 +2062,20 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	UINT NumGroupY = (m_Height + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
 {
+	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_BloomSetupTarget[0].GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
 	pCmdList->SetGraphicsRootSignature(m_BloomSetupRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, InputColor.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pBloomSetupPSO.Get());
@@ -2139,6 +2095,8 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
@@ -2150,6 +2108,13 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 		ptr->BaseLuminance = m_BaseLuminance;
 		ptr->MaxLuminance = m_MaxLuminance;
 	}
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
@@ -2165,6 +2130,8 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
@@ -2176,6 +2143,14 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 	//pCmd->CopyResource(m_ColorTarget[m_FrameIndex].GetResource(), m_SSAO_Target.GetResource());
 	//DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	//DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
+
 
 	pCmdList->SetGraphicsRootSignature(m_DebugRenderTargetRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pDebugRenderTargetPSO.Get());
@@ -2190,6 +2165,8 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void SampleApp::ChangeDisplayMode(bool hdr)
