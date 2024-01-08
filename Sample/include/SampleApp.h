@@ -95,5 +95,6 @@ private:
 	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor);
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
+	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor);
 	void DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList);
 };

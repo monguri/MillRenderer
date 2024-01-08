@@ -2080,14 +2080,15 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	pCmdList->SetGraphicsRootDescriptorTable(0, InputColor.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pBloomSetupPSO.Get());
 
+	m_BloomSetupTarget->GetDesc().Width;
 	D3D12_VIEWPORT halfResViewport = m_Viewport;
-	halfResViewport.Width *= 0.5f;
-	halfResViewport.Height *= 0.5f;
+	halfResViewport.Width = (FLOAT)m_BloomSetupTarget->GetDesc().Width;
+	halfResViewport.Height = (FLOAT)m_BloomSetupTarget->GetDesc().Height;
 	pCmdList->RSSetViewports(1, &halfResViewport);
 
 	D3D12_RECT halfResScissor = m_Scissor;
-	halfResScissor.right /= 2;
-	halfResScissor.bottom /= 2;
+	halfResScissor.right = (LONG)m_BloomSetupTarget->GetDesc().Width;
+	halfResScissor.bottom = (LONG)m_BloomSetupTarget->GetDesc().Height;
 	pCmdList->RSSetScissorRects(1, &halfResScissor);
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2132,6 +2133,10 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+}
+
+void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor)
+{
 }
 
 void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
