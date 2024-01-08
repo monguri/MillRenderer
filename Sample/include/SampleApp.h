@@ -36,10 +36,12 @@ private:
 	RootSignature m_AmbientLightRootSig;
 	ComPtr<ID3D12PipelineState> m_pTemporalAA_PSO;
 	RootSignature m_TemporalAA_RootSig;
-	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
-	RootSignature m_TonemapRootSig;
 	ComPtr<ID3D12PipelineState> m_pBloomSetupPSO;
 	RootSignature m_BloomSetupRootSig;
+	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
+	RootSignature m_TonemapRootSig;
+	ComPtr<ID3D12PipelineState> m_pDownsamplePSO;
+	RootSignature m_DownsampleRootSig;
 	ComPtr<ID3D12PipelineState> m_pDebugRenderTargetPSO;
 	RootSignature m_DebugRenderTargetRootSig;
 	DepthTarget m_DirLightShadowMapTarget;

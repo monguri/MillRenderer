@@ -1343,6 +1343,102 @@ bool SampleApp::OnInit()
 		}
 	}
 
+    // 汎用ダウンサンプルパス用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin(1)
+			.SetSRV(ShaderStage::PS, 0, 0)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
+			.AllowIL()
+			.End();
+
+		if (!m_DownsampleRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // 汎用ダウンサンプルパス用パイプラインステートの生成
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"DownsamplePS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		D3D12_INPUT_ELEMENT_DESC elements[2];
+		elements[0].SemanticName = "POSITION";
+		elements[0].SemanticIndex = 0;
+		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
+		elements[0].InputSlot = 0;
+		elements[0].AlignedByteOffset = 0;
+		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		elements[0].InstanceDataStepRate = 0;
+
+		elements[1].SemanticName = "TEXCOORD";
+		elements[1].SemanticIndex = 0;
+		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+		elements[1].InputSlot = 0;
+		elements[1].AlignedByteOffset = 8;
+		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		elements[1].InstanceDataStepRate = 0;
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout.pInputElementDescs = elements;
+		desc.InputLayout.NumElements = 2;
+		desc.pRootSignature = m_DownsampleRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
+		desc.SampleMask = UINT_MAX;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_BloomSetupTarget[0].GetRTVDesc().Format; // TODO:フォーマットの指定は必要なのでとりあえず
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pDownsamplePSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // レンダーターゲットデバッグ表示用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -1703,6 +1799,9 @@ void SampleApp::OnTerm()
 
 	m_pTonemapPSO.Reset();
 	m_TonemapRootSig.Term();
+
+	m_pDownsamplePSO.Reset();
+	m_DownsampleRootSig.Term();
 
 	m_pDebugRenderTargetPSO.Reset();
 	m_DebugRenderTargetRootSig.Term();
@@ -2137,6 +2236,33 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 
 void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor)
 {
+	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = SrcColor.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	pCmdList->SetGraphicsRootSignature(m_DownsampleRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, SrcColor.GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pDownsamplePSO.Get());
+
+	DstColor.GetDesc().Width;
+	D3D12_VIEWPORT viewport = m_Viewport;
+	viewport.Width = (FLOAT)DstColor.GetDesc().Width;
+	viewport.Height = (FLOAT)DstColor.GetDesc().Height;
+	pCmdList->RSSetViewports(1, &viewport);
+
+	D3D12_RECT scissor = m_Scissor;
+	scissor.right = (LONG)DstColor.GetDesc().Width;
+	scissor.bottom = (LONG)DstColor.GetDesc().Height;
+	pCmdList->RSSetScissorRects(1, &scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
