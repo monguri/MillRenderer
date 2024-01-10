@@ -253,13 +253,13 @@ namespace
 
 		uint32_t sampleCount = 0;
 		float weightSum = 0.0f;
-		for (int32_t i = -clampedKernelRadius; i <= clampedKernelRadius; i += 2) // TODO:2ピクセルずらしでいいのか？
+		for (int32_t i = -clampedKernelRadius; i <= clampedKernelRadius; i += 2)
 		{
 			float dx = fabsf((float)i);
 			float invSigma = 1.0f / clampedKernelRadius;
 			float gaussian = expf(CLIP_SCALE_BY_KERNEL_RADIUS_WINDOW * dx * dx * invSigma * invSigma);
 
-			outOffsets[sampleCount] = i * 0.5f;
+			outOffsets[sampleCount] = i * 0.5f; // ループが2ずつインクリメントしているので
 			outWeights[sampleCount] = gaussian;
 			weightSum += gaussian;
 
