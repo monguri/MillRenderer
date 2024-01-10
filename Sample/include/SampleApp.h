@@ -106,5 +106,6 @@ private:
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx);
+	void DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, uint32_t downSampleLevel);
 	void DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList);
 };

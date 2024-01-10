@@ -2159,6 +2159,11 @@ void SampleApp::OnRender()
 		DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1], i);
 	}
 
+	for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
+	{
+		DrawBloomGaussianFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], i);
+	}
+
 	DrawTonemap(pCmd, TemporalAA_DstTarget);
 
 #if DEBUG_VIEW_SSAO
@@ -2480,6 +2485,71 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, uint32_t downSampleLevel)
+{
+	// Horizontal Gaussian Filter
+	{
+		DirectX::TransitionResource(pCmdList, IntermediateColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+		const DescriptorHandle* handleRTV = IntermediateColor.GetHandleRTV();
+		pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+		pCmdList->SetGraphicsRootSignature(m_FilterRootSig.GetPtr());
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_BloomHorizontalCB[downSampleLevel].GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(1, SrcColor.GetHandleSRV()->HandleGPU);
+		pCmdList->SetPipelineState(m_pFilterPSO.Get());
+
+		D3D12_VIEWPORT viewport = m_Viewport;
+		viewport.Width = (FLOAT)IntermediateColor.GetDesc().Width;
+		viewport.Height = (FLOAT)IntermediateColor.GetDesc().Height;
+		pCmdList->RSSetViewports(1, &viewport);
+
+		D3D12_RECT scissor = m_Scissor;
+		scissor.right = (LONG)IntermediateColor.GetDesc().Width;
+		scissor.bottom = (LONG)IntermediateColor.GetDesc().Height;
+		pCmdList->RSSetScissorRects(1, &scissor);
+		
+		pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+		pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+		pCmdList->DrawInstanced(3, 1, 0, 0);
+
+		DirectX::TransitionResource(pCmdList, IntermediateColor.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
+
+	// Vertical Gaussian Filter
+	{
+		DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+		const DescriptorHandle* handleRTV = DstColor.GetHandleRTV();
+		pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+		pCmdList->SetGraphicsRootSignature(m_FilterRootSig.GetPtr());
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_BloomVerticalCB[downSampleLevel].GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(1, IntermediateColor.GetHandleSRV()->HandleGPU);
+		pCmdList->SetPipelineState(m_pFilterPSO.Get());
+		
+		D3D12_VIEWPORT viewport = m_Viewport;
+		viewport.Width = (FLOAT)DstColor.GetDesc().Width;
+		viewport.Height = (FLOAT)DstColor.GetDesc().Height;
+		pCmdList->RSSetViewports(1, &viewport);
+
+		D3D12_RECT scissor = m_Scissor;
+		scissor.right = (LONG)DstColor.GetDesc().Width;
+		scissor.bottom = (LONG)DstColor.GetDesc().Height;
+		pCmdList->RSSetScissorRects(1, &scissor);
+		
+		pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+		pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+		pCmdList->DrawInstanced(3, 1, 0, 0);
+
+		DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
 }
 
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
