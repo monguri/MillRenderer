@@ -1809,7 +1809,7 @@ bool SampleApp::OnInit()
 		// 高解像度から定義している
 
 		{
-			if (!m_BloomHorizontalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDownsample)))
+			if (!m_BloomHorizontalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbFilter)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -1826,7 +1826,7 @@ bool SampleApp::OnInit()
 		}
 
 		{
-			if (!m_BloomVerticalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDownsample)))
+			if (!m_BloomVerticalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbFilter)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
