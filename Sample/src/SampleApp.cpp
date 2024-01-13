@@ -1803,6 +1803,12 @@ bool SampleApp::OnInit()
 	}
 
 	// Bloom後工程用定数バッファの作成
+
+	// UEのデフォルト値を参考にした
+	static constexpr float BLOOM_INTENSITY = 0.675f;
+	static constexpr uint32_t BLOOM_GAUSSIAN_KERNEL_RADIUS[BLOOM_NUM_DOWN_SAMPLE] = {256, 120, 40, 8, 4, 2};
+	static constexpr float BLOOM_TINTS[BLOOM_NUM_DOWN_SAMPLE] = {0.3465f, 0.138f, 0.1176f, 0.066f, 0.066f, 0.061f};
+
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++) // ドローコールの数だけ用意する
 	{
 		float uvOffsets[GAUSSIAN_FILTER_SAMPLES] = {0};
@@ -1849,7 +1855,7 @@ bool SampleApp::OnInit()
 
 			for (uint32_t j = 0; j < GAUSSIAN_FILTER_SAMPLES; j++)
 			{
-				ptr->SampleWeights[j] = Vector4(weights[j]); // RGBAすべてウェイトは同じ
+				ptr->SampleWeights[j] = Vector4(weights[j]) * BLOOM_INTENSITY * BLOOM_TINTS[i] / BLOOM_NUM_DOWN_SAMPLE; // RGBAすべてウェイトは同じ
 			}
 
 			ptr->NumSample = numSample;

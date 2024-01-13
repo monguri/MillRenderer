@@ -24,7 +24,6 @@ private:
 	static constexpr uint32_t NUM_SPOT_LIGHTS = 3;
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
-	static constexpr uint32_t BLOOM_GAUSSIAN_KERNEL_RADIUS[BLOOM_NUM_DOWN_SAMPLE] = {256, 120, 40, 8, 4, 2}; // UEのポストプロセスのデフォルト値を参考にしている
 
 	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
