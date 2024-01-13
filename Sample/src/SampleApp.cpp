@@ -2156,7 +2156,7 @@ void SampleApp::OnRender()
 	DrawBloomSetup(pCmd, TemporalAA_DstTarget);
 
 	{
-		ScopedTimer(pCmd, L"Downsample");
+		ScopedTimer scopedTimer(pCmd, L"Downsample");
 
 		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
 		{
@@ -2165,7 +2165,7 @@ void SampleApp::OnRender()
 	}
 
 	{
-		ScopedTimer(pCmd, L"BloomGaussianFilter");
+		ScopedTimer scopedTimer(pCmd, L"BloomGaussianFilter");
 
 		for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
 		{
@@ -2189,7 +2189,7 @@ void SampleApp::OnRender()
 
 void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
 {
-	ScopedTimer(pCmdList, L"Directional Light Shadow Map");
+	ScopedTimer scopedTimer(pCmdList, L"Directional Light Shadow Map");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -2254,7 +2254,7 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 
 void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj)
 {
-	ScopedTimer(pCmdList, L"Base Pass");
+	ScopedTimer scopedTimer(pCmdList, L"Base Pass");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -2373,7 +2373,7 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 //TODO:SSパスは処理を共通化したい
 void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& projWithJitter)
 {
-	ScopedTimer(pCmdList, L"SSAO");
+	ScopedTimer scopedTimer(pCmdList, L"SSAO");
 
 	{
 		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
@@ -2411,7 +2411,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer(pCmdList, L"Ambient Light");
+	ScopedTimer scopedTimer(pCmdList, L"Ambient Light");
 
 	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -2439,7 +2439,7 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor)
 {
-	ScopedTimer(pCmdList, L"Temporal AA");
+	ScopedTimer scopedTimer(pCmdList, L"Temporal AA");
 
 	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
@@ -2477,7 +2477,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 
 void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
 {
-	ScopedTimer(pCmdList, L"Bloom Setup");
+	ScopedTimer scopedTimer(pCmdList, L"Bloom Setup");
 
 	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -2575,7 +2575,7 @@ void SampleApp::DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, con
 
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
 {
-	ScopedTimer(pCmdList, L"Tonemap");
+	ScopedTimer scopedTimer(pCmdList, L"Tonemap");
 
 	{
 		CbTonemap* ptr = m_TonemapCB[m_FrameIndex].GetPtr<CbTonemap>();
@@ -2644,7 +2644,7 @@ void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorT
 
 void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer(pCmdList, L"Debug SSAO");
+	ScopedTimer scopedTimer(pCmdList, L"Debug SSAO");
 
 	// R8_UNORMとR10G10B10A2_UNORMではCopyResourceでは非対応でエラーが出るのでシェーダでコピーする
 
