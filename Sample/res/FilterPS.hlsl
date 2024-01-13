@@ -9,8 +9,8 @@ struct VSOutput
 
 cbuffer CbFilter : register(b0)
 {
-	float2 SampleOffsets[GAUSSIAN_FILTER_SAMPLES];
-	float SampleWeights[GAUSSIAN_FILTER_SAMPLES];
+	float4 SampleOffsets[GAUSSIAN_FILTER_SAMPLES / 2];
+	float4 SampleWeights[GAUSSIAN_FILTER_SAMPLES];
 	int NumSample;
 	int bEnableAdditveTexture;
 }
@@ -21,18 +21,22 @@ SamplerState LinearClampMipPointSmp : register(s0);
 float4 main(const VSOutput input) : SV_TARGET0
 {
 	float2 uv = input.TexCoord;
+	float4 accumColor = float4(0, 0, 0, 0);
 
-
-	float3 accumColor = float3(0, 0, 0);
-	float accumWeight = 0;
-	for (int i = 0; i < NumSample; i++)
+	int sampleIdx = 0;
+	for (; sampleIdx < NumSample - 1; sampleIdx += 2)
 	{
-		float weight = SampleWeights[i];
-		accumColor += SrcColorMap.Sample(LinearClampMipPointSmp, uv + SampleOffsets[i]).rgb * weight;
-		accumWeight += weight;
+		float4 offsetedUVUV = uv.xyxy + SampleOffsets[(uint)sampleIdx / 2];
+		accumColor += SrcColorMap.Sample(LinearClampMipPointSmp, offsetedUVUV.xy) * SampleWeights[sampleIdx + 0];
+		accumColor += SrcColorMap.Sample(LinearClampMipPointSmp, offsetedUVUV.zw) * SampleWeights[sampleIdx + 1];
 	}
 
-	float3 filteredColor = accumColor / accumWeight;
+	// The case that NumSample is odd.
+	if (sampleIdx < NumSample)
+	{
+		float2 offsetedUV = uv + SampleOffsets[(uint)sampleIdx / 2].xy;
+		accumColor += SrcColorMap.Sample(LinearClampMipPointSmp, offsetedUV) * SampleWeights[sampleIdx];
+	}
 
-	return float4(filteredColor, 1);
+	return float4(accumColor.rgb, 1);
 }

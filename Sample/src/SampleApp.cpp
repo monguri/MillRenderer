@@ -30,7 +30,9 @@ namespace
 
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11;
 
-	static constexpr uint32_t GAUSSIAN_FILTER_SAMPLES = 32; // シェーダ側のマクロ定数と同じ値である必要がある
+	// シェーダ側のマクロ定数と同じ値である必要がある
+	// 定数バッファ内配列のfloat4へのパッキングルールがあるので4の倍数である必要がある
+	static constexpr uint32_t GAUSSIAN_FILTER_SAMPLES = 32;
 
 	enum COLOR_SPACE_TYPE
 	{
@@ -145,8 +147,8 @@ namespace
 
 	struct alignas(256) CbFilter
 	{
-		Vector2 SampleOffsets[GAUSSIAN_FILTER_SAMPLES];
-		float SampleWeights[GAUSSIAN_FILTER_SAMPLES];
+		Vector4 SampleOffsets[GAUSSIAN_FILTER_SAMPLES / 2];
+		Vector4 SampleWeights[GAUSSIAN_FILTER_SAMPLES]; // RGBAそれぞれでウェイトをもてるようにしている
 		int NumSample;
 		int bEnableAdditveTexture;
 		float Padding[2]; // TODO:GAUSSIAN_FILTER_SAMPLESが4の倍数なのを前提としている
@@ -1802,8 +1804,8 @@ bool SampleApp::OnInit()
 	// Bloom後工程用定数バッファの作成
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++) // ドローコールの数だけ用意する
 	{
-		float uvOffsets[GAUSSIAN_FILTER_SAMPLES];
-		float weights[GAUSSIAN_FILTER_SAMPLES];
+		float uvOffsets[GAUSSIAN_FILTER_SAMPLES] = {0};
+		float weights[GAUSSIAN_FILTER_SAMPLES] = {0};
 		uint32_t numSample = Compute1DGaussianFilterKernel(BLOOM_GAUSSIAN_KERNEL_RADIUS[i], uvOffsets, weights);
 
 		// 定数バッファは低解像度からやっていくドローコール順でなく、m_BloomSetupTarget[]の順に
@@ -1817,11 +1819,16 @@ bool SampleApp::OnInit()
 			}
 
 			CbFilter* ptr = m_BloomHorizontalCB[i].GetPtr<CbFilter>();
+			for (uint32_t j = 0; j < GAUSSIAN_FILTER_SAMPLES / 2; j++)
+			{
+				ptr->SampleOffsets[j] = Vector4(uvOffsets[2 * j] / m_BloomSetupTarget[i].GetDesc().Width, 0.0f, uvOffsets[2 * j + 1] / m_BloomSetupTarget[i].GetDesc().Width, 0.0f);
+			}
+
 			for (uint32_t j = 0; j < GAUSSIAN_FILTER_SAMPLES; j++)
 			{
-				ptr->SampleOffsets[j] = Vector2(uvOffsets[j] / m_BloomSetupTarget[i].GetDesc().Width, 0.0f);
-				ptr->SampleWeights[j] = weights[j];
+				ptr->SampleWeights[j] = Vector4(weights[j]); // RGBAすべてウェイトは同じ
 			}
+
 			ptr->NumSample = numSample;
 			ptr->bEnableAdditveTexture = false;
 		}
@@ -1834,11 +1841,16 @@ bool SampleApp::OnInit()
 			}
 
 			CbFilter* ptr = m_BloomVerticalCB[i].GetPtr<CbFilter>();
+			for (uint32_t j = 0; j < GAUSSIAN_FILTER_SAMPLES / 2; j++)
+			{
+				ptr->SampleOffsets[j] = Vector4(0.0f, uvOffsets[2 * j] / m_BloomSetupTarget[i].GetDesc().Height, 0.0f, uvOffsets[2 * j + 1] / m_BloomSetupTarget[i].GetDesc().Height);
+			}
+
 			for (uint32_t j = 0; j < GAUSSIAN_FILTER_SAMPLES; j++)
 			{
-				ptr->SampleOffsets[j] = Vector2(0.0f, uvOffsets[j] / m_BloomSetupTarget[i].GetDesc().Height);
-				ptr->SampleWeights[j] = weights[j];
+				ptr->SampleWeights[j] = Vector4(weights[j]); // RGBAすべてウェイトは同じ
 			}
+
 			ptr->NumSample = numSample;
 			ptr->bEnableAdditveTexture = (i < BLOOM_NUM_DOWN_SAMPLE - 1);
 		}
