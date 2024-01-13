@@ -1806,8 +1806,7 @@ bool SampleApp::OnInit()
 	// Bloom後工程用定数バッファの作成
 
 	// UEのデフォルト値を参考にした
-	//static constexpr float BLOOM_INTENSITY = 0.675f;
-	static constexpr float BLOOM_INTENSITY = 10.0f;
+	static constexpr float BLOOM_INTENSITY = 0.675f;
 	static constexpr uint32_t BLOOM_GAUSSIAN_KERNEL_RADIUS[BLOOM_NUM_DOWN_SAMPLE] = {256, 120, 40, 8, 4, 2};
 	static constexpr float BLOOM_TINTS[BLOOM_NUM_DOWN_SAMPLE] = {0.3465f, 0.138f, 0.1176f, 0.066f, 0.066f, 0.061f};
 
