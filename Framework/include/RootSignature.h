@@ -20,12 +20,16 @@ enum SamplerState
 {
 	PointWrap,
 	PointClamp,
+	PointBorder,
 	LinearWrap,
 	LinearClamp,
+	LinearBorder,
 	MinMagLinearMipPointWrap,
 	MinMagLinearMipPointClamp,
+	MinMagLinearMipPointBorder,
 	AnisotropicWrap,
 	AnisotropicClamp,
+	AnisotropicBorder,
 };
 
 class RootSignature

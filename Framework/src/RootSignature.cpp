@@ -121,6 +121,12 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			break;
+		case PointBorder:
+			desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			break;
 		case LinearWrap:
 			desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -132,6 +138,12 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			break;
+		case LinearBorder:
+			desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 			break;
 		case MinMagLinearMipPointWrap:
 			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
@@ -145,6 +157,12 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			break;
+		case MinMagLinearMipPointBorder:
+			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			break;
 		case AnisotropicWrap:
 			desc.Filter = D3D12_FILTER_ANISOTROPIC;
 			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -157,6 +175,13 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			desc.MaxAnisotropy = D3D12_MAX_MAXANISOTROPY;
+			break;
+		case AnisotropicBorder:
+			desc.Filter = D3D12_FILTER_ANISOTROPIC;
+			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 			desc.MaxAnisotropy = D3D12_MAX_MAXANISOTROPY;
 			break;
 		default:
