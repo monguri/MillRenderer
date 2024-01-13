@@ -2201,7 +2201,7 @@ void SampleApp::OnRender()
 
 void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
 {
-	ScopedTimer scopedTimer(pCmdList, L"Directional Light Shadow Map");
+	ScopedTimer scopedTimer(pCmdList, L"DirectionalLightShadowMap");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -2266,7 +2266,7 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 
 void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj)
 {
-	ScopedTimer scopedTimer(pCmdList, L"Base Pass");
+	ScopedTimer scopedTimer(pCmdList, L"BasePass");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -2423,7 +2423,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"Ambient Light");
+	ScopedTimer scopedTimer(pCmdList, L"AmbientLight");
 
 	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -2451,7 +2451,7 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor)
 {
-	ScopedTimer scopedTimer(pCmdList, L"Temporal AA");
+	ScopedTimer scopedTimer(pCmdList, L"TemporalAA");
 
 	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
@@ -2489,7 +2489,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 
 void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
 {
-	ScopedTimer scopedTimer(pCmdList, L"Bloom Setup");
+	ScopedTimer scopedTimer(pCmdList, L"BloomSetup");
 
 	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -2656,7 +2656,7 @@ void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorT
 
 void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"Debug SSAO");
+	ScopedTimer scopedTimer(pCmdList, L"DebugSSAO");
 
 	// R8_UNORMとR10G10B10A2_UNORMではCopyResourceでは非対応でエラーが出るのでシェーダでコピーする
 
