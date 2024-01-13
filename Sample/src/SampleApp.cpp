@@ -1,4 +1,5 @@
 ﻿#include "SampleApp.h"
+#include <sstream>
 #include <DirectXMath.h>
 #include <CommonStates.h>
 #include <DirectXHelpers.h>
@@ -1805,7 +1806,8 @@ bool SampleApp::OnInit()
 	// Bloom後工程用定数バッファの作成
 
 	// UEのデフォルト値を参考にした
-	static constexpr float BLOOM_INTENSITY = 0.675f;
+	//static constexpr float BLOOM_INTENSITY = 0.675f;
+	static constexpr float BLOOM_INTENSITY = 10.0f;
 	static constexpr uint32_t BLOOM_GAUSSIAN_KERNEL_RADIUS[BLOOM_NUM_DOWN_SAMPLE] = {256, 120, 40, 8, 4, 2};
 	static constexpr float BLOOM_TINTS[BLOOM_NUM_DOWN_SAMPLE] = {0.3465f, 0.138f, 0.1176f, 0.066f, 0.066f, 0.061f};
 
@@ -2191,11 +2193,11 @@ void SampleApp::OnRender()
 			if (i == (BLOOM_NUM_DOWN_SAMPLE - 1))
 			{
 				// m_SceneColorTargetをDownerResultColorとして使っているのはダミー
-				DrawBloomGaussianFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_SceneColorTarget, m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+				DrawBloomGaussianBlur(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_SceneColorTarget, m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
 			}
 			else
 			{
-				DrawBloomGaussianFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_BloomVerticalTarget[i + 1], m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+				DrawBloomGaussianBlur(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_BloomVerticalTarget[i + 1], m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
 			}
 		}
 	}
@@ -2535,10 +2537,17 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer)
+void SampleApp::DrawBloomGaussianBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer)
 {
 	// Horizontal Gaussian Filter
 	{
+		std::wstringstream markerName;
+		markerName << L"GaussianBlurHorizontal ";
+		markerName << IntermediateColor.GetDesc().Width;
+		markerName << L"x";
+		markerName << IntermediateColor.GetDesc().Height;
+		ScopedTimer scopedTimer(pCmdList, markerName.str());
+
 		DirectX::TransitionResource(pCmdList, IntermediateColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 		const DescriptorHandle* handleRTV = IntermediateColor.GetHandleRTV();
@@ -2571,6 +2580,13 @@ void SampleApp::DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, con
 
 	// Vertical Gaussian Filter
 	{
+		std::wstringstream markerName;
+		markerName << L"GaussianBlurVertical ";
+		markerName << DstColor.GetDesc().Width;
+		markerName << L"x";
+		markerName << DstColor.GetDesc().Height;
+		ScopedTimer scopedTimer(pCmdList, markerName.str());
+
 		DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 		const DescriptorHandle* handleRTV = DstColor.GetHandleRTV();
@@ -2641,6 +2657,13 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 
 void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx)
 {
+	std::wstringstream markerName;
+	markerName << L"Downsample ";
+	markerName << DstColor.GetDesc().Width;
+	markerName << L"x";
+	markerName << DstColor.GetDesc().Height;
+	ScopedTimer scopedTimer(pCmdList, markerName.str());
+
 	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	const DescriptorHandle* handleRTV = DstColor.GetHandleRTV();
