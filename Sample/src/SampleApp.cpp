@@ -2193,11 +2193,11 @@ void SampleApp::OnRender()
 			if (i == (BLOOM_NUM_DOWN_SAMPLE - 1))
 			{
 				// m_SceneColorTargetをDownerResultColorとして使っているのはダミー
-				DrawBloomGaussianBlur(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_SceneColorTarget, m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+				DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_SceneColorTarget, m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
 			}
 			else
 			{
-				DrawBloomGaussianBlur(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_BloomVerticalTarget[i + 1], m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+				DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_BloomVerticalTarget[i + 1], m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
 			}
 		}
 	}
@@ -2613,12 +2613,12 @@ void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawBloomGaussianBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer)
+void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer)
 {
 	// Horizontal Gaussian Filter
 	{
 		std::wstringstream markerName;
-		markerName << L"GaussianBlurHorizontal ";
+		markerName << L"FilterHorizontal ";
 		markerName << IntermediateColor.GetDesc().Width;
 		markerName << L"x";
 		markerName << IntermediateColor.GetDesc().Height;
@@ -2657,7 +2657,7 @@ void SampleApp::DrawBloomGaussianBlur(ID3D12GraphicsCommandList* pCmdList, const
 	// Vertical Gaussian Filter
 	{
 		std::wstringstream markerName;
-		markerName << L"GaussianBlurVertical ";
+		markerName << L"FilterVertical ";
 		markerName << DstColor.GetDesc().Width;
 		markerName << L"x";
 		markerName << DstColor.GetDesc().Height;
