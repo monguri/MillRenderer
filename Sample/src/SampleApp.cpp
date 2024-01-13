@@ -8,6 +8,7 @@
 #include "Mesh.h"
 #include "InlineUtil.h"
 #include "RootSignature.h"
+#include "ScopedTimer.h"
 
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
@@ -2154,14 +2155,22 @@ void SampleApp::OnRender()
 
 	DrawBloomSetup(pCmd, TemporalAA_DstTarget);
 
-	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
 	{
-		DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1], i);
+		ScopedTimer(pCmd, L"Downsample");
+
+		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
+		{
+			DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1], i);
+		}
 	}
 
-	for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
 	{
-		DrawBloomGaussianFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], i);
+		ScopedTimer(pCmd, L"BloomGaussianFilter");
+
+		for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
+		{
+			DrawBloomGaussianFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], i);
+		}
 	}
 
 	DrawTonemap(pCmd, TemporalAA_DstTarget);
@@ -2180,6 +2189,8 @@ void SampleApp::OnRender()
 
 void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
 {
+	ScopedTimer(pCmdList, L"Directional Light Shadow Map");
+
 	// 変換行列用の定数バッファの更新
 	{
 		float width = static_cast<float>(m_DirLightShadowMapTarget.GetDesc().Width);
@@ -2243,6 +2254,8 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 
 void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj)
 {
+	ScopedTimer(pCmdList, L"Base Pass");
+
 	// 変換行列用の定数バッファの更新
 	{
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
@@ -2360,6 +2373,8 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 //TODO:SSパスは処理を共通化したい
 void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& projWithJitter)
 {
+	ScopedTimer(pCmdList, L"SSAO");
+
 	{
 		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
@@ -2396,6 +2411,8 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 {
+	ScopedTimer(pCmdList, L"Ambient Light");
+
 	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	const DescriptorHandle* handleRTV = m_AmbientLightTarget.GetHandleRTV();
@@ -2422,6 +2439,8 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor)
 {
+	ScopedTimer(pCmdList, L"Temporal AA");
+
 	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
 		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
@@ -2458,6 +2477,8 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 
 void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
 {
+	ScopedTimer(pCmdList, L"Bloom Setup");
+
 	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	const DescriptorHandle* handleRTV = m_BloomSetupTarget[0].GetHandleRTV();
@@ -2554,6 +2575,8 @@ void SampleApp::DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, con
 
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
 {
+	ScopedTimer(pCmdList, L"Tonemap");
+
 	{
 		CbTonemap* ptr = m_TonemapCB[m_FrameIndex].GetPtr<CbTonemap>();
 		ptr->Type = m_TonemapType;
@@ -2621,6 +2644,8 @@ void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorT
 
 void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 {
+	ScopedTimer(pCmdList, L"Debug SSAO");
+
 	// R8_UNORMとR10G10B10A2_UNORMではCopyResourceでは非対応でエラーが出るのでシェーダでコピーする
 
 	//DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
