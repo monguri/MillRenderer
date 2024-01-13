@@ -2537,6 +2537,82 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
+void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
+{
+	ScopedTimer scopedTimer(pCmdList, L"Tonemap");
+
+	{
+		CbTonemap* ptr = m_TonemapCB[m_FrameIndex].GetPtr<CbTonemap>();
+		ptr->Type = m_TonemapType;
+		ptr->ColorSpace = m_ColorSpace;
+		ptr->BaseLuminance = m_BaseLuminance;
+		ptr->MaxLuminance = m_MaxLuminance;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
+
+	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, InputColor.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_BloomVerticalTarget[0].GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+}
+
+void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx)
+{
+	std::wstringstream markerName;
+	markerName << L"Downsample ";
+	markerName << DstColor.GetDesc().Width;
+	markerName << L"x";
+	markerName << DstColor.GetDesc().Height;
+	ScopedTimer scopedTimer(pCmdList, markerName.str());
+
+	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = DstColor.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	pCmdList->SetGraphicsRootSignature(m_DownsampleRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_DownsampleCB[CBIdx].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, SrcColor.GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pDownsamplePSO.Get());
+
+	
+	D3D12_VIEWPORT viewport = m_Viewport;
+	viewport.Width = (FLOAT)DstColor.GetDesc().Width;
+	viewport.Height = (FLOAT)DstColor.GetDesc().Height;
+	pCmdList->RSSetViewports(1, &viewport);
+
+	D3D12_RECT scissor = m_Scissor;
+	scissor.right = (LONG)DstColor.GetDesc().Width;
+	scissor.bottom = (LONG)DstColor.GetDesc().Height;
+	pCmdList->RSSetScissorRects(1, &scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
 void SampleApp::DrawBloomGaussianBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer)
 {
 	// Horizontal Gaussian Filter
@@ -2616,82 +2692,6 @@ void SampleApp::DrawBloomGaussianBlur(ID3D12GraphicsCommandList* pCmdList, const
 
 		DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
-}
-
-void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
-{
-	ScopedTimer scopedTimer(pCmdList, L"Tonemap");
-
-	{
-		CbTonemap* ptr = m_TonemapCB[m_FrameIndex].GetPtr<CbTonemap>();
-		ptr->Type = m_TonemapType;
-		ptr->ColorSpace = m_ColorSpace;
-		ptr->BaseLuminance = m_BaseLuminance;
-		ptr->MaxLuminance = m_MaxLuminance;
-	}
-
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
-	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
-
-	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
-
-	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, InputColor.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_BloomVerticalTarget[0].GetHandleSRV()->HandleGPU);
-	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
-
-	pCmdList->RSSetViewports(1, &m_Viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
-	
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
-	pCmdList->IASetVertexBuffers(0, 1, &VBV);
-
-	pCmdList->DrawInstanced(3, 1, 0, 0);
-
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-}
-
-void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx)
-{
-	std::wstringstream markerName;
-	markerName << L"Downsample ";
-	markerName << DstColor.GetDesc().Width;
-	markerName << L"x";
-	markerName << DstColor.GetDesc().Height;
-	ScopedTimer scopedTimer(pCmdList, markerName.str());
-
-	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-	const DescriptorHandle* handleRTV = DstColor.GetHandleRTV();
-	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
-
-	pCmdList->SetGraphicsRootSignature(m_DownsampleRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_DownsampleCB[CBIdx].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, SrcColor.GetHandleSRV()->HandleGPU);
-	pCmdList->SetPipelineState(m_pDownsamplePSO.Get());
-
-	
-	D3D12_VIEWPORT viewport = m_Viewport;
-	viewport.Width = (FLOAT)DstColor.GetDesc().Width;
-	viewport.Height = (FLOAT)DstColor.GetDesc().Height;
-	pCmdList->RSSetViewports(1, &viewport);
-
-	D3D12_RECT scissor = m_Scissor;
-	scissor.right = (LONG)DstColor.GetDesc().Width;
-	scissor.bottom = (LONG)DstColor.GetDesc().Height;
-	pCmdList->RSSetScissorRects(1, &scissor);
-	
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
-	pCmdList->IASetVertexBuffers(0, 1, &VBV);
-
-	pCmdList->DrawInstanced(3, 1, 0, 0);
-
-	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
