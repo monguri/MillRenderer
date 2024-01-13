@@ -1551,7 +1551,7 @@ bool SampleApp::OnInit()
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
 			.SetSRV(ShaderStage::PS, 2, 1)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::MinMagLinearMipPointClamp)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::MinMagLinearMipPointBorder)
 			.AllowIL()
 			.End();
 
