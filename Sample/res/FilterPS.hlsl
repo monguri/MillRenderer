@@ -16,6 +16,7 @@ cbuffer CbFilter : register(b0)
 }
 
 Texture2D SrcColorMap : register(t0);
+Texture2D AdditiveColorMap : register(t1);
 SamplerState LinearClampMipPointSmp : register(s0);
 
 float4 main(const VSOutput input) : SV_TARGET0
@@ -36,6 +37,11 @@ float4 main(const VSOutput input) : SV_TARGET0
 	{
 		float2 offsetedUV = uv + SampleOffsets[(uint)sampleIdx / 2].xy;
 		accumColor += SrcColorMap.Sample(LinearClampMipPointSmp, offsetedUV) * SampleWeights[sampleIdx];
+	}
+
+	if (bEnableAdditveTexture)
+	{
+		accumColor += AdditiveColorMap.Sample(LinearClampMipPointSmp, uv);
 	}
 
 	return float4(accumColor.rgb, 1);

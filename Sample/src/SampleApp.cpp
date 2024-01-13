@@ -1547,9 +1547,10 @@ bool SampleApp::OnInit()
     // 汎用フィルタ用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(2)
+		desc.Begin(3)
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
+			.SetSRV(ShaderStage::PS, 2, 1)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::MinMagLinearMipPointClamp)
 			.AllowIL()
 			.End();
@@ -1615,7 +1616,7 @@ bool SampleApp::OnInit()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.InputLayout.pInputElementDescs = elements;
 		desc.InputLayout.NumElements = 2;
-		desc.pRootSignature = m_DownsampleRootSig.GetPtr();
+		desc.pRootSignature = m_FilterRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
@@ -2181,7 +2182,15 @@ void SampleApp::OnRender()
 
 		for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
 		{
-			DrawBloomGaussianFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], i);
+			if (i == (BLOOM_NUM_DOWN_SAMPLE - 1))
+			{
+				// m_SceneColorTargetをDownerResultColorとして使っているのはダミー
+				DrawBloomGaussianFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_SceneColorTarget, m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+			}
+			else
+			{
+				DrawBloomGaussianFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_BloomVerticalTarget[i + 1], m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+			}
 		}
 	}
 
@@ -2520,7 +2529,7 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, uint32_t downSampleLevel)
+void SampleApp::DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer)
 {
 	// Horizontal Gaussian Filter
 	{
@@ -2530,8 +2539,9 @@ void SampleApp::DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, con
 		pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 		pCmdList->SetGraphicsRootSignature(m_FilterRootSig.GetPtr());
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_BloomHorizontalCB[downSampleLevel].GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(0, HorizontalConstantBuffer.GetHandleGPU());
 		pCmdList->SetGraphicsRootDescriptorTable(1, SrcColor.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, DownerResultColor.GetHandleSRV()->HandleGPU);
 		pCmdList->SetPipelineState(m_pFilterPSO.Get());
 
 		D3D12_VIEWPORT viewport = m_Viewport;
@@ -2561,8 +2571,9 @@ void SampleApp::DrawBloomGaussianFilter(ID3D12GraphicsCommandList* pCmdList, con
 		pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 		pCmdList->SetGraphicsRootSignature(m_FilterRootSig.GetPtr());
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_BloomVerticalCB[downSampleLevel].GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(0, VerticalConstantBuffer.GetHandleGPU());
 		pCmdList->SetGraphicsRootDescriptorTable(1, IntermediateColor.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, DownerResultColor.GetHandleSRV()->HandleGPU);
 		pCmdList->SetPipelineState(m_pFilterPSO.Get());
 		
 		D3D12_VIEWPORT viewport = m_Viewport;
