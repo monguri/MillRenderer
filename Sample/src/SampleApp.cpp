@@ -1060,8 +1060,8 @@ bool SampleApp::OnInit()
 		SSPassPSODescCommon.InputLayout.pInputElementDescs = elements;
 		SSPassPSODescCommon.InputLayout.NumElements = 2;
 		SSPassPSODescCommon.pRootSignature = nullptr; // 上書き必須
-		SSPassPSODescCommon.VS.pShaderBytecode = nullptr; // 上書き必須
-		SSPassPSODescCommon.VS.BytecodeLength = 0; // 上書き必須
+		SSPassPSODescCommon.VS.pShaderBytecode = nullptr; // 上書き必須。TODO:使いまわそうとしたらエラーになった。
+		SSPassPSODescCommon.VS.BytecodeLength = 0; // 上書き必須。TODO:使いまわそうとしたらエラーになった。
 		SSPassPSODescCommon.PS.pShaderBytecode = nullptr; // 上書き必須
 		SSPassPSODescCommon.PS.BytecodeLength = 0; // 上書き必須
 		SSPassPSODescCommon.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
