@@ -122,6 +122,11 @@ namespace
 		float Padding[2];
 	};
 
+	struct alignas(256) CbCameraVelocity
+	{
+		Matrix ClipToPrevClip;
+	};
+
 	struct alignas(256) CbTemporalAA
 	{
 		Matrix ClipToPrevClip;
@@ -1075,7 +1080,6 @@ bool SampleApp::OnInit()
 		SSPassPSODescCommon.SampleDesc.Quality = 0;
 	}
 
-
     // SSAO用パイプラインステートの生成
 	{
 		std::wstring vsPath;
@@ -1726,6 +1730,19 @@ bool SampleApp::OnInit()
 		ptr->bEnableSSAO = (ENABLE_SSAO ? 1 : 0);
 	}
 
+	// CameraVelocity用定数バッファの作成
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
+	{
+		if (!m_CameraVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCameraVelocity)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbCameraVelocity* ptr = m_CameraVelocityCB[i].GetPtr<CbCameraVelocity>();
+		ptr->ClipToPrevClip = Matrix::Identity;
+	}
+
 	// TemporalAA用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -1944,6 +1961,7 @@ void SampleApp::OnTerm()
 		m_DirLightShadowMapTransformCB[i].Term();
 		m_TransformCB[i].Term();
 		m_SSAO_CB[i].Term();
+		m_CameraVelocityCB[i].Term();
 		m_TemporalAA_CB[i].Term();
 		m_TonemapCB[i].Term();
 	}

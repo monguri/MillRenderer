@@ -71,6 +71,7 @@ private:
 	ConstantBuffer m_TransformCB[FRAME_COUNT];
 	ConstantBuffer m_MeshCB;
 	ConstantBuffer m_SSAO_CB[FRAME_COUNT];
+	ConstantBuffer m_CameraVelocityCB[FRAME_COUNT];
 	ConstantBuffer m_TemporalAA_CB[FRAME_COUNT];
 	ConstantBuffer m_TonemapCB[FRAME_COUNT];
 	ConstantBuffer m_DownsampleCB[BLOOM_NUM_DOWN_SAMPLE - 1];
