@@ -105,6 +105,7 @@ private:
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
 	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& projWithJitter);
 	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
+	void DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter);
 	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor);
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
