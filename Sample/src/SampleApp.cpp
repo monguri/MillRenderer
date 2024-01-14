@@ -1017,6 +1017,45 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// スクリーンスペース描画パス用のD3D12_GRAPHICS_PIPELINE_STATE_DESCの共通項
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC SSPassPSODescCommon = {};
+	{
+		D3D12_INPUT_ELEMENT_DESC elements[2];
+		elements[0].SemanticName = "POSITION";
+		elements[0].SemanticIndex = 0;
+		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
+		elements[0].InputSlot = 0;
+		elements[0].AlignedByteOffset = 0;
+		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		elements[0].InstanceDataStepRate = 0;
+
+		elements[1].SemanticName = "TEXCOORD";
+		elements[1].SemanticIndex = 0;
+		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+		elements[1].InputSlot = 0;
+		elements[1].AlignedByteOffset = 8;
+		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		elements[1].InstanceDataStepRate = 0;
+
+		SSPassPSODescCommon.InputLayout.pInputElementDescs = elements;
+		SSPassPSODescCommon.InputLayout.NumElements = 2;
+		SSPassPSODescCommon.pRootSignature = nullptr; // 上書き必須
+		SSPassPSODescCommon.VS.pShaderBytecode = nullptr; // 上書き必須
+		SSPassPSODescCommon.VS.BytecodeLength = 0; // 上書き必須
+		SSPassPSODescCommon.PS.pShaderBytecode = nullptr; // 上書き必須
+		SSPassPSODescCommon.PS.BytecodeLength = 0; // 上書き必須
+		SSPassPSODescCommon.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
+		SSPassPSODescCommon.BlendState = DirectX::CommonStates::Opaque;
+		SSPassPSODescCommon.DepthStencilState = DirectX::CommonStates::DepthNone;
+		SSPassPSODescCommon.SampleMask = UINT_MAX;
+		SSPassPSODescCommon.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		SSPassPSODescCommon.NumRenderTargets = 1;
+		SSPassPSODescCommon.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // 上書き必須
+		SSPassPSODescCommon.SampleDesc.Count = 1;
+		SSPassPSODescCommon.SampleDesc.Quality = 0;
+	}
+
+
     // SSAO用パイプラインステートの生成
 	// TODO:スクリーンスペース系は処理を共通化したい
 	{
@@ -1052,40 +1091,14 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		D3D12_INPUT_ELEMENT_DESC elements[2];
-		elements[0].SemanticName = "POSITION";
-		elements[0].SemanticIndex = 0;
-		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[0].InputSlot = 0;
-		elements[0].AlignedByteOffset = 0;
-		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[0].InstanceDataStepRate = 0;
 
-		elements[1].SemanticName = "TEXCOORD";
-		elements[1].SemanticIndex = 0;
-		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[1].InputSlot = 0;
-		elements[1].AlignedByteOffset = 8;
-		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[1].InstanceDataStepRate = 0;
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout.pInputElementDescs = elements;
-		desc.InputLayout.NumElements = 2;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_SSAO_RootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
-		desc.SampleMask = UINT_MAX;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_SSAO_Target.GetRTVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -1150,40 +1163,13 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		D3D12_INPUT_ELEMENT_DESC elements[2];
-		elements[0].SemanticName = "POSITION";
-		elements[0].SemanticIndex = 0;
-		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[0].InputSlot = 0;
-		elements[0].AlignedByteOffset = 0;
-		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[0].InstanceDataStepRate = 0;
-
-		elements[1].SemanticName = "TEXCOORD";
-		elements[1].SemanticIndex = 0;
-		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[1].InputSlot = 0;
-		elements[1].AlignedByteOffset = 8;
-		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[1].InstanceDataStepRate = 0;
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout.pInputElementDescs = elements;
-		desc.InputLayout.NumElements = 2;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_AmbientLightRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
-		desc.SampleMask = UINT_MAX;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_AmbientLightTarget.GetRTVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -1304,40 +1290,13 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		D3D12_INPUT_ELEMENT_DESC elements[2];
-		elements[0].SemanticName = "POSITION";
-		elements[0].SemanticIndex = 0;
-		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[0].InputSlot = 0;
-		elements[0].AlignedByteOffset = 0;
-		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[0].InstanceDataStepRate = 0;
-
-		elements[1].SemanticName = "TEXCOORD";
-		elements[1].SemanticIndex = 0;
-		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[1].InputSlot = 0;
-		elements[1].AlignedByteOffset = 8;
-		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[1].InstanceDataStepRate = 0;
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout.pInputElementDescs = elements;
-		desc.InputLayout.NumElements = 2;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_BloomSetupRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
-		desc.SampleMask = UINT_MAX;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_BloomSetupTarget[0].GetRTVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -1402,40 +1361,13 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		D3D12_INPUT_ELEMENT_DESC elements[2];
-		elements[0].SemanticName = "POSITION";
-		elements[0].SemanticIndex = 0;
-		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[0].InputSlot = 0;
-		elements[0].AlignedByteOffset = 0;
-		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[0].InstanceDataStepRate = 0;
-
-		elements[1].SemanticName = "TEXCOORD";
-		elements[1].SemanticIndex = 0;
-		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[1].InputSlot = 0;
-		elements[1].AlignedByteOffset = 8;
-		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[1].InstanceDataStepRate = 0;
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout.pInputElementDescs = elements;
-		desc.InputLayout.NumElements = 2;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_TonemapRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
-		desc.SampleMask = UINT_MAX;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -1499,40 +1431,13 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		D3D12_INPUT_ELEMENT_DESC elements[2];
-		elements[0].SemanticName = "POSITION";
-		elements[0].SemanticIndex = 0;
-		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[0].InputSlot = 0;
-		elements[0].AlignedByteOffset = 0;
-		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[0].InstanceDataStepRate = 0;
-
-		elements[1].SemanticName = "TEXCOORD";
-		elements[1].SemanticIndex = 0;
-		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[1].InputSlot = 0;
-		elements[1].AlignedByteOffset = 8;
-		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[1].InstanceDataStepRate = 0;
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout.pInputElementDescs = elements;
-		desc.InputLayout.NumElements = 2;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_DownsampleRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
-		desc.SampleMask = UINT_MAX;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_BloomSetupTarget[0].GetRTVDesc().Format; // TODO:フォーマットの指定は必要なのでとりあえず
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -1597,40 +1502,13 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		D3D12_INPUT_ELEMENT_DESC elements[2];
-		elements[0].SemanticName = "POSITION";
-		elements[0].SemanticIndex = 0;
-		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[0].InputSlot = 0;
-		elements[0].AlignedByteOffset = 0;
-		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[0].InstanceDataStepRate = 0;
-
-		elements[1].SemanticName = "TEXCOORD";
-		elements[1].SemanticIndex = 0;
-		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[1].InputSlot = 0;
-		elements[1].AlignedByteOffset = 8;
-		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[1].InstanceDataStepRate = 0;
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout.pInputElementDescs = elements;
-		desc.InputLayout.NumElements = 2;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_FilterRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
-		desc.SampleMask = UINT_MAX;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_BloomHorizontalTarget[0].GetRTVDesc().Format; // TODO:フォーマットの指定は必要なのでとりあえず
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -1694,40 +1572,13 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		D3D12_INPUT_ELEMENT_DESC elements[2];
-		elements[0].SemanticName = "POSITION";
-		elements[0].SemanticIndex = 0;
-		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[0].InputSlot = 0;
-		elements[0].AlignedByteOffset = 0;
-		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[0].InstanceDataStepRate = 0;
-
-		elements[1].SemanticName = "TEXCOORD";
-		elements[1].SemanticIndex = 0;
-		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[1].InputSlot = 0;
-		elements[1].AlignedByteOffset = 8;
-		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[1].InstanceDataStepRate = 0;
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout.pInputElementDescs = elements;
-		desc.InputLayout.NumElements = 2;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_DebugRenderTargetRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthNone;
-		desc.SampleMask = UINT_MAX;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
