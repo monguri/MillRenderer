@@ -34,6 +34,8 @@ private:
 	RootSignature m_SSAO_RootSig;
 	ComPtr<ID3D12PipelineState> m_pAmbientLightPSO;
 	RootSignature m_AmbientLightRootSig;
+	ComPtr<ID3D12PipelineState> m_pCameraVelocityPSO;
+	RootSignature m_CameraVelocityRootSig;
 	ComPtr<ID3D12PipelineState> m_pTemporalAA_PSO;
 	RootSignature m_TemporalAA_RootSig;
 	ComPtr<ID3D12PipelineState> m_pBloomSetupPSO;
@@ -54,6 +56,7 @@ private:
 	ColorTarget m_SSAO_Target;
 	ColorTarget m_SSAO_RandomizationTarget;
 	ColorTarget m_AmbientLightTarget;
+	ColorTarget m_CameraVelocityTarget;
 	ColorTarget m_TemporalAA_Target[FRAME_COUNT];
 	ColorTarget m_BloomSetupTarget[BLOOM_NUM_DOWN_SAMPLE];
 	ColorTarget m_BloomHorizontalTarget[BLOOM_NUM_DOWN_SAMPLE];

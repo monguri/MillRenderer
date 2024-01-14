@@ -717,6 +717,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// CameraVelocity用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_CameraVelocityTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R32_UINT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// TemporalAA用ターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -1057,7 +1077,6 @@ bool SampleApp::OnInit()
 
 
     // SSAO用パイプラインステートの生成
-	// TODO:スクリーンスペース系は処理を共通化したい
 	{
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -1129,7 +1148,6 @@ bool SampleApp::OnInit()
 	}
 
     // AmbientLight用パイプラインステートの生成
-	// TODO:スクリーンスペース系は処理を共通化したい
 	{
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -1174,6 +1192,76 @@ bool SampleApp::OnInit()
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pAmbientLightPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
+    // CameraVelocity用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin(2)
+			.SetCBV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 0)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
+			.AllowIL()
+			.End();
+
+		if (!m_CameraVelocityRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // CameraVelocity用パイプラインステートの生成
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"CameraVelocityPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_CameraVelocityRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RTVFormats[0] = m_CameraVelocityTarget.GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pCameraVelocityPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -1909,6 +1997,8 @@ void SampleApp::OnTerm()
 
 	m_AmbientLightTarget.Term();
 
+	m_CameraVelocityTarget.Term();
+
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
 		m_TemporalAA_Target[i].Term();
@@ -1937,6 +2027,9 @@ void SampleApp::OnTerm()
 
 	m_pAmbientLightPSO.Reset();
 	m_AmbientLightRootSig.Term();
+
+	m_pCameraVelocityPSO.Reset();
+	m_CameraVelocityRootSig.Term();
 
 	m_pTemporalAA_PSO.Reset();
 	m_TemporalAA_RootSig.Term();
