@@ -842,7 +842,7 @@ bool SampleApp::OnInit()
     // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
 	{
 		RootSignature::Desc desc;
-		desc.Begin(19)
+		desc.Begin()
 			.SetCBV(ShaderStage::VS, 0, 0)
 			.SetCBV(ShaderStage::VS, 1, 1)
 			.SetCBV(ShaderStage::PS, 2, 0)
@@ -1025,7 +1025,7 @@ bool SampleApp::OnInit()
     // SSAO用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(4)
+		desc.Begin()
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
 			.SetSRV(ShaderStage::PS, 2, 1)
@@ -1137,7 +1137,7 @@ bool SampleApp::OnInit()
     // AmbientLight用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(2)
+		desc.Begin()
 			.SetSRV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 1)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
@@ -1207,7 +1207,7 @@ bool SampleApp::OnInit()
     // CameraVelocity用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(3)
+		desc.Begin()
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
 			.SetSRV(ShaderStage::PS, 2, 1)
@@ -1278,7 +1278,7 @@ bool SampleApp::OnInit()
     // TemporalAA用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(5)
+		desc.Begin()
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetSRV(ShaderStage::ALL, 1, 0)
 			.SetSRV(ShaderStage::ALL, 2, 1)
@@ -1336,7 +1336,7 @@ bool SampleApp::OnInit()
     // Bloom前工程用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(1)
+		desc.Begin()
 			.SetSRV(ShaderStage::PS, 0, 0)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()
@@ -1405,7 +1405,7 @@ bool SampleApp::OnInit()
     // トーンマップ用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(3)
+		desc.Begin()
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
 			.SetSRV(ShaderStage::PS, 2, 1)
@@ -1476,7 +1476,7 @@ bool SampleApp::OnInit()
     // 汎用ダウンサンプルパス用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(2)
+		desc.Begin()
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::MinMagLinearMipPointClamp)
@@ -1546,7 +1546,7 @@ bool SampleApp::OnInit()
     // 汎用フィルタ用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(3)
+		desc.Begin()
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
 			.SetSRV(ShaderStage::PS, 2, 1)
@@ -1617,7 +1617,7 @@ bool SampleApp::OnInit()
     // レンダーターゲットデバッグ表示用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(1)
+		desc.Begin()
 			.SetSRV(ShaderStage::PS, 0, 0)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()

@@ -40,11 +40,11 @@ public:
 	public:
 		Desc();
 		~Desc();
-		Desc& Begin(int count);
-		Desc& SetCBV(ShaderStage stage, int index, uint32_t reg);
-		Desc& SetSRV(ShaderStage stage, int index, uint32_t reg);
-		Desc& SetUAV(ShaderStage stage, int index, uint32_t reg);
-		Desc& SetSmp(ShaderStage stage, int index, uint32_t reg);
+		Desc& Begin();
+		Desc& SetCBV(ShaderStage stage, int rootParamIdx, uint32_t reg);
+		Desc& SetSRV(ShaderStage stage, int rootParamIdx, uint32_t reg);
+		Desc& SetUAV(ShaderStage stage, int rootParamIdx, uint32_t reg);
+		Desc& SetSmp(ShaderStage stage, int rootParamIdx, uint32_t reg);
 		Desc& AddStaticSmp(ShaderStage stage, uint32_t reg, SamplerState state);
 		Desc& AddStaticCmpSmp(ShaderStage stage, uint32_t reg, SamplerState state);
 		Desc& AllowIL();
@@ -61,7 +61,7 @@ public:
 		uint32_t m_Flags;
 
 		void CheckStage(ShaderStage stage);
-		void SetParam(ShaderStage stage, int index, uint32_t reg, D3D12_DESCRIPTOR_RANGE_TYPE type);
+		void SetParam(ShaderStage stage, int rootParamIdx, uint32_t reg, D3D12_DESCRIPTOR_RANGE_TYPE type);
 	};
 
 	RootSignature();

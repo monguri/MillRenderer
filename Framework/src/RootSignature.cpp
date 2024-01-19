@@ -18,7 +18,7 @@ RootSignature::Desc::~Desc()
 	m_Params.clear();
 }
 
-RootSignature::Desc& RootSignature::Desc::Begin(int count)
+RootSignature::Desc& RootSignature::Desc::Begin()
 {
 	m_Flags = 0;
 
@@ -31,8 +31,8 @@ RootSignature::Desc& RootSignature::Desc::Begin(int count)
 
 	m_Samplers.clear();
 
-	m_Ranges.resize(count);
-	m_Params.resize(count);
+	m_Ranges.clear();
+	m_Params.clear();
 
 	return *this;
 }
@@ -46,50 +46,57 @@ void RootSignature::Desc::CheckStage(ShaderStage stage)
 	}
 }
 
-void RootSignature::Desc::SetParam(ShaderStage stage, int index, uint32_t reg, D3D12_DESCRIPTOR_RANGE_TYPE type)
+void RootSignature::Desc::SetParam(ShaderStage stage, int rootParamIdx, uint32_t reg, D3D12_DESCRIPTOR_RANGE_TYPE type)
 {
-	if (index >= m_Params.size())
+	if (rootParamIdx >= m_Params.size())
 	{
 		return;
 	}
 
-	m_Ranges[index].RangeType = type;
-	m_Ranges[index].NumDescriptors = 1;
-	m_Ranges[index].BaseShaderRegister = reg;
-	m_Ranges[index].RegisterSpace = 0;
-	m_Ranges[index].OffsetInDescriptorsFromTableStart = 0;
+	m_Ranges[rootParamIdx].RangeType = type;
+	m_Ranges[rootParamIdx].NumDescriptors = 1;
+	m_Ranges[rootParamIdx].BaseShaderRegister = reg;
+	m_Ranges[rootParamIdx].RegisterSpace = 0;
+	m_Ranges[rootParamIdx].OffsetInDescriptorsFromTableStart = 0;
 
 	// CBV,SRV,UAV,Samplerの場合もD3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLEのタイプの書き方で書ける。
 	// ID3D12CommandList::SetGraphicsRootConstantBufferViewでなくID3D12CommandList::SetGraphicsRootDescriptorTableを使えば
-	m_Params[index].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	m_Params[index].DescriptorTable.NumDescriptorRanges = 1;
-	m_Params[index].DescriptorTable.pDescriptorRanges = &m_Ranges[index];
-	m_Params[index].ShaderVisibility = D3D12_SHADER_VISIBILITY(stage);
+	m_Params[rootParamIdx].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	m_Params[rootParamIdx].DescriptorTable.NumDescriptorRanges = 1;
+	m_Params[rootParamIdx].ShaderVisibility = D3D12_SHADER_VISIBILITY(stage);
 
 	CheckStage(stage);
 }
 
-RootSignature::Desc& RootSignature::Desc::SetCBV(ShaderStage stage, int index, uint32_t reg)
+RootSignature::Desc& RootSignature::Desc::SetCBV(ShaderStage stage, int rootParamIdx, uint32_t reg)
 {
-	SetParam(stage, index, reg, D3D12_DESCRIPTOR_RANGE_TYPE_CBV);
+	m_Ranges.push_back(D3D12_DESCRIPTOR_RANGE());
+	m_Params.push_back(D3D12_ROOT_PARAMETER());
+	SetParam(stage, rootParamIdx, reg, D3D12_DESCRIPTOR_RANGE_TYPE_CBV);
 	return *this;
 }
 
-RootSignature::Desc& RootSignature::Desc::SetSRV(ShaderStage stage, int index, uint32_t reg)
+RootSignature::Desc& RootSignature::Desc::SetSRV(ShaderStage stage, int rootParamIdx, uint32_t reg)
 {
-	SetParam(stage, index, reg, D3D12_DESCRIPTOR_RANGE_TYPE_SRV);
+	m_Ranges.push_back(D3D12_DESCRIPTOR_RANGE());
+	m_Params.push_back(D3D12_ROOT_PARAMETER());
+	SetParam(stage, rootParamIdx, reg, D3D12_DESCRIPTOR_RANGE_TYPE_SRV);
 	return *this;
 }
 
-RootSignature::Desc& RootSignature::Desc::SetUAV(ShaderStage stage, int index, uint32_t reg)
+RootSignature::Desc& RootSignature::Desc::SetUAV(ShaderStage stage, int rootParamIdx, uint32_t reg)
 {
-	SetParam(stage, index, reg, D3D12_DESCRIPTOR_RANGE_TYPE_UAV);
+	m_Ranges.push_back(D3D12_DESCRIPTOR_RANGE());
+	m_Params.push_back(D3D12_ROOT_PARAMETER());
+	SetParam(stage, rootParamIdx, reg, D3D12_DESCRIPTOR_RANGE_TYPE_UAV);
 	return *this;
 }
 
-RootSignature::Desc& RootSignature::Desc::SetSmp(ShaderStage stage, int index, uint32_t reg)
+RootSignature::Desc& RootSignature::Desc::SetSmp(ShaderStage stage, int rootParamIdx, uint32_t reg)
 {
-	SetParam(stage, index, reg, D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER);
+	m_Ranges.push_back(D3D12_DESCRIPTOR_RANGE());
+	m_Params.push_back(D3D12_ROOT_PARAMETER());
+	SetParam(stage, rootParamIdx, reg, D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER);
 	return *this;
 }
 
@@ -307,6 +314,12 @@ RootSignature::Desc& RootSignature::Desc::End()
 	if (m_DenyStage[4])
 	{
 		m_Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+	}
+
+	// push_back()によってm_Ranges[rootParamIdx]のアドレスが変わるのでアドレスが確定してから代入する
+	for (int rootParamIdx = 0; rootParamIdx < m_Params.size(); rootParamIdx++)
+	{
+		m_Params[rootParamIdx].DescriptorTable.pDescriptorRanges = &m_Ranges[rootParamIdx];
 	}
 
 	m_Desc.NumParameters = UINT(m_Params.size());
