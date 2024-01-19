@@ -1207,9 +1207,10 @@ bool SampleApp::OnInit()
     // CameraVelocity用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin(2)
+		desc.Begin(3)
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
+			.SetSRV(ShaderStage::PS, 2, 1)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
@@ -2448,6 +2449,7 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	pCmdList->SetGraphicsRootSignature(m_CameraVelocityRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraVelocityCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pCameraVelocityPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
