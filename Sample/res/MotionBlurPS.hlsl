@@ -1,5 +1,8 @@
 #define MAX_SAMPLE_COUNT 10
 #define SAMPLE_PIXEL_WIDTH 3.0f
+#define MAX_SPEED (MAX_SAMPLE_COUNT * SAMPLE_PIXEL_WIDTH + 2)
+#define MIN_SPEED (SAMPLE_PIXEL_WIDTH + 1)
+#define SPEED_WEIGHT_MULTIPLIER (MAX_SPEED / MIN_SPEED)
 
 struct VSOutput
 {
@@ -17,9 +20,20 @@ Texture2D ColorMap : register(t0);
 Texture2D VelocityMap : register(t1);
 SamplerState PointClampSmp : register(s0);
 
+float GetSampleWeight(float2 uv)
+{
+	float2 velocityUV = VelocityMap.SampleLevel(PointClampSmp, uv, 0).xy;
+	// velocity of pixel space [0, 0]*[Width, Height]. y direction is same as V direction.
+	float2 velocityPS = velocityUV * float2(Width, Height);
+	float speedPS = length(velocityPS);
+
+	// if speedPS of this pixel less than MIN_SPEED, no motion blur, but other sample can be more slow.
+	return saturate(speedPS * SPEED_WEIGHT_MULTIPLIER);
+}
+
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	float2 velocityUV = VelocityMap.Sample(PointClampSmp, input.TexCoord).xy;
+	float2 velocityUV = VelocityMap.SampleLevel(PointClampSmp, input.TexCoord, 0).xy;
 	// velocity of pixel space [0, 0]*[Width, Height]. y direction is same as V direction.
 	float2 velocityPS = velocityUV * float2(Width, Height);
 	float speedPS = length(velocityPS);
@@ -30,23 +44,37 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float2 uv1 = input.TexCoord;
 	float2 uv2 = input.TexCoord;
 
-	float3 accum = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
-	float sampleCount = 1;
 
-	for (float i = halfSampleCount - 1.0; i > 0.0; i -= 1.0)
+	float4 result = ColorMap.Sample(PointClampSmp, input.TexCoord);
+
+	if (speedPS >= MIN_SPEED)
 	{
-		accum += ColorMap.Sample(PointClampSmp, uv1 += deltaUV).rgb;
-		accum += ColorMap.Sample(PointClampSmp, uv2 -= deltaUV).rgb;
-		sampleCount += 2;
+		// assume ColorMap.a is always 1.
+		// accum.a becomes accumulation of weight.
+		float4 accum = result;
+
+		for (float i = halfSampleCount - 1.0; i > 0.0; i -= 1.0)
+		{
+			uv1 += deltaUV;
+			accum += ColorMap.SampleLevel(PointClampSmp, uv1, 0) * GetSampleWeight(uv1);
+
+			uv2 -= deltaUV;
+			accum += ColorMap.SampleLevel(PointClampSmp, uv2, 0) * GetSampleWeight(uv2);
+		}
+
+		// almost the same as frac(halfSampleCount) replaces 0 with 1.
+		float remainder = 1 + halfSampleCount - ceil(halfSampleCount);
+		deltaUV *= remainder;
+
+		uv1 += deltaUV;
+		accum += ColorMap.SampleLevel(PointClampSmp, uv1, 0) * GetSampleWeight(uv1) * remainder;
+
+		uv2 -= deltaUV;
+		accum += ColorMap.SampleLevel(PointClampSmp, uv2, 0) * GetSampleWeight(uv2) * remainder;
+
+		// lerp with alpha of speed.
+		result = lerp(result, accum / accum.a, saturate(speedPS / MAX_SPEED));
 	}
 
-	// almost the same as frac(halfSampleCount) replaces 0 with 1
-	float remainder = 1 + halfSampleCount - ceil(halfSampleCount);
-	deltaUV *= remainder;
-	accum += ColorMap.Sample(PointClampSmp, uv1 + deltaUV).rgb * remainder;
-	accum += ColorMap.Sample(PointClampSmp, uv2 - deltaUV).rgb * remainder;
-	sampleCount += (remainder * 2);
-
-	float3 result = accum / sampleCount;
-	return float4(result, 1);
+	return result;
 }
