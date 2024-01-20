@@ -2285,7 +2285,7 @@ void SampleApp::OnRender()
 		}
 	}
 
-	DrawTonemap(pCmd, TemporalAA_DstTarget);
+	DrawTonemap(pCmd);
 
 #if DEBUG_VIEW_SSAO
 	DebugDrawSSAO(pCmd);
@@ -2685,7 +2685,7 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
+void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Tonemap");
 
@@ -2706,7 +2706,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarg
 
 	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, InputColor.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MotionBlurTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_BloomVerticalTarget[0].GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
 

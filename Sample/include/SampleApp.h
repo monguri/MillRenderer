@@ -113,7 +113,7 @@ private:
 	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor);
 	void DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList);
-	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
+	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
 	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx);
 	void DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer);
 	void DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList);
