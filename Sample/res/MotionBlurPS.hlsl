@@ -43,9 +43,9 @@ float4 main(const VSOutput input) : SV_TARGET0
 	// almost the same as frac(halfSampleCount) replaces 0 with 1
 	float remainder = 1 + halfSampleCount - ceil(halfSampleCount);
 	deltaUV *= remainder;
-	accum += ColorMap.Sample(PointClampSmp, uv1 + deltaUV).rgb;
-	accum += ColorMap.Sample(PointClampSmp, uv2 - deltaUV).rgb;
-	sampleCount += 2;
+	accum += ColorMap.Sample(PointClampSmp, uv1 + deltaUV).rgb * remainder;
+	accum += ColorMap.Sample(PointClampSmp, uv2 - deltaUV).rgb * remainder;
+	sampleCount += (remainder * 2);
 
 	float3 result = accum / sampleCount;
 	return float4(result, 1);
