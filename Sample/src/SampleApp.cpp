@@ -125,6 +125,9 @@ namespace
 	struct alignas(256) CbCameraVelocity
 	{
 		Matrix ClipToPrevClip;
+		int Width;
+		int Height;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -1333,6 +1336,75 @@ bool SampleApp::OnInit()
 		}
 	}
 
+    // MotionBlur用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin()
+			.SetSRV(ShaderStage::PS, 0, 0)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
+			.AllowIL()
+			.End();
+
+		if (!m_MotionBlurRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // MotionBlur用パイプラインステートの生成
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"BloomSetupPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_MotionBlurRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RTVFormats[0] = m_BloomSetupTarget[0].GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pMotionBlurPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // Bloom前工程用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -1742,6 +1814,8 @@ bool SampleApp::OnInit()
 
 		CbCameraVelocity* ptr = m_CameraVelocityCB[i].GetPtr<CbCameraVelocity>();
 		ptr->ClipToPrevClip = Matrix::Identity;
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
 	}
 
 	// TemporalAA用定数バッファの作成
@@ -2052,6 +2126,9 @@ void SampleApp::OnTerm()
 
 	m_pTemporalAA_PSO.Reset();
 	m_TemporalAA_RootSig.Term();
+
+	m_pMotionBlurPSO.Reset();
+	m_MotionBlurRootSig.Term();
 
 	m_pBloomSetupPSO.Reset();
 	m_BloomSetupRootSig.Term();

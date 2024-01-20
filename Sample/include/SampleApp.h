@@ -38,6 +38,8 @@ private:
 	RootSignature m_CameraVelocityRootSig;
 	ComPtr<ID3D12PipelineState> m_pTemporalAA_PSO;
 	RootSignature m_TemporalAA_RootSig;
+	ComPtr<ID3D12PipelineState> m_pMotionBlurPSO;
+	RootSignature m_MotionBlurRootSig;
 	ComPtr<ID3D12PipelineState> m_pBloomSetupPSO;
 	RootSignature m_BloomSetupRootSig;
 	ComPtr<ID3D12PipelineState> m_pTonemapPSO;
