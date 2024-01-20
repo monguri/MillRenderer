@@ -83,8 +83,8 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 
 	float deviceZ = DepthMap.SampleLevel(PointClampSmp, uv, 0).r;
 
-	float4 clipPos = float4(screenPos, deviceZ, 1);
-	float4 prevClipPos = mul(ClipToPrevClip, clipPos);
+	float4 ndcPos = float4(screenPos, deviceZ, 1);
+	float4 prevClipPos = mul(ClipToPrevClip, ndcPos);
 	float2 prevScreenPos = prevClipPos.xy / prevClipPos.w;
 	float2 prevUV = prevScreenPos * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
 
