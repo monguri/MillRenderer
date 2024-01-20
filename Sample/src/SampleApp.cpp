@@ -139,6 +139,14 @@ namespace
 		float Padding[1];
 	};
 
+	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	struct alignas(256) CbMotionBlur
+	{
+		int Width;
+		int Height;
+		float Padding[2];
+	};
+
 	struct alignas(256) CbTonemap
 	{
 		int Type;
@@ -1360,7 +1368,9 @@ bool SampleApp::OnInit()
 	{
 		RootSignature::Desc desc;
 		desc.Begin()
-			.SetSRV(ShaderStage::PS, 0, 0)
+			.SetCBV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 0)
+			.SetSRV(ShaderStage::PS, 2, 1)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
@@ -1854,6 +1864,19 @@ bool SampleApp::OnInit()
 		ptr->ClipToPrevClip = Matrix::Identity;
 	}
 
+	// MotionBlur用定数バッファの作成
+	{
+		if (!m_MotionBlurCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMotionBlur)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbMotionBlur* ptr = m_MotionBlurCB.GetPtr<CbMotionBlur>();
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+	}
+
 	// Bloom後工程用定数バッファの作成
 
 	// UEのデフォルト値を参考にした
@@ -2085,6 +2108,8 @@ void SampleApp::OnTerm()
 		m_BloomVerticalCB[i].Term();
 	}
 
+	m_MotionBlurCB.Term();
+
 	for (size_t i = 0; i < m_pMesh.size(); i++)
 	{
 		SafeTerm(m_pMesh[i]);
@@ -2235,9 +2260,9 @@ void SampleApp::OnRender()
 
 	DrawTemporalAA(pCmd, viewProjNoJitter, TemporalAA_SrcTarget, TemporalAA_DstTarget);
 
-	m_PrevViewProjNoJitter = viewProjNoJitter;
+	DrawMotionBlur(pCmd, TemporalAA_DstTarget);
 
-	DrawBloomSetup(pCmd, TemporalAA_DstTarget);
+	DrawBloomSetup(pCmd);
 
 	{
 		ScopedTimer scopedTimer(pCmd, L"Downsample");
@@ -2277,6 +2302,8 @@ void SampleApp::OnRender()
 	m_pQueue->ExecuteCommandLists(1, pLists);
 
 	Present(1);
+
+	m_PrevViewProjNoJitter = viewProjNoJitter;
 }
 
 void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
@@ -2601,7 +2628,36 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
+void SampleApp::DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
+{
+	ScopedTimer scopedTimer(pCmdList, L"MotionBlur");
+
+	DirectX::TransitionResource(pCmdList, m_MotionBlurTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_MotionBlurTarget.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_MotionBlurTarget.ClearView(pCmdList);
+
+	pCmdList->SetGraphicsRootSignature(m_MotionBlurRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_MotionBlurCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, InputColor.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraVelocityTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pMotionBlurPSO.Get());
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_MotionBlurTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"BloomSetup");
 
@@ -2611,7 +2667,7 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 	pCmdList->SetGraphicsRootSignature(m_BloomSetupRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, InputColor.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_MotionBlurTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pBloomSetupPSO.Get());
 
 	m_BloomSetupTarget->GetDesc().Width;
