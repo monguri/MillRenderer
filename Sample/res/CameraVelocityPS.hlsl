@@ -23,6 +23,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
 	float4 prevClipPos = mul(ClipToPrevClip, ndcPos);
 	float4 prevNdcPos = prevClipPos / prevClipPos.w;
+	float2 prevUV = (prevNdcPos.xy + float2(1, -1)) * float2(0.5, -0.5);
 
-	return float4(ndcPos.xyz - prevNdcPos.xyz, 1);
+	return float4(input.TexCoord - prevUV, 0, 1);
 }
