@@ -21,7 +21,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	// [0, 1] to [-1, 1]
 	float2 screenPos = uv * float2(2, -2) + float2(-1, 1);
 
-	float deviceZ = DepthMap.SampleLevel(PointClampSmp, uv, 0).r;
+	float deviceZ = DepthMap.Sample(PointClampSmp, uv).r;
 
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
 	float4 prevClipPos = mul(ClipToPrevClip, ndcPos);
