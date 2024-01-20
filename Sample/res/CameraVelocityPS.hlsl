@@ -7,8 +7,6 @@ struct VSOutput
 cbuffer CbCameraVelocity : register(b0)
 {
 	float4x4 ClipToPrevClip;
-	int Width;
-	int Height;
 }
 
 Texture2D ColorMap : register(t0);
@@ -17,11 +15,10 @@ SamplerState PointClampSmp : register(s0);
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	float2 uv = input.TexCoord + 0.5f / float2(Width, Height); // half pixel offset
 	// [0, 1] to [-1, 1]
-	float2 screenPos = uv * float2(2, -2) + float2(-1, 1);
+	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 
-	float deviceZ = DepthMap.Sample(PointClampSmp, uv).r;
+	float deviceZ = DepthMap.Sample(PointClampSmp, input.TexCoord).r;
 
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
 	float4 prevClipPos = mul(ClipToPrevClip, ndcPos);

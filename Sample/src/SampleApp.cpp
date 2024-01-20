@@ -125,9 +125,6 @@ namespace
 	struct alignas(256) CbCameraVelocity
 	{
 		Matrix ClipToPrevClip;
-		int Width;
-		int Height;
-		float Padding[2];
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -1844,8 +1841,6 @@ bool SampleApp::OnInit()
 
 		CbCameraVelocity* ptr = m_CameraVelocityCB[i].GetPtr<CbCameraVelocity>();
 		ptr->ClipToPrevClip = Matrix::Identity;
-		ptr->Width = m_Width;
-		ptr->Height = m_Height;
 	}
 
 	// TemporalAA用定数バッファの作成
