@@ -60,6 +60,7 @@ private:
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_CameraVelocityTarget;
 	ColorTarget m_TemporalAA_Target[FRAME_COUNT];
+	ColorTarget m_MotionBlurTarget;
 	ColorTarget m_BloomSetupTarget[BLOOM_NUM_DOWN_SAMPLE];
 	ColorTarget m_BloomHorizontalTarget[BLOOM_NUM_DOWN_SAMPLE];
 	ColorTarget m_BloomVerticalTarget[BLOOM_NUM_DOWN_SAMPLE];

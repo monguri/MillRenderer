@@ -769,6 +769,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// MotionBlur用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_MotionBlurTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// Bloom前工程用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -1392,7 +1412,7 @@ bool SampleApp::OnInit()
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_BloomSetupTarget[0].GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_MotionBlurTarget.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -2096,6 +2116,8 @@ void SampleApp::OnTerm()
 	{
 		m_TemporalAA_Target[i].Term();
 	}
+
+	m_MotionBlurTarget.Term();
 
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
 	{
