@@ -14,8 +14,8 @@
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
-#define ENABLE_SSAO true
-#define ENABLE_TEMPORAL_AA true
+#define ENABLE_SSAO false
+#define ENABLE_TEMPORAL_AA false
 
 #define DEBUG_VIEW_SSAO false
 
