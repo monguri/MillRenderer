@@ -9,9 +9,9 @@
 // Implementation is based on glTF2.0 BRDF sample implementation.
 // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
 //
-float3 SchlickFresnel(float3 f0, float VH)
+float3 SchlickFresnel(float3 f0, float3 f90, float VH)
 {
-	return f0 + (1.0f - f0) * pow(saturate(1.0f - VH), 5.0f);
+	return f0 + (f90 - f0) * pow(saturate(1.0f - VH), 5.0f);
 }
 
 float D_GGX(float NH, float alpha)
@@ -55,6 +55,7 @@ float3 ComputeBRDF
 {
 	float3 cDiff = lerp(baseColor, 0.0f, metallic);
 	float3 f0 = ComputeF0(baseColor, metallic);
+	float3 f90 = 1.0f;
 
 	// use lambert for diffuse
 	float3 diffuseTerm = cDiff * (1.0f / F_PI);
@@ -64,7 +65,7 @@ float3 ComputeBRDF
 	float V = V_SmithGGXCorrelated(NdotL, NdotV, alpha);
 	float3 specularTerm = D * V;
 
-	float3 F = SchlickFresnel(f0, VdotH);
+	float3 F = SchlickFresnel(f0, f90, VdotH);
 
 	return NdotL * lerp(diffuseTerm, specularTerm, F);
 }
