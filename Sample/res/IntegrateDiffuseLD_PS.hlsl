@@ -54,8 +54,10 @@ float3 IntegrateDiffuseCube(in float3 N, in float width, in float mipCount)
 	{
 		return acc;
 	}
-
-	return acc / accWeight;
+	else
+	{
+		return acc / accWeight;
+	}
 }
 
 float4 main(const VSOutput input) : SV_TARGET

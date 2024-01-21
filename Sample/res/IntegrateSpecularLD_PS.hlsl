@@ -56,8 +56,10 @@ float3 IntegrateSpecularCube(in float3 V, in float3 N, in float a, in float widt
 	{
 		return acc;
 	}
-
-	return acc / accWeight;
+	else
+	{
+		return acc / accWeight;
+	}
 }
 
 float4 main(const VSOutput input) : SV_TARGET
