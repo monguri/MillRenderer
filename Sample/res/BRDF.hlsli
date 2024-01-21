@@ -14,27 +14,33 @@ float3 SchlickFresnel(float3 f0, float3 f90, float VH)
 	return f0 + (f90 - f0) * pow(saturate(1.0f - VH), 5.0f);
 }
 
-float D_GGX(float NH, float alpha)
+// Implementation from "Average Irregularity Representation of a Roughened Surface for Ray Reflection" by T. S. Trowbridge, and K. P. Reitz
+// Follows the distribution function recommended in the SIGGRAPH 2013 course notes from EPIC Games [1], Equation 3.
+float D_GGX(float NdotH, float alphaRoughness)
 {
-    float a = NH * alpha;
-    float k = alpha / (1.0f - NH * NH + a * a);
-    return k * k * (1.0f / F_PI);
+    float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+    float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0f) + 1.0f;
+    return alphaRoughnessSq / (F_PI * f * f);
 }
 
-float V_SmithGGXCorrelated(float NL, float NV, float alpha)
+// Smith Joint GGX
+// Note: Vis = G / (4 * NdotL * NdotV)
+// see Eric Heitz. 2014. Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs. Journal of Computer Graphics Techniques, 3
+// see Real-Time Rendering. Page 331 to 336.
+// see https://google.github.io/filament/Filament.md.html#materialsystem/specularbrdf/geometricshadowing(specularg)
+float V_GGX(float NdotL, float NdotV, float alphaRoughness)
 {
-	float a2 = alpha * alpha;
-    float GGXV = NL * sqrt(NV * NV * (1.0f - a2) + a2);
-    float GGXL = NV * sqrt(NL * NL * (1.0f - a2) + a2);
-	float GGX = GGXV + GGXL;
-	if (GGX > 0.0f)
-	{
-		return 0.5f / GGX;
-	}
-	else
-	{
-		return 0.0f;
-	}
+    float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+
+    float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+    float GGXL = NdotV * sqrt(NdotL * NdotL * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+
+    float GGX = GGXV + GGXL;
+    if (GGX > 0.0f)
+    {
+        return 0.5f / GGX;
+    }
+    return 0.0f;
 }
 
 float3 ComputeF0(float3 baseColor, float metallic)
@@ -62,7 +68,7 @@ float3 ComputeBRDF
 
 	float alpha = roughness * roughness;
 	float D = D_GGX(NdotH, alpha);
-	float V = V_SmithGGXCorrelated(NdotL, NdotV, alpha);
+	float V = V_GGX(NdotL, NdotV, alpha);
 	float3 specularTerm = D * V;
 
 	float3 F = SchlickFresnel(f0, f90, VdotH);
