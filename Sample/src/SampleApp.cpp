@@ -413,19 +413,23 @@ bool SampleApp::OnInit()
 
 		CbPointLight* ptr = m_PointLightCB[0].GetPtr<CbPointLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+		//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 
 		ptr = m_PointLightCB[1].GetPtr<CbPointLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+		//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 
 		ptr = m_PointLightCB[2].GetPtr<CbPointLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+		//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 
 		ptr = m_PointLightCB[3].GetPtr<CbPointLight>();
 		// 少し黄色っぽい光
-		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+		//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 	}
 
 	// スポットライトバッファの設定
