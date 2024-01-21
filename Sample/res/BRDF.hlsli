@@ -61,7 +61,7 @@ float3 ComputeBRDF
 	float3 diffuseTerm = cDiff * (1.0f / F_PI);
 
 	float alpha = roughness * roughness;
-	float D = D_GGX(alpha, NdotH);
+	float D = D_GGX(NdotH, alpha);
 	float V = V_SmithGGXCorrelated(NdotL, NdotV, alpha);
 	float3 specularTerm = D * V;
 
