@@ -40,7 +40,10 @@ float V_GGX(float NdotL, float NdotV, float alphaRoughness)
 	{
 		return 0.5f / GGX;
 	}
-	return 0.0f;
+	else
+	{
+		return 0.0f;
+	}
 }
 
 float3 ComputeF0(float3 baseColor, float metallic)
