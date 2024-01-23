@@ -18,9 +18,9 @@ float3 SchlickFresnel(float3 f0, float3 f90, float VH)
 // Follows the distribution function recommended in the SIGGRAPH 2013 course notes from EPIC Games [1], Equation 3.
 float D_GGX(float NdotH, float alphaRoughness)
 {
-    float alphaRoughnessSq = alphaRoughness * alphaRoughness;
-    float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0f) + 1.0f;
-    return alphaRoughnessSq / (F_PI * f * f);
+	float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+	float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0f) + 1.0f;
+	return alphaRoughnessSq / (F_PI * f * f);
 }
 
 // Smith Joint GGX
@@ -30,17 +30,17 @@ float D_GGX(float NdotH, float alphaRoughness)
 // see https://google.github.io/filament/Filament.md.html#materialsystem/specularbrdf/geometricshadowing(specularg)
 float V_GGX(float NdotL, float NdotV, float alphaRoughness)
 {
-    float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+	float alphaRoughnessSq = alphaRoughness * alphaRoughness;
 
-    float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
-    float GGXL = NdotV * sqrt(NdotL * NdotL * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+	float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+	float GGXL = NdotV * sqrt(NdotL * NdotL * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
 
-    float GGX = GGXV + GGXL;
-    if (GGX > 0.0f)
-    {
-        return 0.5f / GGX;
-    }
-    return 0.0f;
+	float GGX = GGXV + GGXL;
+	if (GGX > 0.0f)
+	{
+		return 0.5f / GGX;
+	}
+	return 0.0f;
 }
 
 float3 ComputeF0(float3 baseColor, float metallic)
