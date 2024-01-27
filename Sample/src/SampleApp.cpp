@@ -15,7 +15,7 @@
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
 #define ENABLE_SSAO false
-#define ENABLE_TEMPORAL_AA false
+#define ENABLE_TEMPORAL_AA true
 #define ENABLE_BLOOM false
 
 #define DEBUG_VIEW_SSAO false
