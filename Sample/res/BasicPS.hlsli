@@ -1,4 +1,4 @@
-#include "BRDF.hlsli"
+﻿#include "BRDF.hlsli"
 
 #ifndef MIN_DIST
 #define MIN_DIST (0.01)
@@ -133,6 +133,27 @@ SamplerComparisonState ShadowSmp : register(s1);
 #else
 SamplerState ShadowSmp : register(s1);
 #endif
+
+// Tokuyoshi, Y., and Kaplanyan, A. S. 2021. Stable Geometric Specular Antialiasing with Projected-Space NDF Filtering. JCGT, 10, 2, 31–58.
+// https://cedil.cesa.or.jp/cedil_sessions/view/2395
+float IsotropicNDFFiltering(float3 normal, float roughness)
+{
+	float alpha = roughness * roughness;
+	float alphaSq = alpha * alpha;
+
+	float SIGMA2 = 0.5f * (1.0f / F_PI);
+	float KAPPA = 0.18;
+
+	float3 dndu = ddx(normal);
+	float3 dndv = ddy(normal);
+
+	float kernel = SIGMA2 * (dot(dndu, dndu) + dot(dndv, dndv));
+	float clampedKernel = min(kernel, KAPPA);
+
+	float filteredAlphaSq = saturate(alphaSq + clampedKernel);
+	float filteredRoughness = sqrt(sqrt(filteredAlphaSq));
+	return filteredRoughness;
+}
 
 float SmoothDistanceAttenuation
 (
@@ -397,8 +418,12 @@ PSOutput main(VSOutput input)
 	float roughness = metallicRoughness.y * RoughnessFactor;
 
 	float3 N = NormalMap.Sample(AnisotropicWrapSmp, input.TexCoord).xyz * 2.0f - 1.0f;
-	N = mul(input.InvTangentBasis, N);
+
+	// GGX specular AA
 	N = normalize(N);
+	roughness = IsotropicNDFFiltering(N, roughness);
+
+	N = mul(input.InvTangentBasis, N);
 	float3 V = normalize(CameraPosition - input.WorldPos);
 	float NV = saturate(dot(N, V));
 
