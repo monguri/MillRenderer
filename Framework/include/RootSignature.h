@@ -45,7 +45,7 @@ public:
 		Desc& SetSRV(ShaderStage stage, int rootParamIdx, uint32_t reg);
 		Desc& SetUAV(ShaderStage stage, int rootParamIdx, uint32_t reg);
 		Desc& SetSmp(ShaderStage stage, int rootParamIdx, uint32_t reg);
-		Desc& AddStaticSmp(ShaderStage stage, uint32_t reg, SamplerState state);
+		Desc& AddStaticSmp(ShaderStage stage, uint32_t reg, SamplerState state, float MipLODBias = D3D12_DEFAULT_MIP_LOD_BIAS);
 		Desc& AddStaticCmpSmp(ShaderStage stage, uint32_t reg, SamplerState state);
 		Desc& AllowIL();
 		Desc& AllowSO();

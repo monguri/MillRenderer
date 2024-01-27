@@ -100,10 +100,10 @@ RootSignature::Desc& RootSignature::Desc::SetSmp(ShaderStage stage, int rootPara
 	return *this;
 }
 
-RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32_t reg, SamplerState state)
+RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32_t reg, SamplerState state, float MipLODBias)
 {
 	D3D12_STATIC_SAMPLER_DESC desc = {};
-	desc.MipLODBias = D3D12_DEFAULT_MIP_LOD_BIAS;
+	desc.MipLODBias = MipLODBias;
 	desc.MaxAnisotropy = 1;
 	desc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 	desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
