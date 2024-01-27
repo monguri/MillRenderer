@@ -16,6 +16,7 @@
 
 #define ENABLE_SSAO false
 #define ENABLE_TEMPORAL_AA false
+#define ENABLE_BLOOM false
 
 #define DEBUG_VIEW_SSAO false
 
@@ -150,6 +151,8 @@ namespace
 		int ColorSpace;
 		float BaseLuminance;
 		float MaxLuminance;
+		int bEnableBloom;
+		float Padding[3];
 	};
 
 	struct alignas(256) CbDownsample
@@ -1945,6 +1948,9 @@ bool SampleApp::OnInit()
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
 		}
+
+		CbTonemap* ptr = m_TonemapCB[i].GetPtr<CbTonemap>();
+		ptr->bEnableBloom = (ENABLE_BLOOM ? 1 : 0);
 	}
 
 	// 汎用ダウンサンプルパス用定数バッファの作成
