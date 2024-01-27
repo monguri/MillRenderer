@@ -1,4 +1,4 @@
-﻿#include "BRDF.hlsli"
+#include "BRDF.hlsli"
 
 #ifndef MIN_DIST
 #define MIN_DIST (0.01)
@@ -134,7 +134,7 @@ SamplerComparisonState ShadowSmp : register(s1);
 SamplerState ShadowSmp : register(s1);
 #endif
 
-// Tokuyoshi, Y., and Kaplanyan, A. S. 2021. Stable Geometric Specular Antialiasing with Projected-Space NDF Filtering. JCGT, 10, 2, 31–58.
+// Tokuyoshi, Y., and Kaplanyan, A. S. 2021. Stable Geometric Specular Antialiasing with Projected-Space NDF Filtering. JCGT, 10, 2, 31-58.
 // https://cedil.cesa.or.jp/cedil_sessions/view/2395
 float IsotropicNDFFiltering(float3 normal, float roughness)
 {
@@ -419,7 +419,6 @@ PSOutput main(VSOutput input)
 
 	float3 N = NormalMap.Sample(AnisotropicWrapSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 
-	// GGX specular AA
 	N = normalize(N);
 	roughness = IsotropicNDFFiltering(N, roughness);
 
@@ -579,3 +578,4 @@ PSOutput main(VSOutput input)
 	output.Normal.a = 1.0f;
 	return output;
 }
+
