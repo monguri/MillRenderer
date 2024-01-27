@@ -142,7 +142,7 @@ float IsotropicNDFFiltering(float3 normal, float roughness)
 	float alphaSq = alpha * alpha;
 
 	float SIGMA2 = 0.5f * (1.0f / F_PI);
-	float KAPPA = 0.18;
+	float KAPPA = 0.18f;
 
 	float3 dndu = ddx(normal);
 	float3 dndv = ddy(normal);
@@ -419,6 +419,7 @@ PSOutput main(VSOutput input)
 
 	float3 N = NormalMap.Sample(AnisotropicWrapSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 
+	// for GGX specular AA
 	N = normalize(N);
 	roughness = IsotropicNDFFiltering(N, roughness);
 
