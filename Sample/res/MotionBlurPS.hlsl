@@ -14,6 +14,7 @@ cbuffer CbMotionBlur : register(b0)
 {
 	int Width;
 	int Height;
+	int bEnableMotionBlur;
 }
 
 Texture2D ColorMap : register(t0);
@@ -47,7 +48,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	float4 result = ColorMap.Sample(PointClampSmp, input.TexCoord);
 
-	if (speedPS >= MIN_SPEED)
+	if (speedPS >= MIN_SPEED && bEnableMotionBlur)
 	{
 		// assume ColorMap.a is always 1.
 		// accum.a becomes accumulation of weight.
