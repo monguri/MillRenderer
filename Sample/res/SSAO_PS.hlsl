@@ -13,6 +13,7 @@ static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
 
 #define SAMPLE_STEPS 2
 
+static const float FLOAT16F_SCALE = 4096.0f * 32.0f; // referred UE // TODO: share it with SSAO_PS.hlsl
 static const float AO_RADIUS_IN_VS = 0.5f;
 static const float AO_BIAS = 0.005f;
 static const float AO_CONTRAST = 0.5f;
@@ -35,15 +36,25 @@ cbuffer CbSSAO : register(b0)
 	float Near;
 	float Far;
 	float InvTanHalfFov;
+	int bHalfRes;
 	int bEnableSSAO;
 }
 
 Texture2D DepthMap : register(t0);
-Texture2D NormalMap : register(t1);
+// When half resolution, it is the SSAO setup texture, when full resolution, it is the scene normal texture.
+Texture2D NormalDepthMap : register(t1);
 SamplerState PointClampSmp : register(s0);
 
 Texture2D RandomNormalTex : register(t2);
 SamplerState PointWrapSmp : register(s1);
+
+float ConvertViewZtoDeviceZ(float viewZ)
+{
+	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
+	// deviceZ = ((Far * viewZ) / (Far - Near) - Far * Near / (Far - Near)) / viewZ
+	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
+	return ((Far * viewZ) / (Far - Near) - Far * Near / (Far - Near)) / viewZ;
+}
 
 float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
@@ -67,6 +78,19 @@ float3 ConverFromNDCToVS(float4 ndcPos)
 	float4 viewPos = mul(InvProjMatrix, clipPos);
 	
 	return viewPos.xyz;
+}
+
+float GetDeviceZ(float2 uv)
+{
+	if (bHalfRes)
+	{
+		float viewZ = -NormalDepthMap.Sample(PointClampSmp, uv).w * FLOAT16F_SCALE;
+		return ConvertViewZtoDeviceZ(viewZ);
+	}
+	else
+	{
+		return DepthMap.Sample(PointClampSmp, uv).r;
+	}
 }
 
 float2 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, float3 viewNormal)
@@ -94,13 +118,13 @@ float2 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, flo
 // Referenced the paper "The alchemy screen-space ambient obscurance algorithm"
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	float deviceZ = DepthMap.Sample(PointClampSmp, input.TexCoord).r;
+	float deviceZ = GetDeviceZ(input.TexCoord);
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
 	float3 viewPos = ConverFromNDCToVS(ndcPos);
 
-	float3 worldNormal = NormalMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
+	float3 worldNormal = NormalDepthMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 	float3 viewNormal = normalize(mul((float3x3)ViewMatrix, worldNormal));
 
 	//// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.

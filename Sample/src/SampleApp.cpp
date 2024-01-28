@@ -129,6 +129,7 @@ namespace
 		float Near;
 		float Far;
 		float InvTanHalfFov;
+		int bHalfRes;
 		int bEnableSSAO;
 		float Padding[2];
 	};
@@ -2382,7 +2383,7 @@ void SampleApp::OnRender()
 
 	DrawSSAOSetup(pCmd);
 
-	DrawSSAO(pCmd, projWithJitter);
+	DrawSSAO(pCmd, false, projWithJitter);
 
 	DrawAmbientLight(pCmd);
 
@@ -2659,7 +2660,7 @@ void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
 }
 
 //TODO:SSパスは処理を共通化したい
-void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& projWithJitter)
+void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, bool bHalfResolution, const DirectX::SimpleMath::Matrix& projWithJitter)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSAO");
 
@@ -2669,6 +2670,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->ViewMatrix = m_Camera.GetView();
 		ptr->InvProjMatrix = projWithJitter.Invert();
+		ptr->bHalfRes = (bHalfResolution ? 1 : 0);
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
