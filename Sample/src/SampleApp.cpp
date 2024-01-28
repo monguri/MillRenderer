@@ -15,7 +15,7 @@
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
 #define ENABLE_SSAO true
-#define ENABLE_TEMPORAL_AA true
+#define ENABLE_TEMPORAL_AA false
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
@@ -1059,20 +1059,18 @@ bool SampleApp::OnInit()
 		}
 	}
 
-    // SSAO用ルートシグニチャの生成
+    // SSAO準備パス用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
 		desc.Begin()
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
 			.SetSRV(ShaderStage::PS, 2, 1)
-			.SetSRV(ShaderStage::PS, 3, 2)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointWrap)
 			.AllowIL()
 			.End();
 
-		if (!m_SSAO_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!m_SSAOSetup_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
@@ -1115,6 +1113,80 @@ bool SampleApp::OnInit()
 		SSPassPSODescCommon.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // 上書き必須
 		SSPassPSODescCommon.SampleDesc.Count = 1;
 		SSPassPSODescCommon.SampleDesc.Quality = 0;
+	}
+
+    // SSAO準備パス用パイプラインステートの生成
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"SSAOSetup_PS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_SSAOSetup_RootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RTVFormats[0] = m_SSAO_Target.GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSSAOSetup_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
+    // SSAO用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin()
+			.SetCBV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 0)
+			.SetSRV(ShaderStage::PS, 2, 1)
+			.SetSRV(ShaderStage::PS, 3, 2)
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointWrap)
+			.AllowIL()
+			.End();
+
+		if (!m_SSAO_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
 	}
 
     // SSAO用パイプラインステートの生成
@@ -2169,6 +2241,9 @@ void SampleApp::OnTerm()
 	m_pSceneDepthMaskPSO.Reset();
 
 	m_SceneRootSig.Term();
+
+	m_pSSAOSetup_PSO.Reset();
+	m_SSAOSetup_RootSig.Term();
 
 	m_pSSAO_PSO.Reset();
 	m_SSAO_RootSig.Term();

@@ -30,6 +30,8 @@ private:
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;
+	ComPtr<ID3D12PipelineState> m_pSSAOSetup_PSO;
+	RootSignature m_SSAOSetup_RootSig;
 	ComPtr<ID3D12PipelineState> m_pSSAO_PSO;
 	RootSignature m_SSAO_RootSig;
 	ComPtr<ID3D12PipelineState> m_pAmbientLightPSO;
