@@ -1,22 +1,5 @@
-#ifndef F_PI
-#define F_PI 3.14159265358979323f
-#endif //F_PI
-
-#define SAMPLESET_ARRAY_SIZE 3
-static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
-{
-	// 3 points distributed on the unit disc, spiral order and distance
-	float2(0, -1.0f) * 0.43f, 
-	float2(0.58f, 0.814f) * 0.7f, 
-	float2(-0.58f, 0.814f) 
-};
-
-#define SAMPLE_STEPS 2
-
-static const float AO_RADIUS_IN_VS = 0.5f;
-static const float AO_BIAS = 0.005f;
-static const float AO_CONTRAST = 0.5f;
-static const float AO_INTENSITY = 0.5f;
+const static float FLOAT16F_SCALE = 4096.0f * 32.0f; // referred UE
+const static float THRESHOLD_INVERSE = 0.5f; // 0.5f is from half resolution. refered UE.
 
 struct VSOutput
 {
@@ -24,25 +7,60 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 };
 
-cbuffer CbSSAO : register(b0)
+cbuffer CbSSAOSetup : register(b0)
 {
-	float4x4 ViewMatrix;
-	float4x4 InvProjMatrix;
 	int Width;
 	int Height;
-	float2 RandomationSize;
-	float2 TemporalOffset;
 	float Near;
 	float Far;
-	float InvTanHalfFov;
-	int bEnableSSAO;
 }
 
 Texture2D DepthMap : register(t0);
 Texture2D NormalMap : register(t1);
 SamplerState PointClampSmp : register(s0);
 
+// TODO: share it with SSAO_PS.hlsl
+float ConvertFromDeviceZtoViewZ(float deviceZ)
+{
+	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
+	// deviceZ = ((Far * viewZ) / (Far - Near) - Far * Near / (Far - Near)) / viewZ
+	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
+	return (Far * Near) / (deviceZ * (Far - Near) - Far);
+}
+
+// 0: not similar .. 1:very similar
+float ComputeDepthSimilarity(float depthA, float depthB, float tweakScale)
+{
+	return saturate(1 - abs(depthA - depthB) * tweakScale);
+}
+
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	return float4(1, 1, 1, 1);
+	float2 rcpExtent = rcp(float2(Width, Height));
+
+	float2 uv[4];
+	uv[0] = input.TexCoord + float2(-0.5f, -0.5f) * rcpExtent;
+	uv[1] = input.TexCoord + float2(0.5f, -0.5f) * rcpExtent;
+	uv[2] = input.TexCoord + float2(-0.5f, 0.5f) * rcpExtent;
+	uv[3] = input.TexCoord + float2(0.5f, 0.5f) * rcpExtent;
+
+	float4 samples[4];
+	for (uint i = 0; i < 4; i++)
+	{
+		samples[i].xyz = NormalMap.SampleLevel(PointClampSmp, uv[i], 0).xyz;
+		float viewZ = ConvertFromDeviceZtoViewZ(DepthMap.SampleLevel(PointClampSmp, uv[i], 0).r);
+		// viewZ is negative value.
+		samples[i].w = -viewZ;
+	}
+
+	float maxZ = max(max(samples[0].w, samples[1].w), max(samples[2].w, samples[3].w));
+
+	float4 avgColor = 0.0001f;
+	for (uint j = 0; j < 4; j++)
+	{
+		avgColor += float4(samples[j].xyz, 1) * ComputeDepthSimilarity(samples[j].w, maxZ, THRESHOLD_INVERSE);
+	}
+	avgColor.xyz /= avgColor.w;
+
+	return float4(avgColor.xyz, maxZ / FLOAT16F_SCALE);
 }

@@ -114,7 +114,8 @@ namespace
 	{
 		int Width;
 		int Height;
-		float Padding[2];
+		float Near;
+		float Far;
 	};
 
 	struct alignas(256) CbSSAO
@@ -1927,6 +1928,8 @@ bool SampleApp::OnInit()
 		CbSSAOSetup* ptr = m_SSAOSetupCB.GetPtr<CbSSAOSetup>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
+		ptr->Near = CAMERA_NEAR;
+		ptr->Far = CAMERA_FAR;
 	}
 
 	// SSAO用定数バッファの作成
