@@ -49,6 +49,11 @@ float3 YCoCgToRGB(float3 YCoCg)
 	return float3(R, G, B);
 }
 
+float HdrWeightY(float Y)
+{
+	return rcp(Y + 4.0f);
+}
+
 uint GetTileIndex(uint2 GTid, uint2 pixelOffset)
 {
 	uint2 tilePos = GTid + pixelOffset + TILE_BORDER_SIZE;
@@ -90,20 +95,20 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	float2 prevUV = prevScreenPos * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
 
 	uint curTileIdx = GetTileIndex(GTid, uint2(0, 0));
-	float3 curColor = TileYCoCgColors[curTileIdx];
-	//float3 curColor = ColorMap.Load(float3(DTid, 0)).rgb;
-	//curColor = RGBToYCoCg(curColor);
+	float3 colorCur = TileYCoCgColors[curTileIdx];
+	//float3 colorCur = ColorMap.Load(float3(DTid, 0)).rgb;
+	//colorCur = RGBToYCoCg(colorCur);
 
-	float3 histColor = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0).rgb;
-	histColor = RGBToYCoCg(histColor);
+	float3 colorHist = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0).rgb;
+	colorHist = RGBToYCoCg(colorHist);
 
 	//
 	// clamp history color by neighborhood 3x3 current color minmax
 	//
 	float2 pixelUVoffset = float2(1.0f / Width, 1.0f / Height);
 
-	float3 neighborMin = curColor;
-	float3 neighborMax = curColor;
+	float3 neighborMin = colorCur;
+	float3 neighborMax = colorCur;
 
 	for (uint i = 0; i < 9; i++)
 	{
@@ -116,27 +121,27 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 		neighborMax = max(neighborMax, neighborColor);
 	}
 
-	histColor = clamp(histColor, neighborMin, neighborMax);
+	colorHist = clamp(colorHist, neighborMin, neighborMax);
 
 	//
 	// blend current and history color
 	//
 	if (bEnableTemporalAA)
 	{
-		float histLuma = histColor.x;
-		float curLuma = curColor.x;
+		float lumaHist = colorHist.x;
+		float lumaCur = colorCur.x;
 
 		float blendFinal = (1.0f - HISTORY_ALPHA);
-		blendFinal = max(blendFinal, saturate(LUMA_AA_SCALE * histLuma / abs(curLuma - histLuma)));
+		blendFinal = max(blendFinal, saturate(LUMA_AA_SCALE * lumaHist / abs(lumaCur - lumaHist)));
 
-		float3 finalColor = lerp(histColor, curColor, blendFinal);
+		float3 finalColor = lerp(colorHist, colorCur, blendFinal);
 		finalColor = YCoCgToRGB(finalColor);
 		OutResult[DTid] = float4(finalColor, 1.0f);
 	}
 	else
 	{
 		// just copy
-		curColor = YCoCgToRGB(curColor);
-		OutResult[DTid] = float4(curColor, 1.0f);
+		colorCur = YCoCgToRGB(colorCur);
+		OutResult[DTid] = float4(colorCur, 1.0f);
 	}
 }
