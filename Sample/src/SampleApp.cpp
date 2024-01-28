@@ -109,6 +109,14 @@ namespace
 		float Padding[2];
 	};
 
+	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	struct alignas(256) CbSSAOSetup
+	{
+		int Width;
+		int Height;
+		float Padding[2];
+	};
+
 	struct alignas(256) CbSSAO
 	{
 		Matrix ViewMatrix;
@@ -646,8 +654,8 @@ bool SampleApp::OnInit()
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
 			m_pPool[POOL_TYPE_RES],
-			m_Width,
-			m_Height,
+			(m_Width + 1) / 2, // 切り上げ
+			(m_Height + 1) / 2, // 切り上げ
 			DXGI_FORMAT_R16G16B16A16_FLOAT,
 			clearColor
 		))
@@ -1908,6 +1916,19 @@ bool SampleApp::OnInit()
 		m_QuadVB.Unmap();
 	}
 
+	// SSAO準備パス用定数バッファの作成
+	{
+		if (!m_SSAOSetupCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAOSetup)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbSSAOSetup* ptr = m_SSAOSetupCB.GetPtr<CbSSAOSetup>();
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+	}
+
 	// SSAO用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -2197,6 +2218,8 @@ void SampleApp::OnTerm()
 
 	m_MeshCB.Term();
 
+	m_SSAOSetupCB.Term();
+
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
 	{
 		m_DownsampleCB[i].Term();
@@ -2353,6 +2376,8 @@ void SampleApp::OnRender()
 	{
 		DrawScene(pCmd, lightForward, viewProjNoJitter);
 	}
+
+	DrawSSAOSetup(pCmd);
 
 	DrawSSAO(pCmd, projWithJitter);
 
@@ -2594,6 +2619,42 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 	}
 }
 
+void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"SSAOSetup");
+
+	DirectX::TransitionResource(pCmdList, m_SSAOSetup_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_SSAOSetup_Target.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_SSAOSetup_Target.ClearView(pCmdList);
+
+	pCmdList->SetGraphicsRootSignature(m_SSAOSetup_RootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAOSetupCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pSSAOSetup_PSO.Get());
+
+	D3D12_VIEWPORT halfResViewport = m_Viewport;
+	halfResViewport.Width = (FLOAT)m_SSAOSetup_Target.GetDesc().Width;
+	halfResViewport.Height = (FLOAT)m_SSAOSetup_Target.GetDesc().Height;
+	pCmdList->RSSetViewports(1, &halfResViewport);
+
+	D3D12_RECT halfResScissor = m_Scissor;
+	halfResScissor.right = (LONG)m_SSAOSetup_Target.GetDesc().Width;
+	halfResScissor.bottom = (LONG)m_SSAOSetup_Target.GetDesc().Height;
+	pCmdList->RSSetScissorRects(1, &halfResScissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_SSAOSetup_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
 //TODO:SSパスは処理を共通化したい
 void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& projWithJitter)
 {
@@ -2775,7 +2836,6 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_MotionBlurTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pBloomSetupPSO.Get());
 
-	m_BloomSetupTarget->GetDesc().Width;
 	D3D12_VIEWPORT halfResViewport = m_Viewport;
 	halfResViewport.Width = (FLOAT)m_BloomSetupTarget->GetDesc().Width;
 	halfResViewport.Height = (FLOAT)m_BloomSetupTarget->GetDesc().Height;
