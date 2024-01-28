@@ -54,6 +54,16 @@ float HdrWeightY(float Y)
 	return rcp(Y + 4.0f);
 }
 
+float2 WeightedLerpFactors(float weightA, float weightB, float blend)
+{
+	float blendA = (1.0f - blend) * weightA;
+	float blendB = blend * weightB;
+	float rcpBlend = rcp(blendA + blendB);
+	blendA *= rcpBlend;
+	blendB *= rcpBlend;
+	return float2(blendA, blendB);
+}
+
 uint GetTileIndex(uint2 GTid, uint2 pixelOffset)
 {
 	uint2 tilePos = GTid + pixelOffset + TILE_BORDER_SIZE;
@@ -134,7 +144,11 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 		float blendFinal = (1.0f - HISTORY_ALPHA);
 		blendFinal = max(blendFinal, saturate(LUMA_AA_SCALE * lumaHist / abs(lumaCur - lumaHist)));
 
-		float3 finalColor = lerp(colorHist, colorCur, blendFinal);
+		float weightCur = HdrWeightY(lumaCur);
+		float weightHist = HdrWeightY(lumaHist);
+		float2 weights = WeightedLerpFactors(weightHist, weightCur, blendFinal);
+
+		float3 finalColor = colorHist * weights.x + colorCur * weights.y;
 		finalColor = YCoCgToRGB(finalColor);
 		OutResult[DTid] = float4(finalColor, 1.0f);
 	}
