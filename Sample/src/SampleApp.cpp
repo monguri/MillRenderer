@@ -637,6 +637,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// SSAO準備パス用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_SSAOSetup_Target.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// SSAO用カラーターゲットの生成
 	{
 		float clearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -1156,7 +1176,7 @@ bool SampleApp::OnInit()
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_SSAO_Target.GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_SSAOSetup_Target.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -2209,6 +2229,8 @@ void SampleApp::OnTerm()
 	m_SceneColorTarget.Term();
 	m_SceneNormalTarget.Term();
 	m_SceneDepthTarget.Term();
+
+	m_SSAOSetup_Target.Term();
 
 	m_SSAO_Target.Term();
 	m_SSAO_RandomizationTarget.Term();

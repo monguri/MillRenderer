@@ -57,6 +57,7 @@ private:
 	ColorTarget m_SceneColorTarget;
 	ColorTarget m_SceneNormalTarget;
 	DepthTarget m_SceneDepthTarget;
+	ColorTarget m_SSAOSetup_Target;
 	ColorTarget m_SSAO_Target;
 	ColorTarget m_SSAO_RandomizationTarget;
 	ColorTarget m_AmbientLightTarget;
