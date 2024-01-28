@@ -2837,13 +2837,13 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetPipelineState(m_pBloomSetupPSO.Get());
 
 	D3D12_VIEWPORT halfResViewport = m_Viewport;
-	halfResViewport.Width = (FLOAT)m_BloomSetupTarget->GetDesc().Width;
-	halfResViewport.Height = (FLOAT)m_BloomSetupTarget->GetDesc().Height;
+	halfResViewport.Width = (FLOAT)m_BloomSetupTarget[0].GetDesc().Width;
+	halfResViewport.Height = (FLOAT)m_BloomSetupTarget[0].GetDesc().Height;
 	pCmdList->RSSetViewports(1, &halfResViewport);
 
 	D3D12_RECT halfResScissor = m_Scissor;
-	halfResScissor.right = (LONG)m_BloomSetupTarget->GetDesc().Width;
-	halfResScissor.bottom = (LONG)m_BloomSetupTarget->GetDesc().Height;
+	halfResScissor.right = (LONG)m_BloomSetupTarget[0].GetDesc().Width;
+	halfResScissor.bottom = (LONG)m_BloomSetupTarget[0].GetDesc().Height;
 	pCmdList->RSSetScissorRects(1, &halfResScissor);
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
