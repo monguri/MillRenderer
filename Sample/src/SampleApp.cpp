@@ -649,7 +649,7 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_SSAOSetup_Target.InitRenderTarget
+		if (!m_SSAOSetupTarget.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -1098,7 +1098,7 @@ bool SampleApp::OnInit()
 			.AllowIL()
 			.End();
 
-		if (!m_SSAOSetup_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!m_SSAOSetupRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
@@ -1179,16 +1179,16 @@ bool SampleApp::OnInit()
 
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_SSAOSetup_RootSig.GetPtr();
+		desc.pRootSignature = m_SSAOSetupRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_SSAOSetup_Target.GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_SSAOSetupTarget.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pSSAOSetup_PSO.GetAddressOf())
+			IID_PPV_ARGS(m_pSSAOSetupPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -2253,7 +2253,7 @@ void SampleApp::OnTerm()
 	m_SceneNormalTarget.Term();
 	m_SceneDepthTarget.Term();
 
-	m_SSAOSetup_Target.Term();
+	m_SSAOSetupTarget.Term();
 
 	m_SSAO_Target.Term();
 	m_SSAO_RandomizationTarget.Term();
@@ -2287,8 +2287,8 @@ void SampleApp::OnTerm()
 
 	m_SceneRootSig.Term();
 
-	m_pSSAOSetup_PSO.Reset();
-	m_SSAOSetup_RootSig.Term();
+	m_pSSAOSetupPSO.Reset();
+	m_SSAOSetupRootSig.Term();
 
 	m_pSSAO_PSO.Reset();
 	m_SSAO_RootSig.Term();
@@ -2623,27 +2623,27 @@ void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSAOSetup");
 
-	DirectX::TransitionResource(pCmdList, m_SSAOSetup_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SSAOSetupTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	const DescriptorHandle* handleRTV = m_SSAOSetup_Target.GetHandleRTV();
+	const DescriptorHandle* handleRTV = m_SSAOSetupTarget.GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
-	m_SSAOSetup_Target.ClearView(pCmdList);
+	m_SSAOSetupTarget.ClearView(pCmdList);
 
-	pCmdList->SetGraphicsRootSignature(m_SSAOSetup_RootSig.GetPtr());
+	pCmdList->SetGraphicsRootSignature(m_SSAOSetupRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAOSetupCB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetPipelineState(m_pSSAOSetup_PSO.Get());
+	pCmdList->SetPipelineState(m_pSSAOSetupPSO.Get());
 
 	D3D12_VIEWPORT halfResViewport = m_Viewport;
-	halfResViewport.Width = (FLOAT)m_SSAOSetup_Target.GetDesc().Width;
-	halfResViewport.Height = (FLOAT)m_SSAOSetup_Target.GetDesc().Height;
+	halfResViewport.Width = (FLOAT)m_SSAOSetupTarget.GetDesc().Width;
+	halfResViewport.Height = (FLOAT)m_SSAOSetupTarget.GetDesc().Height;
 	pCmdList->RSSetViewports(1, &halfResViewport);
 
 	D3D12_RECT halfResScissor = m_Scissor;
-	halfResScissor.right = (LONG)m_SSAOSetup_Target.GetDesc().Width;
-	halfResScissor.bottom = (LONG)m_SSAOSetup_Target.GetDesc().Height;
+	halfResScissor.right = (LONG)m_SSAOSetupTarget.GetDesc().Width;
+	halfResScissor.bottom = (LONG)m_SSAOSetupTarget.GetDesc().Height;
 	pCmdList->RSSetScissorRects(1, &halfResScissor);
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2652,7 +2652,7 @@ void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	DirectX::TransitionResource(pCmdList, m_SSAOSetup_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SSAOSetupTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 //TODO:SSパスは処理を共通化したい

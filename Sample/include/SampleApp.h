@@ -30,8 +30,8 @@ private:
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;
-	ComPtr<ID3D12PipelineState> m_pSSAOSetup_PSO;
-	RootSignature m_SSAOSetup_RootSig;
+	ComPtr<ID3D12PipelineState> m_pSSAOSetupPSO;
+	RootSignature m_SSAOSetupRootSig;
 	ComPtr<ID3D12PipelineState> m_pSSAO_PSO;
 	RootSignature m_SSAO_RootSig;
 	ComPtr<ID3D12PipelineState> m_pAmbientLightPSO;
@@ -57,7 +57,7 @@ private:
 	ColorTarget m_SceneColorTarget;
 	ColorTarget m_SceneNormalTarget;
 	DepthTarget m_SceneDepthTarget;
-	ColorTarget m_SSAOSetup_Target;
+	ColorTarget m_SSAOSetupTarget;
 	ColorTarget m_SSAO_Target;
 	ColorTarget m_SSAO_RandomizationTarget;
 	ColorTarget m_AmbientLightTarget;
