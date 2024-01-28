@@ -14,6 +14,7 @@ SamplerState PointClampSmp : register(s0);
 RWTexture2D<float4> OutResult : register(u0);
 
 static const float HISTORY_ALPHA = 0.638511181f; // referenced UE.
+static const float LUMA_AA_SCALE = 0.01f; // referenced UE.
 
 static const uint THREAD_GROUP_SIZE_X = 8;
 static const uint THREAD_GROUP_SIZE_Y = 8;
@@ -122,7 +123,13 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	//
 	if (bEnableTemporalAA)
 	{
-		float3 finalColor = lerp(histColor, curColor, (1.0f - HISTORY_ALPHA));
+		float histLuma = histColor.x;
+		float curLuma = curColor.x;
+
+		float blendFinal = (1.0f - HISTORY_ALPHA);
+		blendFinal = max(blendFinal, saturate(LUMA_AA_SCALE * histLuma / abs(curLuma - histLuma)));
+
+		float3 finalColor = lerp(histColor, curColor, blendFinal);
 		finalColor = YCoCgToRGB(finalColor);
 		OutResult[DTid] = float4(finalColor, 1.0f);
 	}
