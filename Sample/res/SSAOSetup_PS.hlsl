@@ -1,5 +1,5 @@
-const static float FLOAT16F_SCALE = 4096.0f * 32.0f; // referred UE
-const static float THRESHOLD_INVERSE = 0.5f; // 0.5f is from half resolution. refered UE.
+static const float FLOAT16F_SCALE = 4096.0f * 32.0f; // referred UE // TODO: share it with SSAO_PS.hlsl
+static const float THRESHOLD_INVERSE = 0.5f; // 0.5f is from half resolution. refered UE.
 
 struct VSOutput
 {
