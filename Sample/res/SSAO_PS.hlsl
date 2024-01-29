@@ -2,8 +2,8 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
-#define SAMPLESET_ARRAY_SIZE 3
-static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE] =
+#define SAMPLESET_ARRAY_SIZE_FULL_RES 3
+static const float2 OcclusionSamplesOffsetsFullRes[SAMPLESET_ARRAY_SIZE_FULL_RES] =
 {
 	// 3 points distributed on the unit disc, spiral order and distance
 	float2(0, -1.0f) * 0.43f, 
@@ -147,9 +147,9 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float accumulator = 0;
 
 	// disk random loop
-	for (int i = 0; i < SAMPLESET_ARRAY_SIZE; i++)
+	for (int i = 0; i < SAMPLESET_ARRAY_SIZE_FULL_RES; i++)
 	{
-		float2 unrotatedRandom = OcclusionSamplesOffsets[i];
+		float2 unrotatedRandom = OcclusionSamplesOffsetsFullRes[i];
 		float2 localRandom = (unrotatedRandom.x * rotation + unrotatedRandom.y * float2(-rotation.y, rotation.x)) * AORadiusInSS;
 
 		// ray-march loop
@@ -163,8 +163,18 @@ float4 main(const VSOutput input) : SV_TARGET0
 		}
 	}
 
-	float numSample = SAMPLESET_ARRAY_SIZE * SAMPLE_STEPS * 2;
+	float numSample = SAMPLESET_ARRAY_SIZE_FULL_RES * SAMPLE_STEPS * 2;
+	#if 1
+	float result = max(1 - accumulator / numSample * 2.0f, 0.0f);
+
+	if (!bHalfRes)
+	{
+		//result = pow(1 - (1 - result) * AO_INTENSITY, AO_CONTRAST);
+		result = 1 - (1 - pow(result, AO_CONTRAST)) * AO_INTENSITY;
+	}
+	#else
 	float result = pow(max(1.0f - accumulator / numSample * 2.0f * AO_INTENSITY, 0.0f), AO_CONTRAST);
+	#endif
 
 	if (bEnableSSAO)
 	{
