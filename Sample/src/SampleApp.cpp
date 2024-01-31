@@ -671,7 +671,7 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-		if (!m_SSAO_Target.InitRenderTarget
+		if (!m_SSAO_FullResTarget.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -1260,7 +1260,7 @@ bool SampleApp::OnInit()
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_SSAO_Target.GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_SSAO_FullResTarget.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -1936,13 +1936,13 @@ bool SampleApp::OnInit()
 	// SSAO用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
-		if (!m_SSAO_CB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAO)))
+		if (!m_SSAO_FullResCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAO)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
 		}
 
-		CbSSAO* ptr = m_SSAO_CB[i].GetPtr<CbSSAO>();
+		CbSSAO* ptr = m_SSAO_FullResCB[i].GetPtr<CbSSAO>();
 		ptr->ViewMatrix = Matrix::Identity;
 		ptr->InvProjMatrix = Matrix::Identity;
 		ptr->Width = m_Width;
@@ -2203,7 +2203,7 @@ void SampleApp::OnTerm()
 		m_CameraCB[i].Term();
 		m_DirLightShadowMapTransformCB[i].Term();
 		m_TransformCB[i].Term();
-		m_SSAO_CB[i].Term();
+		m_SSAO_FullResCB[i].Term();
 		m_CameraVelocityCB[i].Term();
 		m_TemporalAA_CB[i].Term();
 		m_TonemapCB[i].Term();
@@ -2259,7 +2259,7 @@ void SampleApp::OnTerm()
 
 	m_SSAOSetupTarget.Term();
 
-	m_SSAO_Target.Term();
+	m_SSAO_FullResTarget.Term();
 	m_SSAO_RandomizationTarget.Term();
 
 	m_AmbientLightTarget.Term();
@@ -2665,7 +2665,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, bool bHalfResoluti
 	ScopedTimer scopedTimer(pCmdList, L"SSAO");
 
 	{
-		CbSSAO* ptr = m_SSAO_CB[m_FrameIndex].GetPtr<CbSSAO>();
+		CbSSAO* ptr = m_SSAO_FullResCB[m_FrameIndex].GetPtr<CbSSAO>();
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->ViewMatrix = m_Camera.GetView();
@@ -2673,15 +2673,15 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, bool bHalfResoluti
 		ptr->bHalfRes = (bHalfResolution ? 1 : 0);
 	}
 
-	DirectX::TransitionResource(pCmdList, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	const DescriptorHandle* handleRTV = m_SSAO_Target.GetHandleRTV();
+	const DescriptorHandle* handleRTV = m_SSAO_FullResTarget.GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
-	m_SSAO_Target.ClearView(pCmdList);
+	m_SSAO_FullResTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_CB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTarget.GetHandleSRV()->HandleGPU);
@@ -2696,7 +2696,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, bool bHalfResoluti
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	DirectX::TransitionResource(pCmdList, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
@@ -2712,7 +2712,7 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_AmbientLightRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pAmbientLightPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -3023,10 +3023,10 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 
 	// R8_UNORMとR10G10B10A2_UNORMではCopyResourceでは非対応でエラーが出るのでシェーダでコピーする
 
-	//DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	//DirectX::TransitionResource(pCmd, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	//DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
-	//pCmd->CopyResource(m_ColorTarget[m_FrameIndex].GetResource(), m_SSAO_Target.GetResource());
-	//DirectX::TransitionResource(pCmd, m_SSAO_Target.GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	//pCmd->CopyResource(m_ColorTarget[m_FrameIndex].GetResource(), m_SSAO_FullResTarget.GetResource());
+	//DirectX::TransitionResource(pCmd, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	//DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
 
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -3039,8 +3039,7 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_DebugRenderTargetRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pDebugRenderTargetPSO.Get());
-	//pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
