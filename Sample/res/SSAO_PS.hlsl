@@ -2,6 +2,18 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
+#define SAMPLESET_ARRAY_SIZE_HALF_RES 6
+static const float2 OcclusionSamplesOffsetsHalfRes[SAMPLESET_ARRAY_SIZE_HALF_RES ]=
+{
+	// 6 points distributed on the unit disc, spiral order and distance
+	float2(0.000, 0.200), 
+	float2(0.325, 0.101), 
+	float2(0.272, -0.396), 
+	float2(-0.385, -0.488), 
+	float2(-0.711, 0.274), 
+	float2(0.060, 0.900) 
+};
+
 #define SAMPLESET_ARRAY_SIZE_FULL_RES 3
 static const float2 OcclusionSamplesOffsetsFullRes[SAMPLESET_ARRAY_SIZE_FULL_RES] =
 {
@@ -147,9 +159,12 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float accumulator = 0;
 
 	// disk random loop
-	for (int i = 0; i < SAMPLESET_ARRAY_SIZE_FULL_RES; i++)
+
+	int sampleSetArraySize = (bHalfRes ? SAMPLESET_ARRAY_SIZE_HALF_RES : SAMPLESET_ARRAY_SIZE_FULL_RES);
+
+	for (int i = 0; i < sampleSetArraySize; i++)
 	{
-		float2 unrotatedRandom = OcclusionSamplesOffsetsFullRes[i];
+		float2 unrotatedRandom = (bHalfRes ? OcclusionSamplesOffsetsHalfRes[i] : OcclusionSamplesOffsetsFullRes[i]);
 		float2 localRandom = (unrotatedRandom.x * rotation + unrotatedRandom.y * float2(-rotation.y, rotation.x)) * AORadiusInSS;
 
 		// ray-march loop
@@ -163,24 +178,16 @@ float4 main(const VSOutput input) : SV_TARGET0
 		}
 	}
 
-	float numSample = SAMPLESET_ARRAY_SIZE_FULL_RES * SAMPLE_STEPS * 2;
-	#if 1
+	float numSample = sampleSetArraySize * SAMPLE_STEPS * 2;
 	float result = max(1 - accumulator / numSample * 2.0f, 0.0f);
 
 	if (!bHalfRes)
 	{
-		//result = pow(1 - (1 - result) * AO_INTENSITY, AO_CONTRAST);
 		result = 1 - (1 - pow(result, AO_CONTRAST)) * AO_INTENSITY;
 	}
-	#else
-	float result = pow(max(1.0f - accumulator / numSample * 2.0f * AO_INTENSITY, 0.0f), AO_CONTRAST);
-	#endif
 
 	if (bEnableSSAO)
 	{
-		//float normalizedDepth = sceneDepth / 20; // 20 is manually adjustetd value
-		//return float4(normalizedDepth, normalizedDepth, normalizedDepth, 1);
-
 		return float4(result, result, result, 1);
 	}
 	else
