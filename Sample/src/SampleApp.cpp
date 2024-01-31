@@ -19,7 +19,7 @@
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
-#define DEBUG_VIEW_SSAO false
+#define DEBUG_VIEW_SSAO true
 
 using namespace DirectX::SimpleMath;
 
