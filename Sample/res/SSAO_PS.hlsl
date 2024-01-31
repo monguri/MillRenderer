@@ -157,11 +157,9 @@ float4 main(const VSOutput input) : SV_TARGET0
 #endif
 
 	float accumulator = 0;
-
-	// disk random loop
-
 	int sampleSetArraySize = (bHalfRes ? SAMPLESET_ARRAY_SIZE_HALF_RES : SAMPLESET_ARRAY_SIZE_FULL_RES);
 
+	// disk random loop
 	for (int i = 0; i < sampleSetArraySize; i++)
 	{
 		float2 unrotatedRandom = (bHalfRes ? OcclusionSamplesOffsetsHalfRes[i] : OcclusionSamplesOffsetsFullRes[i]);
