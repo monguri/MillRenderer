@@ -667,7 +667,30 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// SSAO用カラーターゲットの生成
+	// SSAO半解像度用カラーターゲットの生成
+	{
+		float clearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+		uint32_t width = (m_Width + 1) / 2; // 切り上げ
+		uint32_t height = (m_Height + 1) / 2; // 切り上げ
+
+		if (!m_SSAO_HalfResTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			width,
+			height,
+			DXGI_FORMAT_R8_UNORM,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
+	// SSAOフル解像度用カラーターゲットの生成
 	{
 		float clearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
@@ -1933,7 +1956,30 @@ bool SampleApp::OnInit()
 		ptr->Far = CAMERA_FAR;
 	}
 
-	// SSAO用定数バッファの作成
+	// SSAO半解像度用定数バッファの作成
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
+	{
+		if (!m_SSAO_HalfResCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAO)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbSSAO* ptr = m_SSAO_HalfResCB[i].GetPtr<CbSSAO>();
+		ptr->ViewMatrix = Matrix::Identity;
+		ptr->InvProjMatrix = Matrix::Identity;
+		ptr->Width = (int)m_SSAO_HalfResTarget.GetDesc().Width;
+		ptr->Height = (int)m_SSAO_HalfResTarget.GetDesc().Height;
+		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTarget.GetDesc().Width, (float)m_SSAO_RandomizationTarget.GetDesc().Height);
+		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
+		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
+		ptr->Near = CAMERA_NEAR;
+		ptr->Far = CAMERA_FAR;
+		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
+		ptr->bEnableSSAO = (ENABLE_SSAO ? 1 : 0);
+	}
+
+	// SSAOフル解像度用定数バッファの作成 // TODO: 上の半解像度と設定処理が冗長
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
 		if (!m_SSAO_FullResCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAO)))
@@ -2203,6 +2249,7 @@ void SampleApp::OnTerm()
 		m_CameraCB[i].Term();
 		m_DirLightShadowMapTransformCB[i].Term();
 		m_TransformCB[i].Term();
+		m_SSAO_HalfResCB[i].Term();
 		m_SSAO_FullResCB[i].Term();
 		m_CameraVelocityCB[i].Term();
 		m_TemporalAA_CB[i].Term();
@@ -2259,6 +2306,7 @@ void SampleApp::OnTerm()
 
 	m_SSAOSetupTarget.Term();
 
+	m_SSAO_HalfResTarget.Term();
 	m_SSAO_FullResTarget.Term();
 	m_SSAO_RandomizationTarget.Term();
 
