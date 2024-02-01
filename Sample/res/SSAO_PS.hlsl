@@ -96,8 +96,8 @@ float GetDeviceZ(float2 uv)
 {
 	if (bHalfRes)
 	{
-		float viewZ = -NormalDepthMap.Sample(PointClampSmp, uv).w * FLOAT16F_SCALE;
-		return ConvertViewZtoDeviceZ(viewZ);
+		float linearZ = NormalDepthMap.Sample(PointClampSmp, uv).w * FLOAT16F_SCALE;
+		return ConvertViewZtoDeviceZ(linearZ);
 	}
 	else
 	{
