@@ -114,7 +114,7 @@ private:
 	void DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
 	void DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList);
-	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList, bool bHalfResolution, const DirectX::SimpleMath::Matrix& projWithJitter);
+	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& projWithJitter);
 	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
 	void DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter);
 	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor);

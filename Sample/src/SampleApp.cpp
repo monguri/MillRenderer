@@ -2431,7 +2431,7 @@ void SampleApp::OnRender()
 
 	DrawSSAOSetup(pCmd);
 
-	DrawSSAO(pCmd, false, projWithJitter);
+	DrawSSAO(pCmd, projWithJitter);
 
 	DrawAmbientLight(pCmd);
 
@@ -2708,43 +2708,92 @@ void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
 }
 
 //TODO:SSパスは処理を共通化したい
-void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, bool bHalfResolution, const DirectX::SimpleMath::Matrix& projWithJitter)
+void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& projWithJitter)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SSAO");
-
+	// 半解像度パス // TODO:フル解像度パスと処理が冗長
 	{
-		CbSSAO* ptr = m_SSAO_FullResCB[m_FrameIndex].GetPtr<CbSSAO>();
-		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
-		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
-		ptr->ViewMatrix = m_Camera.GetView();
-		ptr->InvProjMatrix = projWithJitter.Invert();
-		ptr->bHalfRes = (bHalfResolution ? 1 : 0);
+		ScopedTimer scopedTimer(pCmdList, L"SSAOHalfRes");
+
+		{
+			CbSSAO* ptr = m_SSAO_HalfResCB[m_FrameIndex].GetPtr<CbSSAO>();
+			// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
+			ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
+			ptr->ViewMatrix = m_Camera.GetView();
+			ptr->InvProjMatrix = projWithJitter.Invert();
+			ptr->bHalfRes = 1;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_SSAO_HalfResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+		const DescriptorHandle* handleRTV = m_SSAO_HalfResTarget.GetHandleRTV();
+		pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+		m_SSAO_HalfResTarget.ClearView(pCmdList);
+
+		pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResCB[m_FrameIndex].GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_SSAOSetupTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
+
+		D3D12_VIEWPORT halfResViewport = m_Viewport;
+		halfResViewport.Width = (FLOAT)m_SSAO_HalfResTarget.GetDesc().Width;
+		halfResViewport.Height = (FLOAT)m_SSAO_HalfResTarget.GetDesc().Height;
+		pCmdList->RSSetViewports(1, &halfResViewport);
+
+		D3D12_RECT halfResScissor = m_Scissor;
+		halfResScissor.right = (LONG)m_SSAO_HalfResTarget.GetDesc().Width;
+		halfResScissor.bottom = (LONG)m_SSAO_HalfResTarget.GetDesc().Height;
+		pCmdList->RSSetScissorRects(1, &halfResScissor);
+		
+		pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+		pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+		pCmdList->DrawInstanced(3, 1, 0, 0);
+
+		DirectX::TransitionResource(pCmdList, m_SSAO_HalfResTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
-	DirectX::TransitionResource(pCmdList, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	// フル解像度パス
+	{
+		ScopedTimer scopedTimer(pCmdList, L"SSAOFullRes");
 
-	const DescriptorHandle* handleRTV = m_SSAO_FullResTarget.GetHandleRTV();
-	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+		{
+			CbSSAO* ptr = m_SSAO_FullResCB[m_FrameIndex].GetPtr<CbSSAO>();
+			// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
+			ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
+			ptr->ViewMatrix = m_Camera.GetView();
+			ptr->InvProjMatrix = projWithJitter.Invert();
+			ptr->bHalfRes = 0;
+		}
 
-	m_SSAO_FullResTarget.ClearView(pCmdList);
+		DirectX::TransitionResource(pCmdList, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
+		const DescriptorHandle* handleRTV = m_SSAO_FullResTarget.GetHandleRTV();
+		pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
-	pCmdList->RSSetViewports(1, &m_Viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
-	
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
-	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+		m_SSAO_FullResTarget.ClearView(pCmdList);
 
-	pCmdList->DrawInstanced(3, 1, 0, 0);
+		pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResCB[m_FrameIndex].GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
 
-	DirectX::TransitionResource(pCmdList, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		pCmdList->RSSetViewports(1, &m_Viewport);
+		pCmdList->RSSetScissorRects(1, &m_Scissor);
+		
+		pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+		pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+		pCmdList->DrawInstanced(3, 1, 0, 0);
+
+		DirectX::TransitionResource(pCmdList, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
 }
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
