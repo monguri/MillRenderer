@@ -60,6 +60,8 @@ SamplerState PointClampSmp : register(s0);
 Texture2D RandomNormalTex : register(t2);
 SamplerState PointWrapSmp : register(s1);
 
+Texture2D SSAOHalfRes : register(t3);
+
 float ConvertViewZtoDeviceZ(float viewZ)
 {
 	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
