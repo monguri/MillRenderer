@@ -3141,6 +3141,7 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_DebugRenderTargetRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pDebugRenderTargetPSO.Get());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
+	//pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);

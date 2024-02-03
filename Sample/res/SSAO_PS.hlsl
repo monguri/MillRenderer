@@ -26,10 +26,12 @@ static const float2 OcclusionSamplesOffsetsFullRes[SAMPLESET_ARRAY_SIZE_FULL_RES
 #define SAMPLE_STEPS 2
 
 static const float FLOAT16F_SCALE = 4096.0f * 32.0f; // referred UE // TODO: share it with SSAO_PS.hlsl
+static const float THRESHOLD_INVERSE = 0.3f; // refered UE.
 static const float AO_RADIUS_IN_VS = 0.5f;
 static const float AO_BIAS = 0.005f;
 static const float AO_CONTRAST = 0.5f;
 static const float AO_INTENSITY = 0.5f;
+static const float AO_MIP_BLEND = 0.6f;
 
 struct VSOutput
 {
@@ -142,7 +144,14 @@ float2 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, flo
 	return float2(invNormalAngleL, invNormalAngleR);
 }
 
-float4 ComputeUpsampleContribution(float sceneDepth, float2 inUV, float3 centerWorldNormal)
+//TODO: common with SSAOSetup_PS.hlsl
+// 0: not similar .. 1:very similar
+float ComputeDepthSimilarity(float depthA, float depthB, float tweakScale)
+{
+	return saturate(1 - abs(depthA - depthB) * tweakScale);
+}
+
+float ComputeUpsampleContribution(float sceneDepth, float2 inUV, float3 centerWorldNormal)
 {
 	const int SAMPLE_COUNT = 9;
 	float2 uv[SAMPLE_COUNT];
@@ -163,7 +172,7 @@ float4 ComputeUpsampleContribution(float sceneDepth, float2 inUV, float3 centerW
 
 	// to avoid division by 0
 	float weightSum = SMALL_VALUE;
-	float4 ret = float4(SMALL_VALUE, 0, 0, 0);
+	float ret = SMALL_VALUE;
 
 	float minIteration = 1.0f;
 
@@ -171,11 +180,22 @@ float4 ComputeUpsampleContribution(float sceneDepth, float2 inUV, float3 centerW
 	{
 		float sampleValue = SSAOHalfRes.Sample(PointClampSmp, uv[i]).r;
 
+		float4 normalAndSampleDepth = SSAOSetupTex.Sample(PointClampSmp, uv[i]);
+		float sampleDepth = normalAndSampleDepth.w * FLOAT16F_SCALE;
 
+		// when tweaking this constant look for crawling pattern at edges
+		float weight = ComputeDepthSimilarity(sampleDepth, sceneDepth, THRESHOLD_INVERSE);
+
+		float3 localWorldNormal = normalAndSampleDepth.xyz * 2 - 1;
+		weight *= saturate(dot(centerWorldNormal, localWorldNormal));
+
+		// todo: 1 can be put into the input to save an instruction
+		ret += sampleValue * weight;
+		weightSum += weight;
 	}
 
-	// TODO:impl
-	return 0;
+	ret /= weightSum;
+	return ret;
 }
 
 // Referenced the paper "The alchemy screen-space ambient obscurance algorithm"
@@ -228,10 +248,14 @@ float4 main(const VSOutput input) : SV_TARGET0
 	}
 
 	float numSample = sampleSetArraySize * SAMPLE_STEPS * 2;
-	float result = max(1 - accumulator / numSample * 2.0f, 0.0f);
+	float result = max(1 - accumulator / numSample * 2, 0.0f);
 
 	if (!bHalfRes)
 	{
+		float halfResAOFiltered = ComputeUpsampleContribution(-viewZ, input.TexCoord, worldNormal);
+		// recombined result from multiple resolutions
+		result = lerp(result, halfResAOFiltered, AO_MIP_BLEND);
+
 		result = 1 - (1 - pow(result, AO_CONTRAST)) * AO_INTENSITY;
 	}
 
