@@ -255,7 +255,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float halfResAOFiltered = ComputeUpsampleContribution(-viewZ, input.TexCoord, worldNormal);
 		// recombined result from multiple resolutions
 		result = lerp(result, halfResAOFiltered, AO_MIP_BLEND);
+	}
 
+	if (!bHalfRes)
+	{
 		result = 1 - (1 - pow(result, AO_CONTRAST)) * AO_INTENSITY;
 	}
 
