@@ -33,7 +33,7 @@ static const float AO_CONTRAST_FULL_RES = 1.0f;
 static const float AO_CONTRAST_HALF_RES = 1.0f;
 static const float AO_INTENSITY_FULL_RES = 0.5f;
 static const float AO_INTENSITY_HALF_RES = 0.5f;
-static const float AO_MIP_BLEND = 0.0f;
+static const float AO_MIP_BLEND = 0.6f;
 
 struct VSOutput
 {
