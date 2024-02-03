@@ -70,15 +70,15 @@ Texture2D NormalMap : register(t4);
 float ConvertViewZtoDeviceZ(float viewZ)
 {
 	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// deviceZ = ((Far * viewZ) / (Far - Near) - Far * Near / (Far - Near)) / viewZ
+	// deviceZ = ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ
 	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
-	return ((Far * viewZ) / (Far - Near) - Far * Near / (Far - Near)) / viewZ;
+	return ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ;
 }
 
 float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
 	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// deviceZ = ((Far * viewZ) / (Far - Near) - Far * Near / (Far - Near)) / viewZ
+	// deviceZ = ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ
 	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
 	return (Far * Near) / (deviceZ * (Far - Near) - Far);
 }
