@@ -29,8 +29,10 @@ static const float FLOAT16F_SCALE = 4096.0f * 32.0f; // referred UE // TODO: sha
 static const float THRESHOLD_INVERSE = 0.3f; // refered UE.
 static const float AO_RADIUS_IN_VS = 0.5f;
 static const float AO_BIAS = 0.005f;
-static const float AO_CONTRAST = 0.5f;
-static const float AO_INTENSITY = 0.5f;
+static const float AO_CONTRAST_FULL_RES = 4.0f;
+static const float AO_CONTRAST_HALF_RES = 2.0f;
+static const float AO_INTENSITY_FULL_RES = 0.5f;
+static const float AO_INTENSITY_HALF_RES = 1.0f;
 static const float AO_MIP_BLEND = 0.6f;
 
 struct VSOutput
@@ -257,9 +259,13 @@ float4 main(const VSOutput input) : SV_TARGET0
 		result = lerp(result, halfResAOFiltered, AO_MIP_BLEND);
 	}
 
-	if (!bHalfRes)
+	if (bHalfRes)
 	{
-		result = 1 - (1 - pow(result, AO_CONTRAST)) * AO_INTENSITY;
+		result = 1 - (1 - pow(result, AO_CONTRAST_HALF_RES)) * AO_INTENSITY_HALF_RES;
+	}
+	else
+	{
+		result = 1 - (1 - pow(result, AO_CONTRAST_FULL_RES)) * AO_INTENSITY_FULL_RES;
 	}
 
 	if (bEnableSSAO)
