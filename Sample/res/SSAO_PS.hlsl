@@ -29,11 +29,11 @@ static const float FLOAT16F_SCALE = 4096.0f * 32.0f; // referred UE // TODO: sha
 static const float THRESHOLD_INVERSE = 0.3f; // refered UE.
 static const float AO_RADIUS_IN_VS = 0.5f;
 static const float AO_BIAS = 0.005f;
-static const float AO_CONTRAST_FULL_RES = 4.0f;
-static const float AO_CONTRAST_HALF_RES = 2.0f;
+static const float AO_CONTRAST_FULL_RES = 1.0f;
+static const float AO_CONTRAST_HALF_RES = 1.0f;
 static const float AO_INTENSITY_FULL_RES = 0.5f;
-static const float AO_INTENSITY_HALF_RES = 1.0f;
-static const float AO_MIP_BLEND = 0.6f;
+static const float AO_INTENSITY_HALF_RES = 0.5f;
+static const float AO_MIP_BLEND = 0.0f;
 
 struct VSOutput
 {
@@ -116,11 +116,11 @@ float3 GetWSNormal(float2 uv)
 {
 	if (bHalfRes)
 	{
-		return SSAOSetupTex.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f;
+		return normalize(SSAOSetupTex.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f);
 	}
 	else
 	{
-		return NormalMap.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f;
+		return normalize(NormalMap.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f);
 	}
 }
 
@@ -188,7 +188,7 @@ float ComputeUpsampleContribution(float sceneDepth, float2 inUV, float3 centerWo
 		// when tweaking this constant look for crawling pattern at edges
 		float weight = ComputeDepthSimilarity(sampleDepth, sceneDepth, THRESHOLD_INVERSE);
 
-		float3 localWorldNormal = normalAndSampleDepth.xyz * 2 - 1;
+		float3 localWorldNormal = normalize(normalAndSampleDepth.xyz * 2 - 1);
 		weight *= saturate(dot(centerWorldNormal, localWorldNormal));
 
 		// todo: 1 can be put into the input to save an instruction
@@ -238,18 +238,21 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float2 unrotatedRandom = (bHalfRes ? OcclusionSamplesOffsetsHalfRes[i] : OcclusionSamplesOffsetsFullRes[i]);
 		float2 localRandom = (unrotatedRandom.x * rotation + unrotatedRandom.y * float2(-rotation.y, rotation.x)) * AORadiusInSS;
 
+		float2 localAccumulator = 0;
+
 		// ray-march loop
 		for (uint step = 0; step < SAMPLE_STEPS; step++)
 		{
 			float scale = (step + 1) / (float)SAMPLE_STEPS;
 
 			float2 stepSample = WedgeWithNormal(screenPos, scale * localRandom, viewPos, viewNormal);
-
-			accumulator += (stepSample.x + stepSample.y);
+			localAccumulator = max(localAccumulator, stepSample);
 		}
+
+		accumulator += localAccumulator.x + localAccumulator.y;
 	}
 
-	float numSample = sampleSetArraySize * SAMPLE_STEPS * 2;
+	float numSample = sampleSetArraySize * 2;
 	float result = max(1 - accumulator / numSample * 2, 0.0f);
 
 	if (!bHalfRes)
