@@ -70,6 +70,14 @@ uint GetTileIndex(uint2 GTid, uint2 pixelOffset)
 	return tilePos.x + tilePos.y * TILE_WIDTH;
 }
 
+// weight for pixel coordinate delta
+float ComputeSampleWeight(float2 PixelDelta)
+{
+	float x2 = saturate(dot(PixelDelta, PixelDelta));
+	// 1 - 1.9 * x^2 + 0.9 * x^4
+	return (0.905f * x2 - 1.9f) * x2 + 1.0f;
+}
+
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
 void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid : SV_GroupThreadID, uint GTidx : SV_GroupIndex)
 {
@@ -120,6 +128,9 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	float3 neighborMin = colorCur;
 	float3 neighborMax = colorCur;
 
+	float3 colorFiltered = 0;
+	float finalWeight = 0;
+
 	for (uint i = 0; i < 9; i++)
 	{
 		// array of (-1, -1) ... (1, 1) 9 elements
@@ -129,8 +140,18 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 
 		neighborMin = min(neighborMin, neighborColor);
 		neighborMax = max(neighborMax, neighborColor);
+
+		//referred FilterCurrentFrameInputSamples() of UE.
+		float sampleSpatialWeight = ComputeSampleWeight(float2(pixelOffset));
+		float sampleHDRWeight = HdrWeightY(neighborColor.x);
+		float sampleFinalWeight = sampleSpatialWeight * sampleHDRWeight;
+		colorFiltered += neighborColor * sampleFinalWeight;
+		finalWeight += sampleFinalWeight;
 	}
 
+	colorFiltered /= finalWeight;
+
+	float lumaHist = colorHist.x;
 	colorHist = clamp(colorHist, neighborMin, neighborMax);
 
 	//
@@ -138,17 +159,16 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	//
 	if (bEnableTemporalAA)
 	{
-		float lumaHist = colorHist.x;
-		float lumaCur = colorCur.x;
+		float lumaFiltered = colorFiltered.x;
 
 		float blendFinal = (1.0f - HISTORY_ALPHA);
-		blendFinal = max(blendFinal, saturate(LUMA_AA_SCALE * lumaHist / abs(lumaCur - lumaHist)));
+		blendFinal = max(blendFinal, saturate(LUMA_AA_SCALE * lumaHist / abs(lumaFiltered - lumaHist)));
 
-		float weightCur = HdrWeightY(lumaCur);
-		float weightHist = HdrWeightY(lumaHist);
-		float2 weights = WeightedLerpFactors(weightHist, weightCur, blendFinal);
+		float weightFiltered = HdrWeightY(colorFiltered.x);
+		float weightHist = HdrWeightY(colorHist.x);
+		float2 weights = WeightedLerpFactors(weightHist, weightFiltered, blendFinal);
 
-		float3 finalColor = colorHist * weights.x + colorCur * weights.y;
+		float3 finalColor = colorHist * weights.x + colorFiltered * weights.y;
 		finalColor = YCoCgToRGB(finalColor);
 		OutResult[DTid] = float4(finalColor, 1.0f);
 	}
