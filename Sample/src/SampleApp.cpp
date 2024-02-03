@@ -19,7 +19,8 @@
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
-#define DEBUG_VIEW_SSAO true
+#define DEBUG_VIEW_SSAO_FULL_RES true
+#define DEBUG_VIEW_SSAO_HALF_RES false
 
 using namespace DirectX::SimpleMath;
 
@@ -2476,7 +2477,7 @@ void SampleApp::OnRender()
 
 	DrawTonemap(pCmd);
 
-#if DEBUG_VIEW_SSAO
+#if DEBUG_VIEW_SSAO_FULL_RES || DEBUG_VIEW_SSAO_HALF_RES 
 	DebugDrawSSAO(pCmd);
 #endif
 
@@ -3140,8 +3141,11 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_DebugRenderTargetRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pDebugRenderTargetPSO.Get());
+#if DEBUG_VIEW_SSAO_FULL_RES
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
-	//pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
+#elif DEBUG_VIEW_SSAO_HALF_RES
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
+#endif
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
