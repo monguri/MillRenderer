@@ -1231,6 +1231,7 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 2, 1)
 			.SetSRV(ShaderStage::PS, 3, 2)
 			.SetSRV(ShaderStage::PS, 4, 3)
+			.SetSRV(ShaderStage::PS, 5, 4)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointWrap)
 			.AllowIL()
@@ -2780,9 +2781,10 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 		pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
 		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResCB[m_FrameIndex].GetHandleGPU());
 		pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_SSAOSetupTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(4, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
 
 		pCmdList->RSSetViewports(1, &m_Viewport);

@@ -54,13 +54,14 @@ cbuffer CbSSAO : register(b0)
 
 Texture2D DepthMap : register(t0);
 // When half resolution, it is the SSAO setup texture, when full resolution, it is the scene normal texture.
-Texture2D NormalDepthMap : register(t1);
+Texture2D SSAOSetupTex : register(t1);
 SamplerState PointClampSmp : register(s0);
 
 Texture2D RandomNormalTex : register(t2);
 SamplerState PointWrapSmp : register(s1);
 
 Texture2D SSAOHalfRes : register(t3);
+Texture2D NormalMap : register(t4);
 
 float ConvertViewZtoDeviceZ(float viewZ)
 {
@@ -98,12 +99,24 @@ float GetDeviceZ(float2 uv)
 {
 	if (bHalfRes)
 	{
-		float viewZ = -NormalDepthMap.Sample(PointClampSmp, uv).w * FLOAT16F_SCALE;
+		float viewZ = -SSAOSetupTex.Sample(PointClampSmp, uv).w * FLOAT16F_SCALE;
 		return ConvertViewZtoDeviceZ(viewZ);
 	}
 	else
 	{
 		return DepthMap.Sample(PointClampSmp, uv).r;
+	}
+}
+
+float3 GetWSNormal(float2 uv)
+{
+	if (bHalfRes)
+	{
+		return SSAOSetupTex.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f;
+	}
+	else
+	{
+		return NormalMap.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f;
 	}
 }
 
@@ -129,7 +142,41 @@ float2 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, flo
 	return float2(invNormalAngleL, invNormalAngleR);
 }
 
-float4 ComputeUpsampleContribution(float )
+float4 ComputeUpsampleContribution(float sceneDepth, float2 inUV, float3 centerWorldNormal)
+{
+	const int SAMPLE_COUNT = 9;
+	float2 uv[SAMPLE_COUNT];
+
+	float2 SSAO_DownsampledAOInverseSize = float2(1.0f / (Width * 0.5f), 1.0f / (Height * 0.5f));
+
+	uv[0] = inUV + float2(-1, -1) * SSAO_DownsampledAOInverseSize;
+	uv[1] = inUV + float2(0, -1) * SSAO_DownsampledAOInverseSize;
+	uv[2] = inUV + float2(1, -1) * SSAO_DownsampledAOInverseSize;
+	uv[3] = inUV + float2(-1, 0) * SSAO_DownsampledAOInverseSize;
+	uv[4] = inUV + float2(0, 0) * SSAO_DownsampledAOInverseSize;
+	uv[5] = inUV + float2(1, 0) * SSAO_DownsampledAOInverseSize;
+	uv[6] = inUV + float2(-1, 1) * SSAO_DownsampledAOInverseSize;
+	uv[7] = inUV + float2(0, 1) * SSAO_DownsampledAOInverseSize;
+	uv[8] = inUV + float2(1, 1) * SSAO_DownsampledAOInverseSize;
+
+	const float SMALL_VALUE = 0.0001f;
+
+	// to avoid division by 0
+	float weightSum = SMALL_VALUE;
+	float4 ret = float4(SMALL_VALUE, 0, 0, 0);
+
+	float minIteration = 1.0f;
+
+	for (int i = 0; i < SAMPLE_COUNT; i++)
+	{
+		float sampleValue = SSAOHalfRes.Sample(PointClampSmp, uv[i]).r;
+
+
+	}
+
+	// TODO:impl
+	return 0;
+}
 
 // Referenced the paper "The alchemy screen-space ambient obscurance algorithm"
 float4 main(const VSOutput input) : SV_TARGET0
@@ -140,7 +187,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
 	float3 viewPos = ConverFromNDCToVS(ndcPos);
 
-	float3 worldNormal = NormalDepthMap.Sample(PointClampSmp, input.TexCoord).xyz * 2.0f - 1.0f;
+	float3 worldNormal = GetWSNormal(input.TexCoord);
 	float3 viewNormal = normalize(mul((float3x3)ViewMatrix, worldNormal));
 
 	//// [-depth,depth]x[-depth,depth]x[near,far] i.e. view space pos.
