@@ -98,8 +98,8 @@ float GetDeviceZ(float2 uv)
 {
 	if (bHalfRes)
 	{
-		float linearZ = NormalDepthMap.Sample(PointClampSmp, uv).w * FLOAT16F_SCALE;
-		return ConvertViewZtoDeviceZ(linearZ);
+		float viewZ = -NormalDepthMap.Sample(PointClampSmp, uv).w * FLOAT16F_SCALE;
+		return ConvertViewZtoDeviceZ(viewZ);
 	}
 	else
 	{
@@ -128,6 +128,8 @@ float2 WedgeWithNormal(float2 screenPos, float2 localRandom, float3 viewPos, flo
 
 	return float2(invNormalAngleL, invNormalAngleR);
 }
+
+float4 ComputeUpsampleContribution(float )
 
 // Referenced the paper "The alchemy screen-space ambient obscurance algorithm"
 float4 main(const VSOutput input) : SV_TARGET0
