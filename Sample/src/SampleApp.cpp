@@ -14,10 +14,10 @@
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
-#define ENABLE_SSAO true
+#define ENABLE_SSAO false
 #define ENABLE_TEMPORAL_AA false
-#define ENABLE_BLOOM true
-#define ENABLE_MOTION_BLUR true
+#define ENABLE_BLOOM false
+#define ENABLE_MOTION_BLUR false
 
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
