@@ -591,7 +591,7 @@ bool SampleApp::OnInit()
 
 	// シーン用カラーターゲットの生成
 	{
-		float clearColor[4] = {0.2f, 0.2f, 0.2f, 1.0f};
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
 		if (!m_SceneColorTarget.InitRenderTarget
 		(
@@ -927,6 +927,26 @@ bool SampleApp::OnInit()
 				ELOG("Error : ColorTarget::Init() Failed.");
 				return false;
 			}
+		}
+	}
+
+	// トーンマップ用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_TonemapTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			m_ColorTarget->GetRTVDesc().Format,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
 		}
 	}
 
@@ -1696,7 +1716,7 @@ bool SampleApp::OnInit()
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_TonemapTarget.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -2404,6 +2424,8 @@ void SampleApp::OnTerm()
 		m_BloomHorizontalTarget[i].Term();
 		m_BloomVerticalTarget[i].Term();
 	}
+
+	m_TonemapTarget.Term();
 
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();

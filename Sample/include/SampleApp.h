@@ -70,6 +70,7 @@ private:
 	ColorTarget m_BloomSetupTarget[BLOOM_NUM_DOWN_SAMPLE];
 	ColorTarget m_BloomHorizontalTarget[BLOOM_NUM_DOWN_SAMPLE];
 	ColorTarget m_BloomVerticalTarget[BLOOM_NUM_DOWN_SAMPLE];
+	ColorTarget m_TonemapTarget;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_DirectionalLightCB[FRAME_COUNT];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
