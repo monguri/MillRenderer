@@ -18,6 +18,7 @@
 #define ENABLE_TEMPORAL_AA false
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
+#define ENABLE_FXAA true
 
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
@@ -166,6 +167,15 @@ namespace
 		float MaxLuminance;
 		int bEnableBloom;
 		float Padding[3];
+	};
+
+	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	struct alignas(256) CbFXAA
+	{
+		int Width;
+		int Height;
+		int bEnableFXAA;
+		float Padding[1];
 	};
 
 	struct alignas(256) CbDownsample
@@ -2212,6 +2222,20 @@ bool SampleApp::OnInit()
 		ptr->bEnableBloom = (ENABLE_BLOOM ? 1 : 0);
 	}
 
+	// FXAA用定数バッファの作成
+	{
+		if (!m_FXAA_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbFXAA)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbFXAA* ptr = m_FXAA_CB.GetPtr<CbFXAA>();
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+		ptr->bEnableFXAA = (ENABLE_FXAA ? 1 : 0);
+	}
+
 	// 汎用ダウンサンプルパス用定数バッファの作成
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++) // ドローコールの数だけ用意する
 	{
@@ -2571,6 +2595,8 @@ void SampleApp::OnRender()
 	}
 
 	DrawTonemap(pCmd);
+
+	DrawFXAA(pCmd);
 
 #if DEBUG_VIEW_SSAO_FULL_RES || DEBUG_VIEW_SSAO_HALF_RES 
 	DebugDrawSSAO(pCmd);
@@ -3069,6 +3095,35 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 		ptr->MaxLuminance = m_MaxLuminance;
 	}
 
+	DirectX::TransitionResource(pCmdList, m_TonemapTarget.GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_TonemapTarget.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_TonemapTarget.ClearView(pCmdList);
+
+	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MotionBlurTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_BloomVerticalTarget[0].GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_TonemapTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+}
+
+void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"FXAA");
+
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
@@ -3076,11 +3131,10 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 
 	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
 
-	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_MotionBlurTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_BloomVerticalTarget[0].GetHandleSRV()->HandleGPU);
-	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
+	pCmdList->SetGraphicsRootSignature(m_FXAA_RootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_FXAA_CB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_TonemapTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pFXAA_PSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);

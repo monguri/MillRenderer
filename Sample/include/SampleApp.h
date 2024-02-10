@@ -87,6 +87,7 @@ private:
 	ConstantBuffer m_TemporalAA_CB[FRAME_COUNT];
 	ConstantBuffer m_MotionBlurCB;
 	ConstantBuffer m_TonemapCB[FRAME_COUNT];
+	ConstantBuffer m_FXAA_CB;
 	ConstantBuffer m_DownsampleCB[BLOOM_NUM_DOWN_SAMPLE - 1];
 	ConstantBuffer m_BloomHorizontalCB[BLOOM_NUM_DOWN_SAMPLE];
 	ConstantBuffer m_BloomVerticalCB[BLOOM_NUM_DOWN_SAMPLE];
@@ -124,6 +125,7 @@ private:
 	void DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
+	void DrawFXAA(ID3D12GraphicsCommandList* pCmdList);
 	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx);
 	void DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer);
 	void DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList);
