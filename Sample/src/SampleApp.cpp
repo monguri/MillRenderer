@@ -19,6 +19,7 @@
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 #define ENABLE_FXAA true
+#define ENABLE_FXAA_HIGH_QUALITY false
 
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
@@ -175,7 +176,7 @@ namespace
 		int Width;
 		int Height;
 		int bEnableFXAA;
-		float Padding[1];
+		int bEnableFXAAHighQuality;
 	};
 
 	struct alignas(256) CbDownsample
@@ -2235,6 +2236,7 @@ bool SampleApp::OnInit()
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->bEnableFXAA = (ENABLE_FXAA ? 1 : 0);
+		ptr->bEnableFXAAHighQuality = (ENABLE_FXAA_HIGH_QUALITY ? 1 : 0);
 	}
 
 	// 汎用ダウンサンプルパス用定数バッファの作成
