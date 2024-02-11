@@ -1,6 +1,6 @@
-// used D3DSamples Fxaa3_11.hlsl default value.
-static const float EDGE_THRESHOLD = 0.166f;
-static const float EDGE_THRESHOLD_MIN = 0.0833f;
+// used D3DSamples FXAA3_11.h FXAA_PC_CONSOLE default value.
+static const float EDGE_THRESHOLD = 0.125f;
+static const float EDGE_THRESHOLD_MIN = 0.05f;
 static const float EDGE_SHARPNESS = 8.0f;
 
 struct VSOutput
