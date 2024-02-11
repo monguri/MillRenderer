@@ -1745,7 +1745,8 @@ bool SampleApp::OnInit()
 		desc.Begin()
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
+			// D3DSamplesのFXAA.cppだとD3D11_FILTER_MIN_MAG_LINEAR_MIP_POINTになっているがテクスチャにMipレベルがないのでD3D12_FILTER_MIN_MAG_MIP_LINEARで問題ない
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::LinearClamp)
 			.AllowIL()
 			.End();
 
