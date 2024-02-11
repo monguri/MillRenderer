@@ -91,7 +91,19 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float edgeHorz = abs(edgeHorzW) + edgeHorzME;
 		float edgeVert = abs(edgeVertS) + edgeVertMN;
 
-		bool horzSpan = (edgeHorz > edgeVert);
+		bool bHorzSpan = (edgeHorz > edgeVert);
+
+		if (!bHorzSpan)
+		{
+			lumaN = lumaW;
+			lumaS = lumaE;
+		}
+
+		float lengthSign = bHorzSpan ? rcpExtent.y : rcpExtent.x;
+		float subPixB = ((lumaNS + lumaWE) * 2 + lumaNWSW + lumaNESE) / 12 - lumaM;
+
+		// consider gradient
+
 
 		// TODO: impl
 		return float4(rgbM, 1);
