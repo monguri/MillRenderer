@@ -33,10 +33,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 	}
 
 	float2 rcpExtent = float2(1.0f / Width, 1.0f / Height);
-	float3 rgbNW = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(-1, -1) * rcpExtent).rgb;
-	float3 rgbSW = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(-1, +1) * rcpExtent).rgb;
-	float3 rgbNE = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(+1, -1) * rcpExtent).rgb;
-	float3 rgbSE = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(+1, +1) * rcpExtent).rgb;
+	float3 rgbNW = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(-1, -1) * 0.5f * rcpExtent).rgb;
+	float3 rgbSW = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(-1, +1) * 0.5f * rcpExtent).rgb;
+	float3 rgbNE = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(+1, -1) * 0.5f * rcpExtent).rgb;
+	float3 rgbSE = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(+1, +1) * 0.5f * rcpExtent).rgb;
 
 	float lumaM = RGBtoLuma(rgbM);
 	float lumaNW = RGBtoLuma(rgbNW);
