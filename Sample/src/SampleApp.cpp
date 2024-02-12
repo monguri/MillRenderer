@@ -19,7 +19,7 @@
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 #define ENABLE_FXAA true
-#define ENABLE_FXAA_HIGH_QUALITY false
+#define ENABLE_FXAA_HIGH_QUALITY true
 
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false

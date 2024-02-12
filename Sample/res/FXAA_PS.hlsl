@@ -130,8 +130,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 			posB.y += lengthSign * 0.5f;
 		}
 
-		// TODO: impl
-		return float4(rgbM, 1);
+		float3 rgbB = ColorMap.Sample(LinearClampSmp, posB).rgb;
+		return float4(rgbB, 1);
 	}
 	else
 	{
