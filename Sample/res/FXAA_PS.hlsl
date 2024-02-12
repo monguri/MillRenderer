@@ -1,6 +1,24 @@
 // used D3DSamples FXAA3_11.h FXAA_PC default value.
+static const float QUALITY_SUBPIX = 0.75f;
 static const float QUALITY_EDGE_THRESHOLD = 0.166f;
 static const float QUALITY_EDGE_THRESHOLD_MIN = 0.0833f;
+// P0 to P11
+static const int FXAA_QUALITY__Ps = 12;
+static const float FXAA_QUALITY__PN[FXAA_QUALITY__Ps] = {
+	1.0f,
+	1.5f,
+	2.0f,
+	2.0f,
+	2.0f,
+	2.0f,
+	2.0f,
+	2.0f,
+	2.0f,
+	2.0f,
+	4.0f,
+	8.0f,
+};
+
 // used D3DSamples FXAA3_11.h FXAA_PC_CONSOLE default value.
 static const float CONSOLE_EDGE_THRESHOLD = 0.125f;
 static const float CONSOLE_EDGE_THRESHOLD_MIN = 0.05f;
@@ -30,7 +48,8 @@ float RGBtoLuma(float3 rgb)
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	float3 rgbM = ColorMap.Sample(LinearClampSmp, input.TexCoord).rgb;
+	float2 posM = input.TexCoord;
+	float3 rgbM = ColorMap.Sample(LinearClampSmp, posM).rgb;
 	if (!bEnableFXAA)
 	{
 		return float4(rgbM, 1);
@@ -41,15 +60,12 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	if (bEnableFXAAHighQuality)
 	{
-		float3 rgbS = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(0, 1) * rcpExtent).rgb;
-		float3 rgbE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(1, 0) * rcpExtent).rgb;
-		float3 rgbN = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(0, -1) * rcpExtent).rgb;
-		float3 rgbW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, 0) * rcpExtent).rgb;
+		float3 rgbW = ColorMap.Sample(LinearClampSmp, posM + float2(-1, 0) * rcpExtent).rgb;
 
-		float lumaS = RGBtoLuma(rgbS);
-		float lumaE = RGBtoLuma(rgbE);
-		float lumaN = RGBtoLuma(rgbN);
-		float lumaW = RGBtoLuma(rgbW);
+		float lumaS = RGBtoLuma(ColorMap.Sample(LinearClampSmp, posM + float2(0, 1) * rcpExtent).rgb);
+		float lumaE = RGBtoLuma(ColorMap.Sample(LinearClampSmp, posM + float2(1, 0) * rcpExtent).rgb);
+		float lumaN = RGBtoLuma(ColorMap.Sample(LinearClampSmp, posM + float2(0, -1) * rcpExtent).rgb);
+		float lumaW = RGBtoLuma(ColorMap.Sample(LinearClampSmp, posM + float2(-1, 0) * rcpExtent).rgb);
 
 		float lumaMin = min(lumaM, min(min(lumaS, lumaE), min(lumaN, lumaW)));
 		float lumaMax = max(lumaM, max(max(lumaS, lumaE), max(lumaN, lumaW)));
@@ -60,15 +76,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 			return float4(rgbM, 1);
 		}
 
-		float3 rgbNW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, -1) * rcpExtent).rgb;
-		float3 rgbSW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, +1) * rcpExtent).rgb;
-		float3 rgbNE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(+1, -1) * rcpExtent).rgb;
-		float3 rgbSE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(+1, +1) * rcpExtent).rgb;
-
-		float lumaNW = RGBtoLuma(rgbNW);
-		float lumaSW = RGBtoLuma(rgbSW);
-		float lumaNE = RGBtoLuma(rgbNE);
-		float lumaSE = RGBtoLuma(rgbSE);
+		float lumaNW = RGBtoLuma(ColorMap.Sample(LinearClampSmp, posM + float2(-1, -1) * rcpExtent).rgb);
+		float lumaSW = RGBtoLuma(ColorMap.Sample(LinearClampSmp, posM + float2(-1, +1) * rcpExtent).rgb);
+		float lumaNE = RGBtoLuma(ColorMap.Sample(LinearClampSmp, posM + float2(+1, -1) * rcpExtent).rgb);
+		float lumaSE = RGBtoLuma(ColorMap.Sample(LinearClampSmp, posM + float2(+1, +1) * rcpExtent).rgb);
 
 		// center sobel filter
 		float lumaNS = lumaN + lumaS;
@@ -103,22 +114,17 @@ float4 main(const VSOutput input) : SV_TARGET0
 		}
 
 		float lengthSign = bHorzSpan ? rcpExtent.y : rcpExtent.x;
-		float subPixB = ((lumaNS + lumaWE) * 2 + lumaNWSW + lumaNESE) / 12 - lumaM;
 
 		// consider gradient
 		float gradientN = lumaN - lumaM;
 		float gradientS = lumaS - lumaM;
-		float lumaNN = lumaN + lumaM;
-		float lumaSS = lumaS + lumaM;
 		bool bPairN = (abs(gradientN) >= abs(gradientS));
-		float gradient = max(abs(gradientN), abs(gradientS));
 		if (bPairN)
 		{
 			lengthSign = -lengthSign;
 		}
-		float subPixC = saturate(abs(subPixB) / (lumaMax - lumaMin)); // if lumaMax is neat to lumaMin, early returned already.
 
-		float2 posB = input.TexCoord;
+		float2 posB = posM;
 		float2 offNP;
 		offNP.x = !bHorzSpan ? 0.0f : rcpExtent.x;
 		offNP.y = bHorzSpan ? 0.0f : rcpExtent.y;
@@ -133,15 +139,89 @@ float4 main(const VSOutput input) : SV_TARGET0
 			posB.y += lengthSign * 0.5f;
 		}
 
-		float3 rgbB = ColorMap.Sample(LinearClampSmp, posB).rgb;
-		return float4(rgbB, 1);
+		float lumaNN = lumaN + lumaM;
+		float lumaSS = lumaS + lumaM;
+		if (!bPairN)
+		{
+			lumaNN = lumaSS;
+		}
+
+		float2 posN = posB - offNP * FXAA_QUALITY__PN[0];
+		float2 posP = posB + offNP * FXAA_QUALITY__PN[0];
+		float lumaEndN = 0.0f; // surely initialized by first loop.
+		float lumaEndP = 0.0f; // surely initialized by first loop.
+		bool bDoneN = false;
+		bool bDoneP = false;
+		float gradient = max(abs(gradientN), abs(gradientS));
+		float gradientScaled = gradient / 4.0f; //TODO: why 4.0?
+
+		for (int n = 1; n < FXAA_QUALITY__Ps && (!bDoneN || !bDoneP); n++)
+		{
+			if (!bDoneN)
+			{
+				lumaEndN = RGBtoLuma(ColorMap.SampleLevel(LinearClampSmp, posN, 0).rgb);
+				lumaEndN -= lumaNN * 0.5f;
+			}
+			if (!bDoneP)
+			{
+				lumaEndP = RGBtoLuma(ColorMap.SampleLevel(LinearClampSmp, posP, 0).rgb);
+				lumaEndP -= lumaNN * 0.5f;
+			}
+
+			bDoneN = (abs(lumaEndN) >= gradientScaled);
+			if (!bDoneN)
+			{
+				posN -= offNP * FXAA_QUALITY__PN[n];
+			}
+			bDoneP = (abs(lumaEndP) >= gradientScaled);
+			if (!bDoneP)
+			{
+				posP += offNP * FXAA_QUALITY__PN[n];
+			}
+		}
+
+		float dstN = bHorzSpan ? (posM.x - posN.x) : (posM.y - posN.y);
+		float dstP = bHorzSpan ? (posP.x - posM.x) : (posP.y - posM.y);
+		float spanLength = dstN + dstP;
+		float dstMin = min(dstN, dstP);
+		float pixelOffset = -dstMin / spanLength + 0.5f;
+
+		// good span check
+		float lumaMM = lumaM - lumaNN * 0.5f;
+		bool lumaMLTZero = (lumaMM < 0.0f);
+		bool bGoodSpanN = (lumaEndN < 0.0f) != lumaMLTZero;
+		bool bGoodSpanP = (lumaEndP < 0.0f) != lumaMLTZero;
+		bool bDirecionN = (dstN < dstP);
+		bool bGoodSpan = bDirecionN ? bGoodSpanN : bGoodSpanP;
+
+		float pixelOffsetGood = bGoodSpan ? pixelOffset : 0.0f;
+
+		float subPixB = ((lumaNS + lumaWE) * 2 + lumaNWSW + lumaNESE) / 12 - lumaM;
+		float subPixC = saturate(abs(subPixB) / (lumaMax - lumaMin)); // if lumaMax is neat to lumaMin, early returned already.
+		float subPixD = -2.0 * subPixC + 3.0; //TODO: why this equation.
+		float subPixE = subPixC * subPixC;
+		float subPixF = subPixD * subPixE;
+		float subPixG = subPixF * subPixF;
+		float subPixH = subPixG * QUALITY_SUBPIX;
+		float pixelOffsetSubpix = max(pixelOffsetGood, subPixH);
+
+		if (bHorzSpan)
+		{
+			posM.y += pixelOffsetSubpix * lengthSign;
+		}
+		else
+		{
+			posM.x += pixelOffsetSubpix * lengthSign;
+		}
+
+		return float4(ColorMap.Sample(LinearClampSmp, posM).rgb, 1);
 	}
 	else
 	{
-		float3 rgbNW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, -1) * 0.5f * rcpExtent).rgb;
-		float3 rgbSW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, +1) * 0.5f * rcpExtent).rgb;
-		float3 rgbNE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(+1, -1) * 0.5f * rcpExtent).rgb;
-		float3 rgbSE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(+1, +1) * 0.5f * rcpExtent).rgb;
+		float3 rgbNW = ColorMap.Sample(LinearClampSmp, posM + float2(-1, -1) * 0.5f * rcpExtent).rgb;
+		float3 rgbSW = ColorMap.Sample(LinearClampSmp, posM + float2(-1, +1) * 0.5f * rcpExtent).rgb;
+		float3 rgbNE = ColorMap.Sample(LinearClampSmp, posM + float2(+1, -1) * 0.5f * rcpExtent).rgb;
+		float3 rgbSE = ColorMap.Sample(LinearClampSmp, posM + float2(+1, +1) * 0.5f * rcpExtent).rgb;
 
 		float lumaNW = RGBtoLuma(rgbNW);
 		float lumaSW = RGBtoLuma(rgbSW);
@@ -162,8 +242,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 		edgeDir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));
 		edgeDir = normalize(edgeDir);
 
-		float3 rgbN1 = ColorMap.Sample(LinearClampSmp, input.TexCoord - edgeDir * rcpExtent * 0.5f).rgb;
-		float3 rgbP1 = ColorMap.Sample(LinearClampSmp, input.TexCoord + edgeDir * rcpExtent * 0.5f).rgb;
+		float3 rgbN1 = ColorMap.Sample(LinearClampSmp, posM - edgeDir * rcpExtent * 0.5f).rgb;
+		float3 rgbP1 = ColorMap.Sample(LinearClampSmp, posM + edgeDir * rcpExtent * 0.5f).rgb;
 		float3 rgbA = (rgbN1 + rgbP1) * 0.5f;
 
 		float edgeDirAbsMinTimesC = min(abs(edgeDir.x), abs(edgeDir.y)) * CONSOLE_EDGE_SHARPNESS;
@@ -171,8 +251,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 		// TODO:really?
 		edgeDir = clamp(edgeDir / edgeDirAbsMinTimesC, -2.0f, 2.0f);
 
-		float3 rgbN2 = ColorMap.Sample(LinearClampSmp, input.TexCoord - edgeDir * rcpExtent * 2.0f).rgb;
-		float3 rgbP2 = ColorMap.Sample(LinearClampSmp, input.TexCoord + edgeDir * rcpExtent * 2.0f).rgb;
+		float3 rgbN2 = ColorMap.Sample(LinearClampSmp, posM - edgeDir * rcpExtent * 2.0f).rgb;
+		float3 rgbP2 = ColorMap.Sample(LinearClampSmp, posM + edgeDir * rcpExtent * 2.0f).rgb;
 		float3 rgbB = (rgbN2 + rgbP2) * 0.25f + rgbA * 0.25f;
 
 		float lumaB = RGBtoLuma(rgbB);
