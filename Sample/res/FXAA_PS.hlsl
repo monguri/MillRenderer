@@ -1,7 +1,10 @@
+// used D3DSamples FXAA3_11.h FXAA_PC default value.
+static const float QUALITY_EDGE_THRESHOLD = 0.166f;
+static const float QUALITY_EDGE_THRESHOLD_MIN = 0.0833f;
 // used D3DSamples FXAA3_11.h FXAA_PC_CONSOLE default value.
-static const float EDGE_THRESHOLD = 0.125f;
-static const float EDGE_THRESHOLD_MIN = 0.05f;
-static const float EDGE_SHARPNESS = 8.0f;
+static const float CONSOLE_EDGE_THRESHOLD = 0.125f;
+static const float CONSOLE_EDGE_THRESHOLD_MIN = 0.05f;
+static const float CONSOLE_EDGE_SHARPNESS = 8.0f;
 
 struct VSOutput
 {
@@ -52,7 +55,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float lumaMax = max(lumaM, max(max(lumaS, lumaE), max(lumaN, lumaW)));
 
 		// early return
-		if ((lumaMax - lumaMin) < max(EDGE_THRESHOLD_MIN, lumaMax * EDGE_THRESHOLD))
+		if ((lumaMax - lumaMin) < max(QUALITY_EDGE_THRESHOLD_MIN, lumaMax * QUALITY_EDGE_THRESHOLD))
 		{
 			return float4(rgbM, 1);
 		}
@@ -149,7 +152,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float lumaMax = max(lumaM, max(max(lumaNW, lumaSW), max(lumaNE, lumaSE)));
 
 		// early return
-		if ((lumaMax - lumaMin) < max(EDGE_THRESHOLD_MIN, lumaMax * EDGE_THRESHOLD))
+		if ((lumaMax - lumaMin) < max(CONSOLE_EDGE_THRESHOLD_MIN, lumaMax * CONSOLE_EDGE_THRESHOLD))
 		{
 			return float4(rgbM, 1);
 		}
@@ -163,7 +166,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float3 rgbP1 = ColorMap.Sample(LinearClampSmp, input.TexCoord + edgeDir * rcpExtent * 0.5f).rgb;
 		float3 rgbA = (rgbN1 + rgbP1) * 0.5f;
 
-		float edgeDirAbsMinTimesC = min(abs(edgeDir.x), abs(edgeDir.y)) * EDGE_SHARPNESS;
+		float edgeDirAbsMinTimesC = min(abs(edgeDir.x), abs(edgeDir.y)) * CONSOLE_EDGE_SHARPNESS;
 		// edgeDirAbsMinTimesC cannot be 0. The case 0 is early returned.
 		// TODO:really?
 		edgeDir = clamp(edgeDir / edgeDirAbsMinTimesC, -2.0f, 2.0f);
