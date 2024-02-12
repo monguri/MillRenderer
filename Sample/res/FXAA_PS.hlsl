@@ -18,7 +18,7 @@ cbuffer CbFXAA : register(b0)
 }
 
 Texture2D ColorMap : register(t0);
-SamplerState PointClampSmp : register(s0);
+SamplerState LinearClampSmp : register(s0);
 
 float RGBtoLuma(float3 rgb)
 {
@@ -27,7 +27,7 @@ float RGBtoLuma(float3 rgb)
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	float3 rgbM = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
+	float3 rgbM = ColorMap.Sample(LinearClampSmp, input.TexCoord).rgb;
 	if (!bEnableFXAA)
 	{
 		return float4(rgbM, 1);
@@ -38,10 +38,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	if (bEnableFXAAHighQuality)
 	{
-		float3 rgbS = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(0, 1) * rcpExtent).rgb;
-		float3 rgbE = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(1, 0) * rcpExtent).rgb;
-		float3 rgbN = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(0, -1) * rcpExtent).rgb;
-		float3 rgbW = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(-1, 0) * rcpExtent).rgb;
+		float3 rgbS = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(0, 1) * rcpExtent).rgb;
+		float3 rgbE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(1, 0) * rcpExtent).rgb;
+		float3 rgbN = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(0, -1) * rcpExtent).rgb;
+		float3 rgbW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, 0) * rcpExtent).rgb;
 
 		float lumaS = RGBtoLuma(rgbS);
 		float lumaE = RGBtoLuma(rgbE);
@@ -57,10 +57,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 			return float4(rgbM, 1);
 		}
 
-		float3 rgbNW = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(-1, -1) * rcpExtent).rgb;
-		float3 rgbSW = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(-1, +1) * rcpExtent).rgb;
-		float3 rgbNE = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(+1, -1) * rcpExtent).rgb;
-		float3 rgbSE = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(+1, +1) * rcpExtent).rgb;
+		float3 rgbNW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, -1) * rcpExtent).rgb;
+		float3 rgbSW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, +1) * rcpExtent).rgb;
+		float3 rgbNE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(+1, -1) * rcpExtent).rgb;
+		float3 rgbSE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(+1, +1) * rcpExtent).rgb;
 
 		float lumaNW = RGBtoLuma(rgbNW);
 		float lumaSW = RGBtoLuma(rgbSW);
@@ -135,10 +135,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 	}
 	else
 	{
-		float3 rgbNW = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(-1, -1) * 0.5f * rcpExtent).rgb;
-		float3 rgbSW = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(-1, +1) * 0.5f * rcpExtent).rgb;
-		float3 rgbNE = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(+1, -1) * 0.5f * rcpExtent).rgb;
-		float3 rgbSE = ColorMap.Sample(PointClampSmp, input.TexCoord + float2(+1, +1) * 0.5f * rcpExtent).rgb;
+		float3 rgbNW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, -1) * 0.5f * rcpExtent).rgb;
+		float3 rgbSW = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(-1, +1) * 0.5f * rcpExtent).rgb;
+		float3 rgbNE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(+1, -1) * 0.5f * rcpExtent).rgb;
+		float3 rgbSE = ColorMap.Sample(LinearClampSmp, input.TexCoord + float2(+1, +1) * 0.5f * rcpExtent).rgb;
 
 		float lumaNW = RGBtoLuma(rgbNW);
 		float lumaSW = RGBtoLuma(rgbSW);
@@ -159,8 +159,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 		edgeDir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));
 		edgeDir = normalize(edgeDir);
 
-		float3 rgbN1 = ColorMap.Sample(PointClampSmp, input.TexCoord - edgeDir * rcpExtent * 0.5f).rgb;
-		float3 rgbP1 = ColorMap.Sample(PointClampSmp, input.TexCoord + edgeDir * rcpExtent * 0.5f).rgb;
+		float3 rgbN1 = ColorMap.Sample(LinearClampSmp, input.TexCoord - edgeDir * rcpExtent * 0.5f).rgb;
+		float3 rgbP1 = ColorMap.Sample(LinearClampSmp, input.TexCoord + edgeDir * rcpExtent * 0.5f).rgb;
 		float3 rgbA = (rgbN1 + rgbP1) * 0.5f;
 
 		float edgeDirAbsMinTimesC = min(abs(edgeDir.x), abs(edgeDir.y)) * EDGE_SHARPNESS;
@@ -168,8 +168,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 		// TODO:really?
 		edgeDir = clamp(edgeDir / edgeDirAbsMinTimesC, -2.0f, 2.0f);
 
-		float3 rgbN2 = ColorMap.Sample(PointClampSmp, input.TexCoord - edgeDir * rcpExtent * 2.0f).rgb;
-		float3 rgbP2 = ColorMap.Sample(PointClampSmp, input.TexCoord + edgeDir * rcpExtent * 2.0f).rgb;
+		float3 rgbN2 = ColorMap.Sample(LinearClampSmp, input.TexCoord - edgeDir * rcpExtent * 2.0f).rgb;
+		float3 rgbP2 = ColorMap.Sample(LinearClampSmp, input.TexCoord + edgeDir * rcpExtent * 2.0f).rgb;
 		float3 rgbB = (rgbN2 + rgbP2) * 0.25f + rgbA * 0.25f;
 
 		float lumaB = RGBtoLuma(rgbB);
