@@ -103,7 +103,32 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float subPixB = ((lumaNS + lumaWE) * 2 + lumaNWSW + lumaNESE) / 12 - lumaM;
 
 		// consider gradient
+		float gradientN = lumaN - lumaM;
+		float gradientS = lumaS - lumaM;
+		float lumaNN = lumaN + lumaM;
+		float lumaSS = lumaS + lumaM;
+		bool bPairN = (abs(gradientN) >= abs(gradientS));
+		float gradient = max(abs(gradientN), abs(gradientS));
+		if (bPairN)
+		{
+			lengthSign = -lengthSign;
+		}
+		float subPixC = saturate(abs(subPixB) / (lumaMax - lumaMin)); // if lumaMax is neat to lumaMin, early returned already.
 
+		float2 posB = input.TexCoord;
+		float2 offNP;
+		offNP.x = !bHorzSpan ? 0.0f : rcpExtent.x;
+		offNP.y = bHorzSpan ? 0.0f : rcpExtent.y;
+
+		if (!bHorzSpan)
+		{
+			posB.x += lengthSign * 0.5f;
+		}
+
+		if (bHorzSpan)
+		{
+			posB.y += lengthSign * 0.5f;
+		}
 
 		// TODO: impl
 		return float4(rgbM, 1);
