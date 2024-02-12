@@ -14,15 +14,16 @@
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
-#define ENABLE_SSAO false
-#define ENABLE_TEMPORAL_AA false
-#define ENABLE_BLOOM false
-#define ENABLE_MOTION_BLUR false
-#define ENABLE_FXAA true
-#define ENABLE_FXAA_HIGH_QUALITY true
-
+#define ENABLE_SSAO true
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
+
+#define ENABLE_BLOOM false
+#define ENABLE_MOTION_BLUR false
+
+#define ENABLE_TEMPORAL_AA true
+#define ENABLE_FXAA false
+#define ENABLE_FXAA_HIGH_QUALITY true
 
 using namespace DirectX::SimpleMath;
 
@@ -2306,16 +2307,28 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// メッシュ用バッファの作成
+	// メッシュ用定数バッファの作成
 	{
-		if (!m_MeshCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMesh)))
+		for (uint32_t i = 0; i < FRAME_COUNT; i++)
 		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
+			m_MeshCB[i].resize(m_pMesh.size());
 
-		CbMesh* ptr = m_MeshCB.GetPtr<CbMesh>();
-		ptr->World = Matrix::Identity;
+			for (size_t meshIdx = 0; meshIdx < m_pMesh.size(); meshIdx++)
+			{
+				// コピーコンストラクタは廃止しているのでj
+				m_MeshCB[i][meshIdx] = new ConstantBuffer();
+				ConstantBuffer& meshCB = *m_MeshCB[i][meshIdx];
+
+				if (!meshCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMesh)))
+				{
+					ELOG("Error : ConstantBuffer::Init() Failed.");
+					return false;
+				}
+
+				CbMesh* ptr = meshCB.GetPtr<CbMesh>();
+				ptr->World = Matrix::Identity;
+			}
+		}
 	}
 
 	// スポットライトのシャドウマップの作成
@@ -2387,7 +2400,16 @@ void SampleApp::OnTerm()
 		m_SpotLightShadowMapTransformCB[i].Term();
 	}
 
-	m_MeshCB.Term();
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
+	{
+		for (size_t j = 0; j < m_MeshCB[i].size(); j++)
+		{
+			SafeTerm(m_MeshCB[i][j]);
+		}
+
+		m_MeshCB[i].clear();
+		m_MeshCB[i].shrink_to_fit();
+	}
 
 	m_SSAOSetupCB.Term();
 
@@ -2648,7 +2670,6 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -2667,7 +2688,6 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 {
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -2740,7 +2760,6 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
 	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(4, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
 	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
@@ -2784,6 +2803,7 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 			continue;
 		}
 
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB[m_FrameIndex][i]->GetHandleGPU());
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_Material.GetBufferHandle(materialId));
 		pCmdList->SetGraphicsRootDescriptorTable(12, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
 		pCmdList->SetGraphicsRootDescriptorTable(13, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
