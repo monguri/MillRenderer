@@ -3149,6 +3149,8 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	const DescriptorHandle* handleRTV = m_ObjectVelocityTarget.GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, &handleDSV->HandleCPU);
 
+	m_ObjectVelocityTarget.ClearView(pCmdList);
+
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 
