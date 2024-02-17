@@ -13,7 +13,7 @@ struct VSOutput
 	float2 PrevClipPos : PREV_CLIP_POSITION;
 };
 
-cbuffer CbTransform : register(b0)
+cbuffer CbObjectVelocity : register(b0)
 {
 	float4x4 CurWVPWithAA : packoffset(c0);
 	float4x4 CurWVPNoAA : packoffset(c4);
