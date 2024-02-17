@@ -2261,7 +2261,8 @@ bool SampleApp::OnInit()
 		float zFar = 40.0f;
 		float widthHeight = 40.0f;
 
-		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
+		//const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
+		const Matrix& matrix = Matrix::Identity;
 		Vector3 dirLightForward = Vector3::TransformNormal(Vector3(-1.0f, -10.0f, -1.0f), matrix);
 		dirLightForward.Normalize();
 
@@ -2551,10 +2552,20 @@ void SampleApp::OnRender()
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	Vector3 lightForward;
 	{
-		//m_RotateAngle += 0.01f;
-		const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
+		m_RotateAngle += 0.1f;
+		//const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
+		const Matrix& matrix = Matrix::Identity;
 		lightForward = Vector3::TransformNormal(Vector3(-1.0f, -10.0f, -1.0f), matrix);
 		lightForward.Normalize();
+	}
+
+	// 2番のメッシュをサインカーブで動かす
+	{
+		if (m_MeshCB[m_FrameIndex].size() > 2)
+		{
+			CbMesh* ptr = (*m_MeshCB[m_FrameIndex][2]).GetPtr<CbMesh>();
+			ptr->World = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
+		}
 	}
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
