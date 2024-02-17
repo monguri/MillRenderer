@@ -1457,6 +1457,8 @@ bool SampleApp::OnInit()
 		desc.pRootSignature = m_ObjectVelocityRootSig.GetPtr();
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		// デプス描画はしない。BasePassで描画したものを上書きしない
+		desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK::D3D12_DEPTH_WRITE_MASK_ZERO;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
