@@ -140,9 +140,9 @@ namespace
 
 	struct alignas(256) CbObjectVelocity
 	{
-		Matrix CurWVPWithAA;
-		Matrix CurWVPNoAA;
-		Matrix PrevWVPNoAA;
+		Matrix CurWVPWithJitter;
+		Matrix CurWVPNoJitter;
+		Matrix PrevWVPNoJitter;
 	};
 
 	struct alignas(256) CbCameraVelocity
@@ -339,6 +339,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_DirLightShadowMapViewport()
 , m_DirLightShadowMapScissor()
 , m_TemporalAASampleIndex(0)
+, m_PrevWorldForMovable(Matrix::Identity)
 , m_PrevViewProjNoJitter(Matrix::Identity)
 {
 }
@@ -2230,9 +2231,9 @@ bool SampleApp::OnInit()
 		}
 
 		CbObjectVelocity* ptr = m_ObjectVelocityCB[i].GetPtr<CbObjectVelocity>();
-		ptr->CurWVPWithAA = Matrix::Identity;
-		ptr->CurWVPNoAA = Matrix::Identity;
-		ptr->PrevWVPNoAA = Matrix::Identity;
+		ptr->CurWVPWithJitter = Matrix::Identity;
+		ptr->CurWVPNoJitter = Matrix::Identity;
+		ptr->PrevWVPNoJitter = Matrix::Identity;
 	}
 
 	// CameraVelocity用定数バッファの作成
@@ -2682,10 +2683,11 @@ void SampleApp::OnRender()
 		viewProjWithJitter = view * projWithJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
+	m_RotateAngle += 0.1f;
+
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	Vector3 lightForward;
 	{
-		m_RotateAngle += 0.1f;
 		//const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
 		const Matrix& matrix = Matrix::Identity;
 		lightForward = Vector3::TransformNormal(Vector3(-1.0f, -10.0f, -1.0f), matrix);
@@ -2693,13 +2695,15 @@ void SampleApp::OnRender()
 	}
 
 	//TODO: MovableなメッシュをVelocityのテストのためサインカーブで動かす
+	Matrix worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));;
+
 	{
 		for (size_t meshIdx = 0; meshIdx < m_pMesh.size(); meshIdx++)
 		{
 			if (m_pMesh[meshIdx]->GetMobility() == Mobility::Movable)
 			{
 				CbMesh* ptr = (*m_MeshCB[m_FrameIndex][meshIdx]).GetPtr<CbMesh>();
-				ptr->World = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
+				ptr->World = worldForMovable;
 			}
 		}
 	}
@@ -2728,6 +2732,8 @@ void SampleApp::OnRender()
 	DrawSSAO(pCmd, projWithJitter);
 
 	DrawAmbientLight(pCmd);
+
+	DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
 
 	DrawCameraVelocity(pCmd, viewProjNoJitter);
 
@@ -2781,6 +2787,7 @@ void SampleApp::OnRender()
 
 	Present(1);
 
+	m_PrevWorldForMovable = worldForMovable;
 	m_PrevViewProjNoJitter = viewProjNoJitter;
 }
 
@@ -3118,6 +3125,52 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter)
+{
+	ScopedTimer scopedTimer(pCmdList, L"ObjectVelocity");
+
+	// 変換行列用の定数バッファの更新
+	{
+		CbObjectVelocity* ptr = m_ObjectVelocityCB[m_FrameIndex].GetPtr<CbObjectVelocity>();
+		// 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->CurWVPWithJitter = world * viewProjWithJitter;
+		ptr->CurWVPNoJitter = world * viewProjNoJitter;
+		ptr->PrevWVPNoJitter = prevWorld * prevViewProjNoJitter;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_ObjectVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[2] = { m_SceneColorTarget.GetHandleRTV()->HandleCPU, m_SceneNormalTarget.GetHandleRTV()->HandleCPU };
+	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+
+	const DescriptorHandle* handleRTV = m_ObjectVelocityTarget.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, &handleDSV->HandleCPU);
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
+	pCmdList->SetGraphicsRootSignature(m_ObjectVelocityRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_ObjectVelocityCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pCmdList->SetPipelineState(m_pObjectVelocityPSO.Get());
+
+	// Movableなものだけ描画
+	for (size_t i = 0; i < m_pMesh.size(); i++)
+	{
+		if (m_pMesh[i]->GetMobility() != Mobility::Movable)
+		{
+			continue;
+		}
+
+		m_pMesh[i]->Draw(pCmdList);
+	}
+
+	DirectX::TransitionResource(pCmdList, m_ObjectVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter)
