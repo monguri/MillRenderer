@@ -9,8 +9,8 @@ struct VSInput
 struct VSOutput
 {
 	float4 Position : SV_POSITION;
-	float2 CurClipPos : CUR_CLIP_POSITION;
-	float2 PrevClipPos : PREV_CLIP_POSITION;
+	float4 CurClipPos : CUR_CLIP_POSITION;
+	float4 PrevClipPos : PREV_CLIP_POSITION;
 };
 
 cbuffer CbObjectVelocity : register(b0)
@@ -26,8 +26,8 @@ VSOutput main(VSInput input)
 
 	float4 localPos = float4(input.Position, 1.0f);
 	output.Position = mul(CurWVPWithJitter, localPos);
-	output.CurClipPos = mul(CurWVPNoJitter, localPos).xy;
-	output.PrevClipPos = mul(PrevWVPNoJitter, localPos).xy;
+	output.CurClipPos = mul(CurWVPNoJitter, localPos);
+	output.PrevClipPos = mul(PrevWVPNoJitter, localPos);
 
 	return output;
 }
