@@ -1407,6 +1407,84 @@ bool SampleApp::OnInit()
 		}
 	}
 
+    // ObjectVelocity用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin()
+			.SetCBV(ShaderStage::VS, 0, 0)
+			.AllowIL()
+			.End();
+
+		if (!m_CameraVelocityRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // ObjectVelocity用パイプラインステートの生成
+	{
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout = MeshVertex::InputLayout;
+		desc.pRootSignature = m_CameraVelocityRootSig.GetPtr();
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		desc.SampleMask = UINT_MAX;
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		desc.NumRenderTargets = 1;
+		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+
+		// AlphaModeがOpaqueのシャドウマップ描画用
+		std::wstring vsPath;
+		if (!SearchFilePath(L"ObjectVelocityVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+
+		std::wstring psPath;
+		if (!SearchFilePath(L"ObjectVelocityPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pObjectVelocityPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // CameraVelocity用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -2498,6 +2576,9 @@ void SampleApp::OnTerm()
 
 	m_pAmbientLightPSO.Reset();
 	m_AmbientLightRootSig.Term();
+
+	m_pObjectVelocityPSO.Reset();
+	m_ObjectVelocityRootSig.Term();
 
 	m_pCameraVelocityPSO.Reset();
 	m_CameraVelocityRootSig.Term();

@@ -36,6 +36,8 @@ private:
 	RootSignature m_SSAO_RootSig;
 	ComPtr<ID3D12PipelineState> m_pAmbientLightPSO;
 	RootSignature m_AmbientLightRootSig;
+	ComPtr<ID3D12PipelineState> m_pObjectVelocityPSO;
+	RootSignature m_ObjectVelocityRootSig;
 	ComPtr<ID3D12PipelineState> m_pCameraVelocityPSO;
 	RootSignature m_CameraVelocityRootSig;
 	ComPtr<ID3D12PipelineState> m_pTemporalAA_PSO;
