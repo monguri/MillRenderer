@@ -138,6 +138,13 @@ namespace
 		float Padding[2];
 	};
 
+	struct alignas(256) CbObjectVelocity
+	{
+		Matrix CurWVPWithAA;
+		Matrix CurWVPNoAA;
+		Matrix PrevWVPNoAA;
+	};
+
 	struct alignas(256) CbCameraVelocity
 	{
 		Matrix ClipToPrevClip;
@@ -811,6 +818,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// ObjectVelocity用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_ObjectVelocityTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R32G32_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// CameraVelocity用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -1415,7 +1442,7 @@ bool SampleApp::OnInit()
 			.AllowIL()
 			.End();
 
-		if (!m_CameraVelocityRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!m_ObjectVelocityRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
@@ -1426,13 +1453,14 @@ bool SampleApp::OnInit()
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.InputLayout = MeshVertex::InputLayout;
-		desc.pRootSignature = m_CameraVelocityRootSig.GetPtr();
+		desc.pRootSignature = m_ObjectVelocityRootSig.GetPtr();
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_ObjectVelocityTarget.GetRTVDesc().Format;
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
@@ -2192,6 +2220,21 @@ bool SampleApp::OnInit()
 		ptr->bEnableSSAO = (ENABLE_SSAO ? 1 : 0);
 	}
 
+	// ObjectVelocity用定数バッファの作成
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
+	{
+		if (!m_ObjectVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbObjectVelocity)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbObjectVelocity* ptr = m_ObjectVelocityCB[i].GetPtr<CbObjectVelocity>();
+		ptr->CurWVPWithAA = Matrix::Identity;
+		ptr->CurWVPNoAA = Matrix::Identity;
+		ptr->PrevWVPNoAA = Matrix::Identity;
+	}
+
 	// CameraVelocity用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -2469,6 +2512,7 @@ void SampleApp::OnTerm()
 		m_TransformCB[i].Term();
 		m_SSAO_HalfResCB[i].Term();
 		m_SSAO_FullResCB[i].Term();
+		m_ObjectVelocityCB[i].Term();
 		m_CameraVelocityCB[i].Term();
 		m_TemporalAA_CB[i].Term();
 		m_TonemapCB[i].Term();
@@ -2538,6 +2582,8 @@ void SampleApp::OnTerm()
 	m_SSAO_RandomizationTarget.Term();
 
 	m_AmbientLightTarget.Term();
+
+	m_ObjectVelocityTarget.Term();
 
 	m_CameraVelocityTarget.Term();
 

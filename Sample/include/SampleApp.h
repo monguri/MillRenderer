@@ -66,6 +66,7 @@ private:
 	ColorTarget m_SSAO_FullResTarget;
 	ColorTarget m_SSAO_RandomizationTarget;
 	ColorTarget m_AmbientLightTarget;
+	ColorTarget m_ObjectVelocityTarget;
 	ColorTarget m_CameraVelocityTarget;
 	ColorTarget m_TemporalAA_Target[FRAME_COUNT];
 	ColorTarget m_MotionBlurTarget;
@@ -85,6 +86,7 @@ private:
 	ConstantBuffer m_SSAOSetupCB;
 	ConstantBuffer m_SSAO_HalfResCB[FRAME_COUNT];
 	ConstantBuffer m_SSAO_FullResCB[FRAME_COUNT];
+	ConstantBuffer m_ObjectVelocityCB[FRAME_COUNT];
 	ConstantBuffer m_CameraVelocityCB[FRAME_COUNT];
 	ConstantBuffer m_TemporalAA_CB[FRAME_COUNT];
 	ConstantBuffer m_MotionBlurCB;
