@@ -383,6 +383,12 @@ bool SampleApp::OnInit()
 
 		m_pMesh.shrink_to_fit();
 
+		//TODO: Velocityのテストとして2番のメッシュをMovableとする
+		if (m_pMesh.size() > 2)
+		{
+			m_pMesh[2]->SetMobility(Mobility::Movable);
+		}
+
 		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
 		if (!m_Material.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), resMaterial.size())) // ContantBufferはこの時点では作らない。テクスチャはダミー。
 		{
@@ -2559,12 +2565,15 @@ void SampleApp::OnRender()
 		lightForward.Normalize();
 	}
 
-	// 2番のメッシュをサインカーブで動かす
+	//TODO: MovableなメッシュをVelocityのテストのためサインカーブで動かす
 	{
-		if (m_MeshCB[m_FrameIndex].size() > 2)
+		for (size_t meshIdx = 0; meshIdx < m_pMesh.size(); meshIdx++)
 		{
-			CbMesh* ptr = (*m_MeshCB[m_FrameIndex][2]).GetPtr<CbMesh>();
-			ptr->World = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
+			if (m_pMesh[meshIdx]->GetMobility() == Mobility::Movable)
+			{
+				CbMesh* ptr = (*m_MeshCB[m_FrameIndex][meshIdx]).GetPtr<CbMesh>();
+				ptr->World = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
+			}
 		}
 	}
 

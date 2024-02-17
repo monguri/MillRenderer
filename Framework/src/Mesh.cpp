@@ -3,6 +3,7 @@
 Mesh::Mesh()
 : m_MaterialId(UINT32_MAX)
 , m_IndexCount(0)
+, m_Mobility(Mobility::Static)
 {
 }
 
@@ -56,3 +57,14 @@ uint32_t Mesh::GetMaterialId() const
 {
 	return m_MaterialId;
 }
+
+Mobility Mesh::GetMobility() const
+{
+	return m_Mobility;
+}
+
+void Mesh::SetMobility(Mobility mobility)
+{
+	m_Mobility = mobility;
+}
+
