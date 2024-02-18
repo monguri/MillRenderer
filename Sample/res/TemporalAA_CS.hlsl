@@ -1,14 +1,13 @@
 cbuffer CbTemporalAA : register(b0)
 {
-	float4x4 ClipToPrevClip;
 	int Width;
 	int Height;
 	int bEnableTemporalAA;
 }
 
-Texture2D DepthMap : register(t0);
-Texture2D ColorMap : register(t1);
-Texture2D HistoryMap : register(t2);
+Texture2D ColorMap : register(t0);
+Texture2D HistoryMap : register(t1);
+Texture2D VelocityMap : register(t2);
 SamplerState PointClampSmp : register(s0);
 
 RWTexture2D<float4> OutResult : register(u0);
@@ -102,15 +101,8 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	// sample current and history colors
 	//
 	float2 uv = (DTid + 0.5f) / float2(Width, Height);
-	// [0, 1] to [-1, 1]
-	float2 screenPos = uv * float2(2, -2) + float2(-1, 1);
-
-	float deviceZ = DepthMap.SampleLevel(PointClampSmp, uv, 0).r;
-
-	float4 ndcPos = float4(screenPos, deviceZ, 1);
-	float4 prevClipPos = mul(ClipToPrevClip, ndcPos);
-	float2 prevScreenPos = prevClipPos.xy / prevClipPos.w;
-	float2 prevUV = prevScreenPos * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
+	float2 velocity = VelocityMap.SampleLevel(PointClampSmp, uv, 0).rg;
+	float2 prevUV = uv - velocity;
 
 	uint curTileIdx = GetTileIndex(GTid, uint2(0, 0));
 	float3 colorCur = TileYCoCgColors[curTileIdx];
