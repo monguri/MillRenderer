@@ -11,12 +11,12 @@ cbuffer CbCameraVelocity : register(b0)
 
 Texture2D ColorMap : register(t0);
 Texture2D DepthMap : register(t1);
-Texture2D ObjectVelocity : register(t2);
+Texture2D ObjectVelocityMap : register(t2);
 SamplerState PointClampSmp : register(s0);
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	float2 objectVelocity = ObjectVelocity.Sample(PointClampSmp, input.TexCoord).rg;
+	float2 objectVelocity = ObjectVelocityMap.Sample(PointClampSmp, input.TexCoord).rg;
 	if (abs(objectVelocity.r) + abs(objectVelocity.g) > 0.0f) // TODO: should consider error?
 	{
 		return float4(objectVelocity, 0, 1);
