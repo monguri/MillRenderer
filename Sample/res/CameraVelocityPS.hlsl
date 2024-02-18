@@ -11,10 +11,17 @@ cbuffer CbCameraVelocity : register(b0)
 
 Texture2D ColorMap : register(t0);
 Texture2D DepthMap : register(t1);
+Texture2D ObjectVelocity : register(t2);
 SamplerState PointClampSmp : register(s0);
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
+	float2 objectVelocity = ObjectVelocity.Sample(PointClampSmp, input.TexCoord).rg;
+	if (abs(objectVelocity.r) + abs(objectVelocity.g) > 0.0f) // TODO: should consider error?
+	{
+		return float4(objectVelocity, 0, 1);
+	}
+
 	// [0, 1] to [-1, 1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 
