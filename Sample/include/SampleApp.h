@@ -67,7 +67,7 @@ private:
 	ColorTarget m_SSAO_RandomizationTarget;
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_ObjectVelocityTarget;
-	ColorTarget m_CameraVelocityTarget;
+	ColorTarget m_VelocityTargt;
 	ColorTarget m_TemporalAA_Target[FRAME_COUNT];
 	ColorTarget m_MotionBlurTarget;
 	ColorTarget m_BloomSetupTarget[BLOOM_NUM_DOWN_SAMPLE];

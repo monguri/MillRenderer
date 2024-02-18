@@ -843,7 +843,7 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-		if (!m_CameraVelocityTarget.InitRenderTarget
+		if (!m_VelocityTargt.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -1575,7 +1575,7 @@ bool SampleApp::OnInit()
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_CameraVelocityTarget.GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_VelocityTargt.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -2589,7 +2589,7 @@ void SampleApp::OnTerm()
 
 	m_ObjectVelocityTarget.Term();
 
-	m_CameraVelocityTarget.Term();
+	m_VelocityTargt.Term();
 
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -3187,12 +3187,12 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
 	}
 
-	DirectX::TransitionResource(pCmdList, m_CameraVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	const DescriptorHandle* handleRTV = m_CameraVelocityTarget.GetHandleRTV();
+	const DescriptorHandle* handleRTV = m_VelocityTargt.GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
-	m_CameraVelocityTarget.ClearView(pCmdList);
+	m_VelocityTargt.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_CameraVelocityRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraVelocityCB[m_FrameIndex].GetHandleGPU());
@@ -3210,7 +3210,7 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	DirectX::TransitionResource(pCmdList, m_CameraVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor)
@@ -3265,7 +3265,7 @@ void SampleApp::DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	pCmdList->SetGraphicsRootSignature(m_MotionBlurRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_MotionBlurCB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, InputColor.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraVelocityTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_VelocityTargt.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pMotionBlurPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
