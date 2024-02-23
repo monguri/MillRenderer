@@ -860,7 +860,7 @@ bool SampleApp::OnInit()
 
 	// TemporalAA用ターゲットの生成
 	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{

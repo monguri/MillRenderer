@@ -100,23 +100,45 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	//
 	// sample current and history colors
 	//
-	float2 uv = (DTid + 0.5f) / float2(Width, Height);
+	float2 rcpDimension = 1.0f / float2(Width, Height);
+	float2 uv = (DTid + 0.5f) * rcpDimension;
 	float2 velocity = VelocityMap.SampleLevel(PointClampSmp, uv, 0).rg;
 	float2 prevUV = uv - velocity;
+
+	// when prev UV is off screen, ignore history.
+	bool bIgnoreHistory = ((min(prevUV.x, prevUV.y) <= 0.0f) || (max(prevUV.x, prevUV.y) >= 1.0f));
 
 	uint curTileIdx = GetTileIndex(GTid, uint2(0, 0));
 	float3 colorCur = TileYCoCgColors[curTileIdx];
 	//float3 colorCur = ColorMap.Load(float3(DTid, 0)).rgb;
 	//colorCur = RGBToYCoCg(colorCur);
 
-	float3 colorHist = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0).rgb;
-	colorHist = RGBToYCoCg(colorHist);
+	float4 history = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0);
+	float3 colorHist = RGBToYCoCg(history.rgb);
+
+	// Anti-ghost dynamic object.
+	// referenced UE.
+	bool bDynamic = max(velocity.x, velocity.y) > 0;
+	{
+		// judge dymamic or not by dilated velocity.
+		float2 topVelocity = VelocityMap.SampleLevel(PointClampSmp, uv + float2(0, -1) * rcpDimension, 0).rg;
+		float2 leftVelocity = VelocityMap.SampleLevel(PointClampSmp, uv + float2(-1, 0) * rcpDimension, 0).rg;
+		float2 rightVelocity = VelocityMap.SampleLevel(PointClampSmp, uv + float2(1, 0) * rcpDimension, 0).rg;
+		float2 bottomVelocity = VelocityMap.SampleLevel(PointClampSmp, uv + float2(0, 1) * rcpDimension, 0).rg;
+
+		bool bCurDilatedDymamic = bDynamic 
+		|| (max(topVelocity.x, topVelocity.y) > 0)
+		|| (max(leftVelocity.x, leftVelocity.y) > 0)
+		|| (max(rightVelocity.x, rightVelocity.y) > 0)
+		|| (max(bottomVelocity.x, bottomVelocity.y) > 0);
+
+		bool bPrevDilatedDynamic = (history.a > 0);
+		bIgnoreHistory = bIgnoreHistory || (!bCurDilatedDymamic && bPrevDilatedDynamic);
+	}
 
 	//
 	// clamp history color by neighborhood 3x3 current color minmax
 	//
-	float2 pixelUVoffset = float2(1.0f / Width, 1.0f / Height);
-
 	float3 neighborMin = colorCur;
 	float3 neighborMax = colorCur;
 
@@ -144,7 +166,7 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	colorFiltered /= finalWeight;
 
 	// when prev UV is off screen, ignore history.
-	if ((min(prevUV.x, prevUV.y) <= 0.0f) || (max(prevUV.x, prevUV.y) >= 1.0f))
+	if (bIgnoreHistory)
 	{
 		colorHist = colorFiltered;
 	}
@@ -168,12 +190,12 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 
 		float3 finalColor = colorHist * weights.x + colorFiltered * weights.y;
 		finalColor = YCoCgToRGB(finalColor);
-		OutResult[DTid] = float4(finalColor, 1.0f);
+		OutResult[DTid] = float4(finalColor, bDynamic ? 1 : 0);
 	}
 	else
 	{
 		// just copy
 		colorCur = YCoCgToRGB(colorCur);
-		OutResult[DTid] = float4(colorCur, 1.0f);
+		OutResult[DTid] = float4(colorCur, 0.0f);
 	}
 }
