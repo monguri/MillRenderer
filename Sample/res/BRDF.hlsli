@@ -55,8 +55,7 @@ float3 ComputeBRDF
 (
 	float3 baseColor,
 	float metallic,
-	float alpha,
-	float alphaPlus,
+	float roughness,
 	float VdotH,
 	float NdotH,
 	float NdotV,
@@ -70,7 +69,8 @@ float3 ComputeBRDF
 	// use lambert for diffuse
 	float3 diffuseTerm = cDiff * (1.0f / F_PI);
 
-	float D = D_GGX(NdotH, saturate(alpha + alphaPlus));
+	float alpha = roughness * roughness;
+	float D = D_GGX(NdotH, alpha);
 	float V = V_GGX(NdotL, NdotV, alpha);
 	float3 specularTerm = D * V;
 
