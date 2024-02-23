@@ -213,11 +213,16 @@ float3 EvaluatePointLightReflection
 	float NH = saturate(dot(N, H));
 	float NV = saturate(dot(N, V));
 	float NL = saturate(dot(N, L));
+
+	float alpha = roughness * roughness;
+	// referenced UE4's Specular D Modification
+	float alphaPlus = 1.0f / sqrt(invRadiusSq) / length(lightPos - worldPos) * 0.5f;
 	float3 brdf = ComputeBRDF
 	(
 		baseColor,
 		metallic,
-		roughness,
+		alpha,
+		alphaPlus,
 		VH,
 		NH,
 		NV,
@@ -380,11 +385,15 @@ float3 EvaluateSpotLightReflection
 	float NH = saturate(dot(N, H));
 	float NV = saturate(dot(N, V));
 	float NL = saturate(dot(N, L));
+	float alpha = roughness * roughness;
+	// referenced UE4's Specular D Modification
+	float alphaPlus = 1.0f / sqrt(invSqrRadius) / length(lightPos - worldPos) * 0.5f;
 	float3 brdf = ComputeBRDF
 	(
 		baseColor,
 		metallic,
-		roughness,
+		alpha,
+		alphaPlus,
 		VH,
 		NH,
 		NV,
@@ -437,7 +446,8 @@ PSOutput main(VSOutput input)
 	(
 		baseColor.rgb,
 		metallic,
-		roughness,
+		roughness * roughness,
+		0.0f,
 		dirLightVH,
 		dirLightNH,
 		NV,
