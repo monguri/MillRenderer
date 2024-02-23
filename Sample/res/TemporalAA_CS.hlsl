@@ -143,31 +143,37 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 
 	colorFiltered /= finalWeight;
 
+	// when prev UV is off screen, ignore history.
+	if ((min(prevUV.x, prevUV.y) <= 0.0f) || (max(prevUV.x, prevUV.y) >= 1.0f))
+	{
+		colorHist = colorFiltered;
+	}
+
 	float lumaHist = colorHist.x;
 	colorHist = clamp(colorHist, neighborMin, neighborMax);
 
 	//
 	// blend current and history color
 	//
-	if (bEnableTemporalAA)
-	{
-		float lumaFiltered = colorFiltered.x;
+		if (bEnableTemporalAA)
+		{
+			float lumaFiltered = colorFiltered.x;
 
-		float blendFinal = (1.0f - HISTORY_ALPHA);
-		blendFinal = max(blendFinal, saturate(LUMA_AA_SCALE * lumaHist / abs(lumaFiltered - lumaHist)));
+			float blendFinal = (1.0f - HISTORY_ALPHA);
+			blendFinal = max(blendFinal, saturate(LUMA_AA_SCALE * lumaHist / abs(lumaFiltered - lumaHist)));
 
-		float weightFiltered = HdrWeightY(colorFiltered.x);
-		float weightHist = HdrWeightY(colorHist.x);
-		float2 weights = WeightedLerpFactors(weightHist, weightFiltered, blendFinal);
+			float weightFiltered = HdrWeightY(colorFiltered.x);
+			float weightHist = HdrWeightY(colorHist.x);
+			float2 weights = WeightedLerpFactors(weightHist, weightFiltered, blendFinal);
 
-		float3 finalColor = colorHist * weights.x + colorFiltered * weights.y;
-		finalColor = YCoCgToRGB(finalColor);
-		OutResult[DTid] = float4(finalColor, 1.0f);
-	}
-	else
-	{
+			float3 finalColor = colorHist * weights.x + colorFiltered * weights.y;
+			finalColor = YCoCgToRGB(finalColor);
+			OutResult[DTid] = float4(finalColor, 1.0f);
+		}
+		else
+		{
 		// just copy
-		colorCur = YCoCgToRGB(colorCur);
-		OutResult[DTid] = float4(colorCur, 1.0f);
-	}
+			colorCur = YCoCgToRGB(colorCur);
+			OutResult[DTid] = float4(colorCur, 1.0f);
+		}
 }
