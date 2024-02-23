@@ -2684,7 +2684,7 @@ void SampleApp::OnRender()
 		viewProjWithJitter = view * projWithJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
-	m_RotateAngle += 0.5f;
+	m_RotateAngle += 0.2f;
 
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	Vector3 lightForward;
