@@ -81,9 +81,7 @@ bool Texture::Init
 	}
 
 	bool isCube = false;
-	// TODO:一旦ミップマップを作らない形にしておく
-	//DirectX::DDS_LOADER_FLAGS flag = DirectX::DDS_LOADER_MIP_AUTOGEN;
-	DirectX::DDS_LOADER_FLAGS flag = DirectX::DDS_LOADER_DEFAULT;
+	DirectX::DDS_LOADER_FLAGS flag = DirectX::DDS_LOADER_MIP_AUTOGEN;
 	if (isSRGB)
 	{
 		flag |= DirectX::DDS_LOADER_FORCE_SRGB;
@@ -103,9 +101,7 @@ bool Texture::Init
 	);
 	if (FAILED(hr))
 	{
-		// TODO:一旦ミップマップを作らない形にしておく
-		//DirectX::WIC_LOADER_FLAGS flag = DirectX::WIC_LOADER_MIP_AUTOGEN;
-		DirectX::WIC_LOADER_FLAGS flag = DirectX::WIC_LOADER_DEFAULT;
+		DirectX::WIC_LOADER_FLAGS flag = DirectX::WIC_LOADER_MIP_AUTOGEN;
 		if (isSRGB)
 		{
 			flag |= DirectX::WIC_LOADER_FORCE_SRGB;
