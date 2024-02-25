@@ -12,8 +12,8 @@
 #include "ScopedTimer.h"
 
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
-//#define USE_MANUAL_PCF_FOR_SHADOW_MAP
-#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+#define USE_MANUAL_PCF_FOR_SHADOW_MAP
+//#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
 #define ENABLE_SSAO true
 #define DEBUG_VIEW_SSAO_FULL_RES false
@@ -2433,7 +2433,7 @@ bool SampleApp::OnInit()
 			CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
-			// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
+			// プロジェクション座標の[-1,-1]*[-1,1]*[0,1]をシャドウマップ用座標[0,1]*[1,0]*[0,1]に変換する
 			const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
 			// World行列はMatrix::Identityとする
 			ptr->ModelToDirLightShadowMap = dirLightShadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()

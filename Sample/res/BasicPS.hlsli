@@ -4,8 +4,12 @@
 #define MIN_DIST (0.01)
 #endif // MIN_DIST
 
-//#define USE_MANUAL_PCF_FOR_SHADOW_MAP
-#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+// referenced UE.
+static const float SHADOW_SOFT_TRANSITION_SCALE = 6353.17f;
+static const float PROJECTION_DEPTH_BIAS = 0.1f;
+
+#define USE_MANUAL_PCF_FOR_SHADOW_MAP
+//#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 //#define SINGLE_SAMPLE_SHADOW_MAP
 
 struct VSOutput
@@ -44,7 +48,7 @@ cbuffer CbDirectionalLight : register(b2)
 	float3 DirLightColor: packoffset(c0);
 	float DirLightIntensity: packoffset(c0.w);
 	float3 DirLightForward : packoffset(c1);
-	float2 DirLightShadowMapSize : packoffset(c2);
+	float2 DirLightShadowMapSize : packoffset(c2); // x is pixel size, y is texel size on UV.
 };
 
 // TODO:Use ConstantBuffer<>
@@ -90,7 +94,7 @@ cbuffer CbSpotLight1 : register(b7)
 	float SpotLight1AngleScale : packoffset(c2.w);
 	float SpotLight1AngleOffset : packoffset(c3);
 	int SpotLight1Type : packoffset(c3.y);
-	float2 SpotLight1ShadowMapSize : packoffset(c3.z);
+	float2 SpotLight1ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
 };
 
 cbuffer CbSpotLight2 : register(b8)
@@ -103,7 +107,7 @@ cbuffer CbSpotLight2 : register(b8)
 	float SpotLight2AngleScale : packoffset(c2.w);
 	float SpotLight2AngleOffset : packoffset(c3);
 	int SpotLight2Type : packoffset(c3.y);
-	float2 SpotLight2ShadowMapSize : packoffset(c3.z);
+	float2 SpotLight2ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
 };
 
 cbuffer CbSpotLight3 : register(b9)
@@ -116,7 +120,7 @@ cbuffer CbSpotLight3 : register(b9)
 	float SpotLight3AngleScale : packoffset(c2.w);
 	float SpotLight3AngleOffset : packoffset(c3);
 	int SpotLight3Type : packoffset(c3.y);
-	float2 SpotLight3ShadowMapSize : packoffset(c3.z);
+	float2 SpotLight3ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
 };
 
 Texture2D BaseColorMap : register(t0);
@@ -305,13 +309,84 @@ float3 EvaluateSpotLightLagarde
 	return lightColor * att / F_PI;
 }
 
-float GetShadowMultiplier(Texture2D ShadowMap, float2 ShadowMapSize, float3 shadowCoord)
+// referenced UE ShadowFilteringCommon.ush
+float4 CalculateOcclusion(float4 shadowMapDepth, float sceneDepth, float transitionScale)
+{
+	// The standard comparison is SceneDepth < ShadowmapDepth
+	// Using a soft transition based on depth difference
+	// Offsets shadows a bit but reduces self shadowing artifacts considerably
+
+	// Unoptimized Math: saturate((Settings.SceneDepth - ShadowmapDepth) * TransitionScale + 1);
+	// Rearranged the math so that per pixel constants can be optimized from per sample constants.
+	return saturate((sceneDepth - shadowMapDepth) * transitionScale + 1);
+}
+
+// horizontal PCF, input 6x2
+float2 HorizontalPCF5x2(float2 fraction, float4 values00, float4 values20, float4 values40)
+{
+	float result0;
+	float result1;
+
+	result0 = values00.w * (1.0 - fraction.x);
+	result1 = values00.x * (1.0 - fraction.x);
+	result0 += values00.z;
+	result1 += values00.y;
+	result0 += values20.w;
+	result1 += values20.x;
+	result0 += values20.z;
+	result1 += values20.y;
+	result0 += values40.w;
+	result1 += values40.x;
+	result0 += values40.z * fraction.x;
+	result1 += values40.y * fraction.x;
+
+	return float2(result0, result1);
+}
+
+// PCF falloff is overly blurry, apply to get
+// a more reasonable look artistically. Should not be applied to
+// other passes that target pbr (e.g., raytracing and denoising).
+float ApplyPCFOverBlurCorrection(float occlusion)
+{
+	return occlusion * occlusion;
+}
+
+float GetShadowMultiplier(Texture2D ShadowMap, float2 ShadowMapSize, float3 shadowCoord, float transitionScale)
 {
 #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
 	// referenced UE Manual5x5PCF() of ShadowFilteringCommon.ush
 	// high quality, 6x6 samples, using gather4
+	float2 texelPos = shadowCoord.xy * ShadowMapSize.x - 0.5f;	// bias to be consistent with texture filtering hardware
+	float2 fraction = frac(texelPos);
+	// Gather4 samples "at the following locations: (-,+),(+,+),(+,-),(-,-), where the magnitude of the deltas are always half a texel" - DX11 Func. Spec.
+	// So we need to offset to the centre of the 2x2 grid we want to sample.
+	float2 samplePos = (floor(texelPos) + 1.0f) * ShadowMapSize.y;
 
-	return 1.0f;
+	// transisionScale is considered NdotL, but use fixed value at pixel offset.
+	// shadowCoord.z is fixed too.
+	float4 values00 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, -2)), shadowCoord.z, transitionScale);
+	float4 values20 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, -2)), shadowCoord.z, transitionScale);
+	float4 values40 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, -2)), shadowCoord.z, transitionScale);
+
+	float2 row0 = HorizontalPCF5x2(fraction, values00, values20, values40);
+	float result = row0.x * (1.0f - fraction.y) + row0.y;
+
+	float4 values02 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, 0)), shadowCoord.z, transitionScale);
+	float4 values22 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, 0)), shadowCoord.z, transitionScale);
+	float4 values42 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, 0)), shadowCoord.z, transitionScale);
+
+	float2 row1 = HorizontalPCF5x2(fraction, values02, values22, values42);
+	result += row1.x + row1.y;
+
+	float4 values04 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, 2)), shadowCoord.z, transitionScale);
+	float4 values24 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, 2)), shadowCoord.z, transitionScale);
+	float4 values44 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, 2)), shadowCoord.z, transitionScale);
+
+	float2 row2 = HorizontalPCF5x2(fraction, values02, values22, values42);
+	result += row2.x + row2.y * fraction.y;
+	result /= 25;
+	result = ApplyPCFOverBlurCorrection(result);
+	return (1 - result);
 #else // USE_MANUAL_PCF_FOR_SHADOW_MAP
 	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 		#ifdef SINGLE_SAMPLE_SHADOW_MAP
@@ -401,7 +476,8 @@ float3 EvaluateSpotLightReflection
 
 	//TODO: not branching by type
 	float3 light = EvaluateSpotLight(N, worldPos, lightPos, invSqrRadius, forward, color, angleScale, angleOffset) * intensity;
-	float shadow = GetShadowMultiplier(shadowMap, shadowMapSize, shadowCoord);
+	float transitionScale = SHADOW_SOFT_TRANSITION_SCALE * lerp(PROJECTION_DEPTH_BIAS, 1, NL);
+	float shadow = GetShadowMultiplier(shadowMap, shadowMapSize, shadowCoord, transitionScale);
 	return brdf * light * shadow;
 }
 
@@ -451,7 +527,9 @@ PSOutput main(VSOutput input)
 		NV,
 		dirLightNL 
 	);
-	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, DirLightShadowMapSize, input.DirLightShadowCoord);
+
+	float transitionScale = SHADOW_SOFT_TRANSITION_SCALE * lerp(PROJECTION_DEPTH_BIAS, 1, dirLightNL);
+	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, DirLightShadowMapSize, input.DirLightShadowCoord, transitionScale );
 	float3 dirLightReflection = dirLightBRDF * DirLightColor * DirLightIntensity * dirLightShadowMult;
 
 	// 4 point light
