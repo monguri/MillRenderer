@@ -12,6 +12,7 @@
 #include "ScopedTimer.h"
 
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
+//#define USE_MANUAL_PCF_FOR_SHADOW_MAP
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
 #define ENABLE_SSAO true
@@ -73,7 +74,9 @@ namespace
 		Vector3 LightColor;
 		float LightIntensity;
 		Vector3 LightForward;
-		float ShadowMapTexelSize;
+		float Padding[1];
+		Vector2 ShadowMapSize; // x is pixel size, y is texel size on UV.
+		float Padding2[2];
 	};
 
 	struct alignas(256) CbPointLight
@@ -94,8 +97,7 @@ namespace
 		float LightAngleScale;
 		float LightAngleOffset;
 		int LightType;
-		float ShadowMapTexelSize;
-		float Padding[1];
+		Vector2 ShadowMapSize; // x is pixel size, y is texel size on UV.
 	};
 
 	struct alignas(256) CbCamera
@@ -244,7 +246,7 @@ namespace
 		// 0除算が発生しないよう、cosInnerとcosOuterの差は下限を0.001に設定しておく
 		result.LightAngleScale = 1.0f / DirectX::XMMax(0.001f, (cosInnerAngle - cosOuterAngle));
 		result.LightAngleOffset = -cosOuterAngle * result.LightAngleScale;
-		result.ShadowMapTexelSize = 1.0f / shadowMapSize;
+		result.ShadowMapSize = Vector2((float)shadowMapSize, 1.0f / shadowMapSize);
 		result.LightType = lightType;
 		return result;
 	}
@@ -1021,10 +1023,14 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 18, 6)
 
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::AnisotropicWrap)
-#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-			.AddStaticCmpSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
+#ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointClamp)
 #else
+	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+			.AddStaticCmpSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
+	#else
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
+	#endif
 #endif
 			.AllowIL()
 			.End();
@@ -2893,7 +2899,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f); // 白色光
 		ptr->LightForward = lightForward;
 		ptr->LightIntensity = 10.0f;
-		ptr->ShadowMapTexelSize = 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE;
+		ptr->ShadowMapSize = Vector2((float)DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE, 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE);
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
