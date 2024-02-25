@@ -304,40 +304,23 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Texture::GetViewDesc(bool isCube) const
 			{
 				if (desc.DepthOrArraySize > 1)
 				{
-					if (desc.MipLevels > 1)
-					{
-						viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
+					viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
 
-						viewDesc.Texture2DMSArray.FirstArraySlice = 0;
-						viewDesc.Texture2DMSArray.ArraySize = desc.DepthOrArraySize;
-					}
-					else
-					{
-						viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-
-						viewDesc.Texture2DArray.MostDetailedMip = 0;
-						viewDesc.Texture2DArray.MipLevels = desc.MipLevels;
-						viewDesc.Texture2DArray.FirstArraySlice = 0;
-						viewDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
-						viewDesc.Texture2DArray.PlaneSlice = 0;
-						viewDesc.Texture2DArray.ResourceMinLODClamp = 0.0f;
-					}
+					viewDesc.Texture2DArray.MostDetailedMip = 0;
+					viewDesc.Texture2DArray.MipLevels = desc.MipLevels;
+					viewDesc.Texture2DArray.FirstArraySlice = 0;
+					viewDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+					viewDesc.Texture2DArray.PlaneSlice = 0;
+					viewDesc.Texture2DArray.ResourceMinLODClamp = 0.0f;
 				}
 				else
 				{
-					if (desc.MipLevels > 1)
-					{
-						viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
-					}
-					else
-					{
-						viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+					viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 
-						viewDesc.Texture2D.MostDetailedMip = 0;
-						viewDesc.Texture2D.MipLevels = desc.MipLevels;
-						viewDesc.Texture2D.PlaneSlice = 0;
-						viewDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-					}
+					viewDesc.Texture2D.MostDetailedMip = 0;
+					viewDesc.Texture2D.MipLevels = desc.MipLevels;
+					viewDesc.Texture2D.PlaneSlice = 0;
+					viewDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 				}
 			}
 		}
