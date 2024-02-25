@@ -5,8 +5,13 @@
 #endif // MIN_DIST
 
 // referenced UE.
-static const float SHADOW_SOFT_TRANSITION_SCALE = 6353.17f;
-static const float PROJECTION_DEPTH_BIAS = 0.1f;
+static const float DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE = 6353.17f;
+static const float DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS = 0.1f;
+
+//static const float SPOT_LIGHT_SHADOW_SOFT_TRANSITION_SCALE = 60.0f;
+//TODO: On UE's spot light, default value is 60, but it creates so wide soft shadow.
+static const float SPOT_LIGHT_SHADOW_SOFT_TRANSITION_SCALE = 6353.17f;
+static const float SPOT_LIGHT_PROJECTION_DEPTH_BIAS = 0.5f;
 
 #define USE_MANUAL_PCF_FOR_SHADOW_MAP
 //#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
@@ -484,7 +489,7 @@ float3 EvaluateSpotLightReflection
 
 	//TODO: not branching by type
 	float3 light = EvaluateSpotLight(N, worldPos, lightPos, invSqrRadius, forward, color, angleScale, angleOffset) * intensity;
-	float transitionScale = SHADOW_SOFT_TRANSITION_SCALE * lerp(PROJECTION_DEPTH_BIAS, 1, NL);
+	float transitionScale = SPOT_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(SPOT_LIGHT_PROJECTION_DEPTH_BIAS, 1, NL);
 	float shadow = GetShadowMultiplier(shadowMap, shadowMapSize, shadowCoord, transitionScale);
 	return brdf * light * shadow;
 }
@@ -536,7 +541,7 @@ PSOutput main(VSOutput input)
 		dirLightNL 
 	);
 
-	float transitionScale = SHADOW_SOFT_TRANSITION_SCALE * lerp(PROJECTION_DEPTH_BIAS, 1, dirLightNL);
+	float transitionScale = DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS, 1, dirLightNL);
 	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, DirLightShadowMapSize, input.DirLightShadowCoord, transitionScale );
 	float3 dirLightReflection = dirLightBRDF * DirLightColor * DirLightIntensity * dirLightShadowMult;
 
