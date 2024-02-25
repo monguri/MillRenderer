@@ -364,26 +364,34 @@ float GetShadowMultiplier(Texture2D ShadowMap, float2 ShadowMapSize, float3 shad
 
 	// transisionScale is considered NdotL, but use fixed value at pixel offset.
 	// shadowCoord.z is fixed too.
-	float4 values00 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, -2)), shadowCoord.z, transitionScale);
-	float4 values20 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, -2)), shadowCoord.z, transitionScale);
-	float4 values40 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, -2)), shadowCoord.z, transitionScale);
+	float result = 0.0f;
+	{
+		float4 values00 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, -2)), shadowCoord.z, transitionScale);
+		float4 values20 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, -2)), shadowCoord.z, transitionScale);
+		float4 values40 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, -2)), shadowCoord.z, transitionScale);
 
-	float2 row0 = HorizontalPCF5x2(fraction, values00, values20, values40);
-	float result = row0.x * (1.0f - fraction.y) + row0.y;
+		float2 row0 = HorizontalPCF5x2(fraction, values00, values20, values40);
+		result += row0.x * (1.0f - fraction.y) + row0.y;
+	}
 
-	float4 values02 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, 0)), shadowCoord.z, transitionScale);
-	float4 values22 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, 0)), shadowCoord.z, transitionScale);
-	float4 values42 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, 0)), shadowCoord.z, transitionScale);
+	{
+		float4 values02 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, 0)), shadowCoord.z, transitionScale);
+		float4 values22 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, 0)), shadowCoord.z, transitionScale);
+		float4 values42 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, 0)), shadowCoord.z, transitionScale);
 
-	float2 row1 = HorizontalPCF5x2(fraction, values02, values22, values42);
-	result += row1.x + row1.y;
+		float2 row1 = HorizontalPCF5x2(fraction, values02, values22, values42);
+		result += row1.x + row1.y;
+	}
 
-	float4 values04 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, 2)), shadowCoord.z, transitionScale);
-	float4 values24 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, 2)), shadowCoord.z, transitionScale);
-	float4 values44 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, 2)), shadowCoord.z, transitionScale);
+	{
+		float4 values04 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, 2)), shadowCoord.z, transitionScale);
+		float4 values24 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, 2)), shadowCoord.z, transitionScale);
+		float4 values44 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, 2)), shadowCoord.z, transitionScale);
 
-	float2 row2 = HorizontalPCF5x2(fraction, values02, values22, values42);
-	result += row2.x + row2.y * fraction.y;
+		float2 row2 = HorizontalPCF5x2(fraction, values04, values24, values44);
+		result += row2.x + row2.y * fraction.y;
+	}
+
 	result /= 25;
 	result = ApplyPCFOverBlurCorrection(result);
 	return (1 - result);
