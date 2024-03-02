@@ -15,10 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\res\BasicOpaquePS.hlsl">
+    <FxCompile Include="..\res\SponzaOpaquePS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\BasicVS.hlsl">
+    <FxCompile Include="..\res\SponzaVS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\TonemapPS.hlsl">
@@ -48,7 +48,7 @@
     <FxCompile Include="..\res\SkyBoxPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\BasicMaskPS.hlsl">
+    <FxCompile Include="..\res\SponzaMaskPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\DepthMaskPS.hlsl">

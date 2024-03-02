@@ -1087,7 +1087,7 @@ bool SampleApp::OnInit()
 
 		// AlphaModeがOpaqueのシャドウマップ描画用
 		std::wstring vsPath;
-		if (!SearchFilePath(L"BasicVS.cso", vsPath))
+		if (!SearchFilePath(L"SponzaVS.cso", vsPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;
@@ -1146,7 +1146,7 @@ bool SampleApp::OnInit()
 		}
 
 		// AlphaModeがOpaqueのマテリアル用
-		if (!SearchFilePath(L"BasicOpaquePS.cso", psPath))
+		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -1178,7 +1178,7 @@ bool SampleApp::OnInit()
 		}
 
 		// AlphaModeがMaskのマテリアル用
-		if (!SearchFilePath(L"BasicMaskPS.cso", psPath))
+		if (!SearchFilePath(L"SponzaMaskPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -2957,14 +2957,17 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(4, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
-	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+	if (RENDER_SPONZA)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(5 + i, m_PointLightCB[i].GetHandleGPU());
-	}
+		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(5 + i, m_PointLightCB[i].GetHandleGPU());
+		}
 
-	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(9 + i, m_SpotLightCB[i].GetHandleGPU());
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(9 + i, m_SpotLightCB[i].GetHandleGPU());
+		}
 	}
 
 	pCmdList->SetGraphicsRootDescriptorTable(15, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
