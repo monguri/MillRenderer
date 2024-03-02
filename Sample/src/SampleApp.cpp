@@ -11,7 +11,7 @@
 #include "RootSignature.h"
 #include "ScopedTimer.h"
 
-// Sponzaは、IBLでなくライトを配置するなど特別な処理を多くやっているので分岐する
+// Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
 #define RENDER_SPONZA true
 
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
@@ -1021,6 +1021,51 @@ bool SampleApp::OnInit()
 	}
 
     // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
+	if (RENDER_SPONZA)
+	{
+		RootSignature::Desc desc;
+		desc.Begin()
+			.SetCBV(ShaderStage::VS, 0, 0)
+			.SetCBV(ShaderStage::VS, 1, 1)
+			.SetCBV(ShaderStage::PS, 2, 0)
+			.SetCBV(ShaderStage::PS, 3, 1)
+			.SetCBV(ShaderStage::PS, 4, 2)
+			.SetCBV(ShaderStage::PS, 5, 3)
+			.SetCBV(ShaderStage::PS, 6, 4)
+			.SetCBV(ShaderStage::PS, 7, 5)
+			.SetCBV(ShaderStage::PS, 8, 6)
+			.SetCBV(ShaderStage::PS, 9, 7)
+			.SetCBV(ShaderStage::PS, 10, 8)
+			.SetCBV(ShaderStage::PS, 11, 9)
+
+			.SetSRV(ShaderStage::PS, 12, 0)
+			.SetSRV(ShaderStage::PS, 13, 1)
+			.SetSRV(ShaderStage::PS, 14, 2)
+			.SetSRV(ShaderStage::PS, 15, 3)
+			.SetSRV(ShaderStage::PS, 16, 4)
+			.SetSRV(ShaderStage::PS, 17, 5)
+			.SetSRV(ShaderStage::PS, 18, 6)
+
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::AnisotropicWrap)
+#ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointClamp)
+#else
+	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+			.AddStaticCmpSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
+	#else
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
+	#endif
+#endif
+			.AllowIL()
+			.End();
+
+		if (!m_SponzaRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+	else
 	{
 		RootSignature::Desc desc;
 		desc.Begin()
@@ -1066,6 +1111,148 @@ bool SampleApp::OnInit()
 	}
 
     // シーン用パイプラインステートの生成
+	if (RENDER_SPONZA)
+	{
+		// シャドウマップ描画用のパイプラインステートディスクリプタ
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout = MeshVertex::InputLayout;
+		desc.pRootSignature = m_SponzaRootSig.GetPtr();
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		desc.SampleMask = UINT_MAX;
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		desc.NumRenderTargets = 0;
+		desc.DSVFormat = m_DirLightShadowMapTarget.GetDSVDesc().Format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+
+		// TODO:SponzaRendererの数字を何も考えずに使っている
+		desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+		desc.RasterizerState.DepthBias = 100;
+
+		// AlphaModeがOpaqueのシャドウマップ描画用
+		std::wstring vsPath;
+		if (!SearchFilePath(L"SponzaVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		// PSは実行しないので設定しない
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSponzaDepthOpaquePSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+
+		// AlphaModeがMaskのシャドウマップ描画用
+		std::wstring psPath;
+		if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RasterizerState = DirectX::CommonStates::CullNone;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSponzaDepthMaskPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+
+		// AlphaModeがOpaqueのマテリアル用
+		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		desc.NumRenderTargets = 2;
+		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
+		desc.RTVFormats[1] = m_SceneNormalTarget.GetRTVDesc().Format;
+		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSponzaOpaquePSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+
+		// AlphaModeがMaskのマテリアル用
+		if (!SearchFilePath(L"SponzaMaskPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
+		desc.RasterizerState = DirectX::CommonStates::CullNone;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSponzaMaskPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+	else
 	{
 		// シャドウマップ描画用のパイプラインステートディスクリプタ
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
@@ -2645,6 +2832,13 @@ void SampleApp::OnTerm()
 
 	m_TonemapTarget.Term();
 
+	m_pSponzaOpaquePSO.Reset();
+	m_pSponzaMaskPSO.Reset();
+	m_pSponzaDepthOpaquePSO.Reset();
+	m_pSponzaDepthMaskPSO.Reset();
+
+	m_SponzaRootSig.Term();
+
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
 	m_pSceneDepthOpaquePSO.Reset();
@@ -2859,17 +3053,38 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 	pCmdList->RSSetViewports(1, &m_DirLightShadowMapViewport);
 	pCmdList->RSSetScissorRects(1, &m_DirLightShadowMapScissor);
 
-	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
+	if (RENDER_SPONZA)
+	{
+		pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
+	}
+	else
+	{
+		pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
+	}
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandleGPU());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Opaqueマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSceneDepthOpaquePSO.Get());
+	if (RENDER_SPONZA)
+	{
+		pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
+	}
+	else
+	{
+		pCmdList->SetPipelineState(m_pSceneDepthOpaquePSO.Get());
+	}
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSceneDepthMaskPSO.Get());
+	if (RENDER_SPONZA)
+	{
+		pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
+	}
+	else
+	{
+		pCmdList->SetPipelineState(m_pSceneDepthMaskPSO.Get());
+	}
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 
 	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -2877,17 +3092,19 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 
 void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx)
 {
-	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
+	assert(RENDER_SPONZA);
+
+	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandleGPU());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Opaqueマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSceneDepthOpaquePSO.Get());
+	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSceneDepthMaskPSO.Get());
+	pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 }
 
@@ -2953,10 +3170,18 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 
 	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
-	pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
+	if (RENDER_SPONZA)
+	{
+		pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
+	}
+	else
+	{
+		pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
+	}
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(4, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
+
 	if (RENDER_SPONZA)
 	{
 		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
@@ -2983,11 +3208,25 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Opaqueマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
+	if (RENDER_SPONZA)
+	{
+		pCmdList->SetPipelineState(m_pSponzaOpaquePSO.Get());
+	}
+	else
+	{
+		pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
+	}
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
+	if (RENDER_SPONZA)
+	{
+		pCmdList->SetPipelineState(m_pSponzaMaskPSO.Get());
+	}
+	else
+	{
+		pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
+	}
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

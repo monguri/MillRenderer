@@ -25,6 +25,11 @@ private:
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
 
+	ComPtr<ID3D12PipelineState> m_pSponzaDepthOpaquePSO;
+	ComPtr<ID3D12PipelineState> m_pSponzaDepthMaskPSO;
+	ComPtr<ID3D12PipelineState> m_pSponzaOpaquePSO;
+	ComPtr<ID3D12PipelineState> m_pSponzaMaskPSO;
+	RootSignature m_SponzaRootSig;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
