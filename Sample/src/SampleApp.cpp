@@ -1074,21 +1074,10 @@ bool SampleApp::OnInit()
 			.SetCBV(ShaderStage::PS, 2, 0)
 			.SetCBV(ShaderStage::PS, 3, 1)
 			.SetCBV(ShaderStage::PS, 4, 2)
-			.SetCBV(ShaderStage::PS, 5, 3)
-			.SetCBV(ShaderStage::PS, 6, 4)
-			.SetCBV(ShaderStage::PS, 7, 5)
-			.SetCBV(ShaderStage::PS, 8, 6)
-			.SetCBV(ShaderStage::PS, 9, 7)
-			.SetCBV(ShaderStage::PS, 10, 8)
-			.SetCBV(ShaderStage::PS, 11, 9)
-
-			.SetSRV(ShaderStage::PS, 12, 0)
-			.SetSRV(ShaderStage::PS, 13, 1)
-			.SetSRV(ShaderStage::PS, 14, 2)
-			.SetSRV(ShaderStage::PS, 15, 3)
-			.SetSRV(ShaderStage::PS, 16, 4)
-			.SetSRV(ShaderStage::PS, 17, 5)
-			.SetSRV(ShaderStage::PS, 18, 6)
+			.SetSRV(ShaderStage::PS, 5, 0)
+			.SetSRV(ShaderStage::PS, 6, 1)
+			.SetSRV(ShaderStage::PS, 7, 2)
+			.SetSRV(ShaderStage::PS, 8, 3)
 
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::AnisotropicWrap)
 #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
@@ -1274,7 +1263,7 @@ bool SampleApp::OnInit()
 
 		// AlphaModeがOpaqueのシャドウマップ描画用
 		std::wstring vsPath;
-		if (!SearchFilePath(L"SponzaVS.cso", vsPath))
+		if (!SearchFilePath(L"BasePassVS.cso", vsPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;
@@ -1333,7 +1322,7 @@ bool SampleApp::OnInit()
 		}
 
 		// AlphaModeがOpaqueのマテリアル用
-		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
+		if (!SearchFilePath(L"BasePassOpaquePS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -1365,7 +1354,7 @@ bool SampleApp::OnInit()
 		}
 
 		// AlphaModeがMaskのマテリアル用
-		if (!SearchFilePath(L"SponzaMaskPS.cso", psPath))
+		if (!SearchFilePath(L"BasePassMaskPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -3195,7 +3184,14 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		}
 	}
 
-	pCmdList->SetGraphicsRootDescriptorTable(15, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+	if (RENDER_SPONZA)
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(15, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+	}
+	else
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(8, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+	}
 
 	if (RENDER_SPONZA)
 	{
@@ -3252,9 +3248,18 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 
 		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB[m_FrameIndex][i]->GetHandleGPU());
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_Material.GetBufferHandle(materialId));
-		pCmdList->SetGraphicsRootDescriptorTable(12, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
-		pCmdList->SetGraphicsRootDescriptorTable(13, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-		pCmdList->SetGraphicsRootDescriptorTable(14, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
+		if (RENDER_SPONZA)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(12, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
+			pCmdList->SetGraphicsRootDescriptorTable(13, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+			pCmdList->SetGraphicsRootDescriptorTable(14, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
+		}
+		else
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(5, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
+			pCmdList->SetGraphicsRootDescriptorTable(6, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+			pCmdList->SetGraphicsRootDescriptorTable(7, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
+		}
 
 		m_pMesh[i]->Draw(pCmdList);
 	}
