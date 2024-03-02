@@ -1,1 +1,1 @@
-#include "BasicPS.hlsli"
+#include "SponzaPS.hlsli"

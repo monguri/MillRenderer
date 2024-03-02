@@ -102,7 +102,7 @@
     <None Include="..\res\BakeUtil.hlsli">
       <Filter>リソース ファイル</Filter>
     </None>
-    <None Include="..\res\BasicPS.hlsli">
+    <None Include="..\res\SponzaPS.hlsli">
       <Filter>リソース ファイル</Filter>
     </None>
   </ItemGroup>
