@@ -11,6 +11,9 @@
 #include "RootSignature.h"
 #include "ScopedTimer.h"
 
+// Sponzaは、IBLでなくライトを配置するなど特別な処理を多くやっているので分岐する
+#define RENDER_SPONZA true
+
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_MANUAL_PCF_FOR_SHADOW_MAP
 //#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
@@ -355,10 +358,21 @@ bool SampleApp::OnInit()
 	{
 		std::wstring path;
 		//if (!SearchFilePath(L"res/matball/matball.obj", path))
-		if (!SearchFilePath(L"res/SponzaKhronos/glTF/Sponza.gltf", path))
+		if (RENDER_SPONZA)
 		{
-			ELOG("Error : File Not Found.");
-			return false;
+			if (!SearchFilePath(L"res/SponzaKhronos/glTF/Sponza.gltf", path))
+			{
+				ELOG("Error : File Not Found.");
+				return false;
+			}
+		}
+		else
+		{
+			if (!SearchFilePath(L"res/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf", path))
+			{
+				ELOG("Error : File Not Found.");
+				return false;
+			}
 		}
 
 		std::vector<ResMesh> resMesh;
@@ -393,9 +407,12 @@ bool SampleApp::OnInit()
 		m_pMesh.shrink_to_fit();
 
 		//TODO: Velocityのテストとして2番のメッシュをMovableとする
-		if (m_pMesh.size() > 2)
+		if (RENDER_SPONZA)
 		{
-			m_pMesh[2]->SetMobility(Mobility::Movable);
+			if (m_pMesh.size() > 2)
+			{
+				m_pMesh[2]->SetMobility(Mobility::Movable);
+			}
 		}
 
 		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
@@ -441,82 +458,85 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// ポイントライトバッファの設定
+	if (RENDER_SPONZA)
 	{
-		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+		// ポイントライトバッファの設定
 		{
-			if (!m_PointLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbPointLight)))
+			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
-				return false;
+				if (!m_PointLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbPointLight)))
+				{
+					ELOG("Error : ConstantBuffer::Init() Failed.");
+					return false;
+				}
 			}
+
+			// ポイントライトは動かさないないので毎フレームの更新はしない
+
+			CbPointLight* ptr = m_PointLightCB[0].GetPtr<CbPointLight>();
+			// 少し黄色っぽい光
+			//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+
+			ptr = m_PointLightCB[1].GetPtr<CbPointLight>();
+			// 少し黄色っぽい光
+			//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+
+			ptr = m_PointLightCB[2].GetPtr<CbPointLight>();
+			// 少し黄色っぽい光
+			//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+
+			ptr = m_PointLightCB[3].GetPtr<CbPointLight>();
+			// 少し黄色っぽい光
+			//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
 		}
 
-		// ポイントライトは動かさないないので毎フレームの更新はしない
-
-		CbPointLight* ptr = m_PointLightCB[0].GetPtr<CbPointLight>();
-		// 少し黄色っぽい光
-		//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-
-		ptr = m_PointLightCB[1].GetPtr<CbPointLight>();
-		// 少し黄色っぽい光
-		//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-		*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-
-		ptr = m_PointLightCB[2].GetPtr<CbPointLight>();
-		// 少し黄色っぽい光
-		//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-
-		ptr = m_PointLightCB[3].GetPtr<CbPointLight>();
-		// 少し黄色っぽい光
-		//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-		*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-	}
-
-	// スポットライトバッファの設定
-	{
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		// スポットライトバッファの設定
 		{
-			if (!m_SpotLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSpotLight)))
+			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
-				return false;
+				if (!m_SpotLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSpotLight)))
+				{
+					ELOG("Error : ConstantBuffer::Init() Failed.");
+					return false;
+				}
+
+				if (!m_SpotLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
+				{
+					ELOG("Error : ConstantBuffer::Init() Failed.");
+					return false;
+				}
 			}
 
-			if (!m_SpotLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
-			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
-				return false;
-			}
+			const Vector3& SpotLight1Dir = Vector3(-20.0f, -4.0f, 0.0f);
+			const Vector3& SpotLight1Pos = Vector3(0.0f, 4.0f, 0.0f);
+			CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
+			// 少し赤っぽい光
+			*ptr = ComputeSpotLight(0, SpotLight1Dir, SpotLight1Pos, 20.0f, Vector3(1.0f, 0.5f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
+			CbTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>();
+			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight1Dir, SpotLight1Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
+
+			const Vector3& SpotLight2Dir = Vector3(0.0f, -10.0f, 2.0f);
+			const Vector3& SpotLight2Pos = Vector3(0.0f, 10.0f, 0.0f);
+			ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
+			// 少し緑っぽい光
+			*ptr = ComputeSpotLight(0, SpotLight2Dir, SpotLight2Pos, 20.0f, Vector3(0.5f, 1.0f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
+
+			tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>();
+			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight2Dir, SpotLight2Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
+
+			const Vector3& SpotLight3Dir = Vector3(20.0f, -4.0f, 0.0f);
+			const Vector3& SpotLight3Pos = Vector3(0.0f, 4.0f, 0.0f);
+			ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
+			// 少し青っぽい光
+			*ptr = ComputeSpotLight(0, SpotLight3Dir, SpotLight3Pos, 20.0f, Vector3(0.5f, 0.5f, 1.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
+
+			tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>();
+			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight3Dir, SpotLight3Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 		}
-
-		const Vector3& SpotLight1Dir = Vector3(-20.0f, -4.0f, 0.0f);
-		const Vector3& SpotLight1Pos = Vector3(0.0f, 4.0f, 0.0f);
-		CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
-		// 少し赤っぽい光
-		*ptr = ComputeSpotLight(0, SpotLight1Dir, SpotLight1Pos, 20.0f, Vector3(1.0f, 0.5f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
-		CbTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>();
-		tptr->ViewProj = ComputeSpotLightViewProj(SpotLight1Dir, SpotLight1Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
-
-		const Vector3& SpotLight2Dir = Vector3(0.0f, -10.0f, 2.0f);
-		const Vector3& SpotLight2Pos = Vector3(0.0f, 10.0f, 0.0f);
-		ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
-		// 少し緑っぽい光
-		*ptr = ComputeSpotLight(0, SpotLight2Dir, SpotLight2Pos, 20.0f, Vector3(0.5f, 1.0f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
-
-		tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>();
-		tptr->ViewProj = ComputeSpotLightViewProj(SpotLight2Dir, SpotLight2Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
-
-		const Vector3& SpotLight3Dir = Vector3(20.0f, -4.0f, 0.0f);
-		const Vector3& SpotLight3Pos = Vector3(0.0f, 4.0f, 0.0f);
-		ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
-		// 少し青っぽい光
-		*ptr = ComputeSpotLight(0, SpotLight3Dir, SpotLight3Pos, 20.0f, Vector3(0.5f, 0.5f, 1.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
-
-		tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>();
-		tptr->ViewProj = ComputeSpotLightViewProj(SpotLight3Dir, SpotLight3Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 	}
 
 	// カメラバッファの設定
@@ -572,47 +592,50 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// スポットライト用デプスターゲットの生成
+	if (RENDER_SPONZA)
 	{
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		// スポットライト用デプスターゲットの生成
 		{
-			if (!m_SpotLightShadowMapTarget[i].Init
-			(
-				m_pDevice.Get(),
-				m_pPool[POOL_TYPE_DSV],
-				m_pPool[POOL_TYPE_RES], // シャドウマップなのでSRVも作る
-				SPOT_LIGHT_SHADOW_MAP_SIZE,
-				SPOT_LIGHT_SHADOW_MAP_SIZE,
-				DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
-				1.0f,
-				0
-			))
+			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 			{
-				ELOG("Error : DepthTarget::Init() Failed.");
-				return false;
+				if (!m_SpotLightShadowMapTarget[i].Init
+				(
+					m_pDevice.Get(),
+					m_pPool[POOL_TYPE_DSV],
+					m_pPool[POOL_TYPE_RES], // シャドウマップなのでSRVも作る
+					SPOT_LIGHT_SHADOW_MAP_SIZE,
+					SPOT_LIGHT_SHADOW_MAP_SIZE,
+					DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
+					1.0f,
+					0
+				))
+				{
+					ELOG("Error : DepthTarget::Init() Failed.");
+					return false;
+				}
 			}
-		}
 
-		{
-			m_SpotLightShadowMapViewport.TopLeftX = 0;
-			m_SpotLightShadowMapViewport.TopLeftY = 0;
-			m_SpotLightShadowMapViewport.Width = static_cast<float>(m_SpotLightShadowMapTarget[0].GetDesc().Width);
-			m_SpotLightShadowMapViewport.Height = static_cast<float>(m_SpotLightShadowMapTarget[0].GetDesc().Height);
-			m_SpotLightShadowMapViewport.MinDepth = 0.0f;
-			m_SpotLightShadowMapViewport.MaxDepth = 1.0f;
-		}
+			{
+				m_SpotLightShadowMapViewport.TopLeftX = 0;
+				m_SpotLightShadowMapViewport.TopLeftY = 0;
+				m_SpotLightShadowMapViewport.Width = static_cast<float>(m_SpotLightShadowMapTarget[0].GetDesc().Width);
+				m_SpotLightShadowMapViewport.Height = static_cast<float>(m_SpotLightShadowMapTarget[0].GetDesc().Height);
+				m_SpotLightShadowMapViewport.MinDepth = 0.0f;
+				m_SpotLightShadowMapViewport.MaxDepth = 1.0f;
+			}
 
-		// TODO:ModelViewerだと内部で以下の処理がある
-		//// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
-		//m_Scissor.left = 1;
-		//m_Scissor.top = 1;
-		//m_Scissor.right = (LONG)Width - 2;
-		//m_Scissor.bottom = (LONG)Height - 2;
-		{
-			m_SpotLightShadowMapScissor.left = 0;
-			m_SpotLightShadowMapScissor.right = (LONG)m_SpotLightShadowMapTarget[0].GetDesc().Width;
-			m_SpotLightShadowMapScissor.top = 0;
-			m_SpotLightShadowMapScissor.bottom = (LONG)m_SpotLightShadowMapTarget[0].GetDesc().Height;
+			// TODO:ModelViewerだと内部で以下の処理がある
+			//// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
+			//m_Scissor.left = 1;
+			//m_Scissor.top = 1;
+			//m_Scissor.right = (LONG)Width - 2;
+			//m_Scissor.bottom = (LONG)Height - 2;
+			{
+				m_SpotLightShadowMapScissor.left = 0;
+				m_SpotLightShadowMapScissor.right = (LONG)m_SpotLightShadowMapTarget[0].GetDesc().Width;
+				m_SpotLightShadowMapScissor.top = 0;
+				m_SpotLightShadowMapScissor.bottom = (LONG)m_SpotLightShadowMapTarget[0].GetDesc().Height;
+			}
 		}
 	}
 
@@ -2437,9 +2460,13 @@ bool SampleApp::OnInit()
 			const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
 			// World行列はMatrix::Identityとする
 			ptr->ModelToDirLightShadowMap = dirLightShadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->ModelToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->ModelToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->ModelToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+			if (RENDER_SPONZA)
+			{
+				ptr->ModelToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->ModelToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->ModelToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			}
 		}
 	}
 
@@ -2467,42 +2494,45 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// スポットライトのシャドウマップの作成
+	if (RENDER_SPONZA)
 	{
-		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
-
-		ID3D12DescriptorHeap* const pHeaps[] = {
-			m_pPool[POOL_TYPE_RES]->GetHeap()
-		};
-
-		pCmd->SetDescriptorHeaps(1, pHeaps);
-		
-		pCmd->RSSetViewports(1, &m_SpotLightShadowMapViewport);
-		pCmd->RSSetScissorRects(1, &m_SpotLightShadowMapScissor);
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		// スポットライトのシャドウマップの作成
 		{
-			DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+			ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
-			const DescriptorHandle* handleDSV = m_SpotLightShadowMapTarget[i].GetHandleDSV();
+			ID3D12DescriptorHeap* const pHeaps[] = {
+				m_pPool[POOL_TYPE_RES]->GetHeap()
+			};
 
-			pCmd->OMSetRenderTargets(0, nullptr, FALSE, &handleDSV->HandleCPU);
+			pCmd->SetDescriptorHeaps(1, pHeaps);
+			
+			pCmd->RSSetViewports(1, &m_SpotLightShadowMapViewport);
+			pCmd->RSSetScissorRects(1, &m_SpotLightShadowMapScissor);
 
-			m_SpotLightShadowMapTarget[i].ClearView(pCmd);
+			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+			{
+				DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-			// TODO:PSOがOpaqueとMaskで切り替わっているのでライトごとでなくまとめるべきかも
-			DrawSpotLightShadowMap(pCmd, i);
+				const DescriptorHandle* handleDSV = m_SpotLightShadowMapTarget[i].GetHandleDSV();
 
-			DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				pCmd->OMSetRenderTargets(0, nullptr, FALSE, &handleDSV->HandleCPU);
+
+				m_SpotLightShadowMapTarget[i].ClearView(pCmd);
+
+				// TODO:PSOがOpaqueとMaskで切り替わっているのでライトごとでなくまとめるべきかも
+				DrawSpotLightShadowMap(pCmd, i);
+
+				DirectX::TransitionResource(pCmd, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			}
+
+			pCmd->Close();
+
+			ID3D12CommandList* pLists[] = {pCmd};
+			m_pQueue->ExecuteCommandLists(1, pLists);
+
+			// Wait command queue finishing.
+			m_Fence.Wait(m_pQueue.Get(), INFINITE);
 		}
-
-		pCmd->Close();
-
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
-
-		// Wait command queue finishing.
-		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
 	return true;
@@ -2690,7 +2720,7 @@ void SampleApp::OnRender()
 		viewProjWithJitter = view * projWithJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
-	m_RotateAngle += 0.2f;
+	//m_RotateAngle += 0.2f;
 
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	Vector3 lightForward;
@@ -2882,9 +2912,13 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
 		// World行列はMatrix::Identityとする
 		ptr->ModelToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->ModelToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->ModelToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->ModelToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+		if (RENDER_SPONZA)
+		{
+			ptr->ModelToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->ModelToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->ModelToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		}
 	}
 
 	// カメラバッファの更新
@@ -2933,6 +2967,16 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		pCmdList->SetGraphicsRootDescriptorTable(9 + i, m_SpotLightCB[i].GetHandleGPU());
 	}
 
+	pCmdList->SetGraphicsRootDescriptorTable(15, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+
+	if (RENDER_SPONZA)
+	{
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(16 + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+		}
+	}
+
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Opaqueマテリアルのメッシュの描画
@@ -2969,11 +3013,6 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 		pCmdList->SetGraphicsRootDescriptorTable(12, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
 		pCmdList->SetGraphicsRootDescriptorTable(13, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
 		pCmdList->SetGraphicsRootDescriptorTable(14, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
-		pCmdList->SetGraphicsRootDescriptorTable(15, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(16 + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
-		}
 
 		m_pMesh[i]->Draw(pCmdList);
 	}
