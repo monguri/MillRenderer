@@ -107,7 +107,7 @@ bool Texture::Init
 			flag |= DirectX::WIC_LOADER_FORCE_SRGB;
 		}
 
-		hr = CreateWICTextureFromFileEx
+		hr = DirectX::CreateWICTextureFromFileEx
 		(
 			pDevice,
 			batch,
