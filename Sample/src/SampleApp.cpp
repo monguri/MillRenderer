@@ -12,7 +12,7 @@
 #include "ScopedTimer.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA true
+#define RENDER_SPONZA false
 
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_MANUAL_PCF_FOR_SHADOW_MAP
@@ -369,6 +369,7 @@ bool SampleApp::OnInit()
 		else
 		{
 			if (!SearchFilePath(L"res/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf", path))
+			//if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
 			{
 				ELOG("Error : File Not Found.");
 				return false;
@@ -2710,6 +2711,84 @@ bool SampleApp::OnInit()
 			m_Fence.Wait(m_pQueue.Get(), INFINITE);
 		}
 	}
+	else
+	{
+		// スフィアマップロード
+		{
+			DirectX::ResourceUploadBatch batch(m_pDevice.Get());
+
+			batch.Begin();
+
+			{
+				std::wstring sphereMapPath;
+				if (!SearchFilePathW(L"../res/Environments/Cannon_Exterior.dds", sphereMapPath))
+				{
+					ELOG("Error : File Not Found.");
+					return false;
+				}
+
+				if (!m_SphereMap.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sphereMapPath.c_str(), false, batch))
+				{
+					ELOG("Error : Texture::Init() Failed.");
+					return false;
+				}
+			}
+
+			std::future<void> future = batch.End(m_pQueue.Get());
+			future.wait();
+		}
+
+		// スフィアマップコンバータ初期化
+		{
+			if (!m_SphereMapConverter.Init
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RTV],
+				m_pPool[POOL_TYPE_RES],
+				m_SphereMap.GetResource()->GetDesc()
+			))
+			{
+				ELOG("Error : SphereMapConverter::Init() Failed.");
+				return false;
+			}
+		}
+
+		// IBLベイカーの生成
+		{
+			if (!m_IBLBaker.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RTV]))
+			{
+				ELOG("Error : IBLBaker::Init() Failed.");
+				return false;
+			}
+		}
+
+		// IBLキューブマップベイク
+		{
+			ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
+			ID3D12DescriptorHeap* const pHeaps[] = {
+				m_pPool[POOL_TYPE_RES]->GetHeap()
+			};
+
+			pCmd->SetDescriptorHeaps(1, pHeaps);
+
+			m_SphereMapConverter.DrawToCube(pCmd, m_SphereMap.GetHandleGPU());
+
+			const D3D12_RESOURCE_DESC& desc = m_SphereMapConverter.GetCubeMapDesc();
+			const D3D12_GPU_DESCRIPTOR_HANDLE& handle = m_SphereMapConverter.GetHandleGPU();
+
+			m_IBLBaker.IntegrateDFG(pCmd);
+
+			m_IBLBaker.IntegrateLD(pCmd, uint32_t(desc.Width), desc.MipLevels, handle);
+
+			pCmd->Close();
+
+			ID3D12CommandList* pLists[] = {pCmd};
+			m_pQueue->ExecuteCommandLists(1, pLists);
+
+			m_Fence.Sync(m_pQueue.Get());
+		}
+	}
 
 	return true;
 }
@@ -2873,6 +2952,10 @@ void SampleApp::OnTerm()
 
 	m_pDebugRenderTargetPSO.Reset();
 	m_DebugRenderTargetRootSig.Term();
+
+	m_IBLBaker.Term();
+	m_SphereMapConverter.Term();
+	m_SphereMap.Term();
 }
 
 void SampleApp::OnRender()

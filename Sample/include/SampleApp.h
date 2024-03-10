@@ -10,6 +10,8 @@
 #include "RootSignature.h"
 #include "Texture.h"
 #include "Camera.h"
+#include "SphereMapConverter.h"
+#include "IBLBaker.h"
 #include "ResMesh.h"
 
 class SampleApp : public App
@@ -100,6 +102,10 @@ private:
 	ConstantBuffer m_DownsampleCB[BLOOM_NUM_DOWN_SAMPLE - 1];
 	ConstantBuffer m_BloomHorizontalCB[BLOOM_NUM_DOWN_SAMPLE];
 	ConstantBuffer m_BloomVerticalCB[BLOOM_NUM_DOWN_SAMPLE];
+	Texture m_SphereMap;
+	SphereMapConverter m_SphereMapConverter;
+	IBLBaker m_IBLBaker;
+
 	std::vector<class Mesh*> m_pMesh;
 	Material m_Material;
 	float m_RotateAngle;
