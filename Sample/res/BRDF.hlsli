@@ -5,6 +5,27 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
+// Tokuyoshi, Y., and Kaplanyan, A. S. 2021. Stable Geometric Specular Antialiasing with Projected-Space NDF Filtering. JCGT, 10, 2, 31-58.
+// https://cedil.cesa.or.jp/cedil_sessions/view/2395
+float IsotropicNDFFiltering(float3 normal, float roughness)
+{
+	float alpha = roughness * roughness;
+	float alphaSq = alpha * alpha;
+
+	float SIGMA2 = 0.5f * (1.0f / F_PI);
+	float KAPPA = 0.18f;
+
+	float3 dndu = ddx(normal);
+	float3 dndv = ddy(normal);
+
+	float kernel = SIGMA2 * (dot(dndu, dndu) + dot(dndv, dndv));
+	float clampedKernel = min(kernel, KAPPA);
+
+	float filteredAlphaSq = saturate(alphaSq + clampedKernel);
+	float filteredRoughness = sqrt(sqrt(filteredAlphaSq));
+	return filteredRoughness;
+}
+
 //
 // Implementation is based on glTF2.0 BRDF sample implementation.
 // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation

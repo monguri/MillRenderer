@@ -1,3 +1,8 @@
+#define USE_MANUAL_PCF_FOR_SHADOW_MAP
+//#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+//#define SINGLE_SAMPLE_SHADOW_MAP
+
+#include "ShadowMap.hlsli"
 #include "BRDF.hlsli"
 
 #ifndef MIN_DIST
@@ -12,10 +17,6 @@ static const float DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS = 0.1f;
 //TODO: On UE's spot light, default value is 60, but it creates so wide soft shadow.
 static const float SPOT_LIGHT_SHADOW_SOFT_TRANSITION_SCALE = 6353.17f;
 static const float SPOT_LIGHT_PROJECTION_DEPTH_BIAS = 0.5f;
-
-#define USE_MANUAL_PCF_FOR_SHADOW_MAP
-//#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-//#define SINGLE_SAMPLE_SHADOW_MAP
 
 struct VSOutput
 {
@@ -143,27 +144,6 @@ SamplerComparisonState ShadowSmp : register(s1);
 #else
 SamplerState ShadowSmp : register(s1);
 #endif
-
-// Tokuyoshi, Y., and Kaplanyan, A. S. 2021. Stable Geometric Specular Antialiasing with Projected-Space NDF Filtering. JCGT, 10, 2, 31-58.
-// https://cedil.cesa.or.jp/cedil_sessions/view/2395
-float IsotropicNDFFiltering(float3 normal, float roughness)
-{
-	float alpha = roughness * roughness;
-	float alphaSq = alpha * alpha;
-
-	float SIGMA2 = 0.5f * (1.0f / F_PI);
-	float KAPPA = 0.18f;
-
-	float3 dndu = ddx(normal);
-	float3 dndv = ddy(normal);
-
-	float kernel = SIGMA2 * (dot(dndu, dndu) + dot(dndv, dndv));
-	float clampedKernel = min(kernel, KAPPA);
-
-	float filteredAlphaSq = saturate(alphaSq + clampedKernel);
-	float filteredRoughness = sqrt(sqrt(filteredAlphaSq));
-	return filteredRoughness;
-}
 
 float SmoothDistanceAttenuation
 (
@@ -314,142 +294,6 @@ float3 EvaluateSpotLightLagarde
 	return lightColor * att / F_PI;
 }
 
-// referenced UE ShadowFilteringCommon.ush
-float4 CalculateOcclusion(float4 shadowMapDepth, float sceneDepth, float transitionScale)
-{
-	// The standard comparison is SceneDepth < ShadowmapDepth
-	// Using a soft transition based on depth difference
-	// Offsets shadows a bit but reduces self shadowing artifacts considerably
-
-	// Unoptimized Math: saturate((Settings.SceneDepth - ShadowmapDepth) * TransitionScale + 1);
-	// Rearranged the math so that per pixel constants can be optimized from per sample constants.
-	return saturate((sceneDepth - shadowMapDepth) * transitionScale + 1);
-}
-
-// horizontal PCF, input 6x2
-float2 HorizontalPCF5x2(float2 fraction, float4 values00, float4 values20, float4 values40)
-{
-	float result0;
-	float result1;
-
-	result0 = values00.w * (1.0 - fraction.x);
-	result1 = values00.x * (1.0 - fraction.x);
-	result0 += values00.z;
-	result1 += values00.y;
-	result0 += values20.w;
-	result1 += values20.x;
-	result0 += values20.z;
-	result1 += values20.y;
-	result0 += values40.w;
-	result1 += values40.x;
-	result0 += values40.z * fraction.x;
-	result1 += values40.y * fraction.x;
-
-	return float2(result0, result1);
-}
-
-// PCF falloff is overly blurry, apply to get
-// a more reasonable look artistically. Should not be applied to
-// other passes that target pbr (e.g., raytracing and denoising).
-float ApplyPCFOverBlurCorrection(float occlusion)
-{
-	return occlusion * occlusion;
-}
-
-float GetShadowMultiplier(Texture2D ShadowMap, float2 ShadowMapSize, float3 shadowCoord, float transitionScale)
-{
-#ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
-	// referenced UE Manual5x5PCF() of ShadowFilteringCommon.ush
-	// high quality, 6x6 samples, using gather4
-	float2 texelPos = shadowCoord.xy * ShadowMapSize.x - 0.5f;	// bias to be consistent with texture filtering hardware
-	float2 fraction = frac(texelPos);
-	// Gather4 samples "at the following locations: (-,+),(+,+),(+,-),(-,-), where the magnitude of the deltas are always half a texel" - DX11 Func. Spec.
-	// So we need to offset to the centre of the 2x2 grid we want to sample.
-	float2 samplePos = (floor(texelPos) + 1.0f) * ShadowMapSize.y;
-
-	// transisionScale is considered NdotL, but use fixed value at pixel offset.
-	// shadowCoord.z is fixed too.
-	float result = 0.0f;
-	{
-		float4 values00 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, -2)), shadowCoord.z, transitionScale);
-		float4 values20 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, -2)), shadowCoord.z, transitionScale);
-		float4 values40 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, -2)), shadowCoord.z, transitionScale);
-
-		float2 row0 = HorizontalPCF5x2(fraction, values00, values20, values40);
-		result += row0.x * (1.0f - fraction.y) + row0.y;
-	}
-
-	{
-		float4 values02 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, 0)), shadowCoord.z, transitionScale);
-		float4 values22 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, 0)), shadowCoord.z, transitionScale);
-		float4 values42 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, 0)), shadowCoord.z, transitionScale);
-
-		float2 row1 = HorizontalPCF5x2(fraction, values02, values22, values42);
-		result += row1.x + row1.y;
-	}
-
-	{
-		float4 values04 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(-2, 2)), shadowCoord.z, transitionScale);
-		float4 values24 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(0, 2)), shadowCoord.z, transitionScale);
-		float4 values44 = CalculateOcclusion(ShadowMap.Gather(ShadowSmp, samplePos, int2(2, 2)), shadowCoord.z, transitionScale);
-
-		float2 row2 = HorizontalPCF5x2(fraction, values04, values24, values44);
-		result += row2.x + row2.y * fraction.y;
-	}
-
-	result /= 25;
-	result = ApplyPCFOverBlurCorrection(result);
-	return (1 - result);
-#else // USE_MANUAL_PCF_FOR_SHADOW_MAP
-	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-		#ifdef SINGLE_SAMPLE_SHADOW_MAP
-		float result = ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z);
-		#else // SINGLE_SAMPLE_SHADOW_MAP
-		const float Dilation = 2.0f;
-		float d1 = Dilation * ShadowMapSize.y * 0.125f;
-		float d2 = Dilation * ShadowMapSize.y * 0.875f;
-		float d3 = Dilation * ShadowMapSize.y * 0.625;
-		float d4 = Dilation * ShadowMapSize.y * 0.375;
-		float result = (2.0f * ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy, shadowCoord.z)
-			+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d2, d1), shadowCoord.z)
-			+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d1, d2), shadowCoord.z)
-			+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d2, d1), shadowCoord.z)
-			+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d1, d2), shadowCoord.z)
-			+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d4, d3), shadowCoord.z)
-			+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(-d3, d4), shadowCoord.z)
-			+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d4, d3), shadowCoord.z)
-			+ ShadowMap.SampleCmpLevelZero(ShadowSmp, shadowCoord.xy + float2(d3, d4), shadowCoord.z)) / 10.0f;
-		#endif // SINGLE_SAMPLE_SHADOW_MAP
-	#else // USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-		#ifdef SINGLE_SAMPLE_SHADOW_MAP
-		float shadowVal = ShadowMap.Sample(ShadowSmp, shadowCoord.xy).x;
-		float result = 1.0f;
-		if (shadowCoord.z > shadowVal)
-		{
-			result = 0.0f;
-		}
-		#else // SINGLE_SAMPLE_SHADOW_MAP
-		const float Dilation = 2.0f;
-		float d1 = Dilation * ShadowMapSize.y * 0.125f;
-		float d2 = Dilation * ShadowMapSize.y * 0.875f;
-		float d3 = Dilation * ShadowMapSize.y * 0.625;
-		float d4 = Dilation * ShadowMapSize.y * 0.375;
-		float result = (2.0f * ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy).x) ? 0.0f : 1.0f)
-			+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d2, d1)).x) ? 0.0f : 1.0f)
-			+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d1, d2)).x) ? 0.0f : 1.0f)
-			+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d2, d1)).x) ? 0.0f : 1.0f)
-			+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d1, d2)).x) ? 0.0f : 1.0f)
-			+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d4, d3)).x) ? 0.0f : 1.0f)
-			+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(-d3, d4)).x) ? 0.0f : 1.0f)
-			+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d4, d3)).x) ? 0.0f : 1.0f)
-			+ ((shadowCoord.z > ShadowMap.Sample(ShadowSmp, shadowCoord.xy + float2(d3, d4)).x) ? 0.0f : 1.0f)) / 10.0f;
-		#endif // SINGLE_SAMPLE_SHADOW_MAP
-	#endif // USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-
-	return result * result;
-#endif // USE_MANUAL_PCF_FOR_SHADOW_MAP
-}
-
 float3 EvaluateSpotLightReflection
 (
 	float3 baseColor,
@@ -466,6 +310,11 @@ float3 EvaluateSpotLightReflection
 	float angleOffset,
 	float intensity,
 	Texture2D shadowMap,
+#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+	SamplerComparisonState shadowSmp,
+#else
+	SamplerState shadowSmp,
+#endif
 	float2 shadowMapSize,
 	float3 shadowCoord
 )
@@ -490,7 +339,7 @@ float3 EvaluateSpotLightReflection
 	//TODO: not branching by type
 	float3 light = EvaluateSpotLight(N, worldPos, lightPos, invSqrRadius, forward, color, angleScale, angleOffset) * intensity;
 	float transitionScale = SPOT_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(SPOT_LIGHT_PROJECTION_DEPTH_BIAS, 1, NL);
-	float shadow = GetShadowMultiplier(shadowMap, shadowMapSize, shadowCoord, transitionScale);
+	float shadow = GetShadowMultiplier(shadowMap, shadowSmp, shadowMapSize, shadowCoord, transitionScale);
 	return brdf * light * shadow;
 }
 
@@ -542,7 +391,7 @@ PSOutput main(VSOutput input)
 	);
 
 	float transitionScale = DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS, 1, dirLightNL);
-	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, DirLightShadowMapSize, input.DirLightShadowCoord, transitionScale );
+	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, ShadowSmp, DirLightShadowMapSize, input.DirLightShadowCoord, transitionScale );
 	float3 dirLightReflection = dirLightBRDF * DirLightColor * DirLightIntensity * dirLightShadowMult;
 
 	// 4 point light
@@ -619,6 +468,7 @@ PSOutput main(VSOutput input)
 		SpotLight1AngleOffset,
 		SpotLight1Intensity,
 		SpotLight1ShadowMap,
+		ShadowSmp,
 		SpotLight1ShadowMapSize,
 		input.SpotLight1ShadowCoord
 	);
@@ -639,6 +489,7 @@ PSOutput main(VSOutput input)
 		SpotLight2AngleOffset,
 		SpotLight2Intensity,
 		SpotLight2ShadowMap,
+		ShadowSmp,
 		SpotLight2ShadowMapSize,
 		input.SpotLight2ShadowCoord
 	);
@@ -659,6 +510,7 @@ PSOutput main(VSOutput input)
 		SpotLight3AngleOffset,
 		SpotLight3Intensity,
 		SpotLight3ShadowMap,
+		ShadowSmp,
 		SpotLight3ShadowMapSize,
 		input.SpotLight3ShadowCoord
 	);
