@@ -1,13 +1,4 @@
-#define USE_MANUAL_PCF_FOR_SHADOW_MAP
-//#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-//#define SINGLE_SAMPLE_SHADOW_MAP
-
-#include "ShadowMap.hlsli"
 #include "BRDF.hlsli"
-
-// referenced UE.
-static const float DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE = 6353.17f;
-static const float DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS = 0.1f;
 
 struct VSOutput
 {
@@ -15,7 +6,6 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
-	float3 DirLightShadowCoord : TEXCOORD2;
 };
 
 struct PSOutput
@@ -37,26 +27,69 @@ cbuffer CbMaterial : register(b1)
 	float AlphaCutoff;
 };
 
-cbuffer CbDirectionalLight : register(b2)
+cbuffer CbIBL : register(b2)
 {
-	float3 DirLightColor: packoffset(c0);
-	float DirLightIntensity: packoffset(c0.w);
-	float3 DirLightForward : packoffset(c1);
-	float2 DirLightShadowMapSize : packoffset(c2); // x is pixel size, y is texel size on UV.
+	float TextureSize : packoffset(c0);
+	float MipCount : packoffset(c0.y);
+	float LightIntensity : packoffset(c0.z);
 };
 
 Texture2D BaseColorMap : register(t0);
 Texture2D MetallicRoughnessMap : register(t1);
 Texture2D NormalMap : register(t2);
+Texture2D DFGMap : register(t3);
+TextureCube DiffuseLDMap : register(t4);
+TextureCube SpecularLDMap : register(t5);
+
 SamplerState AnisotropicWrapSmp : register(s0);
+SamplerState LinearWrapSmp : register(s1);
 
-Texture2D DirLightShadowMap : register(t3);
+float3 GetSpecularDominantDir(float3 N, float3 R, float roughness)
+{
+	float smoothness = saturate(1.0f - roughness);
+	float lerpFactor = smoothness * (sqrt(smoothness) + roughness);
+	return lerp(N, R, lerpFactor);
+}
 
-#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-SamplerComparisonState ShadowSmp : register(s1);
-#else
-SamplerState ShadowSmp : register(s1);
-#endif
+float3 EvaluateIBLDiffuse(float3 N)
+{
+	return DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
+}
+
+float RoughnessToMipLevel(float linearRoughness, float mipCount)
+{
+	return (mipCount - 1) * linearRoughness;
+}
+
+float3 EvaluateIBLSpecular
+(
+	float NdotV,
+	float3 N,
+	float3 R,
+	float3 f0,
+	float roughness,
+	float textureSize,
+	float mipCount
+)
+{
+	float a = roughness * roughness;
+	float3 dominantR = GetSpecularDominantDir(N, R, a);
+
+    // 関数を再構築.
+    // L * D * (f0 * Gvis * (1 - Fc) + Gvis * Fc) * cosTheta / (4 * NdotL * NdotV).
+	NdotV = max(NdotV, 0.5f / textureSize);
+	float mipLevel = RoughnessToMipLevel(roughness, mipCount);
+	float3 preLD = SpecularLDMap.SampleLevel(LinearWrapSmp, dominantR, mipLevel).xyz;
+
+    // 事前積分したDFGをサンプルする.
+    // Fc = ( 1 - HdotL )^5
+    // PreIntegratedDFG.r = Gvis * (1 - Fc)
+    // PreIntegratedDFG.g = Gvis * Fc
+	float2 preDFG = DFGMap.SampleLevel(LinearWrapSmp, float2(NdotV, roughness), 0).xy;
+
+    // LD * (f0 * Gvis * (1 - Fc) + Gvis * Fc)
+	return preLD * (f0 * preDFG.x + preDFG.y);
+}
 
 PSOutput main(VSOutput input)
 {
@@ -86,30 +119,16 @@ PSOutput main(VSOutput input)
 
 	N = mul(input.InvTangentBasis, N);
 	float3 V = normalize(CameraPosition - input.WorldPos);
+	float3 R = normalize(reflect(V, N));
 	float NV = saturate(dot(N, V));
 
-	// directional light
-	float3 dirLightL = normalize(-DirLightForward);
-	float3 dirLightH = normalize(V + dirLightL);
-	float dirLightVH = saturate(dot(V, dirLightH));
-	float dirLightNH = saturate(dot(N, dirLightH));
-	float dirLightNL = saturate(dot(N, dirLightL));
-	float3 dirLightBRDF = ComputeBRDF
-	(
-		baseColor.rgb,
-		metallic,
-		roughness,
-		dirLightVH,
-		dirLightNH,
-		NV,
-		dirLightNL 
-	);
+	float3 Kd = baseColor.rgb * (1.0f - metallic);
+	float3 Ks = baseColor.rgb * metallic;
 
-	float transitionScale = DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS, 1, dirLightNL);
-	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, ShadowSmp, DirLightShadowMapSize, input.DirLightShadowCoord, transitionScale );
-	float3 dirLightReflection = dirLightBRDF * DirLightColor * DirLightIntensity * dirLightShadowMult;
-
-	output.Color.rgb = dirLightReflection;
+	float3 lit = 0;
+	lit += EvaluateIBLDiffuse(N) * Kd;
+	lit += EvaluateIBLSpecular(NV, N, R, Ks, roughness, TextureSize, MipCount);
+	output.Color.rgb = lit * LightIntensity;
 	output.Color.a = 1.0f;
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;

@@ -207,6 +207,14 @@ namespace
 		float Padding[2]; // TODO:GAUSSIAN_FILTER_SAMPLESが4の倍数なのを前提としている
 	};
 
+	struct alignas(256) CbIBL
+	{
+		float TextureSize;
+		float MipCount;
+		float LightIntensity;
+		float Padding0;
+	};
+
 	UINT16 inline GetChromaticityCoord(double value)
 	{
 		return UINT16(value * 50000);
@@ -447,20 +455,20 @@ bool SampleApp::OnInit()
 		future.wait();
 	}
 
-	// ディレクショナルライトバッファの設定
-	{
-		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
-		{
-			if (!m_DirectionalLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDirectionalLight)))
-			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
-				return false;
-			}
-		}
-	}
-
 	if (RENDER_SPONZA)
 	{
+		// ディレクショナルライトバッファの設定
+		{
+			for (uint32_t i = 0u; i < FRAME_COUNT; i++)
+			{
+				if (!m_DirectionalLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDirectionalLight)))
+				{
+					ELOG("Error : ConstantBuffer::Init() Failed.");
+					return false;
+				}
+			}
+		}
+
 		// ポイントライトバッファの設定
 		{
 			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
@@ -552,49 +560,49 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// ディレクショナルライト用デプスターゲットの生成
-	{
-		if (!m_DirLightShadowMapTarget.Init
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_DSV],
-			m_pPool[POOL_TYPE_RES], // シャドウマップなのでSRVも作る
-			DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE,
-			DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE,
-			DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
-			1.0f,
-			0
-		))
-		{
-			ELOG("Error : DepthTarget::Init() Failed.");
-			return false;
-		}
-
-		{
-			m_DirLightShadowMapViewport.TopLeftX = 0;
-			m_DirLightShadowMapViewport.TopLeftY = 0;
-			m_DirLightShadowMapViewport.Width = static_cast<float>(m_DirLightShadowMapTarget.GetDesc().Width);
-			m_DirLightShadowMapViewport.Height = static_cast<float>(m_DirLightShadowMapTarget.GetDesc().Height);
-			m_DirLightShadowMapViewport.MinDepth = 0.0f;
-			m_DirLightShadowMapViewport.MaxDepth = 1.0f;
-		}
-
-		// TODO:ModelViewerだと内部で以下の処理がある
-		//// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
-		//m_Scissor.left = 1;
-		//m_Scissor.top = 1;
-		//m_Scissor.right = (LONG)Width - 2;
-		//m_Scissor.bottom = (LONG)Height - 2;
-		{
-			m_DirLightShadowMapScissor.left = 0;
-			m_DirLightShadowMapScissor.right = (LONG)m_DirLightShadowMapTarget.GetDesc().Width;
-			m_DirLightShadowMapScissor.top = 0;
-			m_DirLightShadowMapScissor.bottom = (LONG)m_DirLightShadowMapTarget.GetDesc().Height;
-		}
-	}
-
 	if (RENDER_SPONZA)
 	{
+		// ディレクショナルライト用デプスターゲットの生成
+		{
+			if (!m_DirLightShadowMapTarget.Init
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_DSV],
+				m_pPool[POOL_TYPE_RES], // シャドウマップなのでSRVも作る
+				DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE,
+				DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE,
+				DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
+				1.0f,
+				0
+			))
+			{
+				ELOG("Error : DepthTarget::Init() Failed.");
+				return false;
+			}
+
+			{
+				m_DirLightShadowMapViewport.TopLeftX = 0;
+				m_DirLightShadowMapViewport.TopLeftY = 0;
+				m_DirLightShadowMapViewport.Width = static_cast<float>(m_DirLightShadowMapTarget.GetDesc().Width);
+				m_DirLightShadowMapViewport.Height = static_cast<float>(m_DirLightShadowMapTarget.GetDesc().Height);
+				m_DirLightShadowMapViewport.MinDepth = 0.0f;
+				m_DirLightShadowMapViewport.MaxDepth = 1.0f;
+			}
+
+			// TODO:ModelViewerだと内部で以下の処理がある
+			//// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
+			//m_Scissor.left = 1;
+			//m_Scissor.top = 1;
+			//m_Scissor.right = (LONG)Width - 2;
+			//m_Scissor.bottom = (LONG)Height - 2;
+			{
+				m_DirLightShadowMapScissor.left = 0;
+				m_DirLightShadowMapScissor.right = (LONG)m_DirLightShadowMapTarget.GetDesc().Width;
+				m_DirLightShadowMapScissor.top = 0;
+				m_DirLightShadowMapScissor.bottom = (LONG)m_DirLightShadowMapTarget.GetDesc().Height;
+			}
+		}
+
 		// スポットライト用デプスターゲットの生成
 		{
 			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
@@ -1079,17 +1087,12 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 6, 1)
 			.SetSRV(ShaderStage::PS, 7, 2)
 			.SetSRV(ShaderStage::PS, 8, 3)
+			.SetSRV(ShaderStage::PS, 9, 4)
+			.SetSRV(ShaderStage::PS, 10, 5)
 
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::AnisotropicWrap)
-#ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointClamp)
-#else
-	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-			.AddStaticCmpSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
-	#else
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
-	#endif
-#endif
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
+
 			.AllowIL()
 			.End();
 
@@ -2788,6 +2791,20 @@ bool SampleApp::OnInit()
 
 			m_Fence.Sync(m_pQueue.Get());
 		}
+
+		// IBLバッファの設定
+		{
+			if (!m_IBL_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbIBL)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+
+			CbIBL* ptr = m_IBL_CB.GetPtr<CbIBL>();
+			ptr->TextureSize = m_IBLBaker.LDTextureSize; // TODO:DFGTextureSizeはLDTextureSizeの2倍あるのにいいのか？
+			ptr->MipCount = m_IBLBaker.MipCount;
+			ptr->LightIntensity = 1.0f;
+		}
 	}
 
 	return true;
@@ -2810,6 +2827,8 @@ void SampleApp::OnTerm()
 		m_TemporalAA_CB[i].Term();
 		m_TonemapCB[i].Term();
 	}
+
+	m_IBL_CB.Term();
 
 	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 	{
@@ -3019,7 +3038,10 @@ void SampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 	
-	DrawDirectionalLightShadowMap(pCmd, lightForward);
+	if (RENDER_SPONZA)
+	{
+		DrawDirectionalLightShadowMap(pCmd, lightForward);
+	}
 
 	if (ENABLE_TEMPORAL_AA)
 	{
@@ -3096,6 +3118,8 @@ void SampleApp::OnRender()
 
 void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
 {
+	assert(RENDER_SPONZA);
+
 	ScopedTimer scopedTimer(pCmdList, L"DirectionalLightShadowMap");
 
 	// 変換行列用の定数バッファの更新
@@ -3124,39 +3148,17 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 
 	pCmdList->RSSetViewports(1, &m_DirLightShadowMapViewport);
 	pCmdList->RSSetScissorRects(1, &m_DirLightShadowMapScissor);
-
-	if (RENDER_SPONZA)
-	{
-		pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
-	}
+	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandleGPU());
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Opaqueマテリアルのメッシュの描画
-	if (RENDER_SPONZA)
-	{
-		pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
-	}
-	else
-	{
-		pCmdList->SetPipelineState(m_pSceneDepthOpaquePSO.Get());
-	}
+	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
-	if (RENDER_SPONZA)
-	{
-		pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
-	}
-	else
-	{
-		pCmdList->SetPipelineState(m_pSceneDepthMaskPSO.Get());
-	}
+	pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 
 	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -3189,21 +3191,21 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 		ptr->ViewProj = viewProj;
 
-		float zNear = 0.0f;
-		float zFar = 40.0f;
-		float widthHeight = 40.0f;
-
-		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
-		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
-		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
-		// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
-		const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
-		// World行列はMatrix::Identityとする
-		ptr->ModelToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
 		if (RENDER_SPONZA)
 		{
+			float zNear = 0.0f;
+			float zFar = 40.0f;
+			float widthHeight = 40.0f;
+
+			const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+			const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+			const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+			// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
+			const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
+			// World行列はMatrix::Identityとする
+			ptr->ModelToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
 			ptr->ModelToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 			ptr->ModelToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 			ptr->ModelToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
@@ -3216,7 +3218,8 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		ptr->CameraPosition = m_Camera.GetPosition();
 	}
 
-	// ライトバッファの更新
+	// ディレクショナルライトバッファの更新
+	if (RENDER_SPONZA)
 	{
 		CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
 		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f); // 白色光
@@ -3252,10 +3255,11 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	}
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(4, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
 
 	if (RENDER_SPONZA)
 	{
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
+
 		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 		{
 			pCmdList->SetGraphicsRootDescriptorTable(5 + i, m_PointLightCB[i].GetHandleGPU());
@@ -3266,22 +3270,25 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 			pCmdList->SetGraphicsRootDescriptorTable(9 + i, m_SpotLightCB[i].GetHandleGPU());
 		}
 	}
+	else
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_IBL_CB.GetHandleGPU());
+	}
 
 	if (RENDER_SPONZA)
 	{
 		pCmdList->SetGraphicsRootDescriptorTable(15, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(8, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
-	}
 
-	if (RENDER_SPONZA)
-	{
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
 			pCmdList->SetGraphicsRootDescriptorTable(16 + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 		}
+	}
+	else
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleGPU_DFG());
+		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleGPU_DiffuseLD());
+		pCmdList->SetGraphicsRootDescriptorTable(10, m_IBLBaker.GetHandleGPU_SpecularLD());
 	}
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

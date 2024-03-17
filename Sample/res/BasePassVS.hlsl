@@ -12,13 +12,11 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
-	float3 DirLightShadowCoord : TEXCOORD2;
 };
 
 cbuffer CbTransform : register(b0)
 {
 	float4x4 ViewProj : packoffset(c0);
-	float4x4 ModelToDirLightShadowMap : packoffset(c4);
 }
 
 cbuffer CbMesh : register(b1)
@@ -37,10 +35,6 @@ VSOutput main(VSInput input)
 	output.Position = projPos;
 	output.TexCoord = input.TexCoord;
 	output.WorldPos = worldPos.xyz;
-
-	float4 dirLightShadowPos = mul(ModelToDirLightShadowMap, localPos);
-	// dividing by w is not necessary because it is 1 by orthogonal.
-	output.DirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
 
 	float3 N = normalize(mul((float3x3)World, input.Normal));
 	float3 T = normalize(mul((float3x3)World, input.Tangent));

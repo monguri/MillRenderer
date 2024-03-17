@@ -102,6 +102,7 @@ private:
 	ConstantBuffer m_DownsampleCB[BLOOM_NUM_DOWN_SAMPLE - 1];
 	ConstantBuffer m_BloomHorizontalCB[BLOOM_NUM_DOWN_SAMPLE];
 	ConstantBuffer m_BloomVerticalCB[BLOOM_NUM_DOWN_SAMPLE];
+	ConstantBuffer m_IBL_CB;
 	Texture m_SphereMap;
 	SphereMapConverter m_SphereMapConverter;
 	IBLBaker m_IBLBaker;
