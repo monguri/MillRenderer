@@ -1477,7 +1477,6 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_SSAOSetupRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
