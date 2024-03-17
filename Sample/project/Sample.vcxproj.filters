@@ -117,6 +117,9 @@
     <None Include="..\res\BasePassPS.hlsli">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="..\res\ShadowMap.hlsli">
+      <Filter>リソース ファイル</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\SampleApp.cpp">

@@ -302,6 +302,7 @@
   <ItemGroup>
     <None Include="..\res\BakeUtil.hlsli" />
     <None Include="..\res\BasePassPS.hlsli" />
+    <None Include="..\res\ShadowMap.hlsli" />
     <None Include="..\res\SponzaPS.hlsli" />
     <None Include="..\res\BRDF.hlsli" />
     <None Include="packages.config" />
