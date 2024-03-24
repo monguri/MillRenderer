@@ -1405,27 +1405,28 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// スクリーンスペース描画パス用のInputElement。解放されないようにスコープ外で定義。
+	D3D12_INPUT_ELEMENT_DESC SSPassInputElements[2];
+	SSPassInputElements[0].SemanticName = "POSITION";
+	SSPassInputElements[0].SemanticIndex = 0;
+	SSPassInputElements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
+	SSPassInputElements[0].InputSlot = 0;
+	SSPassInputElements[0].AlignedByteOffset = 0;
+	SSPassInputElements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+	SSPassInputElements[0].InstanceDataStepRate = 0;
+
+	SSPassInputElements[1].SemanticName = "TEXCOORD";
+	SSPassInputElements[1].SemanticIndex = 0;
+	SSPassInputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+	SSPassInputElements[1].InputSlot = 0;
+	SSPassInputElements[1].AlignedByteOffset = 8;
+	SSPassInputElements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+	SSPassInputElements[1].InstanceDataStepRate = 0;
+
 	// スクリーンスペース描画パス用のD3D12_GRAPHICS_PIPELINE_STATE_DESCの共通項
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC SSPassPSODescCommon = {};
 	{
-		D3D12_INPUT_ELEMENT_DESC elements[2];
-		elements[0].SemanticName = "POSITION";
-		elements[0].SemanticIndex = 0;
-		elements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[0].InputSlot = 0;
-		elements[0].AlignedByteOffset = 0;
-		elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[0].InstanceDataStepRate = 0;
-
-		elements[1].SemanticName = "TEXCOORD";
-		elements[1].SemanticIndex = 0;
-		elements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elements[1].InputSlot = 0;
-		elements[1].AlignedByteOffset = 8;
-		elements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elements[1].InstanceDataStepRate = 0;
-
-		SSPassPSODescCommon.InputLayout.pInputElementDescs = elements;
+		SSPassPSODescCommon.InputLayout.pInputElementDescs = SSPassInputElements;
 		SSPassPSODescCommon.InputLayout.NumElements = 2;
 		SSPassPSODescCommon.pRootSignature = nullptr; // 上書き必須
 		SSPassPSODescCommon.VS.pShaderBytecode = nullptr; // 上書き必須。TODO:使いまわそうとしたらエラーになった。
@@ -2802,7 +2803,7 @@ bool SampleApp::OnInit()
 			CbIBL* ptr = m_IBL_CB.GetPtr<CbIBL>();
 			ptr->TextureSize = m_IBLBaker.LDTextureSize; // TODO:DFGTextureSizeはLDTextureSizeの2倍あるのにいいのか？
 			ptr->MipCount = m_IBLBaker.MipCount;
-			ptr->LightIntensity = 1.0f;
+			ptr->LightIntensity = 10.0f;
 		}
 	}
 
