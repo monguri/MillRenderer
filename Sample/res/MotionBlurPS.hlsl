@@ -50,17 +50,16 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	if (speedPS >= MIN_SPEED && bEnableMotionBlur)
 	{
-		// assume ColorMap.a is always 1.
 		// accum.a becomes accumulation of weight.
-		float4 accum = result;
+		float4 accum = float4(result.rgb, 1);
 
 		for (float i = halfSampleCount - 1.0; i > 0.0; i -= 1.0)
 		{
 			uv1 += deltaUV;
-			accum += ColorMap.SampleLevel(PointClampSmp, uv1, 0) * GetSampleWeight(uv1);
+			accum += float4(ColorMap.SampleLevel(PointClampSmp, uv1, 0).rgb * GetSampleWeight(uv1), 1);
 
 			uv2 -= deltaUV;
-			accum += ColorMap.SampleLevel(PointClampSmp, uv2, 0) * GetSampleWeight(uv2);
+			accum += float4(ColorMap.SampleLevel(PointClampSmp, uv2, 0).rgb * GetSampleWeight(uv2), 1);
 		}
 
 		// almost the same as frac(halfSampleCount) replaces 0 with 1.
@@ -68,10 +67,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 		deltaUV *= remainder;
 
 		uv1 += deltaUV;
-		accum += ColorMap.SampleLevel(PointClampSmp, uv1, 0) * GetSampleWeight(uv1) * remainder;
+		accum += float4(ColorMap.SampleLevel(PointClampSmp, uv1, 0).rgb * GetSampleWeight(uv1), 1) * remainder;
 
 		uv2 -= deltaUV;
-		accum += ColorMap.SampleLevel(PointClampSmp, uv2, 0) * GetSampleWeight(uv2) * remainder;
+		accum += float4(ColorMap.SampleLevel(PointClampSmp, uv2, 0).rgb * GetSampleWeight(uv2), 1) * remainder;
 
 		// lerp with alpha of speed.
 		result = lerp(result, accum / accum.a, saturate(speedPS / MAX_SPEED));
