@@ -118,7 +118,7 @@ PSOutput main(VSOutput input)
 	roughness = IsotropicNDFFiltering(N, roughness);
 
 	N = mul(input.InvTangentBasis, N);
-	float3 V = normalize(CameraPosition - input.WorldPos);
+	float3 V = normalize(input.WorldPos - CameraPosition);
 	float3 R = normalize(reflect(V, N));
 	float NV = saturate(dot(N, V));
 
