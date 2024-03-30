@@ -180,10 +180,10 @@ bool SphereMapConverter::Init
 		uint32_t currSize = 1;
 		uint32_t currMipLevels = 1;
 
-		uint32_t prevSize = 1;
+		uint32_t prevSize = 0;
 
-		uint32_t size = 1;
-		uint32_t mipLevels = 1;
+		uint32_t size = 0;
+		uint32_t mipLevels = 0;
 
 		for (;;)
 		{
