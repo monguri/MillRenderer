@@ -24,6 +24,7 @@ Material::~Material()
 bool Material::Init
 (
 	ID3D12Device* pDevice,
+	ID3D12GraphicsCommandList* pCmdList,
 	DescriptorPool* pPool,
 	size_t bufferSize,
 	size_t count
@@ -51,17 +52,10 @@ bool Material::Init
 			return false;
 		}
 
-		D3D12_RESOURCE_DESC desc = {};
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		desc.Width = 1;
-		desc.Height = 1;
-		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Format = DXGI_FORMAT_R8G8_UNORM;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
-
-		if (!pTexture->Init(pDevice, pPool, &desc, false, false))
+		// 法線マップのデフォルトテクスチャとして使えるように(0.5,0.5,1)にする
+		// TODO:いずれ種類ごとに別のデフォルトテクスチャが必要になったら対応する
+		uint32_t normalBlue = 0x00FF8080;
+		if (!pTexture->InitFromData(pDevice, pCmdList, pPool, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &normalBlue))
 		{
 			ELOG("Error : Texture::Init() Failed.");
 			pTexture->Term();

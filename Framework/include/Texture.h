@@ -22,14 +22,41 @@ public:
 		DirectX::ResourceUploadBatch& batch
 	);
 
-	bool Init
+	bool InitFromData
 	(
 		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
 		DescriptorPool* pPool,
-		const D3D12_RESOURCE_DESC* pDesc,
-		bool isSRGB,
-		bool isCube
+		uint32_t width,
+		uint32_t height,
+		DXGI_FORMAT format,
+		size_t pixelSize,
+		const void* pInitData
 	);
+
+	template<typename T>
+	bool InitFromData
+	(
+		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
+		DescriptorPool* pPool,
+		uint32_t width,
+		uint32_t height,
+		DXGI_FORMAT format,
+		const T* pInitData
+	)
+	{
+		return InitFromData(
+			pDevice,
+			pCmdList,
+			pPool,
+			width,
+			height,
+			format,
+			sizeof(T),
+			pInitData
+		);
+	}
 
 	void Term();
 
@@ -37,9 +64,11 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetHandleGPU() const;
 
 	ID3D12Resource* GetResource() const;
+	D3D12_RESOURCE_DESC GetDesc() const;
 
 private:
 	ComPtr<ID3D12Resource> m_pTex;
+	ComPtr<ID3D12Resource> m_pUploadBuffer;
 	DescriptorHandle* m_pHandle;
 	DescriptorPool* m_pPool;
 

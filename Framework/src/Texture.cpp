@@ -3,6 +3,7 @@
 #include "Logger.h"
 #include <DDSTextureLoader.h>
 #include <WICTextureLoader.h>
+#include <DirectXHelpers.h>
 
 namespace
 {
@@ -130,18 +131,20 @@ bool Texture::Init
 	return true;
 }
 
-bool Texture::Init
+bool Texture::InitFromData
 (
 	ID3D12Device* pDevice,
+	ID3D12GraphicsCommandList* pCmdList,
 	DescriptorPool* pPool,
-	const D3D12_RESOURCE_DESC* pDesc,
-	bool isSRGB,
-	bool isCube
+	uint32_t width,
+	uint32_t height,
+	DXGI_FORMAT format,
+	size_t pixelSize,
+	const void* pInitData
 )
 {
-	if (pDevice == nullptr || pPool == nullptr || pDesc == nullptr)
+	if (pDevice == nullptr || pPool == nullptr || width == 0 || height == 0 || pInitData == nullptr)
 	{
-		ELOG("Eror : Invalid Argument.");
 		return false;
 	}
 
@@ -157,43 +160,135 @@ bool Texture::Init
 		return false;
 	}
 
-	D3D12_RESOURCE_DESC desc = *pDesc;
-	if (isSRGB)
+	// テクスチャ作成
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+	UINT64 texBytes;
 	{
-		desc.Format = ConvertToSRGB(desc.Format);
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.Type = D3D12_HEAP_TYPE_DEFAULT;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		prop.CreationNodeMask = 1;
+		prop.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		desc.Alignment = 0;
+		desc.Width = UINT64(width);
+		desc.Height = height;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		HRESULT hr = pDevice->CreateCommittedResource
+		(
+			&prop,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_COPY_DEST, // コピー用の状態にしておく
+			nullptr,
+			IID_PPV_ARGS(m_pTex.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Format = format;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Texture2D.PlaneSlice = 0;
+		srvDesc.Texture2D.ResourceMinLODClamp = 0;
+
+		pDevice->CreateShaderResourceView(
+			m_pTex.Get(),
+			&srvDesc,
+			m_pHandle->HandleCPU
+		);
+
+		pDevice->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, nullptr, nullptr, &texBytes);
 	}
 
-	D3D12_HEAP_PROPERTIES prop = {};
-	prop.Type = D3D12_HEAP_TYPE_DEFAULT;
-	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	prop.CreationNodeMask = 0;
-	prop.VisibleNodeMask = 0;
-
-	HRESULT hr = pDevice->CreateCommittedResource
-	(
-		&prop,
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		nullptr,
-		IID_PPV_ARGS(m_pTex.GetAddressOf())
-	);
-	if (FAILED(hr))
+	// Upload用バッファ作成
 	{
-		ELOG("Eror : ID3D12Device::CreateCommittedResource() Failed. retcode = 0x%x", hr);
-		return false;
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		prop.CreationNodeMask = 1;
+		prop.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER; // Upload用のものはD3D12_RESOURCE_DIMENSION_TEXTURE2DでなくBufferで作らねばならない
+		desc.Alignment = 0;
+		desc.Width = texBytes;
+		desc.Height = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		HRESULT hr = pDevice->CreateCommittedResource
+		(
+			&prop,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pUploadBuffer.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		void* ptr;
+		hr = m_pUploadBuffer->Map(0, nullptr, &ptr);
+		if (FAILED(hr) || ptr == nullptr)
+		{
+			return false;
+		}
+
+		// 一要素ずつ書き込んでいくのはUEのFSystemTextures::InitializeFeatureLevelDependentTextures()を参考にしている
+		for (uint32_t y = 0; y < height; y++)
+		{
+			for (uint32_t x = 0; x < height; x++)
+			{
+				uint8_t* src = (uint8_t*)pInitData + (x + y * height) * pixelSize;
+				uint8_t* dest = reinterpret_cast<uint8_t*>(ptr) + x * pixelSize + y * footprint.Footprint.RowPitch;
+				memcpy(dest, src, pixelSize);
+			}
+		}
+
+		m_pUploadBuffer->Unmap(0, nullptr);
 	}
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = GetViewDesc(isCube);
-#if 0 // GetViewDesc()の中でm_pTexのFormatをコピーしているので不要。
-	if (isSRGB)
+	// テクスチャ作成とコピー
 	{
-		viewDesc.Format = ConvertToSRGB(viewDesc.Format);
-	}
-#endif
+		D3D12_TEXTURE_COPY_LOCATION src;
+		src.pResource = m_pUploadBuffer.Get();
+		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		src.PlacedFootprint = footprint;
 
-	pDevice->CreateShaderResourceView(m_pTex.Get(), &viewDesc, m_pHandle->HandleCPU);
+		D3D12_TEXTURE_COPY_LOCATION dst;
+		dst.pResource = m_pTex.Get();
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst.SubresourceIndex = 0;
+
+		pCmdList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+		DirectX::TransitionResource(pCmdList, GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
 
 	return true;
 }
@@ -201,6 +296,7 @@ bool Texture::Init
 void Texture::Term()
 {
 	m_pTex.Reset();
+	m_pUploadBuffer.Reset(); // TODO:本当はコピーのExecuteCommandLists後にすぐ消せるのだが。
 
 	if (m_pHandle != nullptr && m_pPool != nullptr)
 	{
@@ -238,6 +334,18 @@ D3D12_GPU_DESCRIPTOR_HANDLE Texture::GetHandleGPU() const
 ID3D12Resource* Texture::GetResource() const
 {
 	return m_pTex.Get();
+}
+
+D3D12_RESOURCE_DESC Texture::GetDesc() const
+{
+	if (m_pTex == nullptr)
+	{
+		return D3D12_RESOURCE_DESC();
+	}
+	else
+	{
+		return m_pTex->GetDesc();
+	}
 }
 
 D3D12_SHADER_RESOURCE_VIEW_DESC Texture::GetViewDesc(bool isCube) const

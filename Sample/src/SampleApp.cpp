@@ -12,20 +12,20 @@
 #include "ScopedTimer.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA true
+#define RENDER_SPONZA false
 
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_MANUAL_PCF_FOR_SHADOW_MAP
 //#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
-#define ENABLE_SSAO true
+#define ENABLE_SSAO false
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
-#define ENABLE_BLOOM true
+#define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
-#define ENABLE_TEMPORAL_AA true
+#define ENABLE_TEMPORAL_AA false
 #define ENABLE_FXAA false
 #define ENABLE_FXAA_HIGH_QUALITY true
 
@@ -425,11 +425,17 @@ bool SampleApp::OnInit()
 		}
 
 		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-		if (!m_Material.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), resMaterial.size())) // ContantBufferはこの時点では作らない。テクスチャはダミー。
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+		if (!m_Material.Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), resMaterial.size())) // ContantBufferはこの時点では作らない。テクスチャはダミー。
 		{
 			ELOG("Error : Material Initialize Failed.");
 			return false;
 		}
+		pCmd->Close();
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
+
 
 		DirectX::ResourceUploadBatch batch(m_pDevice.Get());
 
@@ -808,7 +814,7 @@ bool SampleApp::OnInit()
 			}
 		}
 
-		if (!m_SSAO_RandomizationTarget.InitFromData<uint16_t>
+		if (!m_SSAO_RandomizationTex.InitFromData
 		(
 			m_pDevice.Get(),
 			pCmd,
@@ -816,7 +822,7 @@ bool SampleApp::OnInit()
 			SSAO_RANDOMIZATIN_TEXTURE_SIZE,
 			SSAO_RANDOMIZATIN_TEXTURE_SIZE,
 			DXGI_FORMAT_R8G8_UNORM,
-			texData.data() // TODO:書き込んだデータを渡す
+			texData.data()
 		))
 		{
 			ELOG("Error : ColorTarget::Init() Failed.");
@@ -2400,7 +2406,7 @@ bool SampleApp::OnInit()
 		ptr->InvProjMatrix = Matrix::Identity;
 		ptr->Width = (int)m_SSAO_HalfResTarget.GetDesc().Width;
 		ptr->Height = (int)m_SSAO_HalfResTarget.GetDesc().Height;
-		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTarget.GetDesc().Width, (float)m_SSAO_RandomizationTarget.GetDesc().Height);
+		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTex.GetDesc().Width, (float)m_SSAO_RandomizationTex.GetDesc().Height);
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->Near = CAMERA_NEAR;
@@ -2423,7 +2429,7 @@ bool SampleApp::OnInit()
 		ptr->InvProjMatrix = Matrix::Identity;
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTarget.GetDesc().Width, (float)m_SSAO_RandomizationTarget.GetDesc().Height);
+		ptr->RandomationSize = Vector2((float)m_SSAO_RandomizationTex.GetDesc().Width, (float)m_SSAO_RandomizationTex.GetDesc().Height);
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->Near = CAMERA_NEAR;
@@ -2891,7 +2897,7 @@ void SampleApp::OnTerm()
 
 	m_SSAO_HalfResTarget.Term();
 	m_SSAO_FullResTarget.Term();
-	m_SSAO_RandomizationTarget.Term();
+	m_SSAO_RandomizationTex.Term();
 
 	m_AmbientLightTarget.Term();
 
@@ -3418,7 +3424,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResCB[m_FrameIndex].GetHandleGPU());
 		pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_SSAOSetupTarget.GetHandleSRV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTex.GetHandleGPU());
 		pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
 
 		D3D12_VIEWPORT halfResViewport = m_Viewport;
@@ -3464,7 +3470,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResCB[m_FrameIndex].GetHandleGPU());
 		pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_SSAOSetupTarget.GetHandleSRV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTex.GetHandleGPU());
 		pCmdList->SetGraphicsRootDescriptorTable(4, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(5, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetPipelineState(m_pSSAO_PSO.Get());

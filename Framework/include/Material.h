@@ -29,6 +29,7 @@ public:
 	bool Init
 	(
 		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPool,
 		size_t bufferSize,
 		size_t count

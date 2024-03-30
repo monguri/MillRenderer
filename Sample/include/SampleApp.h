@@ -71,7 +71,7 @@ private:
 	ColorTarget m_SSAOSetupTarget;
 	ColorTarget m_SSAO_HalfResTarget;
 	ColorTarget m_SSAO_FullResTarget;
-	ColorTarget m_SSAO_RandomizationTarget;
+	Texture m_SSAO_RandomizationTex;
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_ObjectVelocityTarget;
 	ColorTarget m_VelocityTargt;
