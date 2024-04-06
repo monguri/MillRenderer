@@ -79,9 +79,6 @@ float3 LUT(float NdotV, float roughness)
 			// Terms besides V are from the GGX PDF we're dividing by.
 			float NdotH = saturate(H.z);
 			float VdotH = saturate(dot(V, H));
-
-			// TODO: glTF-Sample-Viewer has a bug. Third argument of V_GGX is
-			// roughness at glTF-Sample-Viewer.
 			float V_pdf = V_GGX(NdotL, NdotV, alpha) * VdotH * NdotL / NdotH;
 			float Fc = pow(1.0f - VdotH, 5.0f);
 			A += (1.0f - Fc) * V_pdf;
