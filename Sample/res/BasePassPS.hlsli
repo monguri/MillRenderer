@@ -56,6 +56,26 @@ float3 EvaluateIBLDiffuse(float3 N)
 	return DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
 }
 
+// Referenced glTF-Sample-Viewer ibl.glsl
+float3 GetIBLRadianceLambertian(float3 N, float3 NdotV, float roughness, float3 diffuseColor, float3 F0, float3 Fr, float2 f_ab)
+{
+	float3 irradiance = DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
+
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+
+	float3 k_S = F0 + Fr * pow(1.0f - NdotV, 5.0f);
+	float3 FssEss = k_S * f_ab.x + f_ab.y; // <--- GGX / specular light contribution (scale it down if the specularWeight is low)
+
+    // Multiple scattering, from Fdez-Aguera
+	float Ems = (1.0f - (f_ab.x + f_ab.y));
+	float3 F_avg = (F0 + (1.0f - F0) / 21.0f);
+	float3 FmsEms = Ems * FssEss * F_avg / (1.0f - F_avg * Ems);
+	float3 k_D = diffuseColor * (1.0f - FssEss + FmsEms); // we use +FmsEms as indicated by the formula in the blog post (might be a typo in the implementation)
+
+	return (FmsEms + k_D) * irradiance;
+}
+
 float RoughnessToMipLevel(float linearRoughness, float mipCount)
 {
 	return (mipCount - 1) * linearRoughness;
@@ -91,6 +111,24 @@ float3 EvaluateIBLSpecular
 	return preLD * (f0 * preDFG.x + preDFG.y);
 }
 
+// Referenced glTF-Sample-Viewer ibl.glsl
+float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, float3 F0, float3 Fr, float2 f_ab, float mipCount)
+{
+	// TODO: float3 dominantR = GetSpecularDominantDir(N, R, a);‚È‚µ
+	float mipLevel = RoughnessToMipLevel(roughness, mipCount);
+
+	// TODO: NdotV = max(NdotV, 0.5f / textureSize);‚È‚µ
+	// glTF-Sample-Viewer is not using GetSpecularDominantDir()
+	float3 specularLight = SpecularLDMap.SampleLevel(LinearWrapSmp, R, mipLevel).xyz;
+	
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+	float3 k_S = F0 + Fr * pow(1.0f - NdotV, 5.0f);
+	float3 FssEss = k_S * f_ab.x + f_ab.y;
+
+	return specularLight * FssEss;
+}
+
 PSOutput main(VSOutput input)
 {
 	PSOutput output = (PSOutput)0;
@@ -118,16 +156,30 @@ PSOutput main(VSOutput input)
 	roughness = IsotropicNDFFiltering(N, roughness);
 
 	N = mul(input.InvTangentBasis, N);
-	float3 V = normalize(input.WorldPos - CameraPosition);
-	float3 R = normalize(reflect(V, N));
-	float NV = saturate(dot(N, V));
+	float3 V = normalize(CameraPosition - input.WorldPos);
+	float3 R = normalize(reflect(-V, N));
+	float NdotV = saturate(dot(N, V));
 
+#if 0
 	float3 Kd = baseColor.rgb * (1.0f - metallic);
 	float3 Ks = baseColor.rgb * metallic;
 
 	float3 lit = 0;
 	lit += EvaluateIBLDiffuse(N) * Kd;
-	lit += EvaluateIBLSpecular(NV, N, R, Ks, roughness, TextureSize, MipCount);
+	lit += EvaluateIBLSpecular(NdotV, N, R, Ks, roughness, TextureSize, MipCount);
+#else
+
+	float3 cDiff = lerp(baseColor.rgb, 0.0f, metallic);
+	float3 F0 = ComputeF0(baseColor.rgb, metallic);
+	float3 Fr = max(1.0f - roughness, F0) - F0;
+	
+	float2 f_ab = DFGMap.SampleLevel(LinearWrapSmp, float2(NdotV, roughness), 0).xy;
+
+	float3 diffuse = GetIBLRadianceLambertian(N, NdotV, roughness, cDiff, F0, Fr, f_ab);
+	float3 specular = GetIBLRadianceGGX(N, R, NdotV, roughness, F0, Fr, f_ab, MipCount);
+	float3 lit = diffuse + specular;
+#endif
+
 	output.Color.rgb = lit * LightIntensity;
 	output.Color.a = 1.0f;
 
