@@ -113,7 +113,7 @@ MicrofacetDistributionSample GGX(float2 xi, float roughness)
 
     // evaluate sampling equations
 	float alpha = roughness * roughness;
-	ggx.cosTheta = saturate(sqrt((1.0 - xi.y) / (1.0f + (alpha * alpha - 1.0f) * xi.y, 1e-8f)));
+	ggx.cosTheta = saturate(sqrt((1.0 - xi.y) / (1.0f + (alpha * alpha - 1.0f) * xi.y)));
 	ggx.sinTheta = sqrt(1.0 - ggx.cosTheta * ggx.cosTheta);
 	ggx.phi = 2.0 * F_PI * xi.x;
 
