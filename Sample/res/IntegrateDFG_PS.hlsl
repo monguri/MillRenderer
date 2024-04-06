@@ -90,7 +90,7 @@ float3 LUT(float NdotV, float roughness)
     // The PDF is simply pdf(v, h) -> NDF * <nh>.
     // To parametrize the PDF over l, use the Jacobian transform, yielding to: pdf(v, l) -> NDF * <nh> / 4<vh>
     // Since the BRDF divide through the PDF to be normalized, the 4 can be pulled out of the integral.
-	return float3(4.0f * A, 4.0 * B, 4.0f * 2.0f * F_PI * C) / float(sampleCount);
+	return float3(4.0f * A, 4.0f * B, 4.0f * 2.0f * F_PI * C) / float(sampleCount);
 }
 
 float4 main(const VSOutput input) : SV_TARGET
