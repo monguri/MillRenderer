@@ -2809,7 +2809,7 @@ bool SampleApp::OnInit()
 			CbIBL* ptr = m_IBL_CB.GetPtr<CbIBL>();
 			ptr->TextureSize = m_IBLBaker.LDTextureSize; // TODO:DFGTextureSizeはLDTextureSizeの2倍あるのにいいのか？
 			ptr->MipCount = m_IBLBaker.MipCount;
-			ptr->LightIntensity = 10.0f;
+			ptr->LightIntensity = 1.0f;
 		}
 	}
 
