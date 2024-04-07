@@ -59,7 +59,7 @@ float3 LUT(float NdotV, float roughness)
 
 	float alpha = roughness * roughness;
 
-	const int sampleCount = 1024;
+	const int sampleCount = 512;
 
 	for (int i = 0; i < sampleCount; i++)
 	{
