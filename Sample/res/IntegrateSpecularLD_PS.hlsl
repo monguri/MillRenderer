@@ -120,7 +120,6 @@ float4 main(const VSOutput input) : SV_TARGET
 	{
 		output = IntegrateSpecularCube(dir, dir, Roughness, Width, MipCount); 
 	}
-
 #else
 	output = filterColor(dir);
 #endif
