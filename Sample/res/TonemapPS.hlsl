@@ -6,6 +6,7 @@ static const int COLOR_SPACE_BT2100_PQ = 1;
 static const int TONEMAP_NONE = 0;
 static const int TONEMAP_REINHARD = 1;
 static const int TONEMAP_GT = 2;
+static const int TONEMAP_KHRONOS_PBR_NEUTRAL = 3;
 
 struct VSOutput
 {
@@ -93,6 +94,29 @@ float3 GtTonemap(float3 color)
 	return T * w0 + L * w1 + S * w2;
 }
 
+// Referenced glTF-Sample-Viewer tonemapping.frag
+static const float START_COMPRESSION = 0.8 - 0.04;
+static const float DESATURATION = 0.15;
+float3 KhronosPBRNeutralTonemap(float3 color)
+{
+	float x = min(color.r, min(color.g, color.b));
+	float offset = x < 0.08f ? x - 6.25 * x * x : 0.04f;
+	color -= offset;
+
+	float peak = max(color.r, max(color.g, color.b));
+	if (peak < START_COMPRESSION)
+	{
+		return color;
+	}
+
+	float d = 1.0f - START_COMPRESSION;
+	float newPeak = 1.0f - d * d / (peak + d - START_COMPRESSION);
+	color *= newPeak / peak;
+
+	float g = 1.0f - 1.0f / (DESATURATION * (peak - newPeak) + 1.0f);
+	return lerp(color, 1, g);
+}
+
 float4 Tonemapping(float4 color)
 {
 	float4 result = 0;
@@ -107,6 +131,9 @@ float4 Tonemapping(float4 color)
 			break;
 		case TONEMAP_GT:
 			result.rgb = GtTonemap(color.rgb);
+			break;
+		case TONEMAP_KHRONOS_PBR_NEUTRAL:
+			result.rgb = KhronosPBRNeutralTonemap(color.rgb);
 			break;
 		default:
 			break;

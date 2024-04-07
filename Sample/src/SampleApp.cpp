@@ -25,7 +25,7 @@
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
-#define ENABLE_TEMPORAL_AA false
+#define ENABLE_TEMPORAL_AA true
 #define ENABLE_FXAA false
 #define ENABLE_FXAA_HIGH_QUALITY true
 
@@ -56,6 +56,7 @@ namespace
 		TONEMAP_NONE = 0,
 		TONEMAP_REINHARD,
 		TONEMAP_GT,
+		TONEMAP_KHRONOS_PBR_NEUTRAL,
 	};
 
 	struct alignas(256) CbMesh
@@ -4089,6 +4090,9 @@ void SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 					break;
 				case 'G':
 					m_TonemapType = TONEMAP_GT;
+					break;
+				case 'K':
+					m_TonemapType = TONEMAP_KHRONOS_PBR_NEUTRAL;
 					break;
 				case 'C':
 					m_Camera.Reset();
