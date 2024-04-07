@@ -11,7 +11,7 @@ class DescriptorHandle;
 class IBLBaker
 {
 public:
-	static const int DFGTextureSize = 512;
+	static const int DFGTextureSize = 1024;
 	static const int LDTextureSize = 256;
 	static const int MipCount = 8;
 

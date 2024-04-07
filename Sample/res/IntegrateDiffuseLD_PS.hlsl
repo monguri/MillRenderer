@@ -67,7 +67,7 @@ float3 filterColor(float3 N)
 
 	float3 V = N;
 
-	int sampleCount = 512;
+	int sampleCount = 2048;
 	for (int i = 0; i < sampleCount; i++)
 	{
 		float4 importanceSample = GetImportanceSample(i, sampleCount, N, 0.0f);
