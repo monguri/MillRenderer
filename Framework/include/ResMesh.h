@@ -57,6 +57,8 @@ struct ResMaterial
 	float MetallicFactor;
 	float RoughnessFactor;
 	std::wstring MetallicRoughnessMap;
+	std::wstring EmissiveMap;
+	std::wstring AmbientOcclusionMap;
 	ALPHA_MODE AlphaMode;
 	float AlphaCutoff;
 	bool DoubleSided;

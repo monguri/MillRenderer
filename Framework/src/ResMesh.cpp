@@ -308,7 +308,8 @@ namespace
 		{
 			aiString path;
 
-			//if (pSrcMaterial->GetTexture(AI_MATKEY_METALLIC_TEXTUREAI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &path) == AI_SUCCESS)
+			// GLTF以外への対応も考慮してより汎用のキーにしておく
+			//if (pSrcMaterial->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &path) == AI_SUCCESS)
 			if (pSrcMaterial->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &path) == AI_SUCCESS)
 			{
 				dstMaterial.MetallicRoughnessMap = Convert(path);
@@ -316,6 +317,33 @@ namespace
 			else
 			{
 				dstMaterial.MetallicRoughnessMap.clear();
+			}
+		}
+
+		{
+			aiString path;
+
+			if (pSrcMaterial->GetTexture(aiTextureType_EMISSIVE, 0, &path) == AI_SUCCESS)
+			{
+				dstMaterial.EmissiveMap = Convert(path);
+			}
+			else
+			{
+				dstMaterial.EmissiveMap.clear();
+			}
+		}
+
+		{
+			aiString path;
+
+			// GLTF occlusion texture is this type. It is not aiTextureType_AMBIENT_OCCLUSION.
+			if (pSrcMaterial->GetTexture(aiTextureType_LIGHTMAP, 0, &path) == AI_SUCCESS)
+			{
+				dstMaterial.AmbientOcclusionMap = Convert(path);
+			}
+			else
+			{
+				dstMaterial.AmbientOcclusionMap.clear();
 			}
 		}
 
