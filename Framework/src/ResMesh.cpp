@@ -308,7 +308,7 @@ namespace
 		{
 			aiString path;
 
-			if (pSrcMaterial->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &path) == AI_SUCCESS)
+			if (pSrcMaterial->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &path) == AI_SUCCESS)
 			{
 				dstMaterial.MetallicRoughnessMap = Convert(path);
 			}
