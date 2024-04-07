@@ -60,9 +60,45 @@ float3 IntegrateDiffuseCube(in float3 N, in float width, in float mipCount)
 	}
 }
 
+// Referenced glTF-Sample-Viewer ibl_filtering.frag
+float3 filterColor(float3 N)
+{
+	float3 color = 0;
+
+	float3 V = N;
+
+	int sampleCount = 512;
+	for (int i = 0; i < sampleCount; i++)
+	{
+		float4 importanceSample = GetImportanceSample(i, sampleCount, N, 0.0f);
+		float3 H = importanceSample.xyz;
+		float pdf = importanceSample.w;
+
+        // mipmap filtered samples (GPU Gems 3, 20.4)
+		float lod = computeLod(pdf, sampleCount, Width);
+
+		// sample lambertian at a lower resolution to avoid fireflies
+		float3 lambertian = IBLCube.SampleLevel(IBLSmp, H, lod).rgb;
+
+		//// the below operations cancel each other out
+		// lambertian *= NdotH; // lamberts law
+		// lambertian /= pdf; // invert bias from importance sampling
+		// lambertian /= MATH_PI; // convert irradiance to radiance https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
+
+		color += lambertian;
+	}
+
+	color /= float(sampleCount);
+	return color;
+}
+
 float4 main(const VSOutput input) : SV_TARGET
 {
 	float3 dir = CalcDirection(input.TexCoord, FaceIndex);
+#if 1
 	float3 output = IntegrateDiffuseCube(dir, Width, MipCount); 
+#else
+	output = filterColor(dir);
+#endif
 	return float4(output, 1.0f);
 }
