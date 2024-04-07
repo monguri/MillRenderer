@@ -25,7 +25,7 @@
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
-#define ENABLE_TEMPORAL_AA true
+#define ENABLE_TEMPORAL_AA false
 #define ENABLE_FXAA false
 #define ENABLE_FXAA_HIGH_QUALITY true
 
@@ -377,8 +377,8 @@ bool SampleApp::OnInit()
 		}
 		else
 		{
-			if (!SearchFilePath(L"res/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf", path))
-			//if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
+			//if (!SearchFilePath(L"res/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf", path))
+			if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
 			{
 				ELOG("Error : File Not Found.");
 				return false;
