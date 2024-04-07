@@ -41,7 +41,7 @@ float D_GGX(float NdotH, float alphaRoughness)
 {
 	float alphaRoughnessSq = alphaRoughness * alphaRoughness;
 	float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0f) + 1.0f;
-	return alphaRoughnessSq / (F_PI * f * f);
+	return alphaRoughnessSq / max(F_PI * f * f, 1e-8f);
 }
 
 // Smith Joint GGX
