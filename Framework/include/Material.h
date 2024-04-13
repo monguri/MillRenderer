@@ -57,8 +57,6 @@ public:
 		return reinterpret_cast<T*>(GetBufferPtr());
 	}
 
-	D3D12_GPU_VIRTUAL_ADDRESS GetBufferAddress() const;
-	
 	D3D12_GPU_DESCRIPTOR_HANDLE GetBufferHandle() const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetTextureHandle(TEXTURE_USAGE usage) const;
 

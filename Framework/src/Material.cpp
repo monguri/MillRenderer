@@ -112,11 +112,6 @@ void* Material::GetBufferPtr() const
 	return m_ConstantBuffer.GetPtr();
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Material::GetBufferAddress() const
-{
-	return m_ConstantBuffer.GetAddress();
-}
-
 D3D12_GPU_DESCRIPTOR_HANDLE Material::GetBufferHandle() const
 {
 	return m_ConstantBuffer.GetHandleGPU();
