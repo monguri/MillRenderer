@@ -25,6 +25,9 @@
 class App
 {
 public:
+	// Number of frame buffers
+	static const uint32_t FRAME_COUNT = 2;
+
 	App(uint32_t width, uint32_t height, DXGI_FORMAT format);
 	~App();
 	void Run();
@@ -38,9 +41,6 @@ protected:
 		POOL_TYPE_DSV = 3, // DSV
 		POOL_COUNT = 4,
 	};
-
-	// Number of frame buffers
-	static const uint32_t FRAME_COUNT = 2;
 
 	// Window
 	HINSTANCE m_hInst;

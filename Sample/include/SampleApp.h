@@ -89,7 +89,6 @@ private:
 	ConstantBuffer m_DirLightShadowMapTransformCB[FRAME_COUNT];
 	ConstantBuffer m_SpotLightShadowMapTransformCB[NUM_SPOT_LIGHTS];
 	ConstantBuffer m_TransformCB[FRAME_COUNT];
-	std::vector<ConstantBuffer*> m_MeshCB[FRAME_COUNT];
 	ConstantBuffer m_SSAOSetupCB;
 	ConstantBuffer m_SSAO_HalfResCB[FRAME_COUNT];
 	ConstantBuffer m_SSAO_FullResCB[FRAME_COUNT];

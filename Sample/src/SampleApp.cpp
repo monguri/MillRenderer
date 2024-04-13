@@ -426,11 +426,17 @@ bool SampleApp::OnInit()
 				return false;
 			}
 
-			if (!mesh->Init(m_pDevice.Get(), resMesh[i]))
+			if (!mesh->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], resMesh[i], sizeof(CbMesh)))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
 				return false;
+			}
+
+			for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
+			{
+				CbMesh* ptr = mesh->GetBufferPtr<CbMesh>(frameIndex);
+				ptr->World = Matrix::Identity;
 			}
 
 			m_pMesh.push_back(mesh);
@@ -2702,30 +2708,6 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// メッシュ用定数バッファの作成
-	{
-		for (uint32_t i = 0; i < FRAME_COUNT; i++)
-		{
-			m_MeshCB[i].resize(m_pMesh.size());
-
-			for (size_t meshIdx = 0; meshIdx < m_pMesh.size(); meshIdx++)
-			{
-				// コピーコンストラクタは廃止しているのでj
-				m_MeshCB[i][meshIdx] = new ConstantBuffer();
-				ConstantBuffer& meshCB = *m_MeshCB[i][meshIdx];
-
-				if (!meshCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMesh)))
-				{
-					ELOG("Error : ConstantBuffer::Init() Failed.");
-					return false;
-				}
-
-				CbMesh* ptr = meshCB.GetPtr<CbMesh>();
-				ptr->World = Matrix::Identity;
-			}
-		}
-	}
-
 	if (RENDER_SPONZA)
 	{
 		// スポットライトのシャドウマップの作成
@@ -2893,17 +2875,6 @@ void SampleApp::OnTerm()
 	{
 		m_SpotLightCB[i].Term();
 		m_SpotLightShadowMapTransformCB[i].Term();
-	}
-
-	for (uint32_t i = 0; i < FRAME_COUNT; i++)
-	{
-		for (size_t j = 0; j < m_MeshCB[i].size(); j++)
-		{
-			SafeTerm(m_MeshCB[i][j]);
-		}
-
-		m_MeshCB[i].clear();
-		m_MeshCB[i].shrink_to_fit();
 	}
 
 	m_SSAOSetupCB.Term();
@@ -3081,7 +3052,7 @@ void SampleApp::OnRender()
 		{
 			if (m_pMesh[meshIdx]->GetMobility() == Mobility::Movable)
 			{
-				CbMesh* ptr = (*m_MeshCB[m_FrameIndex][meshIdx]).GetPtr<CbMesh>();
+				CbMesh* ptr = m_pMesh[meshIdx]->GetBufferPtr<CbMesh>(m_FrameIndex);
 				ptr->World = worldForMovable;
 			}
 		}
@@ -3393,7 +3364,7 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 			continue;
 		}
 
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB[m_FrameIndex][i]->GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_pMesh[i]->GetConstantBufferHandle(m_FrameIndex));
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_pMaterial[materialId]->GetBufferHandle());
 		if (RENDER_SPONZA)
 		{
