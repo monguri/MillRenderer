@@ -12,6 +12,8 @@ cbuffer CbMaterial : register(b1)
 	float MetallicFactor;
 	float RoughnessFactor;
 	float AlphaCutoff;
+	int bExistEmissiveTex;
+	int bExistAOTex;
 };
 
 Texture2D BaseColorMap : register(t0);

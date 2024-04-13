@@ -116,7 +116,8 @@ namespace
 		float MetallicFactor;
 		float RoughnessFactor;
 		float AlphaCutoff;
-		float Padding[2];
+		int bExistEmissiveTex;
+		int bExistAOTex;
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -448,6 +449,8 @@ bool SampleApp::OnInit()
 			m_Material.SetTexture(i, Material::TEXTURE_USAGE_BASE_COLOR, dir + resMaterial[i].BaseColorMap, batch);
 			m_Material.SetTexture(i, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMaterial[i].MetallicRoughnessMap, batch);
 			m_Material.SetTexture(i, Material::TEXTURE_USAGE_NORMAL, dir + resMaterial[i].NormalMap, batch);
+			m_Material.SetTexture(i, Material::TEXTURE_USAGE_EMISSIVE, dir + resMaterial[i].EmissiveMap, batch);
+			m_Material.SetTexture(i, Material::TEXTURE_USAGE_AMBIENT_OCCLUSION, dir + resMaterial[i].AmbientOcclusionMap, batch);
 
 			m_Material.SetDoubleSided(i, resMaterial[i].DoubleSided);
 
@@ -456,6 +459,8 @@ bool SampleApp::OnInit()
 			ptr->MetallicFactor = resMaterial[i].MetallicFactor;
 			ptr->RoughnessFactor = resMaterial[i].RoughnessFactor;
 			ptr->AlphaCutoff = resMaterial[i].AlphaCutoff;
+			ptr->bExistEmissiveTex = resMaterial[i].EmissiveMap.empty() ? 0 : 1;
+			ptr->bExistAOTex = resMaterial[i].AmbientOcclusionMap.empty() ? 0 : 1;
 		}
 
 		std::future<void> future = batch.End(m_pQueue.Get());

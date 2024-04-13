@@ -25,6 +25,8 @@ cbuffer CbMaterial : register(b1)
 	float MetallicFactor;
 	float RoughnessFactor;
 	float AlphaCutoff;
+	int bExistEmissiveTex;
+	int bExistAOTex;
 };
 
 cbuffer CbIBL : register(b2)
