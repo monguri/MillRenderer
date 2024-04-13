@@ -5,10 +5,7 @@
 #include "Texture.h"
 #include "ConstantBuffer.h"
 
-namespace
-{
-	constexpr const wchar_t* DummyTag = L"";
-}
+Texture* Material::s_DummyTexture = nullptr;
 
 Material::Material()
 : m_pDevice(nullptr)
@@ -47,11 +44,14 @@ bool Material::Init
 	m_Subset.resize(count);
 	m_DoubleSided.resize(count);
 
-	// ダミーテクスチャ生成
+	// 起動中に一度だけダミーテクスチャ生成
+	// TODO:解放してない
+	if (s_DummyTexture == nullptr)
 	{
 		Texture* pTexture = new (std::nothrow) Texture();
 		if (pTexture == nullptr)
 		{
+			ELOG("Error : Out of memory.");
 			return false;
 		}
 
@@ -66,7 +66,7 @@ bool Material::Init
 			return false;
 		}
 
-		m_pTexture[DummyTag] = pTexture;
+		s_DummyTexture = pTexture;
 	}
 
 	for (size_t i = 0; i < count; ++i)
@@ -159,13 +159,13 @@ bool Material::SetTexture
 	std::wstring findPath;
 	if (!SearchFilePathW(path.c_str(), findPath))
 	{
-		m_Subset[index].TextureHandle[usage] = m_pTexture[DummyTag]->GetHandleGPU();
+		m_Subset[index].TextureHandle[usage] = s_DummyTexture->GetHandleGPU();
 		return true;
 	}
 
 	if (PathIsDirectoryW(findPath.c_str()) != FALSE)
 	{
-		m_Subset[index].TextureHandle[usage] = m_pTexture[DummyTag]->GetHandleGPU();
+		m_Subset[index].TextureHandle[usage] = s_DummyTexture->GetHandleGPU();
 		return true;
 	}
 

@@ -73,6 +73,7 @@ private:
 		D3D12_GPU_DESCRIPTOR_HANDLE TextureHandle[TEXTURE_USAGE_COUNT];
 	};
 
+	static class Texture* s_DummyTexture;
 	std::map<std::wstring, class Texture*> m_pTexture;
 	std::vector<Subset> m_Subset;
 	std::vector<bool> m_DoubleSided;
