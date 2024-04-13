@@ -4,6 +4,8 @@
 #include <map>
 #include <xstring>
 #include <ResourceUploadBatch.h>
+#include "ConstantBuffer.h"
+#include "Texture.h"
 
 class Material
 {
@@ -31,52 +33,42 @@ public:
 	bool Init
 	(
 		ID3D12Device* pDevice,
-		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPool,
 		size_t bufferSize,
-		size_t count
+		Texture* pDummyTexture
 	);
 
 	void Term();
 
 	bool SetTexture
 	(
-		size_t index,
 		TEXTURE_USAGE usage,
 		const std::wstring& path,
 		DirectX::ResourceUploadBatch& batch
 	);
 
-	void SetDoubleSided(size_t index, bool isDoubleSided );
+	void SetDoubleSided(bool isDoubleSided );
 
-	void* GetBufferPtr(size_t index) const;
+	void* GetBufferPtr() const;
 
 	template<typename T>
-	T* GetBufferPtr(size_t index) const
+	T* GetBufferPtr() const
 	{
-		return reinterpret_cast<T*>(GetBufferPtr(index));
+		return reinterpret_cast<T*>(GetBufferPtr());
 	}
 
-	D3D12_GPU_VIRTUAL_ADDRESS GetBufferAddress(size_t index) const;
+	D3D12_GPU_VIRTUAL_ADDRESS GetBufferAddress() const;
 	
-	D3D12_GPU_DESCRIPTOR_HANDLE GetBufferHandle(size_t index) const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetTextureHandle(size_t index, TEXTURE_USAGE usage) const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetBufferHandle() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetTextureHandle(TEXTURE_USAGE usage) const;
 
-	bool GetDoubleSided(size_t index) const;
-
-	size_t GetCount() const;
+	bool GetDoubleSided() const;
 
 private:
-	struct Subset
-	{
-		class ConstantBuffer* pConstantBuffer;
-		D3D12_GPU_DESCRIPTOR_HANDLE TextureHandle[TEXTURE_USAGE_COUNT];
-	};
-
-	static class Texture* s_DummyTexture;
-	std::map<std::wstring, class Texture*> m_pTexture;
-	std::vector<Subset> m_Subset;
-	std::vector<bool> m_DoubleSided;
+	Texture* m_pDummyTexture = nullptr;
+	ConstantBuffer m_ConstantBuffer;
+	Texture m_Textures[TEXTURE_USAGE_COUNT];
+	bool m_DoubleSided;
 	ID3D12Device* m_pDevice;
 	class DescriptorPool* m_pPool;
 

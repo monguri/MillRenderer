@@ -7,6 +7,7 @@
 #include "Logger.h"
 #include "ResMesh.h"
 #include "Mesh.h"
+#include "Material.h"
 #include "InlineUtil.h"
 #include "RootSignature.h"
 #include "ScopedTimer.h"
@@ -366,10 +367,28 @@ SampleApp::~SampleApp()
 
 bool SampleApp::OnInit()
 {
+	// テクスチャがないがドローコールで必要とされたときのためのダミーテクスチャを用意する
+	{
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
+		// 法線マップのデフォルトテクスチャとして使えるように(0.5,0.5,1)にする
+		// TODO:いずれ種類ごとに別のデフォルトテクスチャが必要になったら対応する
+		uint32_t normalBlue = 0x00FF8080;
+		if (!m_DummyTexture.InitFromData(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &normalBlue))
+		{
+			ELOG("Error : Texture::Init() Failed.");
+			return false;
+		}
+
+		pCmd->Close();
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
+	}
+
 	// メッシュをロード
 	{
 		std::wstring path;
-		//if (!SearchFilePath(L"res/matball/matball.obj", path))
 		if (RENDER_SPONZA)
 		{
 			if (!SearchFilePath(L"res/SponzaKhronos/glTF/Sponza.gltf", path))
@@ -428,42 +447,56 @@ bool SampleApp::OnInit()
 			}
 		}
 
-		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
-		if (!m_Material.Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), resMaterial.size())) // ContantBufferはこの時点では作らない。テクスチャはダミー。
-		{
-			ELOG("Error : Material Initialize Failed.");
-			return false;
-		}
-		pCmd->Close();
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
-		m_Fence.Wait(m_pQueue.Get(), INFINITE);
+		m_pMaterial.reserve(resMaterial.size());
 
-
-		DirectX::ResourceUploadBatch batch(m_pDevice.Get());
-
-		batch.Begin();
-
-		std::wstring dir = GetDirectoryPath(path.c_str());
 		for (size_t i = 0; i < resMaterial.size(); i++)
 		{
-			m_Material.SetTexture(i, Material::TEXTURE_USAGE_BASE_COLOR, dir + resMaterial[i].BaseColorMap, batch);
-			m_Material.SetTexture(i, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMaterial[i].MetallicRoughnessMap, batch);
-			m_Material.SetTexture(i, Material::TEXTURE_USAGE_NORMAL, dir + resMaterial[i].NormalMap, batch);
-			m_Material.SetTexture(i, Material::TEXTURE_USAGE_EMISSIVE, dir + resMaterial[i].EmissiveMap, batch);
-			m_Material.SetTexture(i, Material::TEXTURE_USAGE_AMBIENT_OCCLUSION, dir + resMaterial[i].AmbientOcclusionMap, batch);
+			Material* material = new (std::nothrow) Material();
+			if (material == nullptr)
+			{
+				ELOG("Error : Out of memory.");
+				return false;
+			}
 
-			m_Material.SetDoubleSided(i, resMaterial[i].DoubleSided);
+			if (!material->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), &m_DummyTexture))
+			{
+				ELOG("Error : Material Initialize Failed.");
+				delete material;
+				return false;
+			}
 
-			CbMaterial* ptr = m_Material.GetBufferPtr<CbMaterial>(i);
-			ptr->BaseColorFactor = resMaterial[i].BaseColor;
-			ptr->MetallicFactor = resMaterial[i].MetallicFactor;
-			ptr->RoughnessFactor = resMaterial[i].RoughnessFactor;
-			ptr->EmissiveFactor = resMaterial[i].EmissiveFactor;
-			ptr->AlphaCutoff = resMaterial[i].AlphaCutoff;
-			ptr->bExistEmissiveTex = resMaterial[i].EmissiveMap.empty() ? 0 : 1;
-			ptr->bExistAOTex = resMaterial[i].AmbientOcclusionMap.empty() ? 0 : 1;
+			m_pMaterial.push_back(material);
+		}
+
+		m_pMaterial.shrink_to_fit();
+
+		// 全マテリアルの全テクスチャでバッチ処理を走らせるために、SetTexture()を
+		// Material::Init()の中で行っていない
+		DirectX::ResourceUploadBatch batch(m_pDevice.Get());
+		batch.Begin();
+
+		const std::wstring& dir = GetDirectoryPath(path.c_str());
+		for (size_t i = 0; i < resMaterial.size(); i++)
+		{
+			Material* pMaterial = m_pMaterial[i];
+			const ResMaterial& resMat = resMaterial[i];
+
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.BaseColorMap, batch);
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMat.MetallicRoughnessMap, batch);
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_NORMAL, dir + resMat.NormalMap, batch);
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_EMISSIVE, dir + resMat.EmissiveMap, batch);
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION, dir + resMat.AmbientOcclusionMap, batch);
+
+			pMaterial->SetDoubleSided(resMat.DoubleSided);
+
+			CbMaterial* ptr = pMaterial->GetBufferPtr<CbMaterial>();
+			ptr->BaseColorFactor = resMat.BaseColor;
+			ptr->MetallicFactor = resMat.MetallicFactor;
+			ptr->RoughnessFactor = resMat.RoughnessFactor;
+			ptr->EmissiveFactor = resMat.EmissiveFactor;
+			ptr->AlphaCutoff = resMat.AlphaCutoff;
+			ptr->bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
+			ptr->bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
 		}
 
 		std::future<void> future = batch.End(m_pQueue.Get());
@@ -2831,6 +2864,8 @@ bool SampleApp::OnInit()
 
 void SampleApp::OnTerm()
 {
+	m_DummyTexture.Term();
+
 	m_QuadVB.Term();
 
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
@@ -2893,7 +2928,10 @@ void SampleApp::OnTerm()
 	m_pMesh.clear();
 	m_pMesh.shrink_to_fit();
 
-	m_Material.Term();
+	for (size_t i = 0; i < m_pMaterial.size(); i++)
+	{
+		SafeTerm(m_pMaterial[i]);
+	}
 
 	m_DirLightShadowMapTarget.Term();
 
@@ -3346,32 +3384,32 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
 		uint32_t materialId = m_pMesh[i]->GetMaterialId();
 
-		if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && m_Material.GetDoubleSided(materialId))
+		if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && m_pMaterial[materialId]->GetDoubleSided())
 		{
 			continue;
 		}
-		else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !m_Material.GetDoubleSided(materialId))
+		else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !m_pMaterial[materialId]->GetDoubleSided())
 		{
 			continue;
 		}
 
 		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshCB[m_FrameIndex][i]->GetHandleGPU());
-		pCmdList->SetGraphicsRootDescriptorTable(3, m_Material.GetBufferHandle(materialId));
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_pMaterial[materialId]->GetBufferHandle());
 		if (RENDER_SPONZA)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(12, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
-			pCmdList->SetGraphicsRootDescriptorTable(13, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-			pCmdList->SetGraphicsRootDescriptorTable(14, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
-			pCmdList->SetGraphicsRootDescriptorTable(15, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_EMISSIVE));
-			pCmdList->SetGraphicsRootDescriptorTable(16, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+			pCmdList->SetGraphicsRootDescriptorTable(12, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
+			pCmdList->SetGraphicsRootDescriptorTable(13, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+			pCmdList->SetGraphicsRootDescriptorTable(14, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
+			pCmdList->SetGraphicsRootDescriptorTable(15, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
+			pCmdList->SetGraphicsRootDescriptorTable(16, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
 		}
 		else
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(5, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
-			pCmdList->SetGraphicsRootDescriptorTable(6, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-			pCmdList->SetGraphicsRootDescriptorTable(7, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
-			pCmdList->SetGraphicsRootDescriptorTable(8, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_EMISSIVE));
-			pCmdList->SetGraphicsRootDescriptorTable(9, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+			pCmdList->SetGraphicsRootDescriptorTable(5, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
+			pCmdList->SetGraphicsRootDescriptorTable(6, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+			pCmdList->SetGraphicsRootDescriptorTable(7, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
+			pCmdList->SetGraphicsRootDescriptorTable(8, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
+			pCmdList->SetGraphicsRootDescriptorTable(9, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
 		}
 
 		m_pMesh[i]->Draw(pCmdList);

@@ -2,7 +2,6 @@
 
 #include <SimpleMath.h>
 #include "App.h"
-#include "Material.h"
 #include "VertexBuffer.h"
 #include "ConstantBuffer.h"
 #include "ColorTarget.h"
@@ -27,6 +26,7 @@ private:
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
 
+	Texture m_DummyTexture;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaOpaquePSO;
@@ -108,7 +108,7 @@ private:
 	IBLBaker m_IBLBaker;
 
 	std::vector<class Mesh*> m_pMesh;
-	Material m_Material;
+	std::vector<class Material*> m_pMaterial;
 	float m_RotateAngle;
 	int m_TonemapType;
 	int m_ColorSpace;
