@@ -46,6 +46,7 @@ cbuffer CbMaterial : register(b1)
 	float3 BaseColorFactor;
 	float MetallicFactor;
 	float RoughnessFactor;
+	float3 EmissiveFactor;
 	float AlphaCutoff;
 	int bExistEmissiveTex;
 	int bExistAOTex;

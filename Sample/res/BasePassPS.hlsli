@@ -24,6 +24,7 @@ cbuffer CbMaterial : register(b1)
 	float3 BaseColorFactor;
 	float MetallicFactor;
 	float RoughnessFactor;
+	float3 EmissiveFactor;
 	float AlphaCutoff;
 	int bExistEmissiveTex;
 	int bExistAOTex;
@@ -184,7 +185,15 @@ PSOutput main(VSOutput input)
 	float3 lit = diffuse + specular;
 #endif
 
-	output.Color.rgb = lit * LightIntensity;
+	float3 emissive = 0;
+	if (bExistEmissiveTex)
+	{
+		emissive = EmissiveFactor;
+		emissive *= EmissiveMap.Sample(AnisotropicWrapSmp, input.TexCoord).rgb;
+	}
+
+	output.
+	Color.rgb = lit * LightIntensity + emissive;
 	output.Color.a = 1.0f;
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;

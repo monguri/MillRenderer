@@ -306,6 +306,23 @@ namespace
 		}
 
 		{
+			//TODO: gltfのemissiveFactorはこの方法ではとれていない
+			aiColor3D emissiveFactor(1, 1, 1);
+			if (pSrcMaterial->Get(AI_MATKEY_EMISSIVE_INTENSITY, emissiveFactor) == AI_SUCCESS)
+			{
+				dstMaterial.EmissiveFactor.x = emissiveFactor.r;
+				dstMaterial.EmissiveFactor.y = emissiveFactor.g;
+				dstMaterial.EmissiveFactor.z = emissiveFactor.b;
+			}
+			else
+			{
+				dstMaterial.EmissiveFactor.x = 1.0f;
+				dstMaterial.EmissiveFactor.y = 1.0f;
+				dstMaterial.EmissiveFactor.z = 1.0f;
+			}
+		}
+
+		{
 			aiString path;
 
 			// GLTF以外への対応も考慮してより汎用のキーにしておく

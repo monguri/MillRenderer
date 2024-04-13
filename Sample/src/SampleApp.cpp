@@ -115,9 +115,11 @@ namespace
 		Vector3 BaseColorFactor;
 		float MetallicFactor;
 		float RoughnessFactor;
+		Vector3 EmissiveFactor;
 		float AlphaCutoff;
 		int bExistEmissiveTex;
 		int bExistAOTex;
+		float Padding[1];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -458,6 +460,7 @@ bool SampleApp::OnInit()
 			ptr->BaseColorFactor = resMaterial[i].BaseColor;
 			ptr->MetallicFactor = resMaterial[i].MetallicFactor;
 			ptr->RoughnessFactor = resMaterial[i].RoughnessFactor;
+			ptr->EmissiveFactor = resMaterial[i].EmissiveFactor;
 			ptr->AlphaCutoff = resMaterial[i].AlphaCutoff;
 			ptr->bExistEmissiveTex = resMaterial[i].EmissiveMap.empty() ? 0 : 1;
 			ptr->bExistAOTex = resMaterial[i].AmbientOcclusionMap.empty() ? 0 : 1;

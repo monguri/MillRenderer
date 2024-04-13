@@ -56,6 +56,7 @@ struct ResMaterial
 	std::wstring BaseColorMap;
 	float MetallicFactor;
 	float RoughnessFactor;
+	DirectX::XMFLOAT3 EmissiveFactor;
 	std::wstring MetallicRoughnessMap;
 	std::wstring EmissiveMap;
 	std::wstring AmbientOcclusionMap;
