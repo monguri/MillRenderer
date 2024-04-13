@@ -189,7 +189,7 @@ bool Material::SetTexture
 		return false;
 	}
 
-	bool isSRGB = (usage == TEXTURE_USAGE_DIFFUSE) || (usage == TEXTURE_USAGE_BASE_COLOR) || (usage == TEXTURE_USAGE_SPECULAR);
+	bool isSRGB = (usage == TEXTURE_USAGE_DIFFUSE) || (usage == TEXTURE_USAGE_BASE_COLOR) || (usage == TEXTURE_USAGE_SPECULAR || usage == TEXTURE_USAGE_EMISSIVE);
 	if (!pTexture->Init(m_pDevice, m_pPool, findPath.c_str(), isSRGB, batch))
 	{
 		ELOG("Error : Texture::Init() Failed.");
