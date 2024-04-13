@@ -135,12 +135,14 @@ cbuffer CbSpotLight3 : register(b9)
 Texture2D BaseColorMap : register(t0);
 Texture2D MetallicRoughnessMap : register(t1);
 Texture2D NormalMap : register(t2);
+Texture2D EmissiveMap : register(t3);
+Texture2D AOMap : register(t4);
 SamplerState AnisotropicWrapSmp : register(s0);
 
-Texture2D DirLightShadowMap : register(t3);
-Texture2D SpotLight1ShadowMap : register(t4);
-Texture2D SpotLight2ShadowMap : register(t5);
-Texture2D SpotLight3ShadowMap : register(t6);
+Texture2D DirLightShadowMap : register(t5);
+Texture2D SpotLight1ShadowMap : register(t6);
+Texture2D SpotLight2ShadowMap : register(t7);
+Texture2D SpotLight3ShadowMap : register(t8);
 
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 SamplerComparisonState ShadowSmp : register(s1);
@@ -518,7 +520,7 @@ PSOutput main(VSOutput input)
 		input.SpotLight3ShadowCoord
 	);
 
-	output.Color.rgb =
+	float3 lit = 
 		dirLightReflection
 		+ pointLight1Reflection
 		+ pointLight2Reflection
@@ -527,6 +529,21 @@ PSOutput main(VSOutput input)
 		+ spotLight1Reflection
 		+ spotLight2Reflection
 		+ spotLight3Reflection;
+
+	float3 emissive = 0;
+	if (bExistEmissiveTex)
+	{
+		emissive = EmissiveFactor;
+		emissive *= EmissiveMap.Sample(AnisotropicWrapSmp, input.TexCoord).rgb;
+	}
+
+	float AO = 1;
+	if (bExistAOTex)
+	{
+		AO = AOMap.Sample(AnisotropicWrapSmp, input.TexCoord).r;
+	}
+
+	output.Color.rgb = lit * AO + emissive;
 	output.Color.a = 1.0f;
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;

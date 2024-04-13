@@ -12,7 +12,7 @@
 #include "ScopedTimer.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA false
+#define RENDER_SPONZA true
 
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_MANUAL_PCF_FOR_SHADOW_MAP
@@ -1069,6 +1069,8 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 16, 4)
 			.SetSRV(ShaderStage::PS, 17, 5)
 			.SetSRV(ShaderStage::PS, 18, 6)
+			.SetSRV(ShaderStage::PS, 19, 7)
+			.SetSRV(ShaderStage::PS, 20, 8)
 
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::AnisotropicWrap)
 #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
@@ -3294,11 +3296,11 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	if (RENDER_SPONZA)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(15, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(17, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
 
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(16 + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(18 + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 		}
 	}
 	else
@@ -3360,6 +3362,8 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 			pCmdList->SetGraphicsRootDescriptorTable(12, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
 			pCmdList->SetGraphicsRootDescriptorTable(13, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
 			pCmdList->SetGraphicsRootDescriptorTable(14, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
+			pCmdList->SetGraphicsRootDescriptorTable(15, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_EMISSIVE));
+			pCmdList->SetGraphicsRootDescriptorTable(16, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
 		}
 		else
 		{
