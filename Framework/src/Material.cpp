@@ -35,6 +35,9 @@ bool Material::Init
 		return false;
 	}
 
+	assert(bufferSize > 0);
+	assert(count > 0);
+
 	m_pDevice = pDevice;
 	m_pDevice->AddRef();
 
@@ -66,43 +69,27 @@ bool Material::Init
 		m_pTexture[DummyTag] = pTexture;
 	}
 
-	size_t size = bufferSize * count;
-	if (size > 0)
+	for (size_t i = 0; i < count; ++i)
 	{
-		for (size_t i = 0; i < m_Subset.size(); ++i)
+		ConstantBuffer* pBuffer = new (std::nothrow) ConstantBuffer();
+		if (pBuffer == nullptr)
 		{
-			ConstantBuffer* pBuffer = new (std::nothrow) ConstantBuffer();
-			if (pBuffer == nullptr)
-			{
-				ELOG("Error : Out of memory.");
-				return false;
-			}
-
-			if (!pBuffer->Init(pDevice, pPool, size))
-			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
-				pBuffer->Term();
-				delete pBuffer;
-				return false;
-			}
-
-			m_Subset[i].pConstantBuffer = pBuffer;
-			for (uint32_t j = 0; j < TEXTURE_USAGE_COUNT; ++j)
-			{
-				m_Subset[i].TextureHandle[j].ptr = 0;
-			}
+			ELOG("Error : Out of memory.");
+			return false;
 		}
-	}
-	else
-	{
-		for (size_t i = 0; i < m_Subset.size(); ++i)
-		{
-			m_Subset[i].pConstantBuffer = nullptr;
 
-			for (uint32_t j = 0; j < TEXTURE_USAGE_COUNT; ++j)
-			{
-				m_Subset[i].TextureHandle[j].ptr = 0;
-			}
+		if (!pBuffer->Init(pDevice, pPool, bufferSize))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			pBuffer->Term();
+			delete pBuffer;
+			return false;
+		}
+
+		m_Subset[i].pConstantBuffer = pBuffer;
+		for (uint32_t j = 0; j < TEXTURE_USAGE_COUNT; ++j)
+		{
+			m_Subset[i].TextureHandle[j].ptr = 0;
 		}
 	}
 
