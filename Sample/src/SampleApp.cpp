@@ -1101,6 +1101,8 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 8, 3)
 			.SetSRV(ShaderStage::PS, 9, 4)
 			.SetSRV(ShaderStage::PS, 10, 5)
+			.SetSRV(ShaderStage::PS, 11, 6)
+			.SetSRV(ShaderStage::PS, 12, 7)
 
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::AnisotropicWrap)
 			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
@@ -3298,9 +3300,9 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	}
 	else
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleGPU_DFG());
-		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleGPU_DiffuseLD());
-		pCmdList->SetGraphicsRootDescriptorTable(10, m_IBLBaker.GetHandleGPU_SpecularLD());
+		pCmdList->SetGraphicsRootDescriptorTable(10, m_IBLBaker.GetHandleGPU_DFG());
+		pCmdList->SetGraphicsRootDescriptorTable(11, m_IBLBaker.GetHandleGPU_DiffuseLD());
+		pCmdList->SetGraphicsRootDescriptorTable(12, m_IBLBaker.GetHandleGPU_SpecularLD());
 	}
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -3361,6 +3363,8 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 			pCmdList->SetGraphicsRootDescriptorTable(5, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_BASE_COLOR));
 			pCmdList->SetGraphicsRootDescriptorTable(6, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
 			pCmdList->SetGraphicsRootDescriptorTable(7, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_NORMAL));
+			pCmdList->SetGraphicsRootDescriptorTable(8, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_EMISSIVE));
+			pCmdList->SetGraphicsRootDescriptorTable(9, m_Material.GetTextureHandle(materialId, Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
 		}
 
 		m_pMesh[i]->Draw(pCmdList);

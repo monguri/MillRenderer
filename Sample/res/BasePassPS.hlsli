@@ -39,9 +39,11 @@ cbuffer CbIBL : register(b2)
 Texture2D BaseColorMap : register(t0);
 Texture2D MetallicRoughnessMap : register(t1);
 Texture2D NormalMap : register(t2);
-Texture2D DFGMap : register(t3);
-TextureCube DiffuseLDMap : register(t4);
-TextureCube SpecularLDMap : register(t5);
+Texture2D EmissiveMap : register(t3);
+Texture2D AOMap : register(t4);
+Texture2D DFGMap : register(t5);
+TextureCube DiffuseLDMap : register(t6);
+TextureCube SpecularLDMap : register(t7);
 
 SamplerState AnisotropicWrapSmp : register(s0);
 SamplerState LinearWrapSmp : register(s1);
