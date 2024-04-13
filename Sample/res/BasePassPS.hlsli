@@ -192,8 +192,13 @@ PSOutput main(VSOutput input)
 		emissive *= EmissiveMap.Sample(AnisotropicWrapSmp, input.TexCoord).rgb;
 	}
 
-	output.
-	Color.rgb = lit * LightIntensity + emissive;
+	float AO = 1;
+	if (bExistAOTex)
+	{
+		AO = AOMap.Sample(AnisotropicWrapSmp, input.TexCoord).r;
+	}
+
+	output.Color.rgb = lit * LightIntensity * AO + emissive;
 	output.Color.a = 1.0f;
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;
