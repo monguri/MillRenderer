@@ -522,6 +522,124 @@ bool SampleApp::OnInit()
 		m_pModels.push_back(model);
 	}
 
+	if (RENDER_SPONZA)
+	{
+		std::wstring path;
+		if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
+		{
+			ELOG("Error : File Not Found.");
+			return false;
+		}
+
+		std::vector<ResMesh> resMesh;
+		std::vector<ResMaterial> resMaterial;
+		if (!LoadMesh(path.c_str(), resMesh, resMaterial))
+		{
+			ELOG("Error : Load Mesh Failed. filepath = %ls", path.c_str());
+			return false;
+		}
+
+		std::vector<Mesh*> pMeshes;
+		pMeshes.reserve(resMesh.size());
+
+		for (size_t i = 0; i < resMesh.size(); i++)
+		{
+			Mesh* mesh = new (std::nothrow) Mesh();
+			if (mesh == nullptr)
+			{
+				ELOG("Error : Out of memory.");
+				return false;
+			}
+
+			if (!mesh->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], resMesh[i], sizeof(CbMesh)))
+			{
+				ELOG("Error : Mesh Initialize Failed.");
+				delete mesh;
+				return false;
+			}
+
+			const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
+
+			for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
+			{
+				CbMesh* ptr = mesh->GetBufferPtr<CbMesh>(frameIndex);
+				ptr->World = worldMat;
+			}
+
+			pMeshes.push_back(mesh);
+		}
+
+		pMeshes.shrink_to_fit();
+
+		Model* model = new (std::nothrow) Model();
+		if (model == nullptr)
+		{
+			ELOG("Error : Out of memory.");
+			return false;
+		}
+		model->SetMeshes(pMeshes);
+
+		std::vector<Material*> pMaterials;
+		pMaterials.reserve(resMaterial.size());
+
+		for (size_t i = 0; i < resMaterial.size(); i++)
+		{
+			Material* material = new (std::nothrow) Material();
+			if (material == nullptr)
+			{
+				ELOG("Error : Out of memory.");
+				return false;
+			}
+
+			if (!material->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), &m_DummyTexture))
+			{
+				ELOG("Error : Material Initialize Failed.");
+				delete material;
+				return false;
+			}
+
+			pMaterials.push_back(material);
+		}
+
+		pMaterials.shrink_to_fit();
+
+		// 全マテリアルの全テクスチャでバッチ処理を走らせるために、SetTexture()を
+		// Material::Init()の中で行っていない
+		DirectX::ResourceUploadBatch batch(m_pDevice.Get());
+		batch.Begin();
+
+		const std::wstring& dir = GetDirectoryPath(path.c_str());
+		for (size_t i = 0; i < resMaterial.size(); i++)
+		{
+			Material* pMaterial = pMaterials[i];
+			const ResMaterial& resMat = resMaterial[i];
+
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.BaseColorMap, batch);
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMat.MetallicRoughnessMap, batch);
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_NORMAL, dir + resMat.NormalMap, batch);
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_EMISSIVE, dir + resMat.EmissiveMap, batch);
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION, dir + resMat.AmbientOcclusionMap, batch);
+
+			pMaterial->SetDoubleSided(resMat.DoubleSided);
+
+			CbMaterial* ptr = pMaterial->GetBufferPtr<CbMaterial>();
+			ptr->BaseColorFactor = resMat.BaseColor;
+			ptr->MetallicFactor = resMat.MetallicFactor;
+			ptr->RoughnessFactor = resMat.RoughnessFactor;
+			ptr->EmissiveFactor = resMat.EmissiveFactor;
+			ptr->AlphaCutoff = resMat.AlphaCutoff;
+			ptr->bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
+			ptr->bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+		}
+
+		std::future<void> future = batch.End(m_pQueue.Get());
+		future.wait();
+
+		model->SetMaterials(pMaterials);
+
+		m_pModels.push_back(model);
+	}
+
 	m_pModels.shrink_to_fit();
 
 	if (RENDER_SPONZA)
@@ -3058,7 +3176,7 @@ void SampleApp::OnRender()
 	}
 
 	//TODO: MovableなメッシュをVelocityのテストのためサインカーブで動かす
-	Matrix worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));;
+	const Matrix& worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
 
 	{
 		for (const Model* model : m_pModels)
