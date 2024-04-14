@@ -24,6 +24,7 @@
     <ClCompile Include="..\src\Logger.cpp" />
     <ClCompile Include="..\src\Material.cpp" />
     <ClCompile Include="..\src\Mesh.cpp" />
+    <ClCompile Include="..\src\RenderModel.cpp" />
     <ClCompile Include="..\src\ResMesh.cpp" />
     <ClCompile Include="..\src\RootSignature.cpp" />
     <ClCompile Include="..\src\Texture.cpp" />
@@ -45,6 +46,7 @@
     <ClInclude Include="..\include\Logger.h" />
     <ClInclude Include="..\include\Material.h" />
     <ClInclude Include="..\include\Mesh.h" />
+    <ClInclude Include="..\include\RenderModel.h" />
     <ClInclude Include="..\include\Pool.h" />
     <ClInclude Include="..\include\ResMesh.h" />
     <ClInclude Include="..\include\RootSignature.h" />

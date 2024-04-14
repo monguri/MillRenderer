@@ -28,7 +28,7 @@ public:
 
 	void Term();
 
-	void Draw(ID3D12GraphicsCommandList* pCmdList);
+	void Draw(ID3D12GraphicsCommandList* pCmdList) const;
 
 	void* GetBufferPtr(uint32_t frameIndex) const;
 

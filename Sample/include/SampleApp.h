@@ -11,6 +11,7 @@
 #include "Camera.h"
 #include "SphereMapConverter.h"
 #include "IBLBaker.h"
+#include "RenderModel.h"
 #include "ResMesh.h"
 
 class SampleApp : public App
@@ -106,8 +107,7 @@ private:
 	SphereMapConverter m_SphereMapConverter;
 	IBLBaker m_IBLBaker;
 
-	std::vector<class Mesh*> m_pMesh;
-	std::vector<class Material*> m_pMaterial;
+	Model m_Model;
 	float m_RotateAngle;
 	int m_TonemapType;
 	int m_ColorSpace;

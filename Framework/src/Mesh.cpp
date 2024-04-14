@@ -78,7 +78,7 @@ void Mesh::Term()
 	}
 }
 
-void Mesh::Draw(ID3D12GraphicsCommandList* pCmdList)
+void Mesh::Draw(ID3D12GraphicsCommandList* pCmdList) const
 {
 	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_VB.GetView();
 	const D3D12_INDEX_BUFFER_VIEW& IBV = m_IB.GetView();

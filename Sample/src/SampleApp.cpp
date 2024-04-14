@@ -5,7 +5,6 @@
 #include <DirectXHelpers.h>
 #include "FileUtil.h"
 #include "Logger.h"
-#include "ResMesh.h"
 #include "Mesh.h"
 #include "Material.h"
 #include "InlineUtil.h"
@@ -415,7 +414,8 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		m_pMesh.reserve(resMesh.size());
+		std::vector<Mesh*> pMeshes;
+		pMeshes.reserve(resMesh.size());
 
 		for (size_t i = 0; i < resMesh.size(); i++)
 		{
@@ -439,21 +439,24 @@ bool SampleApp::OnInit()
 				ptr->World = Matrix::Identity;
 			}
 
-			m_pMesh.push_back(mesh);
+			pMeshes.push_back(mesh);
 		}
 
-		m_pMesh.shrink_to_fit();
+		pMeshes.shrink_to_fit();
 
 		//TODO: Velocityのテストとして2番のメッシュをMovableとする
 		if (RENDER_SPONZA)
 		{
-			if (m_pMesh.size() > 2)
+			if (pMeshes.size() > 2)
 			{
-				m_pMesh[2]->SetMobility(Mobility::Movable);
+				pMeshes[2]->SetMobility(Mobility::Movable);
 			}
 		}
 
-		m_pMaterial.reserve(resMaterial.size());
+		m_Model.SetMeshes(pMeshes);
+
+		std::vector<Material*> pMaterials;
+		pMaterials.reserve(resMaterial.size());
 
 		for (size_t i = 0; i < resMaterial.size(); i++)
 		{
@@ -471,10 +474,10 @@ bool SampleApp::OnInit()
 				return false;
 			}
 
-			m_pMaterial.push_back(material);
+			pMaterials.push_back(material);
 		}
 
-		m_pMaterial.shrink_to_fit();
+		pMaterials.shrink_to_fit();
 
 		// 全マテリアルの全テクスチャでバッチ処理を走らせるために、SetTexture()を
 		// Material::Init()の中で行っていない
@@ -484,7 +487,7 @@ bool SampleApp::OnInit()
 		const std::wstring& dir = GetDirectoryPath(path.c_str());
 		for (size_t i = 0; i < resMaterial.size(); i++)
 		{
-			Material* pMaterial = m_pMaterial[i];
+			Material* pMaterial = pMaterials[i];
 			const ResMaterial& resMat = resMaterial[i];
 
 			pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.BaseColorMap, batch);
@@ -507,6 +510,8 @@ bool SampleApp::OnInit()
 
 		std::future<void> future = batch.End(m_pQueue.Get());
 		future.wait();
+
+		m_Model.SetMaterials(pMaterials);
 	}
 
 	if (RENDER_SPONZA)
@@ -2892,17 +2897,7 @@ void SampleApp::OnTerm()
 
 	m_MotionBlurCB.Term();
 
-	for (size_t i = 0; i < m_pMesh.size(); i++)
-	{
-		SafeTerm(m_pMesh[i]);
-	}
-	m_pMesh.clear();
-	m_pMesh.shrink_to_fit();
-
-	for (size_t i = 0; i < m_pMaterial.size(); i++)
-	{
-		SafeTerm(m_pMaterial[i]);
-	}
+	m_Model.Term();
 
 	m_DirLightShadowMapTarget.Term();
 
@@ -3048,11 +3043,12 @@ void SampleApp::OnRender()
 	Matrix worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));;
 
 	{
-		for (size_t meshIdx = 0; meshIdx < m_pMesh.size(); meshIdx++)
+		for (size_t meshIdx = 0; meshIdx < m_Model.GetMeshCount(); meshIdx++)
 		{
-			if (m_pMesh[meshIdx]->GetMobility() == Mobility::Movable)
+			const Mesh* pMesh = m_Model.GetMesh(meshIdx);
+			if (pMesh->GetMobility() == Mobility::Movable)
 			{
-				CbMesh* ptr = m_pMesh[meshIdx]->GetBufferPtr<CbMesh>(m_FrameIndex);
+				CbMesh* ptr = pMesh->GetBufferPtr<CbMesh>(m_FrameIndex);
 				ptr->World = worldForMovable;
 			}
 		}
@@ -3350,40 +3346,42 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
 {
-	for (size_t i = 0; i < m_pMesh.size(); i++)
+	for (size_t meshIdx = 0; meshIdx < m_Model.GetMeshCount(); meshIdx++)
 	{
+		const Mesh* pMesh = m_Model.GetMesh(meshIdx);
+
 		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-		uint32_t materialId = m_pMesh[i]->GetMaterialId();
+		const Material* pMaterial = m_Model.GetMaterial(pMesh->GetMaterialId());
 
-		if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && m_pMaterial[materialId]->GetDoubleSided())
+		if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
 		{
 			continue;
 		}
-		else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !m_pMaterial[materialId]->GetDoubleSided())
+		else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
 		{
 			continue;
 		}
 
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_pMesh[i]->GetConstantBufferHandle(m_FrameIndex));
-		pCmdList->SetGraphicsRootDescriptorTable(3, m_pMaterial[materialId]->GetBufferHandle());
+		pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex));
+		pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetBufferHandle());
 		if (RENDER_SPONZA)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(12, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
-			pCmdList->SetGraphicsRootDescriptorTable(13, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-			pCmdList->SetGraphicsRootDescriptorTable(14, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
-			pCmdList->SetGraphicsRootDescriptorTable(15, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
-			pCmdList->SetGraphicsRootDescriptorTable(16, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+			pCmdList->SetGraphicsRootDescriptorTable(12, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
+			pCmdList->SetGraphicsRootDescriptorTable(13, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+			pCmdList->SetGraphicsRootDescriptorTable(14, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
+			pCmdList->SetGraphicsRootDescriptorTable(15, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
+			pCmdList->SetGraphicsRootDescriptorTable(16, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
 		}
 		else
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(5, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
-			pCmdList->SetGraphicsRootDescriptorTable(6, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-			pCmdList->SetGraphicsRootDescriptorTable(7, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
-			pCmdList->SetGraphicsRootDescriptorTable(8, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
-			pCmdList->SetGraphicsRootDescriptorTable(9, m_pMaterial[materialId]->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+			pCmdList->SetGraphicsRootDescriptorTable(5, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
+			pCmdList->SetGraphicsRootDescriptorTable(6, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+			pCmdList->SetGraphicsRootDescriptorTable(7, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
+			pCmdList->SetGraphicsRootDescriptorTable(8, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
+			pCmdList->SetGraphicsRootDescriptorTable(9, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
 		}
 
-		m_pMesh[i]->Draw(pCmdList);
+		pMesh->Draw(pCmdList);
 	}
 }
 
@@ -3576,14 +3574,15 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	pCmdList->SetPipelineState(m_pObjectVelocityPSO.Get());
 
 	// Movableなものだけ描画
-	for (size_t i = 0; i < m_pMesh.size(); i++)
+	for (size_t meshIdx = 0; meshIdx < m_Model.GetMeshCount(); meshIdx++)
 	{
-		if (m_pMesh[i]->GetMobility() != Mobility::Movable)
+		const Mesh* pMesh = m_Model.GetMesh(meshIdx);
+		if (pMesh->GetMobility() != Mobility::Movable)
 		{
 			continue;
 		}
 
-		m_pMesh[i]->Draw(pCmdList);
+		pMesh->Draw(pCmdList);
 	}
 
 	DirectX::TransitionResource(pCmdList, m_ObjectVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
