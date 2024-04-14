@@ -48,6 +48,8 @@ private:
 	RootSignature m_ObjectVelocityRootSig;
 	ComPtr<ID3D12PipelineState> m_pCameraVelocityPSO;
 	RootSignature m_CameraVelocityRootSig;
+	ComPtr<ID3D12PipelineState> m_pSSR_PSO;
+	RootSignature m_SSR_RootSig;
 	ComPtr<ID3D12PipelineState> m_pTemporalAA_PSO;
 	RootSignature m_TemporalAA_RootSig;
 	ComPtr<ID3D12PipelineState> m_pMotionBlurPSO;
@@ -76,6 +78,7 @@ private:
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_ObjectVelocityTarget;
 	ColorTarget m_VelocityTargt;
+	ColorTarget m_SSR_Targt;
 	ColorTarget m_TemporalAA_Target[FRAME_COUNT];
 	ColorTarget m_MotionBlurTarget;
 	ColorTarget m_BloomSetupTarget[BLOOM_NUM_DOWN_SAMPLE];
@@ -95,6 +98,7 @@ private:
 	ConstantBuffer m_SSAO_FullResCB[FRAME_COUNT];
 	ConstantBuffer m_ObjectVelocityCB[FRAME_COUNT];
 	ConstantBuffer m_CameraVelocityCB[FRAME_COUNT];
+	ConstantBuffer m_SSR_CB;
 	ConstantBuffer m_TemporalAA_CB[FRAME_COUNT];
 	ConstantBuffer m_MotionBlurCB;
 	ConstantBuffer m_TonemapCB[FRAME_COUNT];
@@ -138,6 +142,7 @@ private:
 	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
 	void DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter);
 	void DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter);
+	void DrawSSR(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor);
 	void DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList);

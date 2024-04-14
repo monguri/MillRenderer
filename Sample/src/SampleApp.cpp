@@ -159,6 +159,12 @@ namespace
 		Matrix ClipToPrevClip;
 	};
 
+	struct alignas(256) CbSSR
+	{
+		float Parameter;
+		float Padding[2];
+	};
+
 	struct alignas(256) CbTemporalAA
 	{
 		int Width;
@@ -1079,6 +1085,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// SSR用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_SSR_Targt.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// TemporalAA用ターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -1987,6 +2013,81 @@ bool SampleApp::OnInit()
 		}
 	}
 
+    // SSR用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin()
+			.SetCBV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 0)
+			.SetSRV(ShaderStage::PS, 2, 1)
+			.SetSRV(ShaderStage::PS, 3, 2)
+			// TODO: should be PointClamp?
+			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
+			.AllowIL()
+			.End();
+
+		if (!m_SSR_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // SSR用パイプラインステートの生成
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		// TODO:差し替え
+		if (!SearchFilePath(L"CameraVelocityPS.cso", psPath))
+		//if (!SearchFilePath(L"SSR_PS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_SSR_RootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RTVFormats[0] = m_VelocityTargt.GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSSR_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // TemporalAA用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -2651,6 +2752,18 @@ bool SampleApp::OnInit()
 		ptr->ClipToPrevClip = Matrix::Identity;
 	}
 
+	// SSR用定数バッファの作成
+	{
+		if (!m_SSR_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSR)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbSSR* ptr = m_SSR_CB.GetPtr<CbSSR>();
+		ptr->Parameter = 0.0f;
+	}
+
 	// TemporalAA用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -3012,6 +3125,8 @@ void SampleApp::OnTerm()
 
 	m_SSAOSetupCB.Term();
 
+	m_SSR_CB.Term();
+
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
 	{
 		m_DownsampleCB[i].Term();
@@ -3057,6 +3172,8 @@ void SampleApp::OnTerm()
 	m_ObjectVelocityTarget.Term();
 
 	m_VelocityTargt.Term();
+
+	m_SSR_Targt.Term();
 
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -3106,6 +3223,9 @@ void SampleApp::OnTerm()
 
 	m_pCameraVelocityPSO.Reset();
 	m_CameraVelocityRootSig.Term();
+
+	m_pSSR_PSO.Reset();
+	m_SSR_RootSig.Term();
 
 	m_pTemporalAA_PSO.Reset();
 	m_TemporalAA_RootSig.Term();
@@ -3224,6 +3344,8 @@ void SampleApp::OnRender()
 	DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
 
 	DrawCameraVelocity(pCmd, viewProjNoJitter);
+
+	DrawSSR(pCmd);
 
 	const ColorTarget& TemporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
 	const ColorTarget& TemporalAA_DstTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
@@ -3767,6 +3889,11 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"SSR");
 }
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor)
