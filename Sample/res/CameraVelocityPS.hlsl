@@ -9,9 +9,8 @@ cbuffer CbCameraVelocity : register(b0)
 	float4x4 ClipToPrevClip;
 }
 
-Texture2D ColorMap : register(t0);
-Texture2D DepthMap : register(t1);
-Texture2D ObjectVelocityMap : register(t2);
+Texture2D DepthMap : register(t0);
+Texture2D ObjectVelocityMap : register(t1);
 SamplerState PointClampSmp : register(s0);
 
 float4 main(const VSOutput input) : SV_TARGET0
