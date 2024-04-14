@@ -453,7 +453,13 @@ bool SampleApp::OnInit()
 			}
 		}
 
-		m_Model.SetMeshes(pMeshes);
+		Model* model = new (std::nothrow) Model();
+		if (model == nullptr)
+		{
+			ELOG("Error : Out of memory.");
+			return false;
+		}
+		model->SetMeshes(pMeshes);
 
 		std::vector<Material*> pMaterials;
 		pMaterials.reserve(resMaterial.size());
@@ -511,8 +517,12 @@ bool SampleApp::OnInit()
 		std::future<void> future = batch.End(m_pQueue.Get());
 		future.wait();
 
-		m_Model.SetMaterials(pMaterials);
+		model->SetMaterials(pMaterials);
+
+		m_pModels.push_back(model);
 	}
+
+	m_pModels.shrink_to_fit();
 
 	if (RENDER_SPONZA)
 	{
@@ -2897,7 +2907,15 @@ void SampleApp::OnTerm()
 
 	m_MotionBlurCB.Term();
 
-	m_Model.Term();
+	for (Model* model : m_pModels)
+	{
+		if (model != nullptr)
+		{
+			model->Term();
+		}
+
+		m_pModels.clear();
+	}
 
 	m_DirLightShadowMapTarget.Term();
 
@@ -3043,13 +3061,16 @@ void SampleApp::OnRender()
 	Matrix worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));;
 
 	{
-		for (size_t meshIdx = 0; meshIdx < m_Model.GetMeshCount(); meshIdx++)
+		for (const Model* model : m_pModels)
 		{
-			const Mesh* pMesh = m_Model.GetMesh(meshIdx);
-			if (pMesh->GetMobility() == Mobility::Movable)
+			for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
 			{
-				CbMesh* ptr = pMesh->GetBufferPtr<CbMesh>(m_FrameIndex);
-				ptr->World = worldForMovable;
+				const Mesh* pMesh = model->GetMesh(meshIdx);
+				if (pMesh->GetMobility() == Mobility::Movable)
+				{
+					CbMesh* ptr = pMesh->GetBufferPtr<CbMesh>(m_FrameIndex);
+					ptr->World = worldForMovable;
+				}
 			}
 		}
 	}
@@ -3346,42 +3367,45 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
 {
-	for (size_t meshIdx = 0; meshIdx < m_Model.GetMeshCount(); meshIdx++)
+	for (const Model* model : m_pModels)
 	{
-		const Mesh* pMesh = m_Model.GetMesh(meshIdx);
-
-		// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-		const Material* pMaterial = m_Model.GetMaterial(pMesh->GetMaterialId());
-
-		if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
+		for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
 		{
-			continue;
-		}
-		else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
-		{
-			continue;
-		}
+			const Mesh* pMesh = model->GetMesh(meshIdx);
 
-		pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex));
-		pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetBufferHandle());
-		if (RENDER_SPONZA)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(12, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
-			pCmdList->SetGraphicsRootDescriptorTable(13, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-			pCmdList->SetGraphicsRootDescriptorTable(14, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
-			pCmdList->SetGraphicsRootDescriptorTable(15, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
-			pCmdList->SetGraphicsRootDescriptorTable(16, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
-		}
-		else
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(5, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
-			pCmdList->SetGraphicsRootDescriptorTable(6, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-			pCmdList->SetGraphicsRootDescriptorTable(7, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
-			pCmdList->SetGraphicsRootDescriptorTable(8, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
-			pCmdList->SetGraphicsRootDescriptorTable(9, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
-		}
+			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
+			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
 
-		pMesh->Draw(pCmdList);
+			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
+			{
+				continue;
+			}
+			else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
+			{
+				continue;
+			}
+
+			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex));
+			pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetBufferHandle());
+			if (RENDER_SPONZA)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(12, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
+				pCmdList->SetGraphicsRootDescriptorTable(13, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+				pCmdList->SetGraphicsRootDescriptorTable(14, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
+				pCmdList->SetGraphicsRootDescriptorTable(15, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
+				pCmdList->SetGraphicsRootDescriptorTable(16, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+			}
+			else
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(5, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
+				pCmdList->SetGraphicsRootDescriptorTable(6, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+				pCmdList->SetGraphicsRootDescriptorTable(7, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
+				pCmdList->SetGraphicsRootDescriptorTable(8, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
+				pCmdList->SetGraphicsRootDescriptorTable(9, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+			}
+
+			pMesh->Draw(pCmdList);
+		}
 	}
 }
 
@@ -3574,15 +3598,18 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	pCmdList->SetPipelineState(m_pObjectVelocityPSO.Get());
 
 	// Movableなものだけ描画
-	for (size_t meshIdx = 0; meshIdx < m_Model.GetMeshCount(); meshIdx++)
+	for (const Model* model : m_pModels)
 	{
-		const Mesh* pMesh = m_Model.GetMesh(meshIdx);
-		if (pMesh->GetMobility() != Mobility::Movable)
+		for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
 		{
-			continue;
-		}
+			const Mesh* pMesh = model->GetMesh(meshIdx);
+			if (pMesh->GetMobility() != Mobility::Movable)
+			{
+				continue;
+			}
 
-		pMesh->Draw(pCmdList);
+			pMesh->Draw(pCmdList);
+		}
 	}
 
 	DirectX::TransitionResource(pCmdList, m_ObjectVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

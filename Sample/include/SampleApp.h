@@ -107,7 +107,7 @@ private:
 	SphereMapConverter m_SphereMapConverter;
 	IBLBaker m_IBLBaker;
 
-	Model m_Model;
+	std::vector<Model*> m_pModels;
 	float m_RotateAngle;
 	int m_TonemapType;
 	int m_ColorSpace;
