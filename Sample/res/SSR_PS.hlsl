@@ -12,6 +12,7 @@ cbuffer CbCameraVelocity : register(b0)
 Texture2D ColorMap : register(t0);
 Texture2D DepthMap : register(t1);
 Texture2D NormalMap : register(t2);
+// TODO: should be PointClamp?
 SamplerState PointClampSmp : register(s0);
 
 float4 main(const VSOutput input) : SV_TARGET0
