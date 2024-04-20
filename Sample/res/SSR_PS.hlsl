@@ -34,6 +34,8 @@ float InterleavedGradientNoise(float2 UV, float FrameId)
 	return frac(MAGIC_NUMBER.z * frac(dot(UV, MAGIC_NUMBER.xy)));
 }
 
+//TODO: common functions with SSAO.
+
 float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
 	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
@@ -68,7 +70,7 @@ float3 GetWSNormal(float2 uv)
 	return normalize(NormalMap.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f);
 }
 
-bool RayCast(out float2 hitUV)
+bool RayCast(float3 rayDir, out float2 hitUV)
 {
 	// TODO: impl
 	hitUV = 0;
@@ -113,10 +115,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 		float3 N = GetWSNormal(input.TexCoord);
 		float3 V = normalize(-cameraOriginWorldPos);
-		float3 L = reflect(-V, N);
+		float3 rayDir = reflect(-V, N);
 
 		float2 hitUV;
-		bool bHit = RayCast(hitUV);
+		bool bHit = RayCast(rayDir, hitUV);
 
 		float3 reflection = 0;
 		if (bHit)
