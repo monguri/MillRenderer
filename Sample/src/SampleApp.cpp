@@ -3275,6 +3275,7 @@ void SampleApp::OnRender()
 	Matrix viewProjWithJitter;
 	Matrix viewRotProjNoJitter;
 	Matrix viewRotProjWithJitter;
+	Matrix projNoJitter;
 	Matrix projWithJitter;
 	{
 		m_FrameSampleIndex++;
@@ -3298,12 +3299,12 @@ void SampleApp::OnRender()
 		Matrix viewRot = view;
 		viewRot.m[3][0] = viewRot.m[3][1] = viewRot.m[3][2] = 0;
 
-		Matrix proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
-		viewProjNoJitter = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		viewRotProjNoJitter = viewRot * proj;
+		projNoJitter = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+		viewProjNoJitter = view * projNoJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		viewRotProjNoJitter = viewRot * projNoJitter;
 
 		// UEのTAAのジッタを参考にしている
-		projWithJitter = proj;
+		projWithJitter = projNoJitter;
 		projWithJitter.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
 		projWithJitter.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
 
@@ -3362,7 +3363,14 @@ void SampleApp::OnRender()
 
 	DrawSSAOSetup(pCmd);
 
-	DrawSSAO(pCmd, projWithJitter);
+	if (ENABLE_TEMPORAL_AA)
+	{
+		DrawSSAO(pCmd, projWithJitter);
+	}
+	else
+	{
+		DrawSSAO(pCmd, projNoJitter);
+	}
 
 	DrawAmbientLight(pCmd);
 
@@ -3370,7 +3378,14 @@ void SampleApp::OnRender()
 
 	DrawCameraVelocity(pCmd, viewProjNoJitter);
 
-	DrawSSR(pCmd, viewRotProjWithJitter);
+	if (ENABLE_TEMPORAL_AA)
+	{
+		DrawSSR(pCmd, viewRotProjWithJitter);
+	}
+	else
+	{
+		DrawSSR(pCmd, viewRotProjNoJitter);
+	}
 
 	const ColorTarget& TemporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
 	const ColorTarget& TemporalAA_DstTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
@@ -3711,7 +3726,7 @@ void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
 }
 
 //TODO:SSパスは処理を共通化したい
-void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& projWithJitter)
+void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj)
 {
 	// 半解像度パス // TODO:フル解像度パスと処理が冗長
 	{
@@ -3724,7 +3739,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 			// またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 			ptr->TemporalOffset = (float)m_FrameSampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 			ptr->ViewMatrix = m_Camera.GetView();
-			ptr->InvProjMatrix = projWithJitter.Invert();
+			ptr->InvProjMatrix = proj.Invert();
 			ptr->bHalfRes = 1;
 		}
 
@@ -3770,7 +3785,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 			// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 			ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 			ptr->ViewMatrix = m_Camera.GetView();
-			ptr->InvProjMatrix = projWithJitter.Invert();
+			ptr->InvProjMatrix = proj.Invert();
 			ptr->bHalfRes = 0;
 		}
 
@@ -3917,13 +3932,13 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProjWithJitter)
+void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProj)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSR");
 
 	{
 		CbSSR* ptr = m_SSR_CB.GetPtr<CbSSR>();
-		ptr->InvVRotPMatrix = viewRotProjWithJitter.Invert();
+		ptr->InvVRotPMatrix = viewRotProj.Invert();
 		ptr->FrameSampleIndex = m_FrameSampleIndex;
 	}
 
