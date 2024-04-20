@@ -3374,7 +3374,14 @@ void SampleApp::OnRender()
 
 	DrawAmbientLight(pCmd);
 
-	DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+	if (ENABLE_TEMPORAL_AA)
+	{
+		DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+	}
+	else
+	{
+		DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+	}
 
 	DrawCameraVelocity(pCmd, viewProjNoJitter);
 
