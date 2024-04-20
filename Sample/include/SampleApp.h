@@ -124,6 +124,7 @@ private:
 	D3D12_RECT m_DirLightShadowMapScissor;
 	D3D12_VIEWPORT m_SpotLightShadowMapViewport;
 	D3D12_RECT m_SpotLightShadowMapScissor;
+	uint32_t m_FrameSampleIndex;
 	uint32_t m_TemporalAASampleIndex;
 	DirectX::SimpleMath::Matrix m_PrevWorldForMovable;
 	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitter;

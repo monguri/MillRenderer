@@ -22,6 +22,8 @@
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
+#define ENABLE_SSR true
+
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
@@ -39,6 +41,7 @@ namespace
 
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 
+	static constexpr uint32_t FRAME_SAMPLES = 8;
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11;
 
 	// シェーダ側のマクロ定数と同じ値である必要がある
@@ -161,8 +164,10 @@ namespace
 
 	struct alignas(256) CbSSR
 	{
-		float Parameter;
-		float Padding[2];
+		int Width;
+		int Height;
+		int FrameSampleIndex;
+		int bEnableSSR;
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -360,6 +365,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_RotateAngle(0.0f)
 , m_DirLightShadowMapViewport()
 , m_DirLightShadowMapScissor()
+, m_FrameSampleIndex(0)
 , m_TemporalAASampleIndex(0)
 , m_PrevWorldForMovable(Matrix::Identity)
 , m_PrevViewProjNoJitter(Matrix::Identity)
@@ -2757,7 +2763,10 @@ bool SampleApp::OnInit()
 		}
 
 		CbSSR* ptr = m_SSR_CB.GetPtr<CbSSR>();
-		ptr->Parameter = 0.0f;
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+		ptr->bEnableSSR = ENABLE_SSR ? 1 : 0;
+		ptr->FrameSampleIndex = m_FrameSampleIndex;
 	}
 
 	// TemporalAA用定数バッファの作成
@@ -3254,6 +3263,17 @@ void SampleApp::OnTerm()
 
 void SampleApp::OnRender()
 {
+	// 共通変数の更新
+	{
+		m_FrameSampleIndex++;
+		if (m_FrameSampleIndex >= FRAME_SAMPLES)
+		{
+			m_FrameSampleIndex = 0;
+		}
+
+		//m_RotateAngle += 0.2f;
+	}
+
 	// テンポラルジッタ関連
 	Matrix viewProjNoJitter;
 	Matrix viewProjWithJitter;
@@ -3279,8 +3299,6 @@ void SampleApp::OnRender()
 
 		viewProjWithJitter = view * projWithJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
-
-	//m_RotateAngle += 0.2f;
 
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
 	Vector3 lightForward;
@@ -3690,8 +3708,10 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 		{
 			CbSSAO* ptr = m_SSAO_HalfResCB[m_FrameIndex].GetPtr<CbSSAO>();
-			// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
-			ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
+			// UE5はTemporalAASampleIndexを%8しているが0-10までループするのでいびちになっている。
+			// こちらでは素直に0-7でループさせる。TAAと周期をずれさせるのは妥当。
+			// またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
+			ptr->TemporalOffset = (float)m_FrameSampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 			ptr->ViewMatrix = m_Camera.GetView();
 			ptr->InvProjMatrix = projWithJitter.Invert();
 			ptr->bHalfRes = 1;
@@ -3889,6 +3909,11 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSR");
+
+	{
+		CbSSR* ptr = m_SSR_CB.GetPtr<CbSSR>();
+		ptr->FrameSampleIndex = m_FrameSampleIndex;
+	}
 
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
