@@ -70,6 +70,7 @@ private:
 	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SceneColorTarget;
 	ColorTarget m_SceneNormalTarget;
+	ColorTarget m_SceneMetallicRoughnessTarget;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_SSAOSetupTarget;
 	ColorTarget m_SSAO_HalfResTarget;

@@ -22,7 +22,7 @@
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
-#define ENABLE_SSR false
+#define ENABLE_SSR true
 
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
@@ -891,6 +891,26 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// シーン用メタリックラフネスターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_SceneMetallicRoughnessTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R8G8_UNORM,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// シーン用デプスターゲットの生成
 	{
 		if (!m_SceneDepthTarget.Init
@@ -1426,9 +1446,10 @@ bool SampleApp::OnInit()
 		}
 
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.NumRenderTargets = 2;
+		desc.NumRenderTargets = 3;
 		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
 		desc.RTVFormats[1] = m_SceneNormalTarget.GetRTVDesc().Format;
+		desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
@@ -1567,9 +1588,10 @@ bool SampleApp::OnInit()
 		}
 
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.NumRenderTargets = 2;
+		desc.NumRenderTargets = 3;
 		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
 		desc.RTVFormats[1] = m_SceneNormalTarget.GetRTVDesc().Format;
+		desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
@@ -2030,6 +2052,7 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 1, 0)
 			.SetSRV(ShaderStage::PS, 2, 1)
 			.SetSRV(ShaderStage::PS, 3, 2)
+			.SetSRV(ShaderStage::PS, 4, 3)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
@@ -3171,6 +3194,7 @@ void SampleApp::OnTerm()
 
 	m_SceneColorTarget.Term();
 	m_SceneNormalTarget.Term();
+	m_SceneMetallicRoughnessTarget.Term();
 	m_SceneDepthTarget.Term();
 
 	m_SSAOSetupTarget.Term();
@@ -3562,15 +3586,21 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[2] = { m_SceneColorTarget.GetHandleRTV()->HandleCPU, m_SceneNormalTarget.GetHandleRTV()->HandleCPU };
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
+		m_SceneColorTarget.GetHandleRTV()->HandleCPU,
+		m_SceneNormalTarget.GetHandleRTV()->HandleCPU, 
+		m_SceneMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
+	};
 	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
 
-	pCmdList->OMSetRenderTargets(2, rtvs, FALSE, &handleDSV->HandleCPU);
+	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, &handleDSV->HandleCPU);
 
 	m_SceneColorTarget.ClearView(pCmdList);
 	m_SceneNormalTarget.ClearView(pCmdList);
+	m_SceneMetallicRoughnessTarget.ClearView(pCmdList);
 	m_SceneDepthTarget.ClearView(pCmdList);
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -3649,6 +3679,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -3961,6 +3992,7 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(4, m_SceneMetallicRoughnessTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pSSR_PSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);

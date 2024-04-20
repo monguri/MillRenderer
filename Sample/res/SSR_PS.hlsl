@@ -20,6 +20,7 @@ static const float ROUGHNESS_MASK_MUL = -6.66667; // Referenced UE's value.
 Texture2D ColorMap : register(t0);
 Texture2D DepthMap : register(t1);
 Texture2D NormalMap : register(t2);
+Texture2D MetallicRoughnessMap : register(t3);
 // TODO: should be PointClamp?
 SamplerState PointClampSmp : register(s0);
 
@@ -71,7 +72,7 @@ bool RayCast(out float2 hitUV)
 {
 	// TODO: impl
 	hitUV = 0;
-	return true;
+	return false;
 }
 
 // Referenced UE's implementation
@@ -88,7 +89,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float3 origColor = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
 
 		// TODO: get roughness
-		const float roughnessFade = GetRoughnessFade(0.2f);
+		float roughness = MetallicRoughnessMap.Sample(PointClampSmp, input.TexCoord).g;
+		float roughnessFade = GetRoughnessFade(roughness);
 		// early return when surface is rough enough.
 		if (roughnessFade <= 0)
 		{

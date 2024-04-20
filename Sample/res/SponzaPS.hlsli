@@ -34,6 +34,7 @@ struct PSOutput
 {
 	float4 Color : SV_TARGET0;
 	float4 Normal : SV_TARGET1;
+	float2 MetallicRoughness : SV_TARGET2;
 };
 
 cbuffer CbCamera : register(b0)
@@ -548,6 +549,9 @@ PSOutput main(VSOutput input)
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;
 	output.Normal.a = 1.0f;
+
+	output.MetallicRoughness.r = metallic;
+	output.MetallicRoughness.g = roughness;
 	return output;
 }
 
