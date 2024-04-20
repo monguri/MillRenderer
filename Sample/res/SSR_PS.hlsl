@@ -25,13 +25,13 @@ Texture2D MetallicRoughnessMap : register(t3);
 SamplerState PointClampSmp : register(s0);
 
 // Referenced UE's implementation
-float InterleavedGradientNoise(float2 UV, float FrameId)
+float InterleavedGradientNoise(float2 uv, float frameId)
 {
 	// magic values are found by experimentation
-	UV += FrameId * (float2(47, 17) * 0.695f);
+	uv += frameId * (float2(47, 17) * 0.695f);
 
 	const float3 MAGIC_NUMBER = float3(0.06711056f, 0.00583715f, 52.9829189f);
-	return frac(MAGIC_NUMBER.z * frac(dot(UV, MAGIC_NUMBER.xy)));
+	return frac(MAGIC_NUMBER.z * frac(dot(uv, MAGIC_NUMBER.xy)));
 }
 
 //TODO: common functions with SSAO.
