@@ -22,7 +22,7 @@
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
-#define ENABLE_SSR true
+#define ENABLE_SSR false
 
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
@@ -164,10 +164,14 @@ namespace
 
 	struct alignas(256) CbSSR
 	{
+		Matrix InvVRotPMatrix;
+		float Near;
+		float Far;
 		int Width;
 		int Height;
 		int FrameSampleIndex;
 		int bEnableSSR;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -2763,6 +2767,9 @@ bool SampleApp::OnInit()
 		}
 
 		CbSSR* ptr = m_SSR_CB.GetPtr<CbSSR>();
+		ptr->InvVRotPMatrix = Matrix::Identity;
+		ptr->Near = CAMERA_NEAR;
+		ptr->Far = CAMERA_FAR;
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->bEnableSSR = ENABLE_SSR ? 1 : 0;
@@ -3264,6 +3271,11 @@ void SampleApp::OnTerm()
 void SampleApp::OnRender()
 {
 	// 共通変数の更新
+	Matrix viewProjNoJitter;
+	Matrix viewProjWithJitter;
+	Matrix viewRotProjNoJitter;
+	Matrix viewRotProjWithJitter;
+	Matrix projWithJitter;
 	{
 		m_FrameSampleIndex++;
 		if (m_FrameSampleIndex >= FRAME_SAMPLES)
@@ -3272,13 +3284,7 @@ void SampleApp::OnRender()
 		}
 
 		//m_RotateAngle += 0.2f;
-	}
 
-	// テンポラルジッタ関連
-	Matrix viewProjNoJitter;
-	Matrix viewProjWithJitter;
-	Matrix projWithJitter;
-	{
 		m_TemporalAASampleIndex++;
 		if (m_TemporalAASampleIndex >= TEMPORAL_AA_SAMPLES)
 		{
@@ -3289,8 +3295,12 @@ void SampleApp::OnRender()
 		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 		const Matrix& view = m_Camera.GetView();
+		Matrix viewRot = view;
+		viewRot.m[3][0] = viewRot.m[3][1] = viewRot.m[3][2] = 0;
+
 		Matrix proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
 		viewProjNoJitter = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		viewRotProjNoJitter = viewRot * proj;
 
 		// UEのTAAのジッタを参考にしている
 		projWithJitter = proj;
@@ -3298,6 +3308,7 @@ void SampleApp::OnRender()
 		projWithJitter.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
 
 		viewProjWithJitter = view * projWithJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		viewRotProjWithJitter = viewRot * projWithJitter;
 	}
 
 	// ディレクショナルライト方向（の逆方向ベクトル）の更新
@@ -3359,7 +3370,7 @@ void SampleApp::OnRender()
 
 	DrawCameraVelocity(pCmd, viewProjNoJitter);
 
-	DrawSSR(pCmd);
+	DrawSSR(pCmd, viewRotProjWithJitter);
 
 	const ColorTarget& TemporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
 	const ColorTarget& TemporalAA_DstTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
@@ -3906,12 +3917,13 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProjWithJitter)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSR");
 
 	{
 		CbSSR* ptr = m_SSR_CB.GetPtr<CbSSR>();
+		ptr->InvVRotPMatrix = viewRotProjWithJitter.Invert();
 		ptr->FrameSampleIndex = m_FrameSampleIndex;
 	}
 
