@@ -22,7 +22,7 @@
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
-#define ENABLE_SSR true
+#define ENABLE_SSR false
 
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
@@ -164,6 +164,8 @@ namespace
 
 	struct alignas(256) CbSSR
 	{
+		Matrix ProjMatrix;
+		Matrix VRotPMatrix;
 		Matrix InvVRotPMatrix;
 		float Near;
 		float Far;
@@ -2790,6 +2792,8 @@ bool SampleApp::OnInit()
 		}
 
 		CbSSR* ptr = m_SSR_CB.GetPtr<CbSSR>();
+		ptr->ProjMatrix = Matrix::Identity;
+		ptr->VRotPMatrix = Matrix::Identity;
 		ptr->InvVRotPMatrix = Matrix::Identity;
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
@@ -3411,11 +3415,11 @@ void SampleApp::OnRender()
 
 	if (ENABLE_TEMPORAL_AA)
 	{
-		DrawSSR(pCmd, viewRotProjWithJitter);
+		DrawSSR(pCmd, projWithJitter, viewRotProjWithJitter);
 	}
 	else
 	{
-		DrawSSR(pCmd, viewRotProjNoJitter);
+		DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
 	}
 
 	const ColorTarget& TemporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
@@ -3970,12 +3974,14 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProj)
+void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSR");
 
 	{
 		CbSSR* ptr = m_SSR_CB.GetPtr<CbSSR>();
+		ptr->ProjMatrix = proj;
+		ptr->VRotPMatrix = viewRotProj;
 		ptr->InvVRotPMatrix = viewRotProj.Invert();
 		ptr->FrameSampleIndex = m_FrameSampleIndex;
 	}

@@ -6,6 +6,8 @@ struct VSOutput
 
 cbuffer CbSSR : register(b0)
 {
+	float4x4 ProjMatrix;
+	float4x4 VRotPMatrix;
 	float4x4 InvVRotPMatrix;
 	float Near;
 	float Far;
@@ -16,6 +18,8 @@ cbuffer CbSSR : register(b0)
 }
 
 static const float ROUGHNESS_MASK_MUL = -6.66667; // Referenced UE's value.
+static const uint NUM_STEPS = 16; // Referenced UE's value. SSR_QUALITY=2 and NUM_RAYS=1
+static const float SLOPE_COMPARE_TOLERANCE_SCALE = 4.0f; // Referenced UE's value.
 
 Texture2D ColorMap : register(t0);
 Texture2D DepthMap : register(t1);
@@ -23,6 +27,13 @@ Texture2D NormalMap : register(t2);
 Texture2D MetallicRoughnessMap : register(t3);
 // TODO: should be PointClamp?
 SamplerState PointClampSmp : register(s0);
+
+// Referenced UE's implementation
+float GetRoughnessFade(float roughness)
+{
+	// mask SSR to reduce noise and for better performance, roughness of 0 should have SSR, at MaxRoughness we fade to 0
+	return min(roughness * ROUGHNESS_MASK_MUL + 2, 1.0f);
+}
 
 // Referenced UE's implementation
 float InterleavedGradientNoise(float2 uv, float frameId)
@@ -60,9 +71,16 @@ float3 ConverFromNDCToCameraOriginWS(float4 ndcPos)
 	return cameraOriginWorldPos.xyz;
 }
 
+float3 ConverFromCameraOriginWSToNDC(float3 cameraOriginWorldPos)
+{
+	float4 clipPos = mul(VRotPMatrix, float4(cameraOriginWorldPos, 1.0f));
+	float4 ndcPos = clipPos / clipPos.w;
+	return ndcPos.xyz;
+}
+
 float GetDeviceZ(float2 uv)
 {
-	return DepthMap.Sample(PointClampSmp, uv).r;
+	return DepthMap.SampleLevel(PointClampSmp, uv, 0).r;
 }
 
 float3 GetWSNormal(float2 uv)
@@ -70,18 +88,45 @@ float3 GetWSNormal(float2 uv)
 	return normalize(NormalMap.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f);
 }
 
-bool RayCast(float3 rayDir, out float2 hitUV)
+bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, float depth, float stepOffset, out float2 hitUV)
 {
-	// TODO: impl
-	hitUV = 0;
-	return false;
-}
+	// ray length to be depth is referenced UE.
+	float3 cameraOriginRayEnd = cameraOriginRayStart + rayDir * depth;
+	float3 rayEndNDC = ConverFromCameraOriginWSToNDC(cameraOriginRayEnd);
+	float3 rayEndUVz = float3(rayEndNDC.xy * float2(0.5f, -0.5f) + 0.5f, rayEndNDC.z);
+	// viewport clip
+	rayEndUVz.xy = saturate(rayEndUVz.xy);
 
-// Referenced UE's implementation
-float GetRoughnessFade(float roughness)
-{
-	// mask SSR to reduce noise and for better performance, roughness of 0 should have SSR, at MaxRoughness we fade to 0
-	return min(roughness * ROUGHNESS_MASK_MUL + 2, 1.0f);
+	// z is deviceZ so steps are not uniform on world space.
+	float3 rayStepUVz = rayEndUVz - rayStartUVz;
+	float step = 1.0f / NUM_STEPS;
+	rayStepUVz *= step;
+	float3 rayUVz = rayStartUVz + rayStepUVz * stepOffset;
+
+	float4 rayStartClipPos = mul(VRotPMatrix, float4(cameraOriginRayStart, 1.0f));
+	float4 rayDepthClipPos = rayStartClipPos + mul(ProjMatrix, float4(0, 0, -depth, 0));
+	float3 rayDepthNDC = rayDepthClipPos.xyz / rayDepthClipPos.w;
+
+	float compareTolerance = max(abs(rayStepUVz.z), (rayDepthNDC.z - rayStartUVz.z) * SLOPE_COMPARE_TOLERANCE_SCALE * step);
+	uint stepCount;
+	bool bHit = false;
+	for (stepCount = 0; stepCount < NUM_STEPS; stepCount++)
+	{
+		float3 sampleUVz = rayUVz + rayStepUVz * (stepCount + 1);
+		// TODO: UE use HZB mip and as blurrier as high roughness.
+		float sampleDepth = GetDeviceZ(sampleUVz.xy);
+
+		float sampleDepthDiff = sampleDepth - sampleUVz.z;
+		bHit = (abs(sampleDepthDiff + compareTolerance) < compareTolerance);
+		if (bHit)
+		{
+			break;
+		}
+	}
+
+	// TODO: use interpolation of UE's ode.
+	hitUV = rayUVz.xy + rayStepUVz.xy * (stepCount + 1);
+	return bHit;
 }
 
 float4 main(const VSOutput input) : SV_TARGET0
@@ -99,10 +144,6 @@ float4 main(const VSOutput input) : SV_TARGET0
 			return float4(origColor, 1);
 		}
 
-		// Used UE's SSR_QUALITY = 2 settings.
-			uint NumSteps = 16;
-		// uint NumRays = 1;
-
 		float stepOffset = InterleavedGradientNoise(input.TexCoord * float2(Width, Height), FrameSampleIndex);
 		//return float4(StepOffset, 1.0f);
 		stepOffset -= 0.5f;
@@ -117,8 +158,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float3 V = normalize(-cameraOriginWorldPos);
 		float3 rayDir = reflect(-V, N);
 
+		float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
+
 		float2 hitUV;
-		bool bHit = RayCast(rayDir, hitUV);
+		bool bHit = RayCast(float3(input.TexCoord, deviceZ), cameraOriginWorldPos, rayDir, -viewZ, stepOffset, hitUV);
 
 		float3 reflection = 0;
 		if (bHit)
