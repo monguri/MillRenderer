@@ -17,7 +17,8 @@ cbuffer CbSSR : register(b0)
 	int bEnableSSR;
 }
 
-static const float ROUGHNESS_MASK_MUL = -6.66667; // Referenced UE's value.
+static const float SSR_INTENSITY = 1.0f; // Referenced UE's value.
+static const float ROUGHNESS_MASK_MUL = -6.66667f; // Referenced UE's value.
 static const uint NUM_STEPS = 16; // Referenced UE's value. SSR_QUALITY=2 and NUM_RAYS=1
 static const float SLOPE_COMPARE_TOLERANCE_SCALE = 4.0f; // Referenced UE's value.
 
@@ -175,6 +176,9 @@ float4 main(const VSOutput input) : SV_TARGET0
 		{
 			reflection = ColorMap.Sample(PointClampSmp, hitUV).rgb;
 		}
+
+		reflection *= roughnessFade;
+		reflection *= SSR_INTENSITY;
 
 		return float4(origColor + reflection, 1.0f);
 	}
