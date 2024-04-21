@@ -25,7 +25,6 @@ Texture2D ColorMap : register(t0);
 Texture2D DepthMap : register(t1);
 Texture2D NormalMap : register(t2);
 Texture2D MetallicRoughnessMap : register(t3);
-// TODO: should be PointClamp?
 SamplerState PointClampSmp : register(s0);
 
 // Referenced UE's implementation
@@ -110,22 +109,31 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 	float compareTolerance = max(abs(rayStepUVz.z), (rayDepthNDC.z - rayStartUVz.z) * SLOPE_COMPARE_TOLERANCE_SCALE * step);
 	uint stepCount;
 	bool bHit = false;
+	float sampleDepthDiff;
+	float preSampleDepthDiff = 0.0f;
 	for (stepCount = 0; stepCount < NUM_STEPS; stepCount++)
 	{
 		float3 sampleUVz = rayUVz + rayStepUVz * (stepCount + 1);
 		// TODO: UE use HZB mip and as blurrier as high roughness.
 		float sampleDepth = GetDeviceZ(sampleUVz.xy);
 
-		float sampleDepthDiff = sampleDepth - sampleUVz.z;
+		sampleDepthDiff = sampleDepth - sampleUVz.z;
 		bHit = (abs(sampleDepthDiff + compareTolerance) < compareTolerance);
 		if (bHit)
 		{
 			break;
 		}
+
+		preSampleDepthDiff = sampleDepthDiff;
 	}
 
-	// TODO: use interpolation of UE's ode.
-	hitUV = rayUVz.xy + rayStepUVz.xy * (stepCount + 1);
+	if (bHit)
+	{
+		float timeLerp = saturate(preSampleDepthDiff / (preSampleDepthDiff - sampleDepthDiff));
+		float intersectTime = stepCount + timeLerp;
+		hitUV = rayUVz.xy + rayStepUVz.xy * intersectTime;
+	}
+
 	return bHit;
 }
 
@@ -135,7 +143,6 @@ float4 main(const VSOutput input) : SV_TARGET0
 	{
 		float3 origColor = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
 
-		// TODO: get roughness
 		float roughness = MetallicRoughnessMap.Sample(PointClampSmp, input.TexCoord).g;
 		float roughnessFade = GetRoughnessFade(roughness);
 		// early return when surface is rough enough.
