@@ -1638,6 +1638,64 @@ bool SampleApp::OnInit()
 		}
 	}
 
+    // HZB作成パス用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc.Begin()
+			.SetCBV(ShaderStage::ALL, 0, 0)
+			.SetSRV(ShaderStage::ALL, 1, 0)
+			.SetSRV(ShaderStage::ALL, 2, 1)
+			.SetSRV(ShaderStage::ALL, 3, 2)
+			.SetUAV(ShaderStage::ALL, 4, 0)
+			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
+			.End();
+
+		if (!m_HZB_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // HZB作成パス用パイプラインステートの生成
+	{
+		std::wstring csPath;
+
+		if (!SearchFilePath(L"TemporalAA_CS.cso", csPath))
+		{
+			ELOG("Error : Compute Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pCSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_HZB_RootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pHZB_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // SSAO準備パス用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -2144,7 +2202,7 @@ bool SampleApp::OnInit()
 
 		if (!SearchFilePath(L"TemporalAA_CS.cso", csPath))
 		{
-			ELOG("Error : Vertex Shader Not Found");
+			ELOG("Error : Compute Shader Not Found");
 			return false;
 		}
 
@@ -3248,6 +3306,9 @@ void SampleApp::OnTerm()
 	m_pSceneDepthMaskPSO.Reset();
 
 	m_SceneRootSig.Term();
+
+	m_pHZB_PSO.Reset();
+	m_HZB_RootSig.Term();
 
 	m_pSSAOSetupPSO.Reset();
 	m_SSAOSetupRootSig.Term();
