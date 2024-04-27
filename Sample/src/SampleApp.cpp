@@ -306,6 +306,23 @@ namespace
 		return spotLightShadowView * spotLightShadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
+	//TODO: UEはより最適化された実装だが、ここでは可読性を重視する
+	uint32_t RoundDownToPowerOfTwo(uint32_t value)
+	{
+		assert(value > 0);
+
+		// 1の値になっている最大の桁。一番右は0とするので1の場合は0。
+		uint32_t maxDigit = 0;
+
+		for (; value > 1; value >>= 1)
+		{
+			maxDigit++;
+		}
+
+		assert(maxDigit < 32);
+		return 1 << maxDigit;
+	}
+
 	// @param x assumed to be in this range: -1..1
 	// @return 0..255
 	uint8_t Quantize8SignedByte(float x)
@@ -951,13 +968,13 @@ bool SampleApp::OnInit()
 			m_pPool[POOL_TYPE_RES],
 			nullptr, // RTVは作らない。クリアする必要がないので
 			m_pPool[POOL_TYPE_RES],
-			m_Width,
-			m_Height,
+			RoundDownToPowerOfTwo(m_Width),
+			RoundDownToPowerOfTwo(m_Height),
 			DXGI_FORMAT_R16_FLOAT,
 			clearColor
 		))
 		{
-			ELOG("Error : ColorTarget::Init() Failed.");
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
 			return false;
 		}
 	}
@@ -1185,7 +1202,7 @@ bool SampleApp::OnInit()
 				clearColor
 			))
 			{
-				ELOG("Error : ColorTarget::Init() Failed.");
+				ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
 				return false;
 			}
 		}
@@ -2788,8 +2805,8 @@ bool SampleApp::OnInit()
 		}
 
 		CbHZB* ptr = m_HZB_CB.GetPtr<CbHZB>();
-		ptr->Width = m_Width;
-		ptr->Height = m_Height;
+		ptr->Width = (int)m_HZB_Target.GetDesc().Width;
+		ptr->Height = (int)m_HZB_Target.GetDesc().Height;
 	}
 
 	// SSAO準備パス用定数バッファの作成
@@ -3856,8 +3873,8 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 	const size_t GROUP_SIZE_Y = 8;
 
 	// グループ数は切り上げ
-	UINT NumGroupX = (m_Width + GROUP_SIZE_X - 1) / GROUP_SIZE_X;
-	UINT NumGroupY = (m_Height + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
+	UINT NumGroupX = ((UINT)m_HZB_Target.GetDesc().Width + GROUP_SIZE_X - 1) / GROUP_SIZE_X;
+	UINT NumGroupY = ((UINT)m_HZB_Target.GetDesc().Height + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
