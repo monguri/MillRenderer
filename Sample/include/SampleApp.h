@@ -141,6 +141,7 @@ private:
 	void DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
+	void DrawHZB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj);
 	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
