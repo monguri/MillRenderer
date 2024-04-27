@@ -74,6 +74,7 @@ private:
 	ColorTarget m_SceneNormalTarget;
 	ColorTarget m_SceneMetallicRoughnessTarget;
 	DepthTarget m_SceneDepthTarget;
+	ColorTarget m_HZB_Target;
 	ColorTarget m_SSAOSetupTarget;
 	ColorTarget m_SSAO_HalfResTarget;
 	ColorTarget m_SSAO_FullResTarget;
@@ -96,6 +97,7 @@ private:
 	ConstantBuffer m_DirLightShadowMapTransformCB[FRAME_COUNT];
 	ConstantBuffer m_SpotLightShadowMapTransformCB[NUM_SPOT_LIGHTS];
 	ConstantBuffer m_TransformCB[FRAME_COUNT];
+	ConstantBuffer m_HZB_CB;
 	ConstantBuffer m_SSAOSetupCB;
 	ConstantBuffer m_SSAO_HalfResCB[FRAME_COUNT];
 	ConstantBuffer m_SSAO_FullResCB[FRAME_COUNT];

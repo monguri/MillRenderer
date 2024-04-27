@@ -25,7 +25,7 @@
 #define ENABLE_SSR false
 
 #define ENABLE_BLOOM false
-#define ENABLE_MOTION_BLUR true
+#define ENABLE_MOTION_BLUR false
 
 #define ENABLE_TEMPORAL_AA false
 #define ENABLE_FXAA false
@@ -123,6 +123,14 @@ namespace
 		int bExistEmissiveTex;
 		int bExistAOTex;
 		float Padding[1];
+	};
+
+	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	struct alignas(256) CbHZB
+	{
+		int Width;
+		int Height;
+		float Padding[2];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -932,6 +940,28 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// HZB用ターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		// TODO:mipmap対応
+		if (!m_HZB_Target.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R16_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// SSAO準備パス用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -1644,9 +1674,7 @@ bool SampleApp::OnInit()
 		desc.Begin()
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetSRV(ShaderStage::ALL, 1, 0)
-			.SetSRV(ShaderStage::ALL, 2, 1)
-			.SetSRV(ShaderStage::ALL, 3, 2)
-			.SetUAV(ShaderStage::ALL, 4, 0)
+			.SetUAV(ShaderStage::ALL, 2, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -1661,7 +1689,7 @@ bool SampleApp::OnInit()
 	{
 		std::wstring csPath;
 
-		if (!SearchFilePath(L"TemporalAA_CS.cso", csPath))
+		if (!SearchFilePath(L"HZB_CS.cso", csPath))
 		{
 			ELOG("Error : Compute Shader Not Found");
 			return false;
@@ -2751,6 +2779,19 @@ bool SampleApp::OnInit()
 		m_QuadVB.Unmap();
 	}
 
+	// HZB作成パス用定数バッファの作成
+	{
+		if (!m_HZB_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbHZB)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbHZB* ptr = m_HZB_CB.GetPtr<CbHZB>();
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+	}
+
 	// SSAO準備パス用定数バッファの作成
 	{
 		if (!m_SSAOSetupCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAOSetup)))
@@ -3219,6 +3260,8 @@ void SampleApp::OnTerm()
 		m_SpotLightShadowMapTransformCB[i].Term();
 	}
 
+	m_HZB_CB.Term();
+
 	m_SSAOSetupCB.Term();
 
 	m_SSR_CB.Term();
@@ -3257,6 +3300,8 @@ void SampleApp::OnTerm()
 	m_SceneNormalTarget.Term();
 	m_SceneMetallicRoughnessTarget.Term();
 	m_SceneDepthTarget.Term();
+
+	m_HZB_Target.Term();
 
 	m_SSAOSetupTarget.Term();
 
@@ -3448,6 +3493,8 @@ void SampleApp::OnRender()
 	{
 		DrawScene(pCmd, lightForward, viewProjNoJitter);
 	}
+
+	DrawHZB(pCmd);
 
 	DrawSSAOSetup(pCmd);
 
@@ -3795,19 +3842,14 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Build HZB");
 
-#if 0
-	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_HZB_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pHZB_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAA_CB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_SSR_Targt.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, SrcColor.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_VelocityTargt.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(4, DstColor.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(0, m_HZB_CB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_HZB_Target.GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
@@ -3819,11 +3861,8 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
-	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-#endif
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
