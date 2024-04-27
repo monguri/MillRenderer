@@ -128,9 +128,10 @@ namespace
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
 	struct alignas(256) CbHZB
 	{
-		int Width;
-		int Height;
-		float Padding[2];
+		int DstMip0Width;
+		int DstMip0Height;
+		float HeightScale;
+		float Padding[1];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -2805,8 +2806,10 @@ bool SampleApp::OnInit()
 		}
 
 		CbHZB* ptr = m_HZB_CB.GetPtr<CbHZB>();
-		ptr->Width = (int)m_HZB_Target.GetDesc().Width;
-		ptr->Height = (int)m_HZB_Target.GetDesc().Height;
+		ptr->DstMip0Width = (int)m_HZB_Target.GetDesc().Width;
+		ptr->DstMip0Height = (int)m_HZB_Target.GetDesc().Height;
+		// 幅方向にフィットさせるルールとする
+		ptr->HeightScale = (float)m_Width / m_Height;
 	}
 
 	// SSAO準備パス用定数バッファの作成
