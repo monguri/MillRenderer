@@ -70,7 +70,6 @@ ColorTarget::ColorTarget()
 : m_pTarget(nullptr)
 , m_pHandleRTV(nullptr)
 , m_pPoolRTV(nullptr)
-, m_pHandleUAV(nullptr)
 , m_pPoolUAV(nullptr)
 , m_pHandleSRV(nullptr)
 , m_pPoolSRV(nullptr)
@@ -213,7 +212,8 @@ bool ColorTarget::InitUnorderedAccessTarget
 	uint32_t width,
 	uint32_t height,
 	DXGI_FORMAT format,
-	float clearColor[4]
+	float clearColor[4],
+	uint32_t mipLevels
 )
 {
 	if (pDevice == nullptr || pPoolUAV == nullptr || width == 0 || height == 0)
@@ -222,15 +222,22 @@ bool ColorTarget::InitUnorderedAccessTarget
 	}
 
 	assert(m_pPoolUAV == nullptr);
-	assert(m_pHandleUAV == nullptr);
+	assert(m_pHandleMipUAVs.size() == 0);
 
 	m_pPoolUAV = pPoolUAV;
 	m_pPoolUAV->AddRef();
 
-	m_pHandleUAV = pPoolUAV->AllocHandle();
-	if (m_pHandleUAV == nullptr)
+	m_pHandleMipUAVs.reserve(mipLevels);
+
+	for (uint32_t mip = 0; mip < mipLevels; mip++)
 	{
-		return false;
+		DescriptorHandle* pHandle = pPoolUAV->AllocHandle();
+		if (pHandle == nullptr)
+		{
+			return false;
+		}
+
+		m_pHandleMipUAVs.push_back(pHandle);
 	}
 
 	assert(m_pPoolRTV == nullptr);
@@ -273,7 +280,7 @@ bool ColorTarget::InitUnorderedAccessTarget
 	desc.Width = UINT64(width);
 	desc.Height = height;
 	desc.DepthOrArraySize = 1;
-	desc.MipLevels = 1;
+	desc.MipLevels = mipLevels;
 	desc.Format = format;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
@@ -306,17 +313,26 @@ bool ColorTarget::InitUnorderedAccessTarget
 		return false;
 	}
 
-	m_UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-	m_UAVDesc.Format = ConvertToUAVFormat(format);
-	m_UAVDesc.Texture2D.MipSlice = 0;
-	m_UAVDesc.Texture2D.PlaneSlice = 0;
+	D3D12_UNORDERED_ACCESS_VIEW_DESC baseUAVDesc;
+	baseUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	baseUAVDesc.Format = ConvertToUAVFormat(format);
+	baseUAVDesc.Texture2D.MipSlice = 0;
+	baseUAVDesc.Texture2D.PlaneSlice = 0;
 
-	pDevice->CreateUnorderedAccessView(
-		m_pTarget.Get(),
-		nullptr,
-		&m_UAVDesc,
-		m_pHandleUAV->HandleCPU
-	);
+	m_MipUAVDescs.reserve(mipLevels);
+	for (uint32_t mip = 0; mip < mipLevels; mip++)
+	{
+		D3D12_UNORDERED_ACCESS_VIEW_DESC mipUAVDesc = baseUAVDesc;
+		mipUAVDesc.Texture2D.MipSlice = mip;
+		m_MipUAVDescs.emplace_back(mipUAVDesc);
+
+		pDevice->CreateUnorderedAccessView(
+			m_pTarget.Get(),
+			nullptr,
+			&mipUAVDesc,
+			m_pHandleMipUAVs[mip]->HandleCPU
+		);
+	}
 
 	if (pPoolRTV != nullptr)
 	{
@@ -338,7 +354,7 @@ bool ColorTarget::InitUnorderedAccessTarget
 		m_SRVDesc.Format = format;
 		m_SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		m_SRVDesc.Texture2D.MostDetailedMip = 0;
-		m_SRVDesc.Texture2D.MipLevels = 1;
+		m_SRVDesc.Texture2D.MipLevels = mipLevels;
 		m_SRVDesc.Texture2D.PlaneSlice = 0;
 		m_SRVDesc.Texture2D.ResourceMinLODClamp = 0;
 
@@ -423,11 +439,14 @@ void ColorTarget::Term()
 		m_pPoolRTV = nullptr;
 	}
 
-	if (m_pHandleUAV != nullptr && m_pPoolUAV != nullptr)
+	for (DescriptorHandle* pHandleUAV : m_pHandleMipUAVs)
 	{
-		m_pPoolUAV->FreeHandle(m_pHandleUAV);
-		m_pHandleUAV = nullptr;
+		if (pHandleUAV != nullptr && m_pPoolUAV != nullptr)
+		{
+			m_pPoolUAV->FreeHandle(pHandleUAV);
+		}
 	}
+	m_pHandleMipUAVs.clear();
 
 	if (m_pPoolUAV != nullptr)
 	{
@@ -453,9 +472,9 @@ DescriptorHandle* ColorTarget::GetHandleRTV() const
 	return m_pHandleRTV;
 }
 
-DescriptorHandle* ColorTarget::GetHandleUAV() const
+const std::vector<DescriptorHandle*>& ColorTarget::GetHandleUAVs() const
 {
-	return m_pHandleUAV;
+	return m_pHandleMipUAVs;
 }
 
 DescriptorHandle* ColorTarget::GetHandleSRV() const
@@ -485,9 +504,9 @@ D3D12_RENDER_TARGET_VIEW_DESC ColorTarget::GetRTVDesc() const
 	return m_RTVDesc;
 }
 
-D3D12_UNORDERED_ACCESS_VIEW_DESC ColorTarget::GetUAVDesc() const
+const std::vector<D3D12_UNORDERED_ACCESS_VIEW_DESC>& ColorTarget::GetUAVDescs() const
 {
-	return m_UAVDesc;
+	return m_MipUAVDescs;
 }
 
 D3D12_SHADER_RESOURCE_VIEW_DESC ColorTarget::GetSRVDesc() const

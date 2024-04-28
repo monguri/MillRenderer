@@ -962,17 +962,21 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-		// TODO:mipmap対応
+		uint32_t HZBSizeX = RoundDownToPowerOfTwo(m_Width);
+		uint32_t HZBSizeY = RoundDownToPowerOfTwo(m_Height);
+		uint32_t NumMips = (uint32_t)log2f((float)DirectX::XMMax(HZBSizeX, HZBSizeY));
+
 		if (!m_HZB_Target.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RES],
 			nullptr, // RTVは作らない。クリアする必要がないので
 			m_pPool[POOL_TYPE_RES],
-			RoundDownToPowerOfTwo(m_Width),
-			RoundDownToPowerOfTwo(m_Height),
+			HZBSizeX,
+			HZBSizeY,
 			DXGI_FORMAT_R16_FLOAT,
-			clearColor
+			clearColor,
+			NumMips
 		))
 		{
 			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
@@ -3869,7 +3873,7 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetPipelineState(m_pHZB_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_HZB_CB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_HZB_Target.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_HZB_Target.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
@@ -4179,7 +4183,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	pCmdList->SetComputeRootDescriptorTable(1, m_SSR_Targt.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, SrcColor.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_VelocityTargt.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(4, DstColor.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, DstColor.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
