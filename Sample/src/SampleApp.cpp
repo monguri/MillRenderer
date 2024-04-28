@@ -134,7 +134,7 @@ namespace
 		int DstMip0Width;
 		int DstMip0Height;
 		float HeightScale;
-		float Padding[1];
+		int NumOutputMip;
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -2821,6 +2821,7 @@ bool SampleApp::OnInit()
 		ptr->DstMip0Height = (int)m_HZB_Target.GetDesc().Height;
 		// 幅方向にフィットさせるルールとする
 		ptr->HeightScale = (float)m_Width / m_Height;
+		ptr->NumOutputMip = HZB_MAX_MIP_BATCH_SIZE;
 	}
 
 	// SSAO準備パス用定数バッファの作成

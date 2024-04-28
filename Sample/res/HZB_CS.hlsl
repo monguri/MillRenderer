@@ -3,6 +3,7 @@ cbuffer CbHZB : register(b0)
 	int DstMip0Width;
 	int DstMip0Height;
 	float HeightScale;
+	int NumOutputMip;
 }
 
 static const uint GROUP_TILE_SIZE = 8;
