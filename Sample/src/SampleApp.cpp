@@ -42,7 +42,7 @@ namespace
 	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 
-	static constexpr uint32_t HZB_MAX_MIP_BATCH_SIZE = 4; // UEを参考にした
+	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
 
 	static constexpr uint32_t FRAME_SAMPLES = 8; // UEを参考にした
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11; // UEを参考にした
@@ -1700,9 +1700,9 @@ bool SampleApp::OnInit()
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetSRV(ShaderStage::ALL, 1, 0);
 
-		for (uint32_t batch = 0; batch < HZB_MAX_MIP_BATCH_SIZE; batch++)
+		for (uint32_t i = 0; i < HZB_MAX_NUM_OUTPUT_MIP; i++)
 		{
-			desc = desc.SetUAV(ShaderStage::ALL, 2 + batch, batch);
+			desc = desc.SetUAV(ShaderStage::ALL, 2 + i, i);
 		}
 
 		desc = desc.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp).End();
@@ -2810,6 +2810,9 @@ bool SampleApp::OnInit()
 
 	// HZB作成パス用定数バッファの作成
 	{
+		uint32_t NumMips = (uint32_t)log2f(DirectX::XMMax((float)m_HZB_Target.GetDesc().Width, (float)m_HZB_Target.GetDesc().Height));
+		uint32_t numDrawCall = (NumMips + HZB_MAX_NUM_OUTPUT_MIP - 1) / HZB_MAX_NUM_OUTPUT_MIP;
+
 		if (!m_HZB_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbHZB)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
@@ -2821,7 +2824,7 @@ bool SampleApp::OnInit()
 		ptr->DstMip0Height = (int)m_HZB_Target.GetDesc().Height;
 		// 幅方向にフィットさせるルールとする
 		ptr->HeightScale = (float)m_Width / m_Height;
-		ptr->NumOutputMip = HZB_MAX_MIP_BATCH_SIZE;
+		ptr->NumOutputMip = HZB_MAX_NUM_OUTPUT_MIP;
 	}
 
 	// SSAO準備パス用定数バッファの作成
@@ -3881,9 +3884,9 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetPipelineState(m_pHZB_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_HZB_CB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	for (uint32_t batch = 0; batch < HZB_MAX_MIP_BATCH_SIZE; batch++)
+	for (uint32_t i = 0; i < HZB_MAX_NUM_OUTPUT_MIP; i++)
 	{
-		pCmdList->SetComputeRootDescriptorTable(2 + batch, m_HZB_Target.GetHandleUAVs()[batch]->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(2 + i, m_HZB_Target.GetHandleUAVs()[i]->HandleGPU);
 	}
 
 	// シェーダ側と合わせている
