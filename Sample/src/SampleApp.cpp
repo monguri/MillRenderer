@@ -42,8 +42,10 @@ namespace
 	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 
-	static constexpr uint32_t FRAME_SAMPLES = 8;
-	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11;
+	static constexpr uint32_t HZB_MAX_MIP_BATCH_SIZE = 4; // UEを参考にした
+
+	static constexpr uint32_t FRAME_SAMPLES = 8; // UEを参考にした
+	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11; // UEを参考にした
 
 	// シェーダ側のマクロ定数と同じ値である必要がある
 	// 定数バッファ内配列のfloat4へのパッキングルールがあるので4の倍数である必要がある
@@ -1694,15 +1696,16 @@ bool SampleApp::OnInit()
     // HZB作成パス用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
-		desc.Begin()
+		desc = desc.Begin()
 			.SetCBV(ShaderStage::ALL, 0, 0)
-			.SetSRV(ShaderStage::ALL, 1, 0)
-			.SetUAV(ShaderStage::ALL, 2, 0)
-			.SetUAV(ShaderStage::ALL, 3, 1)
-			.SetUAV(ShaderStage::ALL, 4, 2)
-			.SetUAV(ShaderStage::ALL, 5, 3)
-			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
-			.End();
+			.SetSRV(ShaderStage::ALL, 1, 0);
+
+		for (uint32_t batch = 0; batch < HZB_MAX_MIP_BATCH_SIZE; batch++)
+		{
+			desc = desc.SetUAV(ShaderStage::ALL, 2 + batch, batch);
+		}
+
+		desc = desc.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp).End();
 
 		if (!m_HZB_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
@@ -3877,10 +3880,10 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetPipelineState(m_pHZB_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_HZB_CB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_HZB_Target.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_HZB_Target.GetHandleUAVs()[1]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(4, m_HZB_Target.GetHandleUAVs()[2]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(5, m_HZB_Target.GetHandleUAVs()[3]->HandleGPU);
+	for (uint32_t batch = 0; batch < HZB_MAX_MIP_BATCH_SIZE; batch++)
+	{
+		pCmdList->SetComputeRootDescriptorTable(2 + batch, m_HZB_Target.GetHandleUAVs()[batch]->HandleGPU);
+	}
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;

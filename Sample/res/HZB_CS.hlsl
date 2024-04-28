@@ -10,6 +10,7 @@ static const uint GROUP_TILE_SIZE = 8;
 Texture2D DepthMap : register(t0);
 SamplerState PointClampSmp : register(s0);
 
+// the number of output textures need to match HZB_MAX_MIP_BATCH_SIZE of cpp.
 RWTexture2D<float> OutHZB_Mip0 : register(u0);
 RWTexture2D<float> OutHZB_Mip1 : register(u1);
 RWTexture2D<float> OutHZB_Mip2 : register(u2);
@@ -22,6 +23,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	float4 deviceZ = DepthMap.GatherRed(PointClampSmp, uv, 0);
 	float maxDeviceZ = max(deviceZ.x, max(deviceZ.y, max(deviceZ.z, deviceZ.w)));
 	OutHZB_Mip0[DTid] = maxDeviceZ;
+	//TODO: need to calculate max from more pixels.
 	OutHZB_Mip1[DTid >> 1] = maxDeviceZ;
 	OutHZB_Mip2[DTid >> 2] = maxDeviceZ;
 	OutHZB_Mip3[DTid >> 3] = maxDeviceZ;
