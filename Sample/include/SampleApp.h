@@ -21,7 +21,6 @@ public:
 	virtual ~SampleApp();
 
 private:
-	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerÇéQçlÇ…ÇµÇΩ
 	static constexpr uint32_t NUM_POINT_LIGHTS = 4;
 	static constexpr uint32_t NUM_SPOT_LIGHTS = 3;
 
