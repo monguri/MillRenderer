@@ -1697,6 +1697,9 @@ bool SampleApp::OnInit()
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetSRV(ShaderStage::ALL, 1, 0)
 			.SetUAV(ShaderStage::ALL, 2, 0)
+			.SetUAV(ShaderStage::ALL, 3, 1)
+			.SetUAV(ShaderStage::ALL, 4, 2)
+			.SetUAV(ShaderStage::ALL, 5, 3)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -3874,6 +3877,9 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetComputeRootDescriptorTable(0, m_HZB_CB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_HZB_Target.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_HZB_Target.GetHandleUAVs()[1]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_HZB_Target.GetHandleUAVs()[2]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(5, m_HZB_Target.GetHandleUAVs()[3]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
