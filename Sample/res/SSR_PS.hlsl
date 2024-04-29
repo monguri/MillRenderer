@@ -23,7 +23,7 @@ static const uint NUM_STEPS = 16; // Referenced UE's value. SSR_QUALITY=2 and NU
 static const float SLOPE_COMPARE_TOLERANCE_SCALE = 4.0f; // Referenced UE's value.
 
 Texture2D ColorMap : register(t0);
-Texture2D DepthMap : register(t1);
+Texture2D HZB : register(t1);
 Texture2D NormalMap : register(t2);
 Texture2D MetallicRoughnessMap : register(t3);
 SamplerState PointClampSmp : register(s0);
@@ -78,9 +78,9 @@ float3 ConverFromCameraOriginWSToNDC(float3 cameraOriginWorldPos)
 	return ndcPos.xyz;
 }
 
-float GetDeviceZ(float2 uv)
+float GetDeviceZ(float2 uv, float mipLevel)
 {
-	return DepthMap.SampleLevel(PointClampSmp, uv, 0).r;
+	return HZB.SampleLevel(PointClampSmp, uv, mipLevel).r;
 }
 
 float3 GetWSNormal(float2 uv)
@@ -88,7 +88,7 @@ float3 GetWSNormal(float2 uv)
 	return normalize(NormalMap.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f);
 }
 
-bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, float depth, float stepOffset, out float2 hitUV)
+bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, float depth, float stepOffset, float roughness, out float2 hitUV)
 {
 	// ray length to be depth is referenced UE.
 	float3 cameraOriginRayEnd = cameraOriginRayStart + rayDir * depth;
@@ -112,11 +112,15 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 	bool bHit = false;
 	float sampleDepthDiff;
 	float preSampleDepthDiff = 0.0f;
+	float mipLevel = 1.0f; // start level refered UE.
+
 	for (stepCount = 0; stepCount < NUM_STEPS; stepCount++)
 	{
 		float3 sampleUVz = rayUVz + rayStepUVz * (stepCount + 1);
 		// TODO: UE use HZB mip and as blurrier as high roughness.
-		float sampleDepth = GetDeviceZ(sampleUVz.xy);
+		float sampleDepth = GetDeviceZ(sampleUVz.xy, mipLevel);
+		// Refered UE.
+		mipLevel += 4.0f / NUM_STEPS * roughness;
 
 		sampleDepthDiff = sampleDepth - sampleUVz.z;
 		bHit = (abs(sampleDepthDiff + compareTolerance) < compareTolerance);
@@ -128,6 +132,7 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 		preSampleDepthDiff = sampleDepthDiff;
 	}
 
+	hitUV = 0;
 	if (bHit)
 	{
 		float timeLerp = saturate(preSampleDepthDiff / (preSampleDepthDiff - sampleDepthDiff));
@@ -156,7 +161,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 		//return float4(StepOffset, 1.0f);
 		stepOffset -= 0.5f;
 
-		float deviceZ = GetDeviceZ(input.TexCoord);
+		float deviceZ = GetDeviceZ(input.TexCoord, 0);
 		// [-1,1]x[-1,1]
 		float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 		float4 ndcPos = float4(screenPos, deviceZ, 1);
@@ -169,7 +174,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 		float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
 
 		float2 hitUV;
-		bool bHit = RayCast(float3(input.TexCoord, deviceZ), cameraOriginWorldPos, rayDir, -viewZ, stepOffset, hitUV);
+		bool bHit = RayCast(float3(input.TexCoord, deviceZ), cameraOriginWorldPos, rayDir, -viewZ, stepOffset, roughness, hitUV);
 
 		float3 reflection = 0;
 		if (bHit)
