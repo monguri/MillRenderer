@@ -965,9 +965,9 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-		uint32_t HZBSizeX = RoundDownToPowerOfTwo(m_Width);
-		uint32_t HZBSizeY = RoundDownToPowerOfTwo(m_Height);
-		uint32_t NumMips = (uint32_t)log2f((float)DirectX::XMMax(HZBSizeX, HZBSizeY));
+		uint32_t Mip0SizeX = RoundDownToPowerOfTwo(m_Width);
+		uint32_t Mip0SizeY = RoundDownToPowerOfTwo(m_Height);
+		uint32_t NumMips = (uint32_t)log2f((float)DirectX::XMMax(Mip0SizeX, Mip0SizeY));
 
 		if (!m_HZB_Target.InitUnorderedAccessTarget
 		(
@@ -975,8 +975,8 @@ bool SampleApp::OnInit()
 			m_pPool[POOL_TYPE_RES],
 			nullptr, // RTVは作らない。クリアする必要がないので
 			m_pPool[POOL_TYPE_RES],
-			HZBSizeX,
-			HZBSizeY,
+			Mip0SizeX,
+			Mip0SizeY,
 			DXGI_FORMAT_R16_FLOAT,
 			clearColor,
 			NumMips
@@ -2810,7 +2810,9 @@ bool SampleApp::OnInit()
 
 	// HZB作成パス用定数バッファの作成
 	{
-		uint32_t NumMips = (uint32_t)log2f(DirectX::XMMax((float)m_HZB_Target.GetDesc().Width, (float)m_HZB_Target.GetDesc().Height));
+		uint32_t Mip0SizeX = (uint32_t)m_HZB_Target.GetDesc().Width;
+		uint32_t Mip0SizeY = (uint32_t)m_HZB_Target.GetDesc().Height;
+		uint32_t NumMips = (uint32_t)log2f((float)DirectX::XMMax(Mip0SizeX, Mip0SizeY));
 		uint32_t numDrawCall = (NumMips + HZB_MAX_NUM_OUTPUT_MIP - 1) / HZB_MAX_NUM_OUTPUT_MIP;
 		m_pHZB_CBs.reserve(numDrawCall);
 
@@ -2830,11 +2832,22 @@ bool SampleApp::OnInit()
 			}
 
 			CbHZB* ptr = cb->GetPtr<CbHZB>();
-			ptr->DstMip0Width = (int)m_HZB_Target.GetDesc().Width;
-			ptr->DstMip0Height = (int)m_HZB_Target.GetDesc().Height;
-			// 幅方向にフィットさせるルールとする
-			ptr->HeightScale = (float)m_Width / m_Height;
-			ptr->NumOutputMip = HZB_MAX_NUM_OUTPUT_MIP;
+			if (i == 0)
+			{
+				ptr->DstMip0Width = Mip0SizeX;
+				ptr->DstMip0Height = Mip0SizeY;
+				// 幅方向にフィットさせるルールとする
+				ptr->HeightScale = (float)m_Width / m_Height;
+				ptr->NumOutputMip = DirectX::XMMin(NumMips, HZB_MAX_NUM_OUTPUT_MIP);
+			}
+			else
+			{
+				ptr->DstMip0Width = Mip0SizeX >> (HZB_MAX_NUM_OUTPUT_MIP * i);
+				ptr->DstMip0Height = Mip0SizeY >> (HZB_MAX_NUM_OUTPUT_MIP * i);
+				// 2回目のドローコールからはSceneDepthでなく1回目の出力MipのMipレベル最大のものをサンプルする
+				ptr->HeightScale = 1;
+				ptr->NumOutputMip = DirectX::XMMin(NumMips - HZB_MAX_NUM_OUTPUT_MIP * i, HZB_MAX_NUM_OUTPUT_MIP);
+			}
 
 			m_pHZB_CBs.push_back(cb);
 		}
@@ -3896,6 +3909,8 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"BuildHZB");
+
+	assert(m_pHZB_CBs.size() > 0);
 
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
