@@ -999,12 +999,12 @@ bool SampleApp::OnInit()
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 			srvDesc.Format = m_HZB_Target.GetDesc().Format;
 			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Texture2D.MostDetailedMip = 0;
-			// Mipレベル一枚だけでSRVを作る
-			srvDesc.Texture2D.MipLevels = minMipLevel + 1;
-			srvDesc.Texture2D.PlaneSlice = 0;
 			// ひとつ小さいMipレベルを参照する
-			srvDesc.Texture2D.ResourceMinLODClamp = (float)(minMipLevel - 1);
+			srvDesc.Texture2D.MostDetailedMip = minMipLevel - 1;
+			// Mipレベル一枚だけでSRVを作る
+			srvDesc.Texture2D.MipLevels = 1;
+			srvDesc.Texture2D.PlaneSlice = 0;
+			srvDesc.Texture2D.ResourceMinLODClamp = 0;
 
 			DescriptorHandle* pHandleSRV = m_pPool[POOL_TYPE_RES]->AllocHandle();
 			if (pHandleSRV == nullptr)
