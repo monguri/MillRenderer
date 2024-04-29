@@ -961,10 +961,11 @@ bool SampleApp::OnInit()
 		}
 	}
 
-	// HZB用ターゲットの生成
+	// HZB用ターゲットの生成と参照用にMipレベルを制限したSRVの例外的生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
+		// TODO:これらの計算をやっている箇所が複数あり冗長
 		uint32_t Mip0SizeX = RoundDownToPowerOfTwo(m_Width);
 		uint32_t Mip0SizeY = RoundDownToPowerOfTwo(m_Height);
 		uint32_t NumMips = (uint32_t)log2f((float)DirectX::XMMax(Mip0SizeX, Mip0SizeY));
@@ -984,6 +985,41 @@ bool SampleApp::OnInit()
 		{
 			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
 			return false;
+		}
+
+		uint32_t numDrawCall = (NumMips + HZB_MAX_NUM_OUTPUT_MIP - 1) / HZB_MAX_NUM_OUTPUT_MIP;
+
+		m_pHZB_ParentMipSRVs.reserve(numDrawCall - 1);
+		for (uint32_t i = 1; i < numDrawCall; i++) // 最初のドローコールはSceneDepthを使うので作らない
+		{
+			uint32_t minMipLevel = i * HZB_MAX_NUM_OUTPUT_MIP;
+
+			// https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_tex2d_srv
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Format = m_HZB_Target.GetDesc().Format;
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Texture2D.MostDetailedMip = 0;
+			// Mipレベル一枚だけでSRVを作る
+			srvDesc.Texture2D.MipLevels = minMipLevel + 1;
+			srvDesc.Texture2D.PlaneSlice = 0;
+			// ひとつ小さいMipレベルを参照する
+			srvDesc.Texture2D.ResourceMinLODClamp = (float)(minMipLevel - 1);
+
+			DescriptorHandle* pHandleSRV = m_pPool[POOL_TYPE_RES]->AllocHandle();
+			if (pHandleSRV == nullptr)
+			{
+				ELOG("Error : DescriptorPool::AllocHandle() Failed.");
+				return false;
+			}
+
+			m_pDevice.Get()->CreateShaderResourceView(
+				m_HZB_Target.GetResource(),
+				&srvDesc,
+				pHandleSRV->HandleCPU
+			);
+
+			m_pHZB_ParentMipSRVs.push_back(pHandleSRV);
 		}
 	}
 
@@ -1700,9 +1736,9 @@ bool SampleApp::OnInit()
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetSRV(ShaderStage::ALL, 1, 0);
 
-		for (uint32_t i = 0; i < HZB_MAX_NUM_OUTPUT_MIP; i++)
+		for (uint32_t mip = 0; mip < HZB_MAX_NUM_OUTPUT_MIP; mip++)
 		{
-			desc = desc.SetUAV(ShaderStage::ALL, 2 + i, i);
+			desc = desc.SetUAV(ShaderStage::ALL, 2 + mip, mip);
 		}
 
 		desc = desc.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp).End();
@@ -3353,9 +3389,17 @@ void SampleApp::OnTerm()
 		{
 			model->Term();
 		}
-
-		m_pModels.clear();
 	}
+	m_pModels.clear();
+
+	for (DescriptorHandle* handle : m_pHZB_ParentMipSRVs)
+	{
+		if (handle != nullptr && m_pPool[POOL_TYPE_RES] != nullptr)
+		{
+			m_pPool[POOL_TYPE_RES]->FreeHandle(handle);
+		}
+	}
+	m_pHZB_ParentMipSRVs.clear();
 
 	m_DirLightShadowMapTarget.Term();
 
@@ -3910,32 +3954,66 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"BuildHZB");
 
-	assert(m_pHZB_CBs.size() > 0);
-
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-	pCmdList->SetComputeRootSignature(m_HZB_RootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pHZB_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_pHZB_CBs[0]->GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	for (uint32_t i = 0; i < HZB_MAX_NUM_OUTPUT_MIP; i++)
-	{
-		pCmdList->SetComputeRootDescriptorTable(2 + i, m_HZB_Target.GetHandleUAVs()[i]->HandleGPU);
-	}
-
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
 	const size_t GROUP_SIZE_Y = 8;
 
-	// グループ数は切り上げ
-	UINT NumGroupX = ((UINT)m_HZB_Target.GetDesc().Width + GROUP_SIZE_X - 1) / GROUP_SIZE_X;
-	UINT NumGroupY = ((UINT)m_HZB_Target.GetDesc().Height + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
-	UINT NumGroupZ = 1;
-	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+	uint32_t Mip0SizeX = (uint32_t)m_HZB_Target.GetDesc().Width;
+	uint32_t Mip0SizeY = (uint32_t)m_HZB_Target.GetDesc().Height;
+	uint32_t numMips = m_HZB_Target.GetDesc().MipLevels;
+	uint32_t numDrawCall = (uint32_t)m_pHZB_CBs.size();
+	assert(numDrawCall > 0);
 
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	for (uint32_t i = 0; i < numDrawCall; i++)
+	{
+		if (i == 0)
+		{
+			DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		}
+		DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+		pCmdList->SetComputeRootSignature(m_HZB_RootSig.GetPtr());
+		pCmdList->SetPipelineState(m_pHZB_PSO.Get());
+		pCmdList->SetComputeRootDescriptorTable(0, m_pHZB_CBs[i]->GetHandleGPU());
+		if (i == 0)
+		{
+			pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+		}
+		else
+		{
+			pCmdList->SetComputeRootDescriptorTable(1, m_pHZB_ParentMipSRVs[i - 1]->HandleGPU);
+		}
+
+		uint32_t numOutputMip = 0;
+		if (i == 0)
+		{
+			numOutputMip = DirectX::XMMin(numMips, HZB_MAX_NUM_OUTPUT_MIP);
+		}
+		else
+		{
+			numOutputMip = DirectX::XMMin(numMips - HZB_MAX_NUM_OUTPUT_MIP * i, HZB_MAX_NUM_OUTPUT_MIP);
+		}
+		assert(numOutputMip > 0);
+
+		for (uint32_t mip = 0; mip < numOutputMip; mip++)
+		{
+			pCmdList->SetComputeRootDescriptorTable(2 + mip, m_HZB_Target.GetHandleUAVs()[HZB_MAX_NUM_OUTPUT_MIP * i + mip]->HandleGPU);
+		}
+
+		// グループ数は切り上げ
+		uint32_t minMipSizeX = (Mip0SizeX >> HZB_MAX_NUM_OUTPUT_MIP * i);
+		uint32_t minMipSizeY = (Mip0SizeY >> HZB_MAX_NUM_OUTPUT_MIP * i);
+		UINT NumGroupX = (minMipSizeX + GROUP_SIZE_X - 1) / GROUP_SIZE_X;
+		UINT NumGroupY = (minMipSizeY + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
+		UINT NumGroupZ = 1;
+		pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+		if (i == 0)
+		{
+			DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+		DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
 }
 
 void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)

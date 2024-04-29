@@ -116,6 +116,7 @@ private:
 	IBLBaker m_IBLBaker;
 
 	std::vector<Model*> m_pModels;
+	std::vector<DescriptorHandle*> m_pHZB_ParentMipSRVs;
 	float m_RotateAngle;
 	int m_TonemapType;
 	int m_ColorSpace;
