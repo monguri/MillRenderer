@@ -2812,19 +2812,32 @@ bool SampleApp::OnInit()
 	{
 		uint32_t NumMips = (uint32_t)log2f(DirectX::XMMax((float)m_HZB_Target.GetDesc().Width, (float)m_HZB_Target.GetDesc().Height));
 		uint32_t numDrawCall = (NumMips + HZB_MAX_NUM_OUTPUT_MIP - 1) / HZB_MAX_NUM_OUTPUT_MIP;
+		m_pHZB_CBs.reserve(numDrawCall);
 
-		if (!m_HZB_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbHZB)))
+		for (uint32_t i = 0; i < numDrawCall; i++)
 		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
+			ConstantBuffer* cb = new (std::nothrow) ConstantBuffer();
+			if (cb == nullptr)
+			{
+				ELOG("Error : Out of memory.");
+				return false;
+			}
 
-		CbHZB* ptr = m_HZB_CB.GetPtr<CbHZB>();
-		ptr->DstMip0Width = (int)m_HZB_Target.GetDesc().Width;
-		ptr->DstMip0Height = (int)m_HZB_Target.GetDesc().Height;
-		// 幅方向にフィットさせるルールとする
-		ptr->HeightScale = (float)m_Width / m_Height;
-		ptr->NumOutputMip = HZB_MAX_NUM_OUTPUT_MIP;
+			if (!cb->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbHZB)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+
+			CbHZB* ptr = cb->GetPtr<CbHZB>();
+			ptr->DstMip0Width = (int)m_HZB_Target.GetDesc().Width;
+			ptr->DstMip0Height = (int)m_HZB_Target.GetDesc().Height;
+			// 幅方向にフィットさせるルールとする
+			ptr->HeightScale = (float)m_Width / m_Height;
+			ptr->NumOutputMip = HZB_MAX_NUM_OUTPUT_MIP;
+
+			m_pHZB_CBs.push_back(cb);
+		}
 	}
 
 	// SSAO準備パス用定数バッファの作成
@@ -3295,7 +3308,14 @@ void SampleApp::OnTerm()
 		m_SpotLightShadowMapTransformCB[i].Term();
 	}
 
-	m_HZB_CB.Term();
+	for (ConstantBuffer* cb : m_pHZB_CBs)
+	{
+		if (cb != nullptr)
+		{
+			cb->Term();
+		}
+	}
+	m_pHZB_CBs.clear();
 
 	m_SSAOSetupCB.Term();
 
@@ -3882,7 +3902,7 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_HZB_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pHZB_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_HZB_CB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_pHZB_CBs[0]->GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	for (uint32_t i = 0; i < HZB_MAX_NUM_OUTPUT_MIP; i++)
 	{
