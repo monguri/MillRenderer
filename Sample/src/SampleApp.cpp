@@ -569,10 +569,12 @@ bool SampleApp::OnInit()
 		m_pModels.push_back(model);
 	}
 
+	// 2つ目のメッシュをロード
 	if (RENDER_SPONZA)
 	{
 		std::wstring path;
-		if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
+		if (!SearchFilePath(L"res/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf", path))
+		//if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
 		{
 			ELOG("Error : File Not Found.");
 			return false;
@@ -605,7 +607,8 @@ bool SampleApp::OnInit()
 				return false;
 			}
 
-			const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
+			const Matrix& worldMat = Matrix::CreateScale(0.25f) * Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.5f, 0.0f);
+			//const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
 
 			for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
 			{
