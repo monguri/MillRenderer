@@ -25,37 +25,46 @@ void main(uint2 DTid : SV_DispatchThreadID, uint groupThreadIndex : SV_GroupInde
 	float2 uv = (DTid + 0.5f) * float2(1, HeightScale) / float2(DstMip0Width, DstMip0Height);
 	float4 deviceZ = ParentTextureMip.GatherRed(PointClampSmp, uv, 0);
 	float maxDeviceZ = max(deviceZ.x, max(deviceZ.y, max(deviceZ.z, deviceZ.w)));
-	OutHZB_Mip0[DTid] = maxDeviceZ;
+	uint2 OutputPixelPos = DTid;
+	OutHZB_Mip0[OutputPixelPos] = maxDeviceZ;
 
 	SharedMaxDeviceZ[groupThreadIndex] = maxDeviceZ;
-	GroupMemoryBarrierWithGroupSync();
 
 	// the number of output textures need to match HZB_MAX_MIP_BATCH_SIZE of cpp.
-	for (uint mipLevel = 1; mipLevel < 4; mipLevel++)
+	for (uint mipLevel = 1; mipLevel < (uint)NumOutputMip; mipLevel++)
 	{
+		// easier alghorithm than UE's HZB.usf
+		GroupMemoryBarrierWithGroupSync();
+
+		uint parentTileSize = uint(GROUP_TILE_SIZE) >> (mipLevel - 1);
 		uint tileSize = uint(GROUP_TILE_SIZE) >> mipLevel;
 		uint reduceBankSize = tileSize * tileSize;
 
 		if (groupThreadIndex < reduceBankSize)
 		{
 			float4 parentMaxDeviceZ;
-			parentMaxDeviceZ[0] = maxDeviceZ;
+			parentMaxDeviceZ.x = SharedMaxDeviceZ[groupThreadIndex * 2];
+			parentMaxDeviceZ.y = SharedMaxDeviceZ[groupThreadIndex * 2 + 1];
+			parentMaxDeviceZ.z = SharedMaxDeviceZ[groupThreadIndex * 2 + parentTileSize];
+			parentMaxDeviceZ.w = SharedMaxDeviceZ[groupThreadIndex * 2 + parentTileSize + 1];
+
+			float tileMaxDeviceZ = max(parentMaxDeviceZ.x, max(parentMaxDeviceZ.y, max(parentMaxDeviceZ.z, parentMaxDeviceZ.w)));
+			OutputPixelPos >>= 1;
+
+			if (mipLevel == 1)
+			{
+				OutHZB_Mip1[OutputPixelPos] = tileMaxDeviceZ;
+			}
+			else if (mipLevel == 2)
+			{
+				OutHZB_Mip2[OutputPixelPos] = tileMaxDeviceZ;
+			}
+			else if (mipLevel == 3)
+			{
+				OutHZB_Mip3[OutputPixelPos] = tileMaxDeviceZ;
+			}
+
+			SharedMaxDeviceZ[groupThreadIndex] = tileMaxDeviceZ;
 		}
-	}
-
-	//TODO: need to calculate max from more pixels.
-	if (NumOutputMip > 1)
-	{
-		OutHZB_Mip1[DTid >> 1] = maxDeviceZ;
-	}
-
-	if (NumOutputMip > 2)
-	{
-		OutHZB_Mip2[DTid >> 2] = maxDeviceZ;
-	}
-
-	if (NumOutputMip > 3)
-	{
-		OutHZB_Mip3[DTid >> 3] = maxDeviceZ;
 	}
 }
