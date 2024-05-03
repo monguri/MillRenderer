@@ -117,9 +117,8 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 	for (stepCount = 0; stepCount < NUM_STEPS; stepCount++)
 	{
 		float3 sampleUVz = rayUVz + rayStepUVz * (stepCount + 1);
-		// TODO: UE use HZB mip and as blurrier as high roughness.
 		float sampleDepth = GetDeviceZ(sampleUVz.xy, mipLevel);
-		// Refered UE.
+		// Refered UE. SSR become as blurrier as high roughness.
 		mipLevel += 4.0f / NUM_STEPS * roughness;
 
 		sampleDepthDiff = sampleDepth - sampleUVz.z;
