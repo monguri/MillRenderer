@@ -12,7 +12,7 @@
 #include "ScopedTimer.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA true
+#define RENDER_SPONZA false
 
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_MANUAL_PCF_FOR_SHADOW_MAP
@@ -22,12 +22,12 @@
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
-#define ENABLE_SSR true
+#define ENABLE_SSR false
 
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
-#define ENABLE_TEMPORAL_AA true
+#define ENABLE_TEMPORAL_AA false
 #define ENABLE_FXAA false
 #define ENABLE_FXAA_HIGH_QUALITY true
 
@@ -50,6 +50,8 @@ namespace
 	// シェーダ側のマクロ定数と同じ値である必要がある
 	// 定数バッファ内配列のfloat4へのパッキングルールがあるので4の倍数である必要がある
 	static constexpr uint32_t GAUSSIAN_FILTER_SAMPLES = 32;
+
+	static constexpr float SKY_BOX_HALF_EXTENT = 100.0f;
 
 	enum COLOR_SPACE_TYPE
 	{
@@ -573,8 +575,8 @@ bool SampleApp::OnInit()
 	if (RENDER_SPONZA)
 	{
 		std::wstring path;
-		if (!SearchFilePath(L"res/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf", path))
-		//if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
+		//if (!SearchFilePath(L"res/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf", path))
+		if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
 		{
 			ELOG("Error : File Not Found.");
 			return false;
@@ -607,8 +609,8 @@ bool SampleApp::OnInit()
 				return false;
 			}
 
-			const Matrix& worldMat = Matrix::CreateScale(0.25f) * Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.5f, 0.0f);
-			//const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
+			//const Matrix& worldMat = Matrix::CreateScale(0.25f) * Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.5f, 0.0f);
+			const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
 
 			for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
 			{
@@ -3322,6 +3324,21 @@ bool SampleApp::OnInit()
 			ptr->MipCount = m_IBLBaker.MipCount;
 			ptr->LightIntensity = 1.0f;
 		}
+
+		// スカイボックス初期化
+		{
+			if (!m_SkyBox.Init
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES],
+				DXGI_FORMAT_R10G10B10A2_UNORM,
+				DXGI_FORMAT_D32_FLOAT
+			))
+			{
+				ELOG("Error : SkyBox::Init() Failed.");
+				return false;
+			}
+		}
 	}
 
 	return true;
@@ -3514,11 +3531,13 @@ void SampleApp::OnTerm()
 	m_IBLBaker.Term();
 	m_SphereMapConverter.Term();
 	m_SphereMap.Term();
+	m_SkyBox.Term();
 }
 
 void SampleApp::OnRender()
 {
 	// 共通変数の更新
+	const Matrix& view = m_Camera.GetView();
 	Matrix viewProjNoJitter;
 	Matrix viewProjWithJitter;
 	Matrix viewRotProjNoJitter;
@@ -3543,7 +3562,6 @@ void SampleApp::OnRender()
 		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
-		const Matrix& view = m_Camera.GetView();
 		Matrix viewRot = view;
 		viewRot.m[3][0] = viewRot.m[3][1] = viewRot.m[3][2] = 0;
 
@@ -3602,11 +3620,11 @@ void SampleApp::OnRender()
 
 	if (ENABLE_TEMPORAL_AA)
 	{
-		DrawScene(pCmd, lightForward, viewProjWithJitter);
+		DrawScene(pCmd, lightForward, viewProjWithJitter, view, projWithJitter);
 	}
 	else
 	{
-		DrawScene(pCmd, lightForward, viewProjNoJitter);
+		DrawScene(pCmd, lightForward, viewProjNoJitter, view, projNoJitter);
 	}
 
 	DrawHZB(pCmd);
@@ -3764,7 +3782,7 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 }
 
-void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj)
+void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const Matrix& view, const Matrix& proj)
 {
 	ScopedTimer scopedTimer(pCmdList, L"BasePass");
 
@@ -3902,6 +3920,11 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
 	}
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+
+	if (!RENDER_SPONZA)
+	{
+		m_SkyBox.Draw(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
+	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

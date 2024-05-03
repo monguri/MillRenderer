@@ -11,6 +11,7 @@
 #include "Camera.h"
 #include "SphereMapConverter.h"
 #include "IBLBaker.h"
+#include "SkyBox.h"
 #include "RenderModel.h"
 #include "ResMesh.h"
 
@@ -114,6 +115,7 @@ private:
 	Texture m_SphereMap;
 	SphereMapConverter m_SphereMapConverter;
 	IBLBaker m_IBLBaker;
+	SkyBox m_SkyBox;
 
 	std::vector<Model*> m_pModels;
 	std::vector<DescriptorHandle*> m_pHZB_ParentMipSRVs;
@@ -139,7 +141,7 @@ private:
 	virtual void OnRender() override;
 	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 	void ChangeDisplayMode(bool hdr);
-	void DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj);
+	void DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj);
 	void DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
