@@ -20,13 +20,12 @@ RWTexture2D<float> OutHZB_Mip3 : register(u3);
 groupshared float SharedMaxDeviceZ[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
 
 [numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
-void main(uint2 DTid : SV_DispatchThreadID, uint groupThreadIndex : SV_GroupIndex)
+void main(uint2 GroupId : SV_GroupID, uint2 DTid : SV_DispatchThreadID, uint groupThreadIndex : SV_GroupIndex)
 {
 	float2 uv = (DTid + 0.5f) * float2(1, HeightScale) / float2(DstMip0Width, DstMip0Height);
 	float4 deviceZ = ParentTextureMip.GatherRed(PointClampSmp, uv, 0);
 	float maxDeviceZ = max(deviceZ.x, max(deviceZ.y, max(deviceZ.z, deviceZ.w)));
-	uint2 OutputPixelPos = DTid;
-	OutHZB_Mip0[OutputPixelPos] = maxDeviceZ;
+	OutHZB_Mip0[DTid] = maxDeviceZ;
 
 	SharedMaxDeviceZ[groupThreadIndex] = maxDeviceZ;
 
@@ -49,7 +48,7 @@ void main(uint2 DTid : SV_DispatchThreadID, uint groupThreadIndex : SV_GroupInde
 			parentMaxDeviceZ.w = SharedMaxDeviceZ[groupThreadIndex * 2 + parentTileSize + 1];
 
 			float tileMaxDeviceZ = max(parentMaxDeviceZ.x, max(parentMaxDeviceZ.y, max(parentMaxDeviceZ.z, parentMaxDeviceZ.w)));
-			OutputPixelPos >>= 1;
+			uint2 OutputPixelPos = GroupId * tileSize + uint2(groupThreadIndex % tileSize, groupThreadIndex / tileSize);
 
 			if (mipLevel == 1)
 			{
