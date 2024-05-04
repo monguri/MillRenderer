@@ -272,8 +272,9 @@ void SkyBox::Draw
 	// 定数バッファの更新
 	{
 		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
-		const Vector3& pos = Vector3(viewMatrix._41, viewMatrix._42, viewMatrix._43);
-		ptr->World = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(pos);
+		const Matrix& invViewMat = viewMatrix.Invert();
+		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
+		ptr->World = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos);
 		ptr->View = viewMatrix;
 		ptr->Proj = projMatrix;
 	}
