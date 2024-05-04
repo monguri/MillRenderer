@@ -12,7 +12,7 @@
 #include "ScopedTimer.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA false
+#define RENDER_SPONZA true
 
 // シェーダ側にも同じ定数があるので変えるときは同時に変えること
 #define USE_MANUAL_PCF_FOR_SHADOW_MAP
@@ -22,12 +22,12 @@
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
-#define ENABLE_SSR false
+#define ENABLE_SSR true
 
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
-#define ENABLE_TEMPORAL_AA false
+#define ENABLE_TEMPORAL_AA true
 #define ENABLE_FXAA false
 #define ENABLE_FXAA_HIGH_QUALITY true
 
