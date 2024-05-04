@@ -3573,7 +3573,7 @@ void SampleApp::OnRender()
 		// UEのTAAのジッタを参考にしている
 		projWithJitter = projNoJitter;
 		projWithJitter.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
-		projWithJitter.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * 2.0f / m_Height;
+		projWithJitter.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * -2.0f / m_Height;
 
 		viewProjWithJitter = view * projWithJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		viewRotProjWithJitter = viewRot * projWithJitter;
