@@ -51,7 +51,7 @@ namespace
 	// 定数バッファ内配列のfloat4へのパッキングルールがあるので4の倍数である必要がある
 	static constexpr uint32_t GAUSSIAN_FILTER_SAMPLES = 32;
 
-	static constexpr float SKY_BOX_HALF_EXTENT = 100.0f;
+	static constexpr float SKY_BOX_HALF_EXTENT = 50.0f; // カメラのフラスタムカリングにかからないよう注意が必要
 
 	enum COLOR_SPACE_TYPE
 	{
