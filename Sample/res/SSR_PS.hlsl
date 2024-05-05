@@ -23,9 +23,10 @@ static const uint NUM_STEPS = 16; // Referenced UE's value. SSR_QUALITY=2 and NU
 static const float SLOPE_COMPARE_TOLERANCE_SCALE = 4.0f; // Referenced UE's value.
 
 Texture2D ColorMap : register(t0);
-Texture2D HZB : register(t1);
+Texture2D DepthMap : register(t1);
 Texture2D NormalMap : register(t2);
 Texture2D MetallicRoughnessMap : register(t3);
+Texture2D HZB : register(t4);
 SamplerState PointClampSmp : register(s0);
 
 // Referenced UE's implementation
@@ -78,9 +79,17 @@ float3 ConverFromCameraOriginWSToNDC(float3 cameraOriginWorldPos)
 	return ndcPos.xyz;
 }
 
-float GetDeviceZ(float2 uv, float mipLevel)
+float GetSceneDeviceZ(float2 uv)
 {
-	return HZB.SampleLevel(PointClampSmp, uv, mipLevel).r;
+	return DepthMap.SampleLevel(PointClampSmp, uv, 0).r;
+}
+
+float GetHZBDeviceZ(float2 uv, float mipLevel)
+{
+	// HZB's uv is scaled to keep aspect ratio.
+	return HZB.SampleLevel(PointClampSmp, uv * float2(1, (float)Height / Width),
+	mipLevel).
+	r;
 }
 
 float3 GetWSNormal(float2 uv)
@@ -117,7 +126,7 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 	for (stepCount = 0; stepCount < NUM_STEPS; stepCount++)
 	{
 		float3 sampleUVz = rayUVz + rayStepUVz * (stepCount + 1);
-		float sampleDepth = GetDeviceZ(sampleUVz.xy, mipLevel);
+		float sampleDepth = GetHZBDeviceZ(sampleUVz.xy, mipLevel);
 		// Refered UE. SSR become as blurrier as high roughness.
 		mipLevel += 4.0f / NUM_STEPS * roughness;
 
@@ -153,14 +162,18 @@ float4 main(const VSOutput input) : SV_TARGET0
 		// early return when surface is rough enough.
 		if (roughnessFade <= 0)
 		{
+#if 0
 			return float4(origColor, 1);
+#else
+			return float4(0, 0, 0, 1);
+#endif
 		}
 
 		float stepOffset = InterleavedGradientNoise(input.TexCoord * float2(Width, Height), FrameSampleIndex);
 		//return float4(StepOffset, 1.0f);
 		stepOffset -= 0.5f;
 
-		float deviceZ = GetDeviceZ(input.TexCoord, 0);
+		float deviceZ = GetSceneDeviceZ(input.TexCoord);
 		// [-1,1]x[-1,1]
 		float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 		float4 ndcPos = float4(screenPos, deviceZ, 1);
@@ -184,7 +197,11 @@ float4 main(const VSOutput input) : SV_TARGET0
 		reflection *= roughnessFade;
 		reflection *= SSR_INTENSITY;
 
+#if 0
 		return float4(origColor + reflection, 1.0f);
+#else
+		return float4(reflection, 1.0f);
+#endif
 	}
 	else
 	{

@@ -22,12 +22,12 @@
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
-#define ENABLE_SSR false
+#define ENABLE_SSR true
 
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
-#define ENABLE_TEMPORAL_AA true
+#define ENABLE_TEMPORAL_AA false
 #define ENABLE_FXAA false
 #define ENABLE_FXAA_HIGH_QUALITY true
 
@@ -2237,6 +2237,7 @@ bool SampleApp::OnInit()
 			.SetSRV(ShaderStage::PS, 2, 1)
 			.SetSRV(ShaderStage::PS, 3, 2)
 			.SetSRV(ShaderStage::PS, 4, 3)
+			.SetSRV(ShaderStage::PS, 5, 4)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
@@ -4395,9 +4396,10 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	pCmdList->SetGraphicsRootSignature(m_SSR_RootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSR_CB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_HZB_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(4, m_SceneMetallicRoughnessTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(5, m_HZB_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pSSR_PSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
