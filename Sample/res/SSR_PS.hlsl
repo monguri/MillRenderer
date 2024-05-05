@@ -37,13 +37,13 @@ float GetRoughnessFade(float roughness)
 }
 
 // Referenced UE's implementation
-float InterleavedGradientNoise(float2 uv, float frameId)
+float InterleavedGradientNoise(float2 pixelPos, float frameId)
 {
 	// magic values are found by experimentation
-	uv += frameId * (float2(47, 17) * 0.695f);
+	pixelPos += frameId * (float2(47, 17) * 0.695f);
 
 	const float3 MAGIC_NUMBER = float3(0.06711056f, 0.00583715f, 52.9829189f);
-	return frac(MAGIC_NUMBER.z * frac(dot(uv, MAGIC_NUMBER.xy)));
+	return frac(MAGIC_NUMBER.z * frac(dot(pixelPos, MAGIC_NUMBER.xy)));
 }
 
 //TODO: common functions with SSAO.
