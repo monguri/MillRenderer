@@ -22,7 +22,7 @@
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
-#define ENABLE_SSR true
+#define ENABLE_SSR false
 
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
@@ -44,8 +44,8 @@ namespace
 
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
 
-	static constexpr uint32_t FRAME_SAMPLES = 8; // UEを参考にした
-	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 11; // UEを参考にした
+	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 8; // UEを参考にした
+	static constexpr uint32_t TEMPORAL_AA_NEIGHBORHOOD_SAMPLES = 5; // UEを参考にした
 
 	// シェーダ側のマクロ定数と同じ値である必要がある
 	// 定数バッファ内配列のfloat4へのパッキングルールがあるので4の倍数である必要がある
@@ -196,7 +196,8 @@ namespace
 		int Width;
 		int Height;
 		int bEnableTemporalAA;
-		float Padding[1];
+		float Padding;
+		Vector4 PlusWeights[(TEMPORAL_AA_NEIGHBORHOOD_SAMPLES + 3) / 4];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -358,6 +359,32 @@ namespace
 		return result;
 	}
 
+	// Refered UE's SceneVisibility.cpp
+	void CalculateTemporalJitterPixels(uint32_t temporalAASampleIndex, float& sampleX, float& sampleY)
+	{
+		float u1 = Halton(temporalAASampleIndex + 1, 2);
+		float u2 = Halton(temporalAASampleIndex + 1, 3);
+
+		// Generates samples in normal distribution
+		// exp( x^2 / Sigma^2 )
+
+		// Scale distribution to set non-unit variance
+		// Variance = Sigma^2
+		float sigma = 0.47f;
+
+		// Window to [-0.5, 0.5] output
+		// Without windowing we could generate samples far away on the infinite tails.
+		float outWindow = 0.5f;
+		float inWindow = expf(-0.5f * sqrt(outWindow * sigma));
+
+		// Box-Muller transform
+		float theta = 2.0f * DirectX::XM_PI * u2;
+		float r = sigma * sqrt(-2.0f * log((1.0f - u1) * inWindow + u1));
+
+		sampleX = r * cos(theta);
+		sampleY = r * sin(theta);
+	}
+
 	uint32_t Compute1DGaussianFilterKernel(uint32_t kernelRadius, float outOffsets[GAUSSIAN_FILTER_SAMPLES], float outWeights[GAUSSIAN_FILTER_SAMPLES])
 	{
 		int32_t clampedKernelRadius = kernelRadius;
@@ -403,7 +430,6 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_RotateAngle(0.0f)
 , m_DirLightShadowMapViewport()
 , m_DirLightShadowMapScissor()
-, m_FrameSampleIndex(0)
 , m_TemporalAASampleIndex(0)
 , m_PrevWorldForMovable(Matrix::Identity)
 , m_PrevViewProjNoJitter(Matrix::Identity)
@@ -3001,7 +3027,7 @@ bool SampleApp::OnInit()
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->bEnableSSR = ENABLE_SSR ? 1 : 0;
-		ptr->FrameSampleIndex = m_FrameSampleIndex;
+		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
 	}
 
 	// TemporalAA用定数バッファの作成
@@ -3017,6 +3043,46 @@ bool SampleApp::OnInit()
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->bEnableTemporalAA = (ENABLE_TEMPORAL_AA ? 1 : 0);
+
+		// Referenced UE.
+		float temporalJitetrPixelsX;
+		float temporalJitetrPixelsY;
+		CalculateTemporalJitterPixels(m_TemporalAASampleIndex, temporalJitetrPixelsX, temporalJitetrPixelsY);
+
+		float totalWeight = 0;
+		for (uint32_t sample = 0; sample < TEMPORAL_AA_NEIGHBORHOOD_SAMPLES; sample++)
+		{
+			// (-1, -1), (-1, 0), ... (0, 0)
+			float pixelOffsetX = ((int)sample % 3 - 1) - temporalJitetrPixelsX;
+			float pixelOffsetY = ((int)sample / 3 - 1) - temporalJitetrPixelsY;
+			// Gaussian fit to Blackman-Haris filter. Sigma = 0.47
+			float currWeight = expf(-2.29f * (pixelOffsetX * pixelOffsetX + pixelOffsetY * pixelOffsetY));
+
+			//TODO: Vector4に[]演算子が無いので分岐で書くしかない
+			if (sample % 4 == 0)
+			{
+				ptr->PlusWeights[sample / 4].x = currWeight;
+			}
+			else if (sample % 4 == 1)
+			{
+				ptr->PlusWeights[sample / 4].y = currWeight;
+			}
+			else if (sample % 4 == 2)
+			{
+				ptr->PlusWeights[sample / 4].z = currWeight;
+			}
+			else // sample % 4 == 3
+			{
+				ptr->PlusWeights[sample / 4].w = currWeight;
+			}
+
+			totalWeight += currWeight;
+		}
+
+		for (uint32_t j = 0; j < (TEMPORAL_AA_NEIGHBORHOOD_SAMPLES + 3) / 4; j++)
+		{
+			ptr->PlusWeights[j] /= totalWeight;
+		}
 	}
 
 	// MotionBlur用定数バッファの作成
@@ -3538,6 +3604,10 @@ void SampleApp::OnTerm()
 void SampleApp::OnRender()
 {
 	// 共通変数の更新
+	float temporalJitetrPixelsX;
+	float temporalJitetrPixelsY;
+	CalculateTemporalJitterPixels(m_TemporalAASampleIndex, temporalJitetrPixelsX, temporalJitetrPixelsY);
+
 	const Matrix& view = m_Camera.GetView();
 	Matrix viewProjNoJitter;
 	Matrix viewProjWithJitter;
@@ -3545,13 +3615,8 @@ void SampleApp::OnRender()
 	Matrix viewRotProjWithJitter;
 	Matrix projNoJitter;
 	Matrix projWithJitter;
-	{
-		m_FrameSampleIndex++;
-		if (m_FrameSampleIndex >= FRAME_SAMPLES)
-		{
-			m_FrameSampleIndex = 0;
-		}
 
+	{
 		//m_RotateAngle += 0.2f;
 
 		m_TemporalAASampleIndex++;
@@ -3572,8 +3637,8 @@ void SampleApp::OnRender()
 
 		// UEのTAAのジッタを参考にしている
 		projWithJitter = projNoJitter;
-		projWithJitter.m[2][0] += (Halton(m_TemporalAASampleIndex + 1, 2) - 0.5f) * 2.0f / m_Width;
-		projWithJitter.m[2][1] += (Halton(m_TemporalAASampleIndex + 1, 3) - 0.5f) * -2.0f / m_Height;
+		projWithJitter.m[2][0] += temporalJitetrPixelsX * 2.0f / m_Width;
+		projWithJitter.m[2][1] += temporalJitetrPixelsY * -2.0f / m_Height;
 
 		viewProjWithJitter = view * projWithJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		viewRotProjWithJitter = viewRot * projWithJitter;
@@ -3663,12 +3728,12 @@ void SampleApp::OnRender()
 		DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
 	}
 
-	const ColorTarget& TemporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
-	const ColorTarget& TemporalAA_DstTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+	const ColorTarget& temporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
+	const ColorTarget& temporalAA_DstTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
 
-	DrawTemporalAA(pCmd, viewProjNoJitter, TemporalAA_SrcTarget, TemporalAA_DstTarget);
+	DrawTemporalAA(pCmd, viewProjNoJitter, temporalJitetrPixelsX, temporalJitetrPixelsY, temporalAA_SrcTarget, temporalAA_DstTarget);
 
-	DrawMotionBlur(pCmd, TemporalAA_DstTarget);
+	DrawMotionBlur(pCmd, temporalAA_DstTarget);
 
 	DrawBloomSetup(pCmd);
 
@@ -4115,10 +4180,8 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 		{
 			CbSSAO* ptr = m_SSAO_HalfResCB[m_FrameIndex].GetPtr<CbSSAO>();
-			// UE5はTemporalAASampleIndexを%8しているが0-10までループするのでいびちになっている。
-			// こちらでは素直に0-7でループさせる。TAAと周期をずれさせるのは妥当。
-			// またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
-			ptr->TemporalOffset = (float)m_FrameSampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
+			// UE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
+			ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 			ptr->ViewMatrix = m_Camera.GetView();
 			ptr->InvProjMatrix = proj.Invert();
 			ptr->bHalfRes = 1;
@@ -4319,7 +4382,7 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 		ptr->ProjMatrix = proj;
 		ptr->VRotPMatrix = viewRotProj;
 		ptr->InvVRotPMatrix = viewRotProj.Invert();
-		ptr->FrameSampleIndex = m_FrameSampleIndex;
+		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -4349,9 +4412,49 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const ColorTarget& SrcColor, const ColorTarget& DstColor)
+void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& SrcColor, const ColorTarget& DstColor)
 {
 	ScopedTimer scopedTimer(pCmdList, L"TemporalAA");
+
+	{
+		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
+
+		// Referenced UE.
+		float totalWeight = 0;
+		for (int32_t sample = 0; sample < TEMPORAL_AA_NEIGHBORHOOD_SAMPLES; sample++)
+		{
+			// (-1, -1), (-1, 0), ... (0, 0)
+			float pixelOffsetX = ((int)sample % 3 - 1) - temporalJitetrPixelsX;
+			float pixelOffsetY = ((int)sample / 3 - 1) - temporalJitetrPixelsY;
+			// Gaussian fit to Blackman-Haris filter. Sigma = 0.47
+			float currWeight = expf(-2.29f * (pixelOffsetX * pixelOffsetX + pixelOffsetY * pixelOffsetY));
+
+			//TODO: Vector4に[]演算子が無いので分岐で書くしかない
+			if (sample % 4 == 0)
+			{
+				ptr->PlusWeights[sample / 4].x = currWeight;
+			}
+			else if (sample % 4 == 1)
+			{
+				ptr->PlusWeights[sample / 4].y = currWeight;
+			}
+			else if (sample % 4 == 2)
+			{
+				ptr->PlusWeights[sample / 4].z = currWeight;
+			}
+			else // sample % 4 == 3
+			{
+				ptr->PlusWeights[sample / 4].w = currWeight;
+			}
+
+			totalWeight += currWeight;
+		}
+
+		for (uint32_t j = 0; j < (TEMPORAL_AA_NEIGHBORHOOD_SAMPLES + 3) / 4; j++)
+		{
+			ptr->PlusWeights[j] /= totalWeight;
+		}
+	}
 
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

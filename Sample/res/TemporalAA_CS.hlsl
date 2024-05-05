@@ -1,8 +1,12 @@
+static const uint TEMPORAL_AA_NEIGHBORHOOD_SAMPLES = 5;
+
 cbuffer CbTemporalAA : register(b0)
 {
 	int Width;
 	int Height;
 	int bEnableTemporalAA;
+	float Padding;
+	float4 PlusWeights[(TEMPORAL_AA_NEIGHBORHOOD_SAMPLES + 3) / 4];
 }
 
 Texture2D ColorMap : register(t0);
@@ -145,9 +149,9 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	float3 colorFiltered = 0;
 	float finalWeight = 0;
 
-	for (uint i = 0; i < 9; i++)
+	for (uint i = 0; i < TEMPORAL_AA_NEIGHBORHOOD_SAMPLES; i++)
 	{
-		// array of (-1, -1) ... (1, 1) 9 elements
+		// array of (-1, -1) ... (0, 0) 5 elements
 		int2 pixelOffset = int2(i % 3, i / 3) - int2(1, 1);
 		uint neighborTileIdx = GetTileIndex(GTid, pixelOffset);
 		float3 neighborColor = TileYCoCgColors[neighborTileIdx];
@@ -156,7 +160,7 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 		neighborMax = max(neighborMax, neighborColor);
 
 		//referred FilterCurrentFrameInputSamples() of UE.
-		float sampleSpatialWeight = ComputeSampleWeight(float2(pixelOffset));
+		float sampleSpatialWeight = PlusWeights[i / 4][i % 4]; // Gaussian Kernel
 		float sampleHDRWeight = HdrWeightY(neighborColor.x);
 		float sampleFinalWeight = sampleSpatialWeight * sampleHDRWeight;
 		colorFiltered += neighborColor * sampleFinalWeight;
