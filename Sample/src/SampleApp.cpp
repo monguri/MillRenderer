@@ -22,6 +22,8 @@
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
+#define ENABLE_VELOCITY false
+
 #define ENABLE_SSR true
 #define DEBUG_VIEW_SSR false
 
@@ -3720,16 +3722,20 @@ void SampleApp::OnRender()
 
 	DrawAmbientLight(pCmd);
 
-	if (ENABLE_TEMPORAL_AA)
+	if (ENABLE_VELOCITY)
 	{
-		DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
-	}
-	else
-	{
-		DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+		if (ENABLE_TEMPORAL_AA)
+		{
+			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+		}
+		else
+		{
+			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+		}
+
+		DrawCameraVelocity(pCmd, viewProjNoJitter);
 	}
 
-	DrawCameraVelocity(pCmd, viewProjNoJitter);
 
 	if (ENABLE_TEMPORAL_AA)
 	{
