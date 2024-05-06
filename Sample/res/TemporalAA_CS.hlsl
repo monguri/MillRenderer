@@ -32,7 +32,7 @@ static const int2 OFFSETS_3x3[9] =
 // must be equal to offset used to calculate PlusWeights[] in cpp.
 static const uint PLUS_INDICES_3x3[TEMPORAL_AA_NUM_PLUS_SAMPLE] = { 1, 3, 4, 5, 7 };
 
-static const float HISTORY_ALPHA = 0.638511181f; // referenced UE.
+static const float CURRENT_FRAME_WEIGHT = 0.04f; // referenced UE.
 static const float LUMA_AA_SCALE = 0.01f; // referenced UE.
 
 static const uint THREAD_GROUP_SIZE_X = 8;
@@ -202,7 +202,9 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	{
 		float lumaFiltered = colorFiltered.x;
 
-		float blendFinal = (1.0f - HISTORY_ALPHA);
+		float blendFinal = CURRENT_FRAME_WEIGHT;
+		float pixelVelocity = length(velocity * float2(Width, Height));
+		blendFinal = lerp(blendFinal, 0.2f, saturate(pixelVelocity / 40)); //TODO: UE's magic number.
 		blendFinal = max(blendFinal, saturate(LUMA_AA_SCALE * lumaHist / abs(lumaFiltered - lumaHist)));
 
 		float weightFiltered = HdrWeightY(colorFiltered.x);
