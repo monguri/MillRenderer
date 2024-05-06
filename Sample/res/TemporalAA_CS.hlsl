@@ -83,7 +83,7 @@ float2 WeightedLerpFactors(float weightA, float weightB, float blend)
 	return float2(blendA, blendB);
 }
 
-uint GetTileIndex(uint2 GTid, uint2 pixelOffset)
+uint GetTileIndex(uint2 GTid, int2 pixelOffset)
 {
 	uint2 tilePos = GTid + pixelOffset + TILE_BORDER_SIZE;
 	return tilePos.x + tilePos.y * TILE_WIDTH;
