@@ -23,6 +23,7 @@
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
 #define ENABLE_SSR true
+#define DEBUG_VIEW_SSR false
 
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
@@ -197,7 +198,8 @@ namespace
 		int Height;
 		int FrameSampleIndex;
 		int bEnableSSR;
-		float Padding[2];
+		int bDebugViewSSR;
+		float Padding;
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -3036,8 +3038,9 @@ bool SampleApp::OnInit()
 		ptr->Far = CAMERA_FAR;
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->bEnableSSR = ENABLE_SSR ? 1 : 0;
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
+		ptr->bEnableSSR = ENABLE_SSR ? 1 : 0;
+		ptr->bDebugViewSSR = DEBUG_VIEW_SSR ? 1 : 0;
 	}
 
 	// TemporalAA用定数バッファの作成

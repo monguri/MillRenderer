@@ -15,6 +15,7 @@ cbuffer CbSSR : register(b0)
 	int Height;
 	int FrameSampleIndex;
 	int bEnableSSR;
+	int bDebugViewSSR;
 }
 
 static const float SSR_INTENSITY = 1.0f; // Referenced UE's value.
@@ -162,11 +163,14 @@ float4 main(const VSOutput input) : SV_TARGET0
 		// early return when surface is rough enough.
 		if (roughnessFade <= 0)
 		{
-#if 0
-			return float4(origColor, 1);
-#else
-			return float4(0, 0, 0, 1);
-#endif
+			if (bDebugViewSSR)
+			{
+				return float4(0, 0, 0, 1);
+			}
+			else
+			{
+				return float4(origColor, 1);
+			}
 		}
 
 		float stepOffset = InterleavedGradientNoise(input.TexCoord * float2(Width, Height), FrameSampleIndex);
@@ -197,11 +201,14 @@ float4 main(const VSOutput input) : SV_TARGET0
 		reflection *= roughnessFade;
 		reflection *= SSR_INTENSITY;
 
-#if 0
-		return float4(origColor + reflection, 1.0f);
-#else
-		return float4(reflection, 1.0f);
-#endif
+		if (bDebugViewSSR)
+		{
+			return float4(reflection, 1.0f);
+		}
+		else
+		{
+			return float4(origColor + reflection, 1.0f);
+		}
 	}
 	else
 	{
