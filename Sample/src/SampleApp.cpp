@@ -18,16 +18,16 @@
 #define USE_MANUAL_PCF_FOR_SHADOW_MAP
 //#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
-#define ENABLE_SSAO false
+#define ENABLE_SSAO true
 #define DEBUG_VIEW_SSAO_FULL_RES false
 #define DEBUG_VIEW_SSAO_HALF_RES false
 
-#define ENABLE_VELOCITY false
+#define ENABLE_VELOCITY true
 
 #define ENABLE_SSR true
 #define DEBUG_VIEW_SSR false
 
-#define ENABLE_BLOOM false
+#define ENABLE_BLOOM true
 #define ENABLE_MOTION_BLUR false
 
 #define ENABLE_TEMPORAL_AA true
