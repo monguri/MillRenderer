@@ -1,4 +1,4 @@
-static const uint TEMPORAL_AA_NEIGHBORHOOD_SAMPLES = 5;
+static const uint TEMPORAL_AA_NUM_PLUS_SAMPLE = 5;
 
 cbuffer CbTemporalAA : register(b0)
 {
@@ -6,7 +6,7 @@ cbuffer CbTemporalAA : register(b0)
 	int Height;
 	int bEnableTemporalAA;
 	float Padding;
-	float4 PlusWeights[(TEMPORAL_AA_NEIGHBORHOOD_SAMPLES + 3) / 4];
+	float4 PlusWeights[(TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4];
 }
 
 Texture2D ColorMap : register(t0);
@@ -15,6 +15,22 @@ Texture2D VelocityMap : register(t2);
 SamplerState PointClampSmp : register(s0);
 
 RWTexture2D<float4> OutResult : register(u0);
+
+static const int2 OFFSETS_3x3[9] =
+{
+	int2(-1, -1),
+	int2( 0, -1),
+	int2( 1, -1),
+	int2(-1,  0),
+	int2( 0,  0),
+	int2( 1,  0),
+	int2(-1,  1),
+	int2( 0,  1),
+	int2( 1,  1),
+};
+
+// must be equal to offset used to calculate PlusWeights[] in cpp.
+static const uint PLUS_INDICES_3x3[TEMPORAL_AA_NUM_PLUS_SAMPLE] = { 1, 3, 4, 5, 7 };
 
 static const float HISTORY_ALPHA = 0.638511181f; // referenced UE.
 static const float LUMA_AA_SCALE = 0.01f; // referenced UE.
@@ -71,14 +87,6 @@ uint GetTileIndex(uint2 GTid, uint2 pixelOffset)
 {
 	uint2 tilePos = GTid + pixelOffset + TILE_BORDER_SIZE;
 	return tilePos.x + tilePos.y * TILE_WIDTH;
-}
-
-// weight for pixel coordinate delta
-float ComputeSampleWeight(float2 PixelDelta)
-{
-	float x2 = saturate(dot(PixelDelta, PixelDelta));
-	// 1 - 1.9 * x^2 + 0.9 * x^4
-	return (0.905f * x2 - 1.9f) * x2 + 1.0f;
 }
 
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
@@ -141,23 +149,16 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 	}
 
 	//
-	// clamp history color by neighborhood 3x3 current color minmax
+	// filter input pixels
 	//
-	float3 neighborMin = colorCur;
-	float3 neighborMax = colorCur;
-
 	float3 colorFiltered = 0;
 	float finalWeight = 0;
 
-	for (uint i = 0; i < TEMPORAL_AA_NEIGHBORHOOD_SAMPLES; i++)
+	for (uint i = 0; i < TEMPORAL_AA_NUM_PLUS_SAMPLE; i++)
 	{
-		// array of (-1, -1) ... (0, 0) 5 elements
-		int2 pixelOffset = int2(i % 3, i / 3) - int2(1, 1);
+		int2 pixelOffset = OFFSETS_3x3[PLUS_INDICES_3x3[i]];
 		uint neighborTileIdx = GetTileIndex(GTid, pixelOffset);
 		float3 neighborColor = TileYCoCgColors[neighborTileIdx];
-
-		neighborMin = min(neighborMin, neighborColor);
-		neighborMax = max(neighborMax, neighborColor);
 
 		//referred FilterCurrentFrameInputSamples() of UE.
 		float sampleSpatialWeight = PlusWeights[i / 4][i % 4]; // Gaussian Kernel
@@ -166,8 +167,23 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 		colorFiltered += neighborColor * sampleFinalWeight;
 		finalWeight += sampleFinalWeight;
 	}
-
 	colorFiltered /= finalWeight;
+
+	//
+	// clamp history color by neighborhood 3x3 current color minmax
+	//
+	float3 neighborMin = colorCur;
+	float3 neighborMax = colorCur;
+
+	for (uint j = 0; j < 9; j++)
+	{
+		int2 pixelOffset = OFFSETS_3x3[j];
+		uint neighborTileIdx = GetTileIndex(GTid, pixelOffset);
+		float3 neighborColor = TileYCoCgColors[neighborTileIdx];
+
+		neighborMin = min(neighborMin, neighborColor);
+		neighborMax = max(neighborMax, neighborColor);
+	}
 
 	// when prev UV is off screen, ignore history.
 	if (bIgnoreHistory)

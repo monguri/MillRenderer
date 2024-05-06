@@ -27,7 +27,7 @@
 #define ENABLE_BLOOM false
 #define ENABLE_MOTION_BLUR false
 
-#define ENABLE_TEMPORAL_AA false
+#define ENABLE_TEMPORAL_AA true
 #define ENABLE_FXAA false
 #define ENABLE_FXAA_HIGH_QUALITY true
 
@@ -45,7 +45,16 @@ namespace
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
 
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 8; // UEを参考にした
-	static constexpr uint32_t TEMPORAL_AA_NEIGHBORHOOD_SAMPLES = 5; // UEを参考にした
+	static constexpr uint32_t TEMPORAL_AA_NUM_PLUS_SAMPLE = 5; // UEを参考にした
+
+	static constexpr float TEMPORAL_AA_NEIGHBORHOOD_SAMPLE_OFFSETS[TEMPORAL_AA_NUM_PLUS_SAMPLE][2] =
+	{
+		{0, -1}, // top
+		{-1, 0}, // left
+		{0, 0}, // center
+		{1, 0}, // right
+		{0, 1}, // bottom
+	};
 
 	// シェーダ側のマクロ定数と同じ値である必要がある
 	// 定数バッファ内配列のfloat4へのパッキングルールがあるので4の倍数である必要がある
@@ -197,7 +206,7 @@ namespace
 		int Height;
 		int bEnableTemporalAA;
 		float Padding;
-		Vector4 PlusWeights[(TEMPORAL_AA_NEIGHBORHOOD_SAMPLES + 3) / 4];
+		Vector4 PlusWeights[(TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -3051,11 +3060,10 @@ bool SampleApp::OnInit()
 		CalculateTemporalJitterPixels(m_TemporalAASampleIndex, temporalJitetrPixelsX, temporalJitetrPixelsY);
 
 		float totalWeight = 0;
-		for (uint32_t sample = 0; sample < TEMPORAL_AA_NEIGHBORHOOD_SAMPLES; sample++)
+		for (uint32_t sample = 0; sample < TEMPORAL_AA_NUM_PLUS_SAMPLE; sample++)
 		{
-			// (-1, -1), (-1, 0), ... (0, 0)
-			float pixelOffsetX = ((int)sample % 3 - 1) - temporalJitetrPixelsX;
-			float pixelOffsetY = ((int)sample / 3 - 1) - temporalJitetrPixelsY;
+			float pixelOffsetX = TEMPORAL_AA_NEIGHBORHOOD_SAMPLE_OFFSETS[sample][0] - temporalJitetrPixelsX;
+			float pixelOffsetY = TEMPORAL_AA_NEIGHBORHOOD_SAMPLE_OFFSETS[sample][1] - temporalJitetrPixelsY;
 			// Gaussian fit to Blackman-Haris filter. Sigma = 0.47
 			float currWeight = expf(-2.29f * (pixelOffsetX * pixelOffsetX + pixelOffsetY * pixelOffsetY));
 
@@ -3080,7 +3088,7 @@ bool SampleApp::OnInit()
 			totalWeight += currWeight;
 		}
 
-		for (uint32_t j = 0; j < (TEMPORAL_AA_NEIGHBORHOOD_SAMPLES + 3) / 4; j++)
+		for (uint32_t j = 0; j < (TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4; j++)
 		{
 			ptr->PlusWeights[j] /= totalWeight;
 		}
@@ -4423,11 +4431,10 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 
 		// Referenced UE.
 		float totalWeight = 0;
-		for (int32_t sample = 0; sample < TEMPORAL_AA_NEIGHBORHOOD_SAMPLES; sample++)
+		for (int32_t sample = 0; sample < TEMPORAL_AA_NUM_PLUS_SAMPLE; sample++)
 		{
-			// (-1, -1), (-1, 0), ... (0, 0)
-			float pixelOffsetX = ((int)sample % 3 - 1) - temporalJitetrPixelsX;
-			float pixelOffsetY = ((int)sample / 3 - 1) - temporalJitetrPixelsY;
+			float pixelOffsetX = TEMPORAL_AA_NEIGHBORHOOD_SAMPLE_OFFSETS[sample][0] - temporalJitetrPixelsX;
+			float pixelOffsetY = TEMPORAL_AA_NEIGHBORHOOD_SAMPLE_OFFSETS[sample][1] - temporalJitetrPixelsY;
 			// Gaussian fit to Blackman-Haris filter. Sigma = 0.47
 			float currWeight = expf(-2.29f * (pixelOffsetX * pixelOffsetX + pixelOffsetY * pixelOffsetY));
 
@@ -4452,7 +4459,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 			totalWeight += currWeight;
 		}
 
-		for (uint32_t j = 0; j < (TEMPORAL_AA_NEIGHBORHOOD_SAMPLES + 3) / 4; j++)
+		for (uint32_t j = 0; j < (TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4; j++)
 		{
 			ptr->PlusWeights[j] /= totalWeight;
 		}
