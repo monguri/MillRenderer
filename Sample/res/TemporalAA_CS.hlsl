@@ -130,19 +130,20 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid :
 
 	// Anti-ghost dynamic object.
 	// referenced UE.
-	bool bDynamic = max(velocity.x, velocity.y) > 0;
+	float2 absVelocity = abs(velocity);
+	bool bDynamic = max(absVelocity.x, absVelocity.y) > 0;
 	{
 		// judge dymamic or not by dilated velocity.
-		float2 topVelocity = VelocityMap.SampleLevel(PointClampSmp, uv + float2(0, -1) * rcpDimension, 0).rg;
-		float2 leftVelocity = VelocityMap.SampleLevel(PointClampSmp, uv + float2(-1, 0) * rcpDimension, 0).rg;
-		float2 rightVelocity = VelocityMap.SampleLevel(PointClampSmp, uv + float2(1, 0) * rcpDimension, 0).rg;
-		float2 bottomVelocity = VelocityMap.SampleLevel(PointClampSmp, uv + float2(0, 1) * rcpDimension, 0).rg;
+		float2 absTopVelocity = abs(VelocityMap.SampleLevel(PointClampSmp, uv + float2(0, -1) * rcpDimension, 0).rg);
+		float2 absLeftVelocity = abs(VelocityMap.SampleLevel(PointClampSmp, uv + float2(-1, 0) * rcpDimension, 0).rg);
+		float2 absRightVelocity = abs(VelocityMap.SampleLevel(PointClampSmp, uv + float2(1, 0) * rcpDimension, 0).rg);
+		float2 absBottomVelocity = abs(VelocityMap.SampleLevel(PointClampSmp, uv + float2(0, 1) * rcpDimension, 0).rg);
 
 		bool bCurDilatedDymamic = bDynamic 
-		|| (max(topVelocity.x, topVelocity.y) > 0)
-		|| (max(leftVelocity.x, leftVelocity.y) > 0)
-		|| (max(rightVelocity.x, rightVelocity.y) > 0)
-		|| (max(bottomVelocity.x, bottomVelocity.y) > 0);
+		|| (max(absTopVelocity.x, absTopVelocity.y) > 0)
+		|| (max(absLeftVelocity.x, absLeftVelocity.y) > 0)
+		|| (max(absRightVelocity.x, absRightVelocity.y) > 0)
+		|| (max(absBottomVelocity.x, absBottomVelocity.y) > 0);
 
 		bool bPrevDilatedDynamic = (history.a > 0);
 		bIgnoreHistory = bIgnoreHistory || (!bCurDilatedDymamic && bPrevDilatedDynamic);
