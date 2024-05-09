@@ -1273,6 +1273,52 @@ bool SampleApp::OnInit()
 		}
 	}
 
+	// VolumetricFog Scattering用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_VolumetricFogScatteringTarget.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			240,
+			135,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			clearColor,
+			1,
+			128
+		))
+		{
+			ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
+			return false;
+		}
+	}
+
+	// VolumetricFog Integration用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_VolumetricFogIntegrationTarget.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			240,
+			135,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			clearColor,
+			1,
+			128
+		))
+		{
+			ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// TemporalAA用ターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -3529,6 +3575,9 @@ void SampleApp::OnTerm()
 	m_VelocityTargt.Term();
 
 	m_SSR_Targt.Term();
+
+	m_VolumetricFogScatteringTarget.Term();
+	m_VolumetricFogIntegrationTarget.Term();
 
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{

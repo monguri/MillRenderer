@@ -37,7 +37,8 @@ public:
 		uint32_t height,
 		DXGI_FORMAT format,
 		float clearColor[4],
-		uint32_t mipLevels = 1
+		uint32_t mipLevels = 1,
+		uint32_t depth = 1
 	);
 
 	bool InitFromBackBuffer

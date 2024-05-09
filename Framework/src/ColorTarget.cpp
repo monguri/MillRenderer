@@ -213,7 +213,8 @@ bool ColorTarget::InitUnorderedAccessTarget
 	uint32_t height,
 	DXGI_FORMAT format,
 	float clearColor[4],
-	uint32_t mipLevels
+	uint32_t mipLevels,
+	uint32_t depth
 )
 {
 	if (pDevice == nullptr || pPoolUAV == nullptr || width == 0 || height == 0)
@@ -275,11 +276,11 @@ bool ColorTarget::InitUnorderedAccessTarget
 	prop.VisibleNodeMask = 1;
 
 	D3D12_RESOURCE_DESC desc = {};
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	desc.Dimension = (depth > 1) ? D3D12_RESOURCE_DIMENSION_TEXTURE3D : D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	desc.Alignment = 0;
 	desc.Width = UINT64(width);
 	desc.Height = height;
-	desc.DepthOrArraySize = 1;
+	desc.DepthOrArraySize = depth;
 	desc.MipLevels = mipLevels;
 	desc.Format = format;
 	desc.SampleDesc.Count = 1;
@@ -314,16 +315,33 @@ bool ColorTarget::InitUnorderedAccessTarget
 	}
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC baseUAVDesc;
-	baseUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	baseUAVDesc.Format = ConvertToUAVFormat(format);
-	baseUAVDesc.Texture2D.MipSlice = 0;
-	baseUAVDesc.Texture2D.PlaneSlice = 0;
+	if (depth > 1)
+	{
+		baseUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+		baseUAVDesc.Texture3D.MipSlice = 0;
+		baseUAVDesc.Texture3D.FirstWSlice = 0;
+		baseUAVDesc.Texture3D.WSize = -1;
+	}
+	else
+	{
+		baseUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		baseUAVDesc.Texture2D.MipSlice = 0;
+		baseUAVDesc.Texture2D.PlaneSlice = 0;
+	}
 
 	m_MipUAVDescs.reserve(mipLevels);
 	for (uint32_t mip = 0; mip < mipLevels; mip++)
 	{
 		D3D12_UNORDERED_ACCESS_VIEW_DESC mipUAVDesc = baseUAVDesc;
-		mipUAVDesc.Texture2D.MipSlice = mip;
+		if (depth > 1)
+		{
+			mipUAVDesc.Texture3D.MipSlice = mip;
+		}
+		else
+		{
+			mipUAVDesc.Texture2D.MipSlice = mip;
+		}
 		m_MipUAVDescs.emplace_back(mipUAVDesc);
 
 		pDevice->CreateUnorderedAccessView(
@@ -336,10 +354,20 @@ bool ColorTarget::InitUnorderedAccessTarget
 
 	if (pPoolRTV != nullptr)
 	{
-		m_RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 		m_RTVDesc.Format = format;
-		m_RTVDesc.Texture2D.MipSlice = 0;
-		m_RTVDesc.Texture2D.PlaneSlice = 0;
+		if (depth > 1)
+		{
+			m_RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
+			m_RTVDesc.Texture3D.MipSlice = 0;
+			m_RTVDesc.Texture3D.FirstWSlice = 0;
+			m_RTVDesc.Texture3D.WSize = -1;
+		}
+		else
+		{
+			m_RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+			m_RTVDesc.Texture2D.MipSlice = 0;
+			m_RTVDesc.Texture2D.PlaneSlice = 0;
+		}
 
 		pDevice->CreateRenderTargetView(
 			m_pTarget.Get(),
@@ -350,13 +378,23 @@ bool ColorTarget::InitUnorderedAccessTarget
 
 	if (pPoolSRV != nullptr)
 	{
-		m_SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		m_SRVDesc.Format = format;
 		m_SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		m_SRVDesc.Texture2D.MostDetailedMip = 0;
-		m_SRVDesc.Texture2D.MipLevels = mipLevels;
-		m_SRVDesc.Texture2D.PlaneSlice = 0;
-		m_SRVDesc.Texture2D.ResourceMinLODClamp = 0;
+		if (depth > 1)
+		{
+			m_SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+			m_SRVDesc.Texture3D.MostDetailedMip = 0;
+			m_SRVDesc.Texture3D.MipLevels = mipLevels;
+			m_SRVDesc.Texture3D.ResourceMinLODClamp = 0;
+		}
+		else
+		{
+			m_SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			m_SRVDesc.Texture2D.MostDetailedMip = 0;
+			m_SRVDesc.Texture2D.MipLevels = mipLevels;
+			m_SRVDesc.Texture2D.PlaneSlice = 0;
+			m_SRVDesc.Texture2D.ResourceMinLODClamp = 0;
+		}
 
 		pDevice->CreateShaderResourceView(
 			m_pTarget.Get(),
