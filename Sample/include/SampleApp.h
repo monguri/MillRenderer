@@ -157,6 +157,8 @@ private:
 	void DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter);
 	void DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter);
 	void DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj);
+	void DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList);
+	void DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& SrcColor, const ColorTarget& DstColor);
 	void DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList);

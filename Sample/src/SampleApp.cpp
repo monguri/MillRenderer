@@ -3917,6 +3917,9 @@ void SampleApp::OnRender()
 		DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
 	}
 
+	DrawVolumetricFogScattering(pCmd);
+	DrawVolumetricFogIntegration(pCmd);
+
 	const ColorTarget& temporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
 	const ColorTarget& temporalAA_DstTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
 
@@ -4600,6 +4603,16 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogScattering");
+}
+
+void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogIntegration");
 }
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& SrcColor, const ColorTarget& DstColor)
