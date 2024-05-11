@@ -88,9 +88,7 @@ float GetSceneDeviceZ(float2 uv)
 float GetHZBDeviceZ(float2 uv, float mipLevel)
 {
 	// HZB's uv is scaled to keep aspect ratio.
-	return HZB.SampleLevel(PointClampSmp, uv * float2(1, (float)Height / Width),
-	mipLevel).
-	r;
+	return HZB.SampleLevel(PointClampSmp, uv * float2(1, (float)Height / Width), mipLevel).r;
 }
 
 float3 GetWSNormal(float2 uv)
