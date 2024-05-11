@@ -28,7 +28,7 @@
 #define DEBUG_VIEW_SSR false
 
 #define ENABLE_BLOOM true
-#define ENABLE_MOTION_BLUR false
+#define ENABLE_MOTION_BLUR true
 
 #define ENABLE_TEMPORAL_AA true
 #define ENABLE_FXAA false
@@ -52,6 +52,7 @@ namespace
 
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 8; // UEを参考にした
 	static constexpr uint32_t TEMPORAL_AA_NUM_PLUS_SAMPLE = 5; // UEを参考にした
+	static constexpr uint32_t TEMPORAL_AA_NUM_PLUS_VECTOR4 = (TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4; // 切り上げ
 
 	static constexpr float TEMPORAL_AA_NEIGHBORHOOD_SAMPLE_OFFSETS[TEMPORAL_AA_NUM_PLUS_SAMPLE][2] =
 	{
@@ -213,7 +214,7 @@ namespace
 		int Height;
 		int bEnableTemporalAA;
 		float Padding;
-		Vector4 PlusWeights[(TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4];
+		Vector4 PlusWeights[TEMPORAL_AA_NUM_PLUS_VECTOR4];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -1040,7 +1041,7 @@ bool SampleApp::OnInit()
 			return false;
 		}
 
-		uint32_t numDrawCall = (numMips + HZB_MAX_NUM_OUTPUT_MIP - 1) / HZB_MAX_NUM_OUTPUT_MIP;
+		uint32_t numDrawCall = DivideAndRoundUp(numMips, HZB_MAX_NUM_OUTPUT_MIP);
 
 		m_pHZB_ParentMipSRVs.reserve(numDrawCall - 1);
 		for (uint32_t i = 1; i < numDrawCall; i++) // 最初のドローコールはSceneDepthを使うので作らない
@@ -1085,8 +1086,8 @@ bool SampleApp::OnInit()
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
 			m_pPool[POOL_TYPE_RES],
-			(m_Width + 1) / 2, // 切り上げ
-			(m_Height + 1) / 2, // 切り上げ
+			DivideAndRoundUp(m_Width, 2),
+			DivideAndRoundUp(m_Height, 2),
 			DXGI_FORMAT_R16G16B16A16_FLOAT,
 			clearColor
 		))
@@ -1100,8 +1101,8 @@ bool SampleApp::OnInit()
 	{
 		float clearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-		uint32_t width = (m_Width + 1) / 2; // 切り上げ
-		uint32_t height = (m_Height + 1) / 2; // 切り上げ
+		uint32_t width = DivideAndRoundUp(m_Width, 2);
+		uint32_t height = DivideAndRoundUp(m_Height, 2);
 
 		if (!m_SSAO_HalfResTarget.InitRenderTarget
 		(
@@ -1383,8 +1384,8 @@ bool SampleApp::OnInit()
 
 		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
 		{
-			width = (width + 1) / 2; // 切り上げ
-			height = (height + 1) / 2; // 切り上げ
+			width = DivideAndRoundUp(width, 2);
+			height = DivideAndRoundUp(height, 2);
 
 			if (!m_BloomSetupTarget[i].InitRenderTarget
 			(
@@ -1412,8 +1413,8 @@ bool SampleApp::OnInit()
 
 		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE; i++)
 		{
-			width = (width + 1) / 2; // 切り上げ
-			height = (height + 1) / 2; // 切り上げ
+			width = DivideAndRoundUp(width, 2);
+			height = DivideAndRoundUp(height, 2);
 
 			if (!m_BloomHorizontalTarget[i].InitRenderTarget
 			(
@@ -3062,7 +3063,7 @@ bool SampleApp::OnInit()
 		uint32_t mip0SizeX = (uint32_t)m_HZB_Target.GetDesc().Width;
 		uint32_t mip0SizeY = (uint32_t)m_HZB_Target.GetDesc().Height;
 		uint32_t numMips = (uint32_t)log2f((float)DirectX::XMMax(mip0SizeX, mip0SizeY));
-		uint32_t numDrawCall = (numMips + HZB_MAX_NUM_OUTPUT_MIP - 1) / HZB_MAX_NUM_OUTPUT_MIP;
+		uint32_t numDrawCall = DivideAndRoundUp(numMips, HZB_MAX_NUM_OUTPUT_MIP);
 		m_pHZB_CBs.reserve(numDrawCall);
 
 		for (uint32_t i = 0; i < numDrawCall; i++)
@@ -3260,7 +3261,7 @@ bool SampleApp::OnInit()
 			totalWeight += currWeight;
 		}
 
-		for (uint32_t j = 0; j < (TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4; j++)
+		for (uint32_t j = 0; j < TEMPORAL_AA_NUM_PLUS_VECTOR4; j++)
 		{
 			ptr->PlusWeights[j] /= totalWeight;
 		}
@@ -3807,7 +3808,9 @@ void SampleApp::OnRender()
 	Matrix projWithJitter;
 
 	{
-		//m_RotateAngle += 0.2f;
+#if ENABLE_MOTION_BLUR
+		m_RotateAngle += 0.2f;
+#endif
 
 		m_TemporalAASampleIndex++;
 		if (m_TemporalAASampleIndex >= TEMPORAL_AA_SAMPLES)
@@ -4320,8 +4323,8 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 		// グループ数は切り上げ
 		uint32_t minMipSizeX = (mip0SizeX >> HZB_MAX_NUM_OUTPUT_MIP * i);
 		uint32_t minMipSizeY = (mip0SizeY >> HZB_MAX_NUM_OUTPUT_MIP * i);
-		UINT NumGroupX = (minMipSizeX + GROUP_SIZE_X - 1) / GROUP_SIZE_X;
-		UINT NumGroupY = (minMipSizeY + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
+		UINT NumGroupX = DivideAndRoundUp(minMipSizeX, GROUP_SIZE_X);
+		UINT NumGroupY = DivideAndRoundUp(minMipSizeY, GROUP_SIZE_Y);
 		UINT NumGroupZ = 1;
 		pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
@@ -4695,7 +4698,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 			totalWeight += currWeight;
 		}
 
-		for (uint32_t j = 0; j < (TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4; j++)
+		for (uint32_t j = 0; j < TEMPORAL_AA_NUM_PLUS_VECTOR4; j++)
 		{
 			ptr->PlusWeights[j] /= totalWeight;
 		}
@@ -4719,8 +4722,8 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	const size_t GROUP_SIZE_Y = 8;
 
 	// グループ数は切り上げ
-	UINT NumGroupX = (m_Width + GROUP_SIZE_X - 1) / GROUP_SIZE_X;
-	UINT NumGroupY = (m_Height + GROUP_SIZE_Y - 1) / GROUP_SIZE_Y;
+	UINT NumGroupX = DivideAndRoundUp(m_Width, GROUP_SIZE_X);
+	UINT NumGroupY = DivideAndRoundUp(m_Height, GROUP_SIZE_Y);
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
