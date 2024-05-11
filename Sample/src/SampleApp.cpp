@@ -210,11 +210,13 @@ namespace
 
 	struct alignas(256) CbVolumetricFog
 	{
-		Matrix InvProjMatrix;
+		Matrix InvVRotPMatrix;
+		float Near;
+		float Far;
 		int GridSizeX;
 		int GridSizeY;
 		int GridSizeZ;
-		float Padding;
+		float Padding[3];
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -3233,7 +3235,9 @@ bool SampleApp::OnInit()
 		}
 
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
-		ptr->InvProjMatrix = Matrix::Identity;
+		ptr->InvVRotPMatrix = Matrix::Identity;
+		ptr->Near = CAMERA_NEAR;
+		ptr->Far = CAMERA_FAR;
 		ptr->GridSizeX = (int)m_VolumetricFogScatteringTarget.GetDesc().Width;
 		ptr->GridSizeY = m_VolumetricFogScatteringTarget.GetDesc().Height;
 		ptr->GridSizeZ = m_VolumetricFogScatteringTarget.GetDesc().DepthOrArraySize;
@@ -3955,11 +3959,11 @@ void SampleApp::OnRender()
 
 	if (ENABLE_TEMPORAL_AA)
 	{
-		DrawVolumetricFogScattering(pCmd, projWithJitter);
+		DrawVolumetricFogScattering(pCmd, viewRotProjWithJitter);
 	}
 	else
 	{
-		DrawVolumetricFogScattering(pCmd, projNoJitter);
+		DrawVolumetricFogScattering(pCmd, viewRotProjNoJitter);
 	}
 	DrawVolumetricFogIntegration(pCmd);
 
@@ -4648,13 +4652,13 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj)
+void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProj)
 {
 	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogScattering");
 
 	{
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
-		ptr->InvProjMatrix = proj.Invert();
+		ptr->InvVRotPMatrix = viewRotProj.Invert();
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
