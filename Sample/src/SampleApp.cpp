@@ -211,11 +211,11 @@ namespace
 	struct alignas(256) CbVolumetricFog
 	{
 		Matrix InvVRotPMatrix;
-		float Near;
-		float Far;
 		int GridSizeX;
 		int GridSizeY;
 		int GridSizeZ;
+		float Near;
+		float Far;
 		float Padding[3];
 	};
 
@@ -2389,8 +2389,9 @@ bool SampleApp::OnInit()
 		RootSignature::Desc desc;
 		desc.Begin()
 			.SetCBV(ShaderStage::ALL, 0, 0)
-			.SetSRV(ShaderStage::ALL, 1, 0)
-			.SetUAV(ShaderStage::ALL, 2, 0)
+			.SetCBV(ShaderStage::ALL, 1, 1)
+			.SetSRV(ShaderStage::ALL, 2, 0)
+			.SetUAV(ShaderStage::ALL, 3, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -3236,11 +3237,11 @@ bool SampleApp::OnInit()
 
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
 		ptr->InvVRotPMatrix = Matrix::Identity;
-		ptr->Near = CAMERA_NEAR;
-		ptr->Far = CAMERA_FAR;
 		ptr->GridSizeX = (int)m_VolumetricFogScatteringTarget.GetDesc().Width;
 		ptr->GridSizeY = m_VolumetricFogScatteringTarget.GetDesc().Height;
 		ptr->GridSizeZ = m_VolumetricFogScatteringTarget.GetDesc().DepthOrArraySize;
+		ptr->Near = CAMERA_NEAR;
+		ptr->Far = CAMERA_FAR;
 	}
 
 	// TemporalAA用定数バッファの作成
@@ -4667,8 +4668,9 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	pCmdList->SetComputeRootSignature(m_VolumetricFogScattering_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricFogScattering_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_XYZ = 4;
