@@ -47,8 +47,8 @@ namespace
 
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
 
-	static constexpr uint32_t VOLUMETRIC_FOG_TEXTURE_SCALE = 8; // UEを参考にした
-	static constexpr uint32_t VOLUMETRIC_FOG_TEXTURE_SIZE_Z = 128; // UEを参考にした
+	static constexpr uint32_t VOLUMETRIC_FOG_GRID_PIXEL_SIZE = 16; // UEを参考にした
+	static constexpr uint32_t VOLUMETRIC_FOG_GRID_SIZE_Z = 64; // UEを参考にした
 
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 8; // UEを参考にした
 	static constexpr uint32_t TEMPORAL_AA_NUM_PLUS_SAMPLE = 5; // UEを参考にした
@@ -1286,12 +1286,12 @@ bool SampleApp::OnInit()
 			m_pPool[POOL_TYPE_RES],
 			nullptr, // RTVは作らない。クリアする必要がないので
 			m_pPool[POOL_TYPE_RES],
-			m_Width / VOLUMETRIC_FOG_TEXTURE_SCALE,
-			m_Height / VOLUMETRIC_FOG_TEXTURE_SCALE,
+			m_Width / VOLUMETRIC_FOG_GRID_PIXEL_SIZE,
+			m_Height / VOLUMETRIC_FOG_GRID_PIXEL_SIZE,
 			DXGI_FORMAT_R16G16B16A16_FLOAT,
 			clearColor,
 			1,
-			VOLUMETRIC_FOG_TEXTURE_SIZE_Z
+			VOLUMETRIC_FOG_GRID_SIZE_Z
 		))
 		{
 			ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
@@ -1309,12 +1309,12 @@ bool SampleApp::OnInit()
 			m_pPool[POOL_TYPE_RES],
 			nullptr, // RTVは作らない。クリアする必要がないので
 			m_pPool[POOL_TYPE_RES],
-			m_Width / VOLUMETRIC_FOG_TEXTURE_SCALE,
-			m_Height / VOLUMETRIC_FOG_TEXTURE_SCALE,
+			m_Width / VOLUMETRIC_FOG_GRID_PIXEL_SIZE,
+			m_Height / VOLUMETRIC_FOG_GRID_PIXEL_SIZE,
 			DXGI_FORMAT_R16G16B16A16_FLOAT,
 			clearColor,
 			1,
-			VOLUMETRIC_FOG_TEXTURE_SIZE_Z
+			VOLUMETRIC_FOG_GRID_SIZE_Z
 		))
 		{
 			ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
