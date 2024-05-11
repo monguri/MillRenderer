@@ -221,11 +221,11 @@ namespace
 
 	struct alignas(256) CbTemporalAA
 	{
+		Vector4 PlusWeights[TEMPORAL_AA_NUM_PLUS_VECTOR4];
 		int Width;
 		int Height;
 		int bEnableTemporalAA;
 		float Padding;
-		Vector4 PlusWeights[TEMPORAL_AA_NUM_PLUS_VECTOR4];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい

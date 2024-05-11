@@ -2,11 +2,10 @@ static const uint TEMPORAL_AA_NUM_PLUS_SAMPLE = 5;
 
 cbuffer CbTemporalAA : register(b0)
 {
-	int Width : packoffset(c0);
-	int Height : packoffset(c0.y);
-	int bEnableTemporalAA : packoffset(c0.z);
-	float Padding : packoffset(c0.w);
-	float4 PlusWeights[(TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4] : packoffset(c1);
+	float4 PlusWeights[(TEMPORAL_AA_NUM_PLUS_SAMPLE + 3) / 4] : packoffset(c0);
+	int Width : packoffset(c2);
+	int Height : packoffset(c2.y);
+	int bEnableTemporalAA : packoffset(c2.z);
 }
 
 Texture2D ColorMap : register(t0);
