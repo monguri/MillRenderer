@@ -208,6 +208,15 @@ namespace
 		float Padding;
 	};
 
+	struct alignas(256) CbVolumetricFog
+	{
+		Matrix InvProjMatrix;
+		int GridSizeX;
+		int GridSizeY;
+		int GridSizeZ;
+		float Padding;
+	};
+
 	struct alignas(256) CbTemporalAA
 	{
 		int Width;
@@ -2377,8 +2386,9 @@ bool SampleApp::OnInit()
 	{
 		RootSignature::Desc desc;
 		desc.Begin()
-			.SetSRV(ShaderStage::ALL, 0, 0)
-			.SetUAV(ShaderStage::ALL, 1, 0)
+			.SetCBV(ShaderStage::ALL, 0, 0)
+			.SetSRV(ShaderStage::ALL, 1, 0)
+			.SetUAV(ShaderStage::ALL, 2, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -2432,8 +2442,9 @@ bool SampleApp::OnInit()
 	{
 		RootSignature::Desc desc;
 		desc.Begin()
-			.SetSRV(ShaderStage::ALL, 0, 0)
-			.SetUAV(ShaderStage::ALL, 1, 0)
+			.SetCBV(ShaderStage::ALL, 0, 0)
+			.SetSRV(ShaderStage::ALL, 1, 0)
+			.SetUAV(ShaderStage::ALL, 2, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -3213,6 +3224,21 @@ bool SampleApp::OnInit()
 		ptr->bDebugViewSSR = DEBUG_VIEW_SSR ? 1 : 0;
 	}
 
+	// VolumetricFog用定数バッファの作成
+	{
+		if (!m_VolumetricFogCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbVolumetricFog)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
+		ptr->InvProjMatrix = Matrix::Identity;
+		ptr->GridSizeX = (int)m_VolumetricFogScatteringTarget.GetDesc().Width;
+		ptr->GridSizeY = m_VolumetricFogScatteringTarget.GetDesc().Height;
+		ptr->GridSizeZ = m_VolumetricFogScatteringTarget.GetDesc().DepthOrArraySize;
+	}
+
 	// TemporalAA用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -3639,6 +3665,8 @@ void SampleApp::OnTerm()
 
 	m_SSR_CB.Term();
 
+	m_VolumetricFogCB.Term();
+
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
 	{
 		m_DownsampleCB[i].Term();
@@ -3925,7 +3953,14 @@ void SampleApp::OnRender()
 		DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
 	}
 
-	DrawVolumetricFogScattering(pCmd);
+	if (ENABLE_TEMPORAL_AA)
+	{
+		DrawVolumetricFogScattering(pCmd, projWithJitter);
+	}
+	else
+	{
+		DrawVolumetricFogScattering(pCmd, projNoJitter);
+	}
 	DrawVolumetricFogIntegration(pCmd);
 
 	const ColorTarget& temporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
@@ -4613,17 +4648,23 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj)
 {
 	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogScattering");
+
+	{
+		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
+		ptr->InvProjMatrix = proj.Invert();
+	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_VolumetricFogScattering_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricFogScattering_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_XYZ = 4;
@@ -4646,8 +4687,9 @@ void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList
 
 	pCmdList->SetComputeRootSignature(m_VolumetricFogIntegration_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricFogIntegration_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogScatteringTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricFogIntegrationTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricFogScatteringTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogIntegrationTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_XYZ = 4;
