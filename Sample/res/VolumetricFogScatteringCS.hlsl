@@ -75,9 +75,9 @@ float HenyeyGreensteinPhase(float G, float CosTheta)
 [numthreads(THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	uint3 GridCoordinate = DTid;
+	uint3 gridCoordinate = DTid;
 
-	float2 uv = (GridCoordinate.xy + 0.5f) / float2(GridSize.xy);
+	float2 uv = (gridCoordinate.xy + 0.5f) / float2(GridSize.xy);
 
 	float deviceZ = GetSceneDeviceZ(uv);
 	// [-1,1]x[-1,1]
