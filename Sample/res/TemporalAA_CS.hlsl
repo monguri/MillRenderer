@@ -35,6 +35,7 @@ static const uint PLUS_INDICES_3x3[TEMPORAL_AA_NUM_PLUS_SAMPLE] = { 1, 3, 4, 5, 
 static const float CURRENT_FRAME_WEIGHT = 0.04f; // referenced UE.
 static const float LUMA_AA_SCALE = 0.01f; // referenced UE.
 
+// They must be equal to the values used in cpp.
 static const uint THREAD_GROUP_SIZE_X = 8;
 static const uint THREAD_GROUP_SIZE_Y = 8;
 static const uint THREAD_GROUP_TOTAL = THREAD_GROUP_SIZE_X * THREAD_GROUP_SIZE_Y;
