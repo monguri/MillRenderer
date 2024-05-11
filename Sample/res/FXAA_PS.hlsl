@@ -32,10 +32,10 @@ struct VSOutput
 
 cbuffer CbFXAA : register(b0)
 {
-	int Width;
-	int Height;
-	int bEnableFXAA;
-	int bEnableFXAAHighQuality;
+	int Width : packoffset(c0);
+	int Height : packoffset(c0.y);
+	int bEnableFXAA : packoffset(c0.z);
+	int bEnableFXAAHighQuality : packoffset(c0.w);
 }
 
 Texture2D ColorMap : register(t0);

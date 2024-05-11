@@ -6,8 +6,8 @@ struct VSOutput
 
 cbuffer CbDownsample : register(b0)
 {
-	int SrcWidth;
-	int SrcHeight;
+	int SrcWidth : packoffset(c0);
+	int SrcHeight : packoffset(c0.y);
 }
 
 Texture2D SrcColorMap : register(t0);

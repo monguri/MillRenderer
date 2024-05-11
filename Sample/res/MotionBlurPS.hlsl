@@ -12,9 +12,9 @@ struct VSOutput
 
 cbuffer CbMotionBlur : register(b0)
 {
-	int Width;
-	int Height;
-	int bEnableMotionBlur;
+	int Width : packoffset(c0);
+	int Height : packoffset(c0.y);
+	int bEnableMotionBlur : packoffset(c0.z);
 }
 
 Texture2D ColorMap : register(t0);

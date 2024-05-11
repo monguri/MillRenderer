@@ -43,17 +43,17 @@ struct VSOutput
 
 cbuffer CbSSAO : register(b0)
 {
-	float4x4 ViewMatrix;
-	float4x4 InvProjMatrix;
-	int Width;
-	int Height;
-	float2 RandomationSize;
-	float2 TemporalOffset;
-	float Near;
-	float Far;
-	float InvTanHalfFov;
-	int bHalfRes;
-	int bEnableSSAO;
+	float4x4 ViewMatrix : packoffset(c0);
+	float4x4 InvProjMatrix : packoffset(c4);
+	int Width : packoffset(c8);
+	int Height : packoffset(c8.y);
+	float2 RandomationSize : packoffset(c8.z);
+	float2 TemporalOffset : packoffset(c9);
+	float Near : packoffset(c9.z);
+	float Far : packoffset(c9.w);
+	float InvTanHalfFov : packoffset(c10);
+	int bHalfRes : packoffset(c10.y);
+	int bEnableSSAO : packoffset(c10.z);
 }
 
 Texture2D DepthMap : register(t0);

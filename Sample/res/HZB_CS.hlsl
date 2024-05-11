@@ -1,9 +1,9 @@
 cbuffer CbHZB : register(b0)
 {
-	int DstMip0Width;
-	int DstMip0Height;
-	float HeightScale;
-	int NumOutputMip;
+	int DstMip0Width : packoffset(c0);
+	int DstMip0Height : packoffset(c0.y);
+	float HeightScale : packoffset(c0.z);
+	int NumOutputMip : packoffset(c0.w);
 }
 
 static const uint GROUP_TILE_SIZE = 8;

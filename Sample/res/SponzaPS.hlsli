@@ -44,13 +44,13 @@ cbuffer CbCamera : register(b0)
 
 cbuffer CbMaterial : register(b1)
 {
-	float3 BaseColorFactor;
-	float MetallicFactor;
-	float RoughnessFactor;
-	float3 EmissiveFactor;
-	float AlphaCutoff;
-	int bExistEmissiveTex;
-	int bExistAOTex;
+	float3 BaseColorFactor : packoffset(c0);
+	float MetallicFactor : packoffset(c0.w);
+	float RoughnessFactor : packoffset(c1);
+	float3 EmissiveFactor : packoffset(c1.y);
+	float AlphaCutoff : packoffset(c2);
+	int bExistEmissiveTex : packoffset(c2.y);
+	int bExistAOTex : packoffset(c2.z);
 };
 
 cbuffer CbDirectionalLight : register(b2)

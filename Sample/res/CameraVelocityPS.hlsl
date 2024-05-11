@@ -6,7 +6,7 @@ struct VSOutput
 
 cbuffer CbCameraVelocity : register(b0)
 {
-	float4x4 ClipToPrevClip;
+	float4x4 ClipToPrevClip : packoffset(c0);
 }
 
 Texture2D DepthMap : register(t0);

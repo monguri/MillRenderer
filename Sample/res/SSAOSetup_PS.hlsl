@@ -9,10 +9,10 @@ struct VSOutput
 
 cbuffer CbSSAOSetup : register(b0)
 {
-	int Width;
-	int Height;
-	float Near;
-	float Far;
+	int Width : packoffset(c0);
+	int Height : packoffset(c0.y);
+	float Near : packoffset(c0.z);
+	float Far : packoffset(c0.w);
 }
 
 Texture2D DepthMap : register(t0);

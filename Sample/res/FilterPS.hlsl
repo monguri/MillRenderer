@@ -9,10 +9,10 @@ struct VSOutput
 
 cbuffer CbFilter : register(b0)
 {
-	float4 SampleOffsets[GAUSSIAN_FILTER_SAMPLES / 2];
-	float4 SampleWeights[GAUSSIAN_FILTER_SAMPLES];
-	int NumSample;
-	int bEnableAdditveTexture;
+	float4 SampleOffsets[GAUSSIAN_FILTER_SAMPLES / 2] : packoffset(c0);
+	float4 SampleWeights[GAUSSIAN_FILTER_SAMPLES] : packoffset(c16);
+	int NumSample : packoffset(c48);
+	int bEnableAdditveTexture : packoffset(c48.y);
 }
 
 Texture2D SrcColorMap : register(t0);

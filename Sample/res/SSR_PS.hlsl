@@ -6,16 +6,16 @@ struct VSOutput
 
 cbuffer CbSSR : register(b0)
 {
-	float4x4 ProjMatrix;
-	float4x4 VRotPMatrix;
-	float4x4 InvVRotPMatrix;
-	float Near;
-	float Far;
-	int Width;
-	int Height;
-	int FrameSampleIndex;
-	int bEnableSSR;
-	int bDebugViewSSR;
+	float4x4 ProjMatrix : packoffset(c0);
+	float4x4 VRotPMatrix : packoffset(c4);
+	float4x4 InvVRotPMatrix : packoffset(c8);
+	float Near : packoffset(c12);
+	float Far : packoffset(c12.y);
+	int Width : packoffset(c12.z);
+	int Height : packoffset(c12.w);
+	int FrameSampleIndex : packoffset(c13);
+	int bEnableSSR : packoffset(c13.y);
+	int bDebugViewSSR : packoffset(c13.z);
 }
 
 static const float SSR_INTENSITY = 1.0f; // Referenced UE's value.

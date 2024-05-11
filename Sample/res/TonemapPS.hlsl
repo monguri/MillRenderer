@@ -16,11 +16,11 @@ struct VSOutput
 
 cbuffer CbTonemap : register(b0)
 {
-	int TonemapType;
-	int ColorSpace;
-	float BaseLuminance;
-	float MaxLuminance;
-	int bEnableBloom;
+	int TonemapType : packoffset(c0);
+	int ColorSpace : packoffset(c0.y);
+	float BaseLuminance : packoffset(c0.z);
+	float MaxLuminance : packoffset(c0.w);
+	int bEnableBloom : packoffset(c1);
 }
 
 Texture2D ColorMap : register(t0);
