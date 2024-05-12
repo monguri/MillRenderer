@@ -47,8 +47,8 @@ namespace
 
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
 
-	static constexpr uint32_t VOLUMETRIC_FOG_GRID_PIXEL_SIZE = 16; // UEを参考にした
-	static constexpr uint32_t VOLUMETRIC_FOG_GRID_SIZE_Z = 64; // UEを参考にした
+	static constexpr uint32_t VOLUMETRIC_FOG_GRID_PIXEL_SIZE = 8; // UEを参考にした
+	static constexpr uint32_t VOLUMETRIC_FOG_GRID_SIZE_Z = 128; // UEを参考にした
 
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 8; // UEを参考にした
 	static constexpr uint32_t TEMPORAL_AA_NUM_PLUS_SAMPLE = 5; // UEを参考にした
