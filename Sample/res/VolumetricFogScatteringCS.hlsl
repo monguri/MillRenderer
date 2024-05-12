@@ -81,7 +81,7 @@ float HenyeyGreensteinPhase(float G, float CosTheta)
 
 float luminance(float3 linearColor)
 {
-	return dot(linearColor, float3(0.3, 0.59, 0.11));
+	return dot(linearColor, float3(0.3f, 0.59f, 0.11f));
 }
 
 [numthreads(THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ)]
@@ -94,11 +94,11 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
 	float3 lightScattering = 0;
 
-	lightScattering += DirLightColor * DIRECTIONAL_LIGHT_SCATTERING_INTENSITY
-						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(DirLightForward, -cameraVector));
+	lightScattering += DirLightColor * DirLightIntensity * DIRECTIONAL_LIGHT_SCATTERING_INTENSITY
+						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-DirLightForward, -cameraVector));
 
 	// TODO:
-	float4 materialScatteringAndAbsorption = float4(1, 1, 1, 0) * 8.16583633e-06f;
+	float4 materialScatteringAndAbsorption = float4(1e-05f, 1e-05f, 1e-05f, 0);
 	float extinction = materialScatteringAndAbsorption.w + luminance(materialScatteringAndAbsorption.rgb);
 
 	float4 preExposedScatteringAndExtinction = float4(lightScattering * materialScatteringAndAbsorption.xyz, extinction);
