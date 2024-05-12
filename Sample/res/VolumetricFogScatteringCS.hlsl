@@ -24,21 +24,20 @@ cbuffer CbDirectionalLight : register(b1)
 	float2 DirLightShadowMapSize : packoffset(c2); // x is pixel size, y is texel size on UV.
 };
 
-Texture2D DepthMap : register(t0);
 SamplerState PointClampSmp : register(s0);
 
 RWTexture3D<float4> OutResult : register(u0);
 
-float ConvertFromDeviceZtoViewZ(float deviceZ)
+float ConvertViewZtoDeviceZ(float viewZ)
 {
 	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
 	// deviceZ = ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ
 	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
-	return (Far * Near) / (deviceZ * (Far - Near) - Far);
+	return ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ;
 }
 
 // TODO: same code for SSR_PS.hlsl
-float3 ConverFromNDCToCameraOriginWS(float4 ndcPos)
+float3 ConverFromNDCToCameraOriginWS(float4 ndcPos, float viewPosZ)
 {
 	// referenced.
 	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
@@ -46,7 +45,6 @@ float3 ConverFromNDCToCameraOriginWS(float4 ndcPos)
 	// Matrix::CreatePerspectiveFieldOfView() transform right-handed viewspace to left-handed clip space.
 	// So, referenced that code.
 	float deviceZ = ndcPos.z;
-	float viewPosZ = ConvertFromDeviceZtoViewZ(deviceZ);
 	float clipPosW = -viewPosZ;
 	float4 clipPos = ndcPos * clipPosW;
 	float4 cameraOriginWorldPos = mul(InvVRotPMatrix, clipPos);
@@ -54,9 +52,18 @@ float3 ConverFromNDCToCameraOriginWS(float4 ndcPos)
 	return cameraOriginWorldPos.xyz;
 }
 
-float GetSceneDeviceZ(float2 uv)
+float3 ComputeCellCameraOriginWorldPosition(float3 gridCoordinate, float3 cellOffset)
 {
-	return DepthMap.SampleLevel(PointClampSmp, uv, 0).r;
+	float2 uv = (gridCoordinate.xy + cellOffset.xy) / GridSize.xy;
+	// TODO: exp slice
+	float linearDepth = lerp(Near, Far, (gridCoordinate.z + cellOffset.z) / float(GridSize.z));
+	float viewPosZ = -linearDepth;
+	float deviceZ = ConvertViewZtoDeviceZ(viewPosZ);
+	// [-1,1]x[-1,1]
+	float2 screenPos = uv * float2(2, -2) + float2(-1, 1);
+	float4 ndcPos = float4(screenPos, deviceZ, 1);
+	float3 cameraOriginWorldPos = ConverFromNDCToCameraOriginWS(ndcPos, viewPosZ);
+	return cameraOriginWorldPos;
 }
 
 // Positive g = forward scattering
@@ -72,18 +79,17 @@ float HenyeyGreensteinPhase(float G, float CosTheta)
 	return Numer / (4.0f * F_PI * Denom * sqrt(Denom));
 }
 
+float luminance(float3 linearColor)
+{
+	return dot(linearColor, float3(0.3, 0.59, 0.11));
+}
+
 [numthreads(THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
 	uint3 gridCoordinate = DTid;
 
-	float2 uv = (gridCoordinate.xy + 0.5f) / float2(GridSize.xy);
-
-	float deviceZ = GetSceneDeviceZ(uv);
-	// [-1,1]x[-1,1]
-	float2 screenPos = uv * float2(2, -2) + float2(-1, 1);
-	float4 ndcPos = float4(screenPos, deviceZ, 1);
-	float3 cameraOriginWorldPos = ConverFromNDCToCameraOriginWS(ndcPos);
+	float3 cameraOriginWorldPos = ComputeCellCameraOriginWorldPosition(gridCoordinate, 0.5f);
 	float3 cameraVector = normalize(cameraOriginWorldPos);
 
 	float3 lightScattering = 0;
@@ -91,5 +97,11 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	lightScattering += DirLightColor * DIRECTIONAL_LIGHT_SCATTERING_INTENSITY
 						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(DirLightForward, -cameraVector));
 
-	OutResult[DTid] = float4(lightScattering, 1);
+	// TODO:
+	float4 materialScatteringAndAbsorption = float4(1, 1, 1, 0) * 8.16583633e-06f;
+	float extinction = materialScatteringAndAbsorption.w + luminance(materialScatteringAndAbsorption.rgb);
+
+	float4 preExposedScatteringAndExtinction = float4(lightScattering * materialScatteringAndAbsorption.xyz, extinction);
+
+	OutResult[gridCoordinate] = preExposedScatteringAndExtinction;
 }

@@ -2390,8 +2390,7 @@ bool SampleApp::OnInit()
 		desc.Begin()
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetCBV(ShaderStage::ALL, 1, 1)
-			.SetSRV(ShaderStage::ALL, 2, 0)
-			.SetUAV(ShaderStage::ALL, 3, 0)
+			.SetUAV(ShaderStage::ALL, 2, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -4662,15 +4661,13 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 		ptr->InvVRotPMatrix = viewRotProj.Invert();
 	}
 
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_VolumetricFogScattering_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricFogScattering_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_XYZ = 4;
@@ -4680,7 +4677,6 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	UINT NumGroupZ = DivideAndRoundUp(m_VolumetricFogScatteringTarget.GetDesc().DepthOrArraySize, GROUP_SIZE_XYZ);
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -4698,11 +4694,11 @@ void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList
 	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogIntegrationTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
-	const size_t GROUP_SIZE_XYZ = 4;
+	const size_t GROUP_SIZE_XY = 8;
 
-	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_VolumetricFogIntegrationTarget.GetDesc().Width, GROUP_SIZE_XYZ);
-	UINT NumGroupY = DivideAndRoundUp(m_VolumetricFogIntegrationTarget.GetDesc().Height, GROUP_SIZE_XYZ);
-	UINT NumGroupZ = DivideAndRoundUp(m_VolumetricFogIntegrationTarget.GetDesc().DepthOrArraySize, GROUP_SIZE_XYZ);
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_VolumetricFogIntegrationTarget.GetDesc().Width, GROUP_SIZE_XY);
+	UINT NumGroupY = DivideAndRoundUp(m_VolumetricFogIntegrationTarget.GetDesc().Height, GROUP_SIZE_XY);
+	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
