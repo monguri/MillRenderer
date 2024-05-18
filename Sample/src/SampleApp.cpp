@@ -5157,7 +5157,6 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::RadioButton("Gran Turismo", &m_TonemapType, TONEMAP_GT);
 	ImGui::RadioButton("Khronos PBR Neutral", &m_TonemapType, TONEMAP_KHRONOS_PBR_NEUTRAL);
 
-
 	ImGui::End();
 
 	ImGui::Render();
