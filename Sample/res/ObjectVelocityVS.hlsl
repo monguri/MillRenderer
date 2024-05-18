@@ -1,5 +1,3 @@
-static const float LINEAR_DEPTH_BIAS = -0.01f;
-
 struct VSInput
 {
 	float3 Position : POSITION;
@@ -28,8 +26,6 @@ VSOutput main(VSInput input)
 
 	float4 localPos = float4(input.Position, 1.0f);
 	output.Position = mul(CurWVPWithJitter, localPos);
-	// to avoid discard by depth test.
-	output.Position.z += LINEAR_DEPTH_BIAS;
 	output.CurClipPos = mul(CurWVPNoJitter, localPos);
 	output.PrevClipPos = mul(PrevWVPNoJitter, localPos);
 
