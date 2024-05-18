@@ -4054,7 +4054,7 @@ void SampleApp::OnRender()
 
 		ImGui::Checkbox("SSAO", &m_enableSSAO);
 		ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
-		ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_FullRes);
+		ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
 		ImGui::Checkbox("Velocity", &m_enableVelocity);
 		ImGui::Checkbox("SSR", &m_enableSSR);
 		ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
