@@ -492,7 +492,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!ImGui_ImplDX12_Init(m_pDevice.Get(), FRAME_COUNT, m_BackBufferFormat, m_pPool[POOL_TYPE_RES]->GetHeap(), pHandleSRV->HandleCPU, pHandleSRV->HandleGPU))
+		if (!ImGui_ImplDX12_Init(m_pDevice.Get(), 1, m_BackBufferFormat, m_pPool[POOL_TYPE_RES]->GetHeap(), pHandleSRV->HandleCPU, pHandleSRV->HandleGPU))
 		{
 			ELOG("Error : ImGui_ImplDX12_Init() Failed.");
 			return false;
@@ -4043,32 +4043,7 @@ void SampleApp::OnRender()
 		DebugDrawSSAO(pCmd);
 	}
 
-	// imgui描画
-	{
-		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-
-		ImGui::Begin("Render Settings");
-
-		ImGui::Checkbox("SSAO", &m_enableSSAO);
-		ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
-		ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
-		ImGui::Checkbox("Velocity", &m_enableVelocity);
-		ImGui::Checkbox("SSR", &m_enableSSR);
-		ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
-		ImGui::Checkbox("Bloom", &m_enableBloom);
-		ImGui::Checkbox("Motion Blur", &m_enableMotionBlur);
-		ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
-		ImGui::Checkbox("FXAA", &m_enableFXAA);
-		ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
-
-		ImGui::End();
-
-		ImGui::Render();
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCmd);
-	}
+	DrawImGui(pCmd);
 
 	pCmd->Close();
 
@@ -5143,6 +5118,41 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+}
+
+void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
+{
+	// TODO: Transitionが直前のパスと重複している
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	ImGui::Begin("Render Settings");
+
+	ImGui::Checkbox("SSAO", &m_enableSSAO);
+	ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
+	ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
+	ImGui::Checkbox("Velocity", &m_enableVelocity);
+	ImGui::Checkbox("SSR", &m_enableSSR);
+	ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
+	ImGui::Checkbox("Bloom", &m_enableBloom);
+	ImGui::Checkbox("Motion Blur", &m_enableMotionBlur);
+	ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
+	ImGui::Checkbox("FXAA", &m_enableFXAA);
+	ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
+
+	ImGui::End();
+
+	ImGui::Render();
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCmdList);
 
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }

@@ -180,4 +180,5 @@ private:
 	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx);
 	void DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer);
 	void DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList);
+	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
 };
