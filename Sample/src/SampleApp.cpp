@@ -461,6 +461,17 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_TemporalAASampleIndex(0)
 , m_PrevWorldForMovable(Matrix::Identity)
 , m_PrevViewProjNoJitter(Matrix::Identity)
+, m_enableSSAO(true)
+, m_debugViewSSAO_FullRes(false)
+, m_debugViewSSAO_HalfRes(false)
+, m_enableVelocity(true)
+, m_enableSSR(true)
+, m_debugViewSSR(false)
+, m_enableBloom(true)
+, m_enableMotionBlur(false)
+, m_enableTemporalAA(true)
+, m_enableFXAA(false)
+, m_enableFXAA_HighQuality(true)
 {
 }
 
