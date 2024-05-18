@@ -142,7 +142,7 @@ private:
 	DirectX::SimpleMath::Matrix m_PrevWorldForMovable;
 	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitter;
 
-	virtual bool OnInit() override;
+	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
 	virtual void OnRender() override;
 	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;

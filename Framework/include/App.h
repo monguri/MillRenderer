@@ -66,7 +66,7 @@ protected:
 	float GetMaxLuminance() const;
 	float GetMinLuminance() const;
 
-	virtual bool OnInit() { return true; }
+	virtual bool OnInit(HWND hWnd) { return true; }
 	virtual void OnTerm() {}
 	virtual void OnRender() {}
 	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {}

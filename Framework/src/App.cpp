@@ -55,7 +55,7 @@ bool App::InitApp()
 		return false;
 	}
 
-	if (!OnInit())
+	if (!OnInit(m_hWnd))
 	{
 		return false;
 	}

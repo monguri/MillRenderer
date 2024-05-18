@@ -484,8 +484,37 @@ SampleApp::~SampleApp()
 {
 }
 
-bool SampleApp::OnInit()
+bool SampleApp::OnInit(HWND hWnd)
 {
+	// imgui初期化
+	{
+		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+		if (!ImGui_ImplWin32_Init(hWnd))
+		{
+			ELOG("Error : ImGui_ImplWin32_Init() Failed.");
+			return false;
+		}
+
+		DescriptorHandle* pHandleSRV = m_pPool[POOL_TYPE_RES]->AllocHandle();
+		if (pHandleSRV == nullptr)
+		{
+			ELOG("Error : DescriptorPool::AllocHandle() Failed.");
+			return false;
+		}
+
+		if (!ImGui_ImplDX12_Init(m_pDevice.Get(), FRAME_COUNT, m_BackBufferFormat, m_pPool[POOL_TYPE_RES]->GetHeap(), pHandleSRV->HandleCPU, pHandleSRV->HandleGPU))
+		{
+			ELOG("Error : ImGui_ImplDX12_Init() Failed.");
+			return false;
+		}
+	}
+
 	// テクスチャがないがドローコールで必要とされたときのためのダミーテクスチャを用意する
 	{
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
@@ -3636,6 +3665,14 @@ bool SampleApp::OnInit()
 
 void SampleApp::OnTerm()
 {
+	// imgui終了処理
+	{
+		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+		ImGui_ImplDX12_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
+	}
+
 	m_DummyTexture.Term();
 
 	m_QuadVB.Term();
@@ -3837,6 +3874,14 @@ void SampleApp::OnTerm()
 
 void SampleApp::OnRender()
 {
+	// imgui描画前処理
+	{
+		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+	}
+
 	// 共通変数の更新
 	float temporalJitetrPixelsX;
 	float temporalJitetrPixelsY;
@@ -4020,6 +4065,13 @@ void SampleApp::OnRender()
 #if DEBUG_VIEW_SSAO_FULL_RES || DEBUG_VIEW_SSAO_HALF_RES 
 	DebugDrawSSAO(pCmd);
 #endif
+
+	// imgui描画後処理
+	{
+		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCmd);
+	}
 
 	pCmd->Close();
 
@@ -5211,6 +5263,14 @@ void SampleApp::ChangeDisplayMode(bool hdr)
 
 void SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
+	// imguiのウィンドウ処理
+	{
+		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+		extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+		// 失敗してもこの後の処理は行いたいので戻り値は無視している
+		ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp);
+	}
+
 	if (
 		(msg == WM_KEYDOWN)
 		|| (msg == WM_SYSKEYDOWN)
