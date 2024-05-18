@@ -1,8 +1,19 @@
 ﻿#include "SampleApp.h"
+
+// imgui
+#include "imgui.h"
+#include "backends/imgui_impl_win32.h"
+#include "backends/imgui_impl_dx12.h"
+
+// stl
 #include <sstream>
+
+// DirectX libraries
 #include <DirectXMath.h>
 #include <CommonStates.h>
 #include <DirectXHelpers.h>
+
+// Framework
 #include "FileUtil.h"
 #include "Logger.h"
 #include "Mesh.h"
