@@ -29,22 +29,6 @@
 #define USE_MANUAL_PCF_FOR_SHADOW_MAP
 //#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 
-#define ENABLE_SSAO true
-#define DEBUG_VIEW_SSAO_FULL_RES false
-#define DEBUG_VIEW_SSAO_HALF_RES false
-
-#define ENABLE_VELOCITY true
-
-#define ENABLE_SSR true
-#define DEBUG_VIEW_SSR false
-
-#define ENABLE_BLOOM true
-#define ENABLE_MOTION_BLUR true
-
-#define ENABLE_TEMPORAL_AA true
-#define ENABLE_FXAA false
-#define ENABLE_FXAA_HIGH_QUALITY true
-
 using namespace DirectX::SimpleMath;
 
 namespace
@@ -3191,7 +3175,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
-		ptr->bEnableSSAO = (ENABLE_SSAO ? 1 : 0);
+		ptr->bEnableSSAO = m_enableSSAO ? 1 : 0;
 	}
 
 	// SSAOフル解像度用定数バッファの作成 // TODO: 上の半解像度と設定処理が冗長
@@ -3214,7 +3198,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
-		ptr->bEnableSSAO = (ENABLE_SSAO ? 1 : 0);
+		ptr->bEnableSSAO = m_enableSSAO ? 1 : 0;
 	}
 
 	// ObjectVelocity用定数バッファの作成
@@ -3262,8 +3246,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
-		ptr->bEnableSSR = ENABLE_SSR ? 1 : 0;
-		ptr->bDebugViewSSR = DEBUG_VIEW_SSR ? 1 : 0;
+		ptr->bEnableSSR = m_enableSSR ? 1 : 0;
+		ptr->bDebugViewSSR = m_debugViewSSR ? 1 : 0;
 	}
 
 	// VolumetricFog用定数バッファの作成
@@ -3295,7 +3279,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		CbTemporalAA* ptr = m_TemporalAA_CB[i].GetPtr<CbTemporalAA>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->bEnableTemporalAA = (ENABLE_TEMPORAL_AA ? 1 : 0);
+		ptr->bEnableTemporalAA = (m_enableTemporalAA ? 1 : 0);
 
 		// Referenced UE.
 		float temporalJitetrPixelsX;
@@ -3348,7 +3332,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		CbMotionBlur* ptr = m_MotionBlurCB.GetPtr<CbMotionBlur>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->bEnableMotionBlur = (ENABLE_MOTION_BLUR ? 1 : 0);
+		ptr->bEnableMotionBlur = (m_enableMotionBlur ? 1 : 0);
 	}
 
 	// Bloom後工程用定数バッファの作成
@@ -3422,7 +3406,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		CbTonemap* ptr = m_TonemapCB[i].GetPtr<CbTonemap>();
-		ptr->bEnableBloom = (ENABLE_BLOOM ? 1 : 0);
+		ptr->bEnableBloom = (m_enableBloom ? 1 : 0);
 	}
 
 	// FXAA用定数バッファの作成
@@ -3436,8 +3420,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		CbFXAA* ptr = m_FXAA_CB.GetPtr<CbFXAA>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->bEnableFXAA = (ENABLE_FXAA ? 1 : 0);
-		ptr->bEnableFXAAHighQuality = (ENABLE_FXAA_HIGH_QUALITY ? 1 : 0);
+		ptr->bEnableFXAA = (m_enableFXAA ? 1 : 0);
+		ptr->bEnableFXAAHighQuality = (m_enableFXAA_HighQuality ? 1 : 0);
 	}
 
 	// 汎用ダウンサンプルパス用定数バッファの作成
@@ -3874,14 +3858,6 @@ void SampleApp::OnTerm()
 
 void SampleApp::OnRender()
 {
-	// imgui描画前処理
-	{
-		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-	}
-
 	// 共通変数の更新
 	float temporalJitetrPixelsX;
 	float temporalJitetrPixelsY;
@@ -3896,9 +3872,10 @@ void SampleApp::OnRender()
 	Matrix projWithJitter;
 
 	{
-#if ENABLE_MOTION_BLUR
-		m_RotateAngle += 0.2f;
-#endif
+		if (m_enableMotionBlur)
+		{
+			m_RotateAngle += 0.2f;
+		}
 
 		m_TemporalAASampleIndex++;
 		if (m_TemporalAASampleIndex >= TEMPORAL_AA_SAMPLES)
@@ -3965,7 +3942,7 @@ void SampleApp::OnRender()
 		DrawDirectionalLightShadowMap(pCmd, lightForward);
 	}
 
-	if (ENABLE_TEMPORAL_AA)
+	if (m_enableTemporalAA)
 	{
 		DrawScene(pCmd, lightForward, viewProjWithJitter, view, projWithJitter);
 	}
@@ -3978,7 +3955,7 @@ void SampleApp::OnRender()
 
 	DrawSSAOSetup(pCmd);
 
-	if (ENABLE_TEMPORAL_AA)
+	if (m_enableTemporalAA)
 	{
 		DrawSSAO(pCmd, projWithJitter);
 	}
@@ -3989,9 +3966,9 @@ void SampleApp::OnRender()
 
 	DrawAmbientLight(pCmd);
 
-	if (ENABLE_VELOCITY)
+	if (m_enableVelocity)
 	{
-		if (ENABLE_TEMPORAL_AA)
+		if (m_enableTemporalAA)
 		{
 			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
 		}
@@ -4003,8 +3980,7 @@ void SampleApp::OnRender()
 		DrawCameraVelocity(pCmd, viewProjNoJitter);
 	}
 
-
-	if (ENABLE_TEMPORAL_AA)
+	if (m_enableTemporalAA)
 	{
 		DrawSSR(pCmd, projWithJitter, viewRotProjWithJitter);
 	}
@@ -4013,7 +3989,7 @@ void SampleApp::OnRender()
 		DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
 	}
 
-	if (ENABLE_TEMPORAL_AA)
+	if (m_enableTemporalAA)
 	{
 		DrawVolumetricFogScattering(pCmd, viewRotProjWithJitter);
 	}
@@ -4062,13 +4038,34 @@ void SampleApp::OnRender()
 
 	DrawFXAA(pCmd);
 
-#if DEBUG_VIEW_SSAO_FULL_RES || DEBUG_VIEW_SSAO_HALF_RES 
-	DebugDrawSSAO(pCmd);
-#endif
+	if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes)
+	{
+		DebugDrawSSAO(pCmd);
+	}
 
-	// imgui描画後処理
+	// imgui描画
 	{
 		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::Begin("Render Settings");
+
+		ImGui::Checkbox("SSAO", &m_enableSSAO);
+		ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
+		ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_FullRes);
+		ImGui::Checkbox("Velocity", &m_enableVelocity);
+		ImGui::Checkbox("SSR", &m_enableSSR);
+		ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
+		ImGui::Checkbox("Bloom", &m_enableBloom);
+		ImGui::Checkbox("Motion Blur", &m_enableMotionBlur);
+		ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
+		ImGui::Checkbox("FXAA", &m_enableFXAA);
+		ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
+
+		ImGui::End();
+
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCmd);
 	}
@@ -4487,6 +4484,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 			ptr->ViewMatrix = m_Camera.GetView();
 			ptr->InvProjMatrix = proj.Invert();
 			ptr->bHalfRes = 1;
+			ptr->bEnableSSAO = m_enableSSAO ? 1 : 0;
 		}
 
 		DirectX::TransitionResource(pCmdList, m_SSAO_HalfResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -4533,6 +4531,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 			ptr->ViewMatrix = m_Camera.GetView();
 			ptr->InvProjMatrix = proj.Invert();
 			ptr->bHalfRes = 0;
+			ptr->bEnableSSAO = m_enableSSAO ? 1 : 0;
 		}
 
 		DirectX::TransitionResource(pCmdList, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -4685,6 +4684,8 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 		ptr->VRotPMatrix = viewRotProj;
 		ptr->InvVRotPMatrix = viewRotProj.Invert();
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
+		ptr->bEnableSSR = m_enableSSR ? 1 : 0;
+		ptr->bDebugViewSSR = m_debugViewSSR ? 1 : 0;
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -4774,6 +4775,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 
 	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
+		ptr->bEnableTemporalAA = (m_enableTemporalAA ? 1 : 0);
 
 		// Referenced UE.
 		float totalWeight = 0;
@@ -4844,6 +4846,11 @@ void SampleApp::DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorT
 {
 	ScopedTimer scopedTimer(pCmdList, L"MotionBlur");
 
+	{
+		CbMotionBlur* ptr = m_MotionBlurCB.GetPtr<CbMotionBlur>();
+		ptr->bEnableMotionBlur = (m_enableMotionBlur ? 1 : 0);
+	}
+
 	DirectX::TransitionResource(pCmdList, m_MotionBlurTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	const DescriptorHandle* handleRTV = m_MotionBlurTarget.GetHandleRTV();
@@ -4911,6 +4918,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 		ptr->ColorSpace = m_ColorSpace;
 		ptr->BaseLuminance = m_BaseLuminance;
 		ptr->MaxLuminance = m_MaxLuminance;
+		ptr->bEnableBloom = (m_enableBloom ? 1 : 0);
 	}
 
 	DirectX::TransitionResource(pCmdList, m_TonemapTarget.GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -4941,6 +4949,12 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"FXAA");
+
+	{
+		CbFXAA* ptr = m_FXAA_CB.GetPtr<CbFXAA>();
+		ptr->bEnableFXAA = (m_enableFXAA ? 1 : 0);
+		ptr->bEnableFXAAHighQuality = (m_enableFXAA_HighQuality ? 1 : 0);
+	}
 
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -5108,11 +5122,18 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_DebugRenderTargetRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pDebugRenderTargetPSO.Get());
-#if DEBUG_VIEW_SSAO_FULL_RES
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
-#elif DEBUG_VIEW_SSAO_HALF_RES
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
-#endif
+	if (m_debugViewSSAO_FullRes)
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
+	}
+	else if (m_debugViewSSAO_HalfRes)
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
+	}
+	else
+	{
+		assert(false);
+	}
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
