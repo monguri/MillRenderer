@@ -5124,6 +5124,8 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 {
+	ScopedTimer scopedTimer(pCmdList, L"ImGui");
+
 	// TODO: Transitionが直前のパスと重複している
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
