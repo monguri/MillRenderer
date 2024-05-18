@@ -5151,6 +5151,13 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::Checkbox("FXAA", &m_enableFXAA);
 	ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
 
+	ImGui::Text("Tonemap");
+	ImGui::RadioButton("None", &m_TonemapType, TONEMAP_NONE);
+	ImGui::RadioButton("Reinhard", &m_TonemapType, TONEMAP_REINHARD);
+	ImGui::RadioButton("Gran Turismo", &m_TonemapType, TONEMAP_GT);
+	ImGui::RadioButton("Khronos PBR Neutral", &m_TonemapType, TONEMAP_KHRONOS_PBR_NEUTRAL);
+
+
 	ImGui::End();
 
 	ImGui::Render();
@@ -5329,18 +5336,6 @@ void SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 					break;
 				case 'S':
 					ChangeDisplayMode(false);
-					break;
-				case 'N':
-					m_TonemapType = TONEMAP_NONE;
-					break;
-				case 'R':
-					m_TonemapType = TONEMAP_REINHARD;
-					break;
-				case 'G':
-					m_TonemapType = TONEMAP_GT;
-					break;
-				case 'K':
-					m_TonemapType = TONEMAP_KHRONOS_PBR_NEUTRAL;
 					break;
 				case 'C':
 					m_Camera.Reset();
