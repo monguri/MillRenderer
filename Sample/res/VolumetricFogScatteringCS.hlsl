@@ -12,7 +12,7 @@ static const uint THREAD_GROUP_SIZE_XYZ = 4;
 //static const float DIRECTIONAL_LIGHT_SCATTERING_INTENSITY = 1.0f; // refered UE
 static const float DIRECTIONAL_LIGHT_SCATTERING_INTENSITY = 1000.0f; // refered UE
 //static const float SPOT_LIGHT_SCATTERING_INTENSITY = 1.0f; // refered UE
-static const float SPOT_LIGHT_SCATTERING_INTENSITY = 1000.0f; // refered UE
+static const float SPOT_LIGHT_SCATTERING_INTENSITY = 10000.0f; // refered UE
 static const float SCATTERING_DISTRIBUTION = 0.2f; // refered UE
 
 cbuffer CbVolumetricFog : register(b0)
