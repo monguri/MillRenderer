@@ -2449,7 +2449,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			.SetCBV(ShaderStage::ALL, 2, 2)
 			.SetCBV(ShaderStage::ALL, 3, 3)
 			.SetCBV(ShaderStage::ALL, 4, 4)
-			.SetUAV(ShaderStage::ALL, 5, 0)
+			.SetCBV(ShaderStage::ALL, 5, 5)
+			.SetUAV(ShaderStage::ALL, 6, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -4826,7 +4827,8 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	{
 		pCmdList->SetComputeRootDescriptorTable(2 + i, m_SpotLightCB[i].GetHandleGPU());
 	}
-	pCmdList->SetComputeRootDescriptorTable(2 + NUM_SPOT_LIGHTS, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2 + NUM_SPOT_LIGHTS, m_CameraCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_XYZ = 4;

@@ -2,10 +2,17 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
+#ifndef MIN_DIST
+#define MIN_DIST (0.01)
+#endif // MIN_DIST
+
 // It must be equal to the value used in cpp.
 static const uint THREAD_GROUP_SIZE_XYZ = 4;
 
-static const float DIRECTIONAL_LIGHT_SCATTERING_INTENSITY = 1.0f; // refered UE
+//static const float DIRECTIONAL_LIGHT_SCATTERING_INTENSITY = 1.0f; // refered UE
+static const float DIRECTIONAL_LIGHT_SCATTERING_INTENSITY = 1000.0f; // refered UE
+//static const float SPOT_LIGHT_SCATTERING_INTENSITY = 1.0f; // refered UE
+static const float SPOT_LIGHT_SCATTERING_INTENSITY = 1000.0f; // refered UE
 static const float SCATTERING_DISTRIBUTION = 0.2f; // refered UE
 
 cbuffer CbVolumetricFog : register(b0)
@@ -62,6 +69,11 @@ cbuffer CbSpotLight3 : register(b4)
 	float SpotLight3AngleOffset : packoffset(c3);
 	int SpotLight3Type : packoffset(c3.y);
 	float2 SpotLight3ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
+};
+
+cbuffer CbCamera : register(b5)
+{
+	float3 CameraPosition : packoffset(c0);
 };
 
 SamplerState PointClampSmp : register(s0);
@@ -124,6 +136,43 @@ float luminance(float3 linearColor)
 	return dot(linearColor, float3(0.3f, 0.59f, 0.11f));
 }
 
+// TODO: same code for SponzaPS.hlsli
+float GetAngleAttenuation
+(
+	float3 normalizedLightVector,
+	float3 lightDir,
+	float lightAngleScale,
+	float lightAngleOffset
+)
+{
+	float cd = dot(lightDir, normalizedLightVector);
+	float attenuation = saturate(cd * lightAngleScale + lightAngleOffset);
+	attenuation *= attenuation;
+	return attenuation;
+}
+
+// TODO: almost same code for SponzaPS.hlsli. difference is only outLightDirection argument.
+float3 EvaluateSpotLight
+(
+	float3 worldPos,
+	float3 lightPos,
+	float lightInvRadiusSq,
+	float3 lightForward,
+	float3 lightColor,
+	float lightAngleScale,
+	float lightAngleOffset,
+	float3 outLightDirection
+)
+{
+	float3 unnormalizedLightVector = lightPos - worldPos;
+	float sqrDist = dot(unnormalizedLightVector, unnormalizedLightVector);
+	float att = 1.0f / max(sqrDist, MIN_DIST * MIN_DIST);
+	float3 L = normalize(unnormalizedLightVector);
+	outLightDirection = -L;
+	att *= GetAngleAttenuation(L, -lightForward, lightAngleScale, lightAngleOffset);
+	return lightColor * att / F_PI;
+}
+
 [numthreads(THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
@@ -136,6 +185,54 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
 	lightScattering += DirLightColor * DirLightIntensity * DIRECTIONAL_LIGHT_SCATTERING_INTENSITY
 						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-DirLightForward, -cameraVector));
+
+	float3 spotLight1Dir = 0;
+	float3 spotLight1 = EvaluateSpotLight
+	(
+		CameraPosition + cameraOriginWorldPos, // TODO: do with camera origin WS.
+		SpotLight1Position,
+		SpotLight1InvSqrRadius,
+		SpotLight1Forward,
+		SpotLight1Color,
+		SpotLight1AngleScale,
+		SpotLight1AngleOffset,
+		spotLight1Dir
+	) * SpotLight1Intensity;
+
+	lightScattering += spotLight1 * SPOT_LIGHT_SCATTERING_INTENSITY
+						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-spotLight1Dir, -cameraVector));
+
+	float3 spotLight2Dir = 0;
+	float3 spotLight2 = EvaluateSpotLight
+	(
+		CameraPosition + cameraOriginWorldPos,
+		SpotLight2Position,
+		SpotLight2InvSqrRadius,
+		SpotLight2Forward,
+		SpotLight2Color,
+		SpotLight2AngleScale,
+		SpotLight2AngleOffset,
+		spotLight2Dir
+	) * SpotLight2Intensity;
+
+	lightScattering += spotLight2 * SPOT_LIGHT_SCATTERING_INTENSITY
+						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-spotLight2Dir, -cameraVector));
+
+	float3 spotLight3Dir = 0;
+	float3 spotLight3 = EvaluateSpotLight
+	(
+		CameraPosition + cameraOriginWorldPos,
+		SpotLight3Position,
+		SpotLight3InvSqrRadius,
+		SpotLight3Forward,
+		SpotLight3Color,
+		SpotLight3AngleScale,
+		SpotLight3AngleOffset,
+		spotLight3Dir
+	) * SpotLight3Intensity;
+
+	lightScattering += spotLight3 * SPOT_LIGHT_SCATTERING_INTENSITY
+						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-spotLight3Dir, -cameraVector));
 
 	// TODO:
 	float4 materialScatteringAndAbsorption = float4(1e-05f, 1e-05f, 1e-05f, 0);
