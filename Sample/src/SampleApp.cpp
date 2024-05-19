@@ -88,9 +88,9 @@ namespace
 	{
 		Matrix ViewProj;
 		Matrix ModelToDirLightShadowMap;
-		Matrix ModelToSpotLight1ShadowMap;
-		Matrix ModelToSpotLight2ShadowMap;
-		Matrix ModelToSpotLight3ShadowMap;
+		Matrix WorldToSpotLight1ShadowMap;
+		Matrix WorldToSpotLight2ShadowMap;
+		Matrix WorldToSpotLight3ShadowMap;
 	};
 
 	struct alignas(256) CbDirectionalLight
@@ -2450,8 +2450,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			.SetCBV(ShaderStage::ALL, 3, 3)
 			.SetCBV(ShaderStage::ALL, 4, 4)
 			.SetCBV(ShaderStage::ALL, 5, 5)
-			.SetUAV(ShaderStage::ALL, 6, 0)
+			.SetCBV(ShaderStage::ALL, 6, 6)
+			.SetSRV(ShaderStage::ALL, 7, 0)
+			.SetSRV(ShaderStage::ALL, 8, 1)
+			.SetSRV(ShaderStage::ALL, 9, 2)
+			.SetSRV(ShaderStage::ALL, 10, 3)
+			.SetUAV(ShaderStage::ALL, 11, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
+			.AddStaticCmpSmp(ShaderStage::ALL, 1, SamplerState::MinMagLinearMipPointClamp)
 			.End();
 
 		if (!m_VolumetricFogScatteringRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
@@ -3599,9 +3605,9 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			if (RENDER_SPONZA)
 			{
-				ptr->ModelToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-				ptr->ModelToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-				ptr->ModelToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 			}
 		}
 	}
@@ -4261,9 +4267,9 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 			// World行列はMatrix::Identityとする
 			ptr->ModelToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
-			ptr->ModelToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->ModelToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->ModelToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		}
 	}
 
@@ -4818,6 +4824,11 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	}
 
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+	{
+		DirectX::TransitionResource(pCmdList, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	}
 
 	pCmdList->SetComputeRootSignature(m_VolumetricFogScatteringRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricFogScatteringPSO.Get());
@@ -4828,7 +4839,15 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 		pCmdList->SetComputeRootDescriptorTable(2 + i, m_SpotLightCB[i].GetHandleGPU());
 	}
 	pCmdList->SetComputeRootDescriptorTable(2 + NUM_SPOT_LIGHTS, m_CameraCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_TransformCB[m_FrameIndex].GetHandleGPU());
+
+	pCmdList->SetComputeRootDescriptorTable(4 + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+	{
+		pCmdList->SetComputeRootDescriptorTable(5 + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+	}
+
+	pCmdList->SetComputeRootDescriptorTable(5 + NUM_SPOT_LIGHTS * 2, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_XYZ = 4;
@@ -4839,6 +4858,11 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+	{
+		DirectX::TransitionResource(pCmdList, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
 }
 
 void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList)
