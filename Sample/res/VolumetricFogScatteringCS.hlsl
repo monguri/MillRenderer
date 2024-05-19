@@ -25,6 +25,45 @@ cbuffer CbDirectionalLight : register(b1)
 	float2 DirLightShadowMapSize : packoffset(c2); // x is pixel size, y is texel size on UV.
 };
 
+cbuffer CbSpotLight1 : register(b2)
+{
+	float3 SpotLight1Position : packoffset(c0);
+	float SpotLight1InvSqrRadius : packoffset(c0.w);
+	float3 SpotLight1Color : packoffset(c1);
+	float SpotLight1Intensity : packoffset(c1.w);
+	float3 SpotLight1Forward : packoffset(c2);
+	float SpotLight1AngleScale : packoffset(c2.w);
+	float SpotLight1AngleOffset : packoffset(c3);
+	int SpotLight1Type : packoffset(c3.y);
+	float2 SpotLight1ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
+};
+
+cbuffer CbSpotLight2 : register(b3)
+{
+	float3 SpotLight2Position : packoffset(c0);
+	float SpotLight2InvSqrRadius : packoffset(c0.w);
+	float3 SpotLight2Color : packoffset(c1);
+	float SpotLight2Intensity : packoffset(c1.w);
+	float3 SpotLight2Forward : packoffset(c2);
+	float SpotLight2AngleScale : packoffset(c2.w);
+	float SpotLight2AngleOffset : packoffset(c3);
+	int SpotLight2Type : packoffset(c3.y);
+	float2 SpotLight2ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
+};
+
+cbuffer CbSpotLight3 : register(b4)
+{
+	float3 SpotLight3Position : packoffset(c0);
+	float SpotLight3InvSqrRadius : packoffset(c0.w);
+	float3 SpotLight3Color : packoffset(c1);
+	float SpotLight3Intensity : packoffset(c1.w);
+	float3 SpotLight3Forward : packoffset(c2);
+	float SpotLight3AngleScale : packoffset(c2.w);
+	float SpotLight3AngleOffset : packoffset(c3);
+	int SpotLight3Type : packoffset(c3.y);
+	float2 SpotLight3ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
+};
+
 SamplerState PointClampSmp : register(s0);
 
 RWTexture3D<float4> OutResult : register(u0);

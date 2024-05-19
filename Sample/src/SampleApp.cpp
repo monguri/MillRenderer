@@ -2446,7 +2446,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.Begin()
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetCBV(ShaderStage::ALL, 1, 1)
-			.SetUAV(ShaderStage::ALL, 2, 0)
+			.SetCBV(ShaderStage::ALL, 2, 2)
+			.SetCBV(ShaderStage::ALL, 3, 3)
+			.SetCBV(ShaderStage::ALL, 4, 4)
+			.SetUAV(ShaderStage::ALL, 5, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
@@ -4819,7 +4822,11 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	pCmdList->SetPipelineState(m_pVolumetricFogScatteringPSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
+	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+	{
+		pCmdList->SetComputeRootDescriptorTable(2 + i, m_SpotLightCB[i].GetHandleGPU());
+	}
+	pCmdList->SetComputeRootDescriptorTable(2 + NUM_SPOT_LIGHTS, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_XYZ = 4;
