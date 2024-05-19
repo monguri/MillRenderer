@@ -89,6 +89,7 @@ private:
 	ColorTarget m_SSR_Targt;
 	ColorTarget m_VolumetricFogScatteringTarget;
 	ColorTarget m_VolumetricFogIntegrationTarget;
+	ColorTarget m_VolumetricCompositionTarget;
 	ColorTarget m_TemporalAA_Target[FRAME_COUNT];
 	ColorTarget m_MotionBlurTarget;
 	ColorTarget m_BloomSetupTarget[BLOOM_NUM_DOWN_SAMPLE];

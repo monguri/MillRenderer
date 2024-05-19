@@ -1333,7 +1333,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// VolumetricFog Scattering用カラーターゲットの生成
 	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 		if (!m_VolumetricFogScatteringTarget.InitUnorderedAccessTarget
 		(
@@ -1373,6 +1373,26 @@ bool SampleApp::OnInit(HWND hWnd)
 		))
 		{
 			ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
+			return false;
+		}
+	}
+
+	// VolumetricFog Composition用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_VolumetricCompositionTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R10G10B10A2_UNORM,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
 			return false;
 		}
 	}
@@ -3774,6 +3794,7 @@ void SampleApp::OnTerm()
 
 	m_VolumetricFogScatteringTarget.Term();
 	m_VolumetricFogIntegrationTarget.Term();
+	m_VolumetricCompositionTarget.Term();
 
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
