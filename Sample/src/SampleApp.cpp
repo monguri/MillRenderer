@@ -211,8 +211,9 @@ namespace
 		int GridSizeZ;
 		float Near;
 		float Far;
+		Vector3 FrameJitterOffsetValue;
 		int bEnableVolumetrcFog;
-		float Padding[2];
+		float Padding[3];
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -388,6 +389,11 @@ namespace
 		return result;
 	}
 
+	Vector3 VolumetricFogTemporalRandom(uint32_t frameNumber)
+	{
+		return Vector3(Halton(frameNumber & 1023, 2), Halton(frameNumber & 1023, 3), Halton(frameNumber & 1023, 5));
+	}
+
 	// Refered UE's SceneVisibility.cpp
 	void CalculateTemporalJitterPixels(uint32_t temporalAASampleIndex, float& sampleX, float& sampleY)
 	{
@@ -459,6 +465,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_RotateAngle(0.0f)
 , m_DirLightShadowMapViewport()
 , m_DirLightShadowMapScissor()
+, m_FrameNumber(0)
 , m_TemporalAASampleIndex(0)
 , m_PrevWorldForMovable(Matrix::Identity)
 , m_PrevViewProjNoJitter(Matrix::Identity)
@@ -3380,6 +3387,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->GridSizeZ = m_VolumetricFogScatteringTarget.GetDesc().DepthOrArraySize;
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
+		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
 		ptr->bEnableVolumetrcFog = (m_enableVolumetricFog ? 1 : 0); 
 	}
 
@@ -3996,6 +4004,8 @@ void SampleApp::OnRender()
 		{
 			m_RotateAngle += 0.2f;
 		}
+
+		m_FrameNumber++;
 
 		m_TemporalAASampleIndex++;
 		if (m_TemporalAASampleIndex >= TEMPORAL_AA_SAMPLES)
@@ -4820,6 +4830,7 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	{
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
 		ptr->InvVRotPMatrix = viewRotProj.Invert();
+		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
 		ptr->bEnableVolumetrcFog = (m_enableVolumetricFog ? 1 : 0); 
 	}
 
