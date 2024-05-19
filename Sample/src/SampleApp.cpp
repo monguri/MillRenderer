@@ -2556,7 +2556,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.Begin()
 			.SetCBV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 0)
+			.SetSRV(ShaderStage::PS, 2, 1)
+			.SetSRV(ShaderStage::PS, 3, 2)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
+			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearClamp)
 			.AllowIL()
 			.End();
 
@@ -4864,6 +4867,8 @@ void SampleApp::DrawVolumetricFogComposition(ID3D12GraphicsCommandList* pCmdList
 	pCmdList->SetGraphicsRootSignature(m_VolumetricFogCompositionRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSR_Targt.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(3, m_VolumetricFogIntegrationTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pVolumetricFogCompositionPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
