@@ -56,6 +56,8 @@ private:
 	RootSignature m_VolumetricFogScattering_RootSig;
 	ComPtr<ID3D12PipelineState> m_pVolumetricFogIntegration_PSO;
 	RootSignature m_VolumetricFogIntegration_RootSig;
+	ComPtr<ID3D12PipelineState> m_pVolumetricFogComposition_PSO;
+	RootSignature m_VolumetricFogComposition_RootSig;
 	ComPtr<ID3D12PipelineState> m_pTemporalAA_PSO;
 	RootSignature m_TemporalAA_RootSig;
 	ComPtr<ID3D12PipelineState> m_pMotionBlurPSO;
