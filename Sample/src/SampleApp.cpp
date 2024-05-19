@@ -211,7 +211,8 @@ namespace
 		int GridSizeZ;
 		float Near;
 		float Far;
-		float Padding[3];
+		int bEnableVolumetrcFog;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -469,6 +470,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_debugViewSSR(false)
 , m_enableBloom(true)
 , m_enableMotionBlur(false)
+, m_enableVolumetricFog(true)
 , m_enableTemporalAA(true)
 , m_enableFXAA(false)
 , m_enableFXAA_HighQuality(true)
@@ -3368,6 +3370,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->GridSizeZ = m_VolumetricFogScatteringTarget.GetDesc().DepthOrArraySize;
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
+		ptr->bEnableVolumetrcFog = (m_enableVolumetricFog ? 1 : 0); 
 	}
 
 	// TemporalAA用定数バッファの作成
@@ -4807,6 +4810,7 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	{
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
 		ptr->InvVRotPMatrix = viewRotProj.Invert();
+		ptr->bEnableVolumetrcFog = (m_enableVolumetricFog ? 1 : 0); 
 	}
 
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -5286,6 +5290,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
 	ImGui::Checkbox("Bloom", &m_enableBloom);
 	ImGui::Checkbox("Motion Blur", &m_enableMotionBlur);
+	ImGui::Checkbox("Volumetric Fog", &m_enableVolumetricFog);
 	ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
 	ImGui::Checkbox("FXAA", &m_enableFXAA);
 	ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);

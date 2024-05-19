@@ -7,6 +7,7 @@ cbuffer CbVolumetricFog : register(b0)
 	int3 GridSize : packoffset(c4);
 	float Near : packoffset(c4.w);
 	float Far : packoffset(c5);
+	int bEnableVolumetrcFog : packoffset(c5.y);
 }
 
 Texture3D LightScattering : register(t0);

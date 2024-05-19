@@ -145,17 +145,18 @@ private:
 	DirectX::SimpleMath::Matrix m_PrevWorldForMovable;
 	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitter;
 
-	bool m_enableSSAO ;
+	bool m_enableSSAO;
 	bool m_debugViewSSAO_FullRes;
 	bool m_debugViewSSAO_HalfRes;
-	bool m_enableVelocity ;
-	bool m_enableSSR ;
+	bool m_enableVelocity;
+	bool m_enableSSR;
 	bool m_debugViewSSR;
-	bool m_enableBloom ;
+	bool m_enableBloom;
 	bool m_enableMotionBlur;
-	bool m_enableTemporalAA ;
+	bool m_enableVolumetricFog;
+	bool m_enableTemporalAA;
 	bool m_enableFXAA;
-	bool m_enableFXAA_HighQuality ;
+	bool m_enableFXAA_HighQuality;
 
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
