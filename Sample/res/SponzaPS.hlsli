@@ -239,7 +239,6 @@ float GetAngleAttenuation
 
 float3 EvaluateSpotLight
 (
-	float3 N,
 	float3 worldPos,
 	float3 lightPos,
 	float lightInvRadiusSq,
@@ -259,7 +258,6 @@ float3 EvaluateSpotLight
 
 float3 EvaluateSpotLightKaris
 (
-	float3 N,
 	float3 worldPos,
 	float3 lightPos,
 	float lightInvRadiusSq,
@@ -281,7 +279,6 @@ float3 EvaluateSpotLightKaris
 
 float3 EvaluateSpotLightLagarde
 (
-	float3 N,
 	float3 worldPos,
 	float3 lightPos,
 	float lightInvRadiusSq,
@@ -343,7 +340,7 @@ float3 EvaluateSpotLightReflection
 	);
 
 	//TODO: not branching by type
-	float3 light = EvaluateSpotLight(N, worldPos, lightPos, invSqrRadius, forward, color, angleScale, angleOffset) * intensity;
+	float3 light = EvaluateSpotLight(worldPos, lightPos, invSqrRadius, forward, color, angleScale, angleOffset) * intensity;
 	float transitionScale = SPOT_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(SPOT_LIGHT_PROJECTION_DEPTH_BIAS, 1, NL);
 	float shadow = GetShadowMultiplier(shadowMap, shadowSmp, shadowMapSize, shadowCoord, transitionScale);
 	return brdf * light * shadow;
