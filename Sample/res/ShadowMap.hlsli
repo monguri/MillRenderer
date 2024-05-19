@@ -42,7 +42,7 @@ float ApplyPCFOverBlurCorrection(float occlusion)
 
 float GetShadowMultiplier(Texture2D shadowMap,
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-						SamplerComparisonState shadowSmp;
+						SamplerComparisonState shadowSmp,
 #else
 						SamplerState shadowSmp,
 #endif
