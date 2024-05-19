@@ -52,12 +52,12 @@ private:
 	RootSignature m_CameraVelocityRootSig;
 	ComPtr<ID3D12PipelineState> m_pSSR_PSO;
 	RootSignature m_SSR_RootSig;
-	ComPtr<ID3D12PipelineState> m_pVolumetricFogScattering_PSO;
-	RootSignature m_VolumetricFogScattering_RootSig;
-	ComPtr<ID3D12PipelineState> m_pVolumetricFogIntegration_PSO;
-	RootSignature m_VolumetricFogIntegration_RootSig;
-	ComPtr<ID3D12PipelineState> m_pVolumetricFogComposition_PSO;
-	RootSignature m_VolumetricFogComposition_RootSig;
+	ComPtr<ID3D12PipelineState> m_pVolumetricFogScatteringPSO;
+	RootSignature m_VolumetricFogScatteringRootSig;
+	ComPtr<ID3D12PipelineState> m_pVolumetricFogIntegrationPSO;
+	RootSignature m_VolumetricFogIntegrationRootSig;
+	ComPtr<ID3D12PipelineState> m_pVolumetricFogCompositionPSO;
+	RootSignature m_VolumetricFogCompositionRootSig;
 	ComPtr<ID3D12PipelineState> m_pTemporalAA_PSO;
 	RootSignature m_TemporalAA_RootSig;
 	ComPtr<ID3D12PipelineState> m_pMotionBlurPSO;

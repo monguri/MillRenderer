@@ -2448,7 +2448,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
-		if (!m_VolumetricFogScattering_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!m_VolumetricFogScatteringRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
@@ -2475,7 +2475,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_VolumetricFogScattering_RootSig.GetPtr();
+		desc.pRootSignature = m_VolumetricFogScatteringRootSig.GetPtr();
 		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
 		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
 		desc.NodeMask = 0;
@@ -2485,7 +2485,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateComputePipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pVolumetricFogScattering_PSO.GetAddressOf())
+			IID_PPV_ARGS(m_pVolumetricFogScatteringPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -2504,7 +2504,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
-		if (!m_VolumetricFogIntegration_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!m_VolumetricFogIntegrationRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
@@ -2531,7 +2531,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_VolumetricFogIntegration_RootSig.GetPtr();
+		desc.pRootSignature = m_VolumetricFogIntegrationRootSig.GetPtr();
 		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
 		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
 		desc.NodeMask = 0;
@@ -2541,7 +2541,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateComputePipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pVolumetricFogIntegration_PSO.GetAddressOf())
+			IID_PPV_ARGS(m_pVolumetricFogIntegrationPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -2564,7 +2564,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			.AllowIL()
 			.End();
 
-		if (!m_VolumetricFogComposition_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!m_VolumetricFogCompositionRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
@@ -2606,7 +2606,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_VolumetricFogComposition_RootSig.GetPtr();
+		desc.pRootSignature = m_VolumetricFogCompositionRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
@@ -2615,7 +2615,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pVolumetricFogComposition_PSO.GetAddressOf())
+			IID_PPV_ARGS(m_pVolumetricFogCompositionPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -3925,14 +3925,14 @@ void SampleApp::OnTerm()
 	m_pSSR_PSO.Reset();
 	m_SSR_RootSig.Term();
 
-	m_pVolumetricFogScattering_PSO.Reset();
-	m_VolumetricFogScattering_RootSig.Term();
+	m_pVolumetricFogScatteringPSO.Reset();
+	m_VolumetricFogScatteringRootSig.Term();
 
-	m_pVolumetricFogIntegration_PSO.Reset();
-	m_VolumetricFogIntegration_RootSig.Term();
+	m_pVolumetricFogIntegrationPSO.Reset();
+	m_VolumetricFogIntegrationRootSig.Term();
 
-	m_pVolumetricFogComposition_PSO.Reset();
-	m_VolumetricFogComposition_RootSig.Term();
+	m_pVolumetricFogCompositionPSO.Reset();
+	m_VolumetricFogCompositionRootSig.Term();
 
 	m_pTemporalAA_PSO.Reset();
 	m_TemporalAA_RootSig.Term();
@@ -4811,8 +4811,8 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	pCmdList->SetComputeRootSignature(m_VolumetricFogScattering_RootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pVolumetricFogScattering_PSO.Get());
+	pCmdList->SetComputeRootSignature(m_VolumetricFogScatteringRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pVolumetricFogScatteringPSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
@@ -4835,8 +4835,8 @@ void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogIntegrationTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	pCmdList->SetComputeRootSignature(m_VolumetricFogIntegration_RootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pVolumetricFogIntegration_PSO.Get());
+	pCmdList->SetComputeRootSignature(m_VolumetricFogIntegrationRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pVolumetricFogIntegrationPSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricFogScatteringTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogIntegrationTarget.GetHandleUAVs()[0]->HandleGPU);
