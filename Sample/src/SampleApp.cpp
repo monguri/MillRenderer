@@ -4135,7 +4135,7 @@ void SampleApp::OnRender()
 	const ColorTarget& temporalAA_PrevTarget = m_TemporalAA_Target[m_FrameIndex];
 	const ColorTarget& temporalAA_CurTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
 
-	DrawTemporalAA(pCmd, viewProjNoJitter, temporalJitetrPixelsX, temporalJitetrPixelsY, temporalAA_PrevTarget, temporalAA_CurTarget);
+	DrawTemporalAA(pCmd, temporalJitetrPixelsX, temporalJitetrPixelsY, temporalAA_PrevTarget, temporalAA_CurTarget);
 
 	DrawMotionBlur(pCmd, temporalAA_CurTarget);
 
@@ -4936,7 +4936,7 @@ void SampleApp::DrawVolumetricFogComposition(ID3D12GraphicsCommandList* pCmdList
 	DirectX::TransitionResource(pCmdList, m_VolumetricCompositionTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& prevTarget, const ColorTarget& curTarget)
+void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& prevTarget, const ColorTarget& curTarget)
 {
 	ScopedTimer scopedTimer(pCmdList, L"TemporalAA");
 

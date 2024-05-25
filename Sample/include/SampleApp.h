@@ -178,7 +178,7 @@ private:
 	void DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProj, const ColorTarget& prevTarget, const ColorTarget& curTarget);
 	void DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& curTarget);
 	void DrawVolumetricFogComposition(ID3D12GraphicsCommandList* pCmdList);
-	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& prevTarget, const ColorTarget& curTarget);
+	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& prevTarget, const ColorTarget& curTarget);
 	void DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor);
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
