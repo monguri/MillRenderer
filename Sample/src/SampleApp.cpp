@@ -456,7 +456,7 @@ namespace
 
 SampleApp::SampleApp(uint32_t width, uint32_t height)
 : App(width, height, DXGI_FORMAT_R10G10B10A2_UNORM)
-, m_TonemapType(TONEMAP_NONE)
+, m_TonemapType(TONEMAP_GT)
 , m_ColorSpace(COLOR_SPACE_BT709)
 , m_BaseLuminance(100.0f)
 , m_MaxLuminance(100.0f)
