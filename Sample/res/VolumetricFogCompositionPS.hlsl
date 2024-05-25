@@ -7,11 +7,12 @@ struct VSOutput
 cbuffer CbVolumetricFog : register(b0)
 {
 	float4x4 InvVRotPMatrix : packoffset(c0);
-	int3 GridSize : packoffset(c4);
-	float Near : packoffset(c4.w);
-	float Far : packoffset(c5);
-	float3 FrameJitterOffsetValue : packoffset(c5.y);
-	int bEnableVolumetrcFog : packoffset(c6);
+	float4x4 InvPrevVRotPMatrix : packoffset(c4);
+	int3 GridSize : packoffset(c8);
+	float Near : packoffset(c8.w);
+	float Far : packoffset(c9);
+	float3 FrameJitterOffsetValue : packoffset(c9.y);
+	int bEnableVolumetrcFog : packoffset(c10);
 }
 
 Texture2D ColorMap : register(t0);
