@@ -24,7 +24,7 @@ static const float HISTORY_WEIGHT = 0.9; // refered UE
 cbuffer CbVolumetricFog : register(b0)
 {
 	float4x4 InvVRotPMatrix : packoffset(c0);
-	float4x4 InvPrevVRotPMatrix : packoffset(c4);
+	float4x4 ClipToPrevClip : packoffset(c4);
 	int3 GridSize : packoffset(c8);
 	float Near : packoffset(c8.w);
 	float Far : packoffset(c9);
@@ -112,6 +112,15 @@ float ConvertViewZtoDeviceZ(float viewZ)
 	return ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ;
 }
 
+//TODO: common functions with SSAO.
+float ConvertFromDeviceZtoViewZ(float deviceZ)
+{
+	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
+	// deviceZ = ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ
+	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
+	return (Far * Near) / (deviceZ * (Far - Near) - Far);
+}
+
 // TODO: same code for SSR_PS.hlsl
 float3 ConverFromNDCToCameraOriginWS(float4 ndcPos, float viewPosZ)
 {
@@ -120,7 +129,6 @@ float3 ConverFromNDCToCameraOriginWS(float4 ndcPos, float viewPosZ)
 	// That is left-handed projection matrix.
 	// Matrix::CreatePerspectiveFieldOfView() transform right-handed viewspace to left-handed clip space.
 	// So, referenced that code.
-	float deviceZ = ndcPos.z;
 	float clipPosW = -viewPosZ;
 	float4 clipPos = ndcPos * clipPosW;
 	float4 cameraOriginWorldPos = mul(InvVRotPMatrix, clipPos);
@@ -140,6 +148,29 @@ float3 ComputeCellCameraOriginWorldPosition(float3 gridCoordinate, float3 cellOf
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
 	float3 cameraOriginWorldPos = ConverFromNDCToCameraOriginWS(ndcPos, viewPosZ);
 	return cameraOriginWorldPos;
+}
+
+float3 ComputePrevUVWfromCurrentGridCoord(float3 gridCoordinate, float3 cellOffset)
+{
+	// TODO: double calcuration as ComputeCellCameraOriginWorldPosition() call.
+
+	float2 uv = (gridCoordinate.xy + cellOffset.xy) / GridSize.xy;
+	// TODO: exp slice
+	float linearDepth = lerp(Near, Far, (gridCoordinate.z + cellOffset.z) / float(GridSize.z));
+	float viewPosZ = -linearDepth;
+	float deviceZ = ConvertViewZtoDeviceZ(viewPosZ);
+	// [-1,1]x[-1,1]
+	float2 screenPos = uv * float2(2, -2) + float2(-1, 1);
+	float4 ndcPos = float4(screenPos, deviceZ, 1);
+
+	float4 prevClipPos = mul(ClipToPrevClip, ndcPos);
+	float4 prevNdcPos = prevClipPos / prevClipPos.w;
+	float2 prevUV = (prevNdcPos.xy + float2(1, -1)) * float2(0.5, -0.5);
+	float prevDeviceZ = prevNdcPos.z;
+	float prevLinearDepth = -ConvertFromDeviceZtoViewZ(prevDeviceZ);
+	// TODO: exp slice
+	float prevW = (prevLinearDepth - Near) / (Far - Near);
+	return float3(prevUV, prevW);
 }
 
 // Positive g = forward scattering
@@ -294,7 +325,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
 	float4 preExposedScatteringAndExtinction = float4(lightScattering * materialScatteringAndAbsorption.xyz, extinction);
 
-	float4 preExposedHistoryScatteringAndExtinction = HistoryMap.SampleLevel(LinearClampSmp, (gridCoordinate + 0.5f) / GridSize, 0);
+	float3 prevUVW = ComputePrevUVWfromCurrentGridCoord(gridCoordinate, 0.5f);
+	float4 preExposedHistoryScatteringAndExtinction = HistoryMap.SampleLevel(LinearClampSmp, prevUVW, 0);
 	preExposedScatteringAndExtinction = lerp(preExposedScatteringAndExtinction, preExposedHistoryScatteringAndExtinction, HISTORY_WEIGHT);
 
 	OutResult[gridCoordinate] = preExposedScatteringAndExtinction;

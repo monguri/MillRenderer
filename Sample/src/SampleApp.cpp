@@ -206,7 +206,7 @@ namespace
 	struct alignas(256) CbVolumetricFog
 	{
 		Matrix InvVRotPMatrix;
-		Matrix InvPrevVRotPMatrix;
+		Matrix ClipToPrevClip;
 		int GridSizeX;
 		int GridSizeY;
 		int GridSizeZ;
@@ -470,7 +470,6 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_TemporalAASampleIndex(0)
 , m_PrevWorldForMovable(Matrix::Identity)
 , m_PrevViewProjNoJitter(Matrix::Identity)
-, m_PrevViewRotProjNoJitter(Matrix::Identity)
 , m_enableSSAO(true)
 , m_debugViewSSAO_FullRes(false)
 , m_debugViewSSAO_HalfRes(false)
@@ -3387,7 +3386,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
 		ptr->InvVRotPMatrix = Matrix::Identity;
-		ptr->InvPrevVRotPMatrix = Matrix::Identity;
+		ptr->ClipToPrevClip = Matrix::Identity;
 		ptr->GridSizeX = (int)m_VolumetricFogScatteringTarget[m_FrameIndex].GetDesc().Width;
 		ptr->GridSizeY = m_VolumetricFogScatteringTarget[m_FrameIndex].GetDesc().Height;
 		ptr->GridSizeZ = m_VolumetricFogScatteringTarget[m_FrameIndex].GetDesc().DepthOrArraySize;
@@ -4131,7 +4130,7 @@ void SampleApp::OnRender()
 	const ColorTarget& volumetricFogScatteringPrevTarget = m_VolumetricFogScatteringTarget[m_FrameIndex];
 	const ColorTarget& volumetricFogScatteringCurTarget = m_VolumetricFogScatteringTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
 
-	DrawVolumetricFogScattering(pCmd, viewRotProjNoJitter, m_PrevViewRotProjNoJitter, volumetricFogScatteringPrevTarget, volumetricFogScatteringCurTarget);
+	DrawVolumetricFogScattering(pCmd, viewRotProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter, volumetricFogScatteringPrevTarget, volumetricFogScatteringCurTarget);
 	DrawVolumetricFogIntegration(pCmd, volumetricFogScatteringCurTarget);
 	DrawVolumetricFogComposition(pCmd);
 
@@ -4190,7 +4189,6 @@ void SampleApp::OnRender()
 
 	m_PrevWorldForMovable = worldForMovable;
 	m_PrevViewProjNoJitter = viewProjNoJitter;
-	m_PrevViewRotProjNoJitter = viewRotProjNoJitter;
 }
 
 void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
@@ -4829,14 +4827,14 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewRotProjNoJitter, const ColorTarget& prevTarget, const ColorTarget& curTarget)
+void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProjNoJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter, const ColorTarget& prevTarget, const ColorTarget& curTarget)
 {
 	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogScattering");
 
 	{
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
 		ptr->InvVRotPMatrix = viewRotProjNoJitter.Invert();
-		ptr->InvPrevVRotPMatrix = prevViewRotProjNoJitter.Invert();
+		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * prevViewProjNoJitter;
 		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
 		ptr->bEnableVolumetrcFog = (m_enableVolumetricFog ? 1 : 0); 
 	}

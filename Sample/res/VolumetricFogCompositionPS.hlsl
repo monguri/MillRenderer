@@ -7,7 +7,7 @@ struct VSOutput
 cbuffer CbVolumetricFog : register(b0)
 {
 	float4x4 InvVRotPMatrix : packoffset(c0);
-	float4x4 InvPrevVRotPMatrix : packoffset(c4);
+	float4x4 ClipToPrevClip : packoffset(c4);
 	int3 GridSize : packoffset(c8);
 	float Near : packoffset(c8.w);
 	float Far : packoffset(c9);
