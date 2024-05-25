@@ -12,7 +12,6 @@ cbuffer CbVolumetricFog : register(b0)
 }
 
 Texture3D LightScattering : register(t0);
-SamplerState PointClampSmp : register(s0);
 
 RWTexture3D<float4> OutResult : register(u0);
 

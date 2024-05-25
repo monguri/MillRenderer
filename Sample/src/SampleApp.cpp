@@ -2520,7 +2520,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			.SetCBV(ShaderStage::ALL, 0, 0)
 			.SetSRV(ShaderStage::ALL, 1, 0)
 			.SetUAV(ShaderStage::ALL, 2, 0)
-			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
 			.End();
 
 		if (!m_VolumetricFogIntegrationRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
