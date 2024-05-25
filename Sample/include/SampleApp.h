@@ -145,6 +145,7 @@ private:
 	uint32_t m_TemporalAASampleIndex;
 	DirectX::SimpleMath::Matrix m_PrevWorldForMovable;
 	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitter;
+	DirectX::SimpleMath::Matrix m_PrevViewRotProjNoJitter;
 
 	bool m_enableSSAO;
 	bool m_debugViewSSAO_FullRes;
@@ -175,7 +176,7 @@ private:
 	void DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter);
 	void DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter);
 	void DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj);
-	void DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProj, const ColorTarget& prevTarget, const ColorTarget& curTarget);
+	void DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewRotProjNoJitter, const ColorTarget& prevTarget, const ColorTarget& curTarget);
 	void DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& curTarget);
 	void DrawVolumetricFogComposition(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& prevTarget, const ColorTarget& curTarget);
