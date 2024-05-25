@@ -17,6 +17,7 @@ static const uint THREAD_GROUP_SIZE_XYZ = 4;
 static const float DIRECTIONAL_LIGHT_SCATTERING_INTENSITY = 1000.0f; // refered UE
 //static const float SPOT_LIGHT_SCATTERING_INTENSITY = 1.0f; // refered UE
 static const float SPOT_LIGHT_SCATTERING_INTENSITY = 10000.0f; // refered UE
+static const float INVERSE_SQUARED_LIGHT_DISTANCE_BIAS_SCALE = 1.0f; // refered UE
 static const float SCATTERING_DISTRIBUTION = 0.2f; // refered UE
 static const float HISTORY_WEIGHT = 0.9; // refered UE
 
@@ -178,6 +179,7 @@ float3 EvaluateSpotLight
 (
 	float3 worldPos,
 	float3 lightPos,
+	float distBiasSq,
 	float lightInvRadiusSq,
 	float3 lightForward,
 	float3 lightColor,
@@ -188,7 +190,7 @@ float3 EvaluateSpotLight
 {
 	float3 unnormalizedLightVector = lightPos - worldPos;
 	float sqrDist = dot(unnormalizedLightVector, unnormalizedLightVector);
-	float att = 1.0f / max(sqrDist, MIN_DIST * MIN_DIST);
+	float att = 1.0f / max(sqrDist + distBiasSq, MIN_DIST * MIN_DIST);
 	float3 L = normalize(unnormalizedLightVector);
 	outLightDirection = -L;
 	att *= GetAngleAttenuation(L, -lightForward, lightAngleScale, lightAngleOffset);
@@ -214,11 +216,17 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
 	lightScattering += DirLightColor * DirLightIntensity * dirLightShadowMult * DIRECTIONAL_LIGHT_SCATTERING_INTENSITY * HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-DirLightForward, -cameraVector));
 
+	float3 cameraOriginNextCellWorldPos = ComputeCellCameraOriginWorldPosition(gridCoordinate + 1, FrameJitterOffsetValue);
+	float cellRadius = length(cameraOriginNextCellWorldPos - cameraOriginWorldPos);
+	float distBiasSq = max(cellRadius * INVERSE_SQUARED_LIGHT_DISTANCE_BIAS_SCALE, 0.01f); //TODO: magic number 1cm, refered UE.
+	distBiasSq *= distBiasSq;
+
 	float3 spotLight1Dir = 0;
 	float3 spotLight1 = EvaluateSpotLight
 	(
 		worldPos, // TODO: do with camera origin WS.
 		SpotLight1Position,
+		distBiasSq,
 		SpotLight1InvSqrRadius,
 		SpotLight1Forward,
 		SpotLight1Color,
@@ -240,6 +248,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	(
 		worldPos,
 		SpotLight2Position,
+		distBiasSq,
 		SpotLight2InvSqrRadius,
 		SpotLight2Forward,
 		SpotLight2Color,
@@ -261,6 +270,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	(
 		worldPos,
 		SpotLight3Position,
+		distBiasSq,
 		SpotLight3InvSqrRadius,
 		SpotLight3Forward,
 		SpotLight3Color,
