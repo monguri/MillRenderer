@@ -66,6 +66,13 @@ bool SearchFilePathW(const wchar_t* filename, std::wstring& result)
 		return true;
 	}
 
+	swprintf_s(dstPath, L"..\\..\\..\\%s", filename);
+	if (PathFileExistsW(dstPath) == TRUE)
+	{
+		result = Replace(dstPath, L"\\", L"/");
+		return true;
+	}
+
 	swprintf_s(dstPath, L".\\res\\%s", filename);
 	if (PathFileExistsW(dstPath) == TRUE)
 	{
@@ -93,6 +100,13 @@ bool SearchFilePathW(const wchar_t* filename, std::wstring& result)
 	}
 
 	swprintf_s(dstPath, L"%s\\..\\..\\%s", exePath, filename);
+	if (PathFileExistsW(dstPath) == TRUE)
+	{
+		result = Replace(dstPath, L"\\", L"/");
+		return true;
+	}
+
+	swprintf_s(dstPath, L"%s\\..\\..\\..\\%s", exePath, filename);
 	if (PathFileExistsW(dstPath) == TRUE)
 	{
 		result = Replace(dstPath, L"\\", L"/");
