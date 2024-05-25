@@ -90,12 +90,13 @@ cbuffer CbTransform : register(b6)
 	float4x4 WorldToSpotLight3ShadowMap : packoffset(c16);
 }
 
-Texture2D DirLightShadowMap : register(t0);
-Texture2D SpotLight1ShadowMap : register(t1);
-Texture2D SpotLight2ShadowMap : register(t2);
-Texture2D SpotLight3ShadowMap : register(t3);
+Texture3D HistoryMap : register(t0);
+Texture2D DirLightShadowMap : register(t1);
+Texture2D SpotLight1ShadowMap : register(t2);
+Texture2D SpotLight2ShadowMap : register(t3);
+Texture2D SpotLight3ShadowMap : register(t4);
 
-SamplerState PointClampSmp : register(s0);
+SamplerState LinearClampSmp : register(s0);
 SamplerComparisonState ShadowSmp : register(s1);
 
 RWTexture3D<float4> OutResult : register(u0);

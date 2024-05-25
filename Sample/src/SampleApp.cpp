@@ -1344,22 +1344,25 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-		if (!m_VolumetricFogScatteringTarget.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
-			volumetricFogGridSizeX,
-			volumetricFogGridSizeY,
-			DXGI_FORMAT_R16G16B16A16_FLOAT,
-			clearColor,
-			1,
-			VOLUMETRIC_FOG_GRID_SIZE_Z
-		))
+		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
-			return false;
+			if (!m_VolumetricFogScatteringTarget[i].InitUnorderedAccessTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES],
+				nullptr, // RTVは作らない。クリアする必要がないので
+				m_pPool[POOL_TYPE_RES],
+				volumetricFogGridSizeX,
+				volumetricFogGridSizeY,
+				DXGI_FORMAT_R16G16B16A16_FLOAT,
+				clearColor,
+				1,
+				VOLUMETRIC_FOG_GRID_SIZE_Z
+			))
+			{
+				ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
+				return false;
+			}
 		}
 	}
 
@@ -2462,8 +2465,9 @@ bool SampleApp::OnInit(HWND hWnd)
 			.SetSRV(ShaderStage::ALL, 8, 1)
 			.SetSRV(ShaderStage::ALL, 9, 2)
 			.SetSRV(ShaderStage::ALL, 10, 3)
-			.SetUAV(ShaderStage::ALL, 11, 0)
-			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
+			.SetSRV(ShaderStage::ALL, 11, 4)
+			.SetUAV(ShaderStage::ALL, 12, 0)
+			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearClamp)
 			.AddStaticCmpSmp(ShaderStage::ALL, 1, SamplerState::MinMagLinearMipPointClamp)
 			.End();
 
@@ -3381,9 +3385,9 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
 		ptr->InvVRotPMatrix = Matrix::Identity;
-		ptr->GridSizeX = (int)m_VolumetricFogScatteringTarget.GetDesc().Width;
-		ptr->GridSizeY = m_VolumetricFogScatteringTarget.GetDesc().Height;
-		ptr->GridSizeZ = m_VolumetricFogScatteringTarget.GetDesc().DepthOrArraySize;
+		ptr->GridSizeX = (int)m_VolumetricFogScatteringTarget[m_FrameIndex].GetDesc().Width;
+		ptr->GridSizeY = m_VolumetricFogScatteringTarget[m_FrameIndex].GetDesc().Height;
+		ptr->GridSizeZ = m_VolumetricFogScatteringTarget[m_FrameIndex].GetDesc().DepthOrArraySize;
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
@@ -3885,7 +3889,10 @@ void SampleApp::OnTerm()
 
 	m_SSR_Targt.Term();
 
-	m_VolumetricFogScatteringTarget.Term();
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
+	{
+		m_VolumetricFogScatteringTarget[i].Term();
+	}
 	m_VolumetricFogIntegrationTarget.Term();
 	m_VolumetricCompositionTarget.Term();
 
@@ -4118,23 +4125,26 @@ void SampleApp::OnRender()
 		DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
 	}
 
+	const ColorTarget& volumetricFogScatteringPrevTarget = m_VolumetricFogScatteringTarget[m_FrameIndex];
+	const ColorTarget& volumetricFogScatteringCurTarget = m_VolumetricFogScatteringTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+
 	if (m_enableTemporalAA)
 	{
-		DrawVolumetricFogScattering(pCmd, viewRotProjWithJitter);
+		DrawVolumetricFogScattering(pCmd, viewRotProjWithJitter, volumetricFogScatteringPrevTarget, volumetricFogScatteringCurTarget);
 	}
 	else
 	{
-		DrawVolumetricFogScattering(pCmd, viewRotProjNoJitter);
+		DrawVolumetricFogScattering(pCmd, viewRotProjNoJitter, volumetricFogScatteringPrevTarget, volumetricFogScatteringCurTarget);
 	}
-	DrawVolumetricFogIntegration(pCmd);
+	DrawVolumetricFogIntegration(pCmd, volumetricFogScatteringCurTarget);
 	DrawVolumetricFogComposition(pCmd);
 
-	const ColorTarget& temporalAA_SrcTarget = m_TemporalAA_Target[m_FrameIndex];
-	const ColorTarget& temporalAA_DstTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+	const ColorTarget& temporalAA_PrevTarget = m_TemporalAA_Target[m_FrameIndex];
+	const ColorTarget& temporalAA_CurTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
 
-	DrawTemporalAA(pCmd, viewProjNoJitter, temporalJitetrPixelsX, temporalJitetrPixelsY, temporalAA_SrcTarget, temporalAA_DstTarget);
+	DrawTemporalAA(pCmd, viewProjNoJitter, temporalJitetrPixelsX, temporalJitetrPixelsY, temporalAA_PrevTarget, temporalAA_CurTarget);
 
-	DrawMotionBlur(pCmd, temporalAA_DstTarget);
+	DrawMotionBlur(pCmd, temporalAA_CurTarget);
 
 	DrawBloomSetup(pCmd);
 
@@ -4822,7 +4832,7 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	DirectX::TransitionResource(pCmdList, m_SSR_Targt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProj)
+void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProj, const ColorTarget& prevTarget, const ColorTarget& curTarget)
 {
 	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogScattering");
 
@@ -4833,12 +4843,13 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 		ptr->bEnableVolumetrcFog = (m_enableVolumetricFog ? 1 : 0); 
 	}
 
-	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 	{
 		DirectX::TransitionResource(pCmdList, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	}
+	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_VolumetricFogScatteringRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricFogScatteringPSO.Get());
@@ -4851,41 +4862,43 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	pCmdList->SetComputeRootDescriptorTable(2 + NUM_SPOT_LIGHTS, m_CameraCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_TransformCB[m_FrameIndex].GetHandleGPU());
 
-	pCmdList->SetComputeRootDescriptorTable(4 + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4 + NUM_SPOT_LIGHTS, prevTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(5 + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
 	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 	{
-		pCmdList->SetComputeRootDescriptorTable(5 + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(6 + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 	}
 
-	pCmdList->SetComputeRootDescriptorTable(5 + NUM_SPOT_LIGHTS * 2, m_VolumetricFogScatteringTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(6 + NUM_SPOT_LIGHTS * 2, curTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_XYZ = 4;
 
-	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_VolumetricFogScatteringTarget.GetDesc().Width, GROUP_SIZE_XYZ);
-	UINT NumGroupY = DivideAndRoundUp(m_VolumetricFogScatteringTarget.GetDesc().Height, GROUP_SIZE_XYZ);
-	UINT NumGroupZ = DivideAndRoundUp(m_VolumetricFogScatteringTarget.GetDesc().DepthOrArraySize, GROUP_SIZE_XYZ);
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)curTarget.GetDesc().Width, GROUP_SIZE_XYZ);
+	UINT NumGroupY = DivideAndRoundUp(curTarget.GetDesc().Height, GROUP_SIZE_XYZ);
+	UINT NumGroupZ = DivideAndRoundUp(curTarget.GetDesc().DepthOrArraySize, GROUP_SIZE_XYZ);
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
-	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 	{
 		DirectX::TransitionResource(pCmdList, m_SpotLightShadowMapTarget[i].GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
+	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& curTarget)
 {
 	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogIntegration");
 
-	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogIntegrationTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_VolumetricFogIntegrationRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricFogIntegrationPSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricFogScatteringTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, curTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogIntegrationTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
@@ -4896,7 +4909,7 @@ void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
-	DirectX::TransitionResource(pCmdList, m_VolumetricFogScatteringTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogIntegrationTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -4930,7 +4943,7 @@ void SampleApp::DrawVolumetricFogComposition(ID3D12GraphicsCommandList* pCmdList
 	DirectX::TransitionResource(pCmdList, m_VolumetricCompositionTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& SrcColor, const ColorTarget& DstColor)
+void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& prevTarget, const ColorTarget& curTarget)
 {
 	ScopedTimer scopedTimer(pCmdList, L"TemporalAA");
 
@@ -4975,17 +4988,17 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	}
 
 	DirectX::TransitionResource(pCmdList, m_VolumetricCompositionTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAA_CB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricCompositionTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, SrcColor.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, prevTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_VelocityTargt.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(4, DstColor.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, curTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
@@ -4998,9 +5011,9 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, const Direct
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
 	DirectX::TransitionResource(pCmdList, m_VolumetricCompositionTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, SrcColor.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
