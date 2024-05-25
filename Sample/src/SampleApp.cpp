@@ -4128,14 +4128,7 @@ void SampleApp::OnRender()
 	const ColorTarget& volumetricFogScatteringPrevTarget = m_VolumetricFogScatteringTarget[m_FrameIndex];
 	const ColorTarget& volumetricFogScatteringCurTarget = m_VolumetricFogScatteringTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
 
-	if (m_enableTemporalAA)
-	{
-		DrawVolumetricFogScattering(pCmd, viewRotProjWithJitter, volumetricFogScatteringPrevTarget, volumetricFogScatteringCurTarget);
-	}
-	else
-	{
-		DrawVolumetricFogScattering(pCmd, viewRotProjNoJitter, volumetricFogScatteringPrevTarget, volumetricFogScatteringCurTarget);
-	}
+	DrawVolumetricFogScattering(pCmd, viewRotProjNoJitter, volumetricFogScatteringPrevTarget, volumetricFogScatteringCurTarget);
 	DrawVolumetricFogIntegration(pCmd, volumetricFogScatteringCurTarget);
 	DrawVolumetricFogComposition(pCmd);
 
