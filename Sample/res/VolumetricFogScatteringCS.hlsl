@@ -198,7 +198,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 {
 	uint3 gridCoordinate = DTid;
 
-	float3 cameraOriginWorldPos = ComputeCellCameraOriginWorldPosition(gridCoordinate, 0.5f);
+	float3 cameraOriginWorldPos = ComputeCellCameraOriginWorldPosition(gridCoordinate, FrameJitterOffsetValue);
 	float3 cameraVector = normalize(cameraOriginWorldPos);
 	// TODO: do with camera origin WS.
 	float3 worldPos = CameraPosition + cameraOriginWorldPos;
