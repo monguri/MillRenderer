@@ -18,6 +18,7 @@ static const float DIRECTIONAL_LIGHT_SCATTERING_INTENSITY = 1000.0f; // refered 
 //static const float SPOT_LIGHT_SCATTERING_INTENSITY = 1.0f; // refered UE
 static const float SPOT_LIGHT_SCATTERING_INTENSITY = 10000.0f; // refered UE
 static const float SCATTERING_DISTRIBUTION = 0.2f; // refered UE
+static const float HISTORY_WEIGHT = 0.9; // refered UE
 
 cbuffer CbVolumetricFog : register(b0)
 {
@@ -281,6 +282,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float extinction = materialScatteringAndAbsorption.w + luminance(materialScatteringAndAbsorption.rgb);
 
 	float4 preExposedScatteringAndExtinction = float4(lightScattering * materialScatteringAndAbsorption.xyz, extinction);
+
+	float4 preExposedHistoryScatteringAndExtinction = HistoryMap.SampleLevel(LinearClampSmp, (gridCoordinate + 0.5f) / GridSize, 0);
+	preExposedScatteringAndExtinction = lerp(preExposedScatteringAndExtinction, preExposedHistoryScatteringAndExtinction, HISTORY_WEIGHT);
 
 	OutResult[gridCoordinate] = preExposedScatteringAndExtinction;
 }
