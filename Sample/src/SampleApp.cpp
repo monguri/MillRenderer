@@ -470,6 +470,9 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_TemporalAASampleIndex(0)
 , m_PrevWorldForMovable(Matrix::Identity)
 , m_PrevViewProjNoJitter(Matrix::Identity)
+, m_DirectionalLightIntensity(10.0f)
+, m_PointLightIntensity(100.0f)
+, m_SpotLightIntensity(1000.0f)
 , m_enableSSAO(true)
 , m_debugViewSSAO_FullRes(false)
 , m_debugViewSSAO_HalfRes(false)
@@ -829,22 +832,22 @@ bool SampleApp::OnInit(HWND hWnd)
 			CbPointLight* ptr = m_PointLightCB[0].GetPtr<CbPointLight>();
 			// 少し黄色っぽい光
 			//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_PointLightIntensity);
 
 			ptr = m_PointLightCB[1].GetPtr<CbPointLight>();
 			// 少し黄色っぽい光
 			//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_PointLightIntensity);
 
 			ptr = m_PointLightCB[2].GetPtr<CbPointLight>();
 			// 少し黄色っぽい光
 			//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_PointLightIntensity);
 
 			ptr = m_PointLightCB[3].GetPtr<CbPointLight>();
 			// 少し黄色っぽい光
 			//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
+			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_PointLightIntensity);
 		}
 
 		// スポットライトバッファの設定
@@ -868,7 +871,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			const Vector3& SpotLight1Pos = Vector3(0.0f, 4.0f, 0.0f);
 			CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 			// 少し赤っぽい光
-			*ptr = ComputeSpotLight(0, SpotLight1Dir, SpotLight1Pos, 20.0f, Vector3(1.0f, 0.5f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
+			*ptr = ComputeSpotLight(0, SpotLight1Dir, SpotLight1Pos, 20.0f, Vector3(1.0f, 0.5f, 0.5f), m_SpotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 			CbTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight1Dir, SpotLight1Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 
@@ -876,7 +879,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			const Vector3& SpotLight2Pos = Vector3(0.0f, 10.0f, 0.0f);
 			ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
 			// 少し緑っぽい光
-			*ptr = ComputeSpotLight(0, SpotLight2Dir, SpotLight2Pos, 20.0f, Vector3(0.5f, 1.0f, 0.5f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
+			*ptr = ComputeSpotLight(0, SpotLight2Dir, SpotLight2Pos, 20.0f, Vector3(0.5f, 1.0f, 0.5f), m_SpotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
 			tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight2Dir, SpotLight2Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
@@ -885,7 +888,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			const Vector3& SpotLight3Pos = Vector3(0.0f, 4.0f, 0.0f);
 			ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
 			// 少し青っぽい光
-			*ptr = ComputeSpotLight(0, SpotLight3Dir, SpotLight3Pos, 20.0f, Vector3(0.5f, 0.5f, 1.0f), 1000.0f, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
+			*ptr = ComputeSpotLight(0, SpotLight3Dir, SpotLight3Pos, 20.0f, Vector3(0.5f, 0.5f, 1.0f), m_SpotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
 			tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight3Dir, SpotLight3Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
@@ -4293,14 +4296,28 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		ptr->CameraPosition = m_Camera.GetPosition();
 	}
 
-	// ディレクショナルライトバッファの更新
+	// ライトバッファの更新
 	if (RENDER_SPONZA)
 	{
-		CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
-		ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f); // 白色光
-		ptr->LightForward = lightForward;
-		ptr->LightIntensity = 10.0f;
-		ptr->ShadowMapSize = Vector2((float)DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE, 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE);
+		{
+			CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
+			ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f); // 白色光
+			ptr->LightForward = lightForward;
+			ptr->LightIntensity = m_DirectionalLightIntensity;
+			ptr->ShadowMapSize = Vector2((float)DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE, 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE);
+		}
+
+		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+		{
+			CbPointLight* ptr = m_PointLightCB[i].GetPtr<CbPointLight>();
+			ptr->LightIntensity = m_PointLightIntensity;
+		}
+
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			CbSpotLight* ptr = m_SpotLightCB[i].GetPtr<CbSpotLight>();
+			ptr->LightIntensity = m_SpotLightIntensity;
+		}
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -5334,6 +5351,10 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 
 	ImGui::Begin("Render Settings");
 
+	ImGui::Text("Light Intensity");
+	ImGui::SliderFloat("Dir Light", &m_DirectionalLightIntensity, 0.0f, 100.0f);
+	ImGui::SliderFloat("Point Light", &m_PointLightIntensity, 0.0f, 1000.0f);
+	ImGui::SliderFloat("Spot Light", &m_SpotLightIntensity, 0.0f, 10000.0f);
 	ImGui::Checkbox("SSAO", &m_enableSSAO);
 	ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
 	ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
@@ -5498,12 +5519,15 @@ void SampleApp::ChangeDisplayMode(bool hdr)
 
 void SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-	// imguiのウィンドウ処理
+	// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+	extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	// 失敗してもこの後の処理は行いたいので戻り値は無視している
+	ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp);
+
+	// imguiウィンドウ内でマウスイベントを扱っているときは他のウィンドウでマウスイベントは扱わない
+	if (ImGui::GetIO().WantCaptureMouse)
 	{
-		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
-		extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-		// 失敗してもこの後の処理は行いたいので戻り値は無視している
-		ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp);
+		return;
 	}
 
 	if (

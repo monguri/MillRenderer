@@ -146,6 +146,9 @@ private:
 	DirectX::SimpleMath::Matrix m_PrevWorldForMovable;
 	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitter;
 
+	float m_DirectionalLightIntensity;
+	float m_PointLightIntensity;
+	float m_SpotLightIntensity;
 	bool m_enableSSAO;
 	bool m_debugViewSSAO_FullRes;
 	bool m_debugViewSSAO_HalfRes;
