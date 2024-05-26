@@ -172,8 +172,10 @@ namespace
 		float Far;
 		float InvTanHalfFov;
 		int bHalfRes;
+		float Contrast;
+		float Intensity;
 		int bEnableSSAO;
-		float Padding[2];
+		float Padding[3];
 	};
 
 	struct alignas(256) CbObjectVelocity
@@ -474,6 +476,8 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_PointLightIntensity(100.0f)
 , m_SpotLightIntensity(1000.0f)
 , m_enableSSAO(true)
+, m_SSAO_Contrast(1.0f)
+, m_SSAO_Intensity(0.5f)
 , m_debugViewSSAO_FullRes(false)
 , m_debugViewSSAO_HalfRes(false)
 , m_enableVelocity(true)
@@ -3304,6 +3308,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
+		ptr->Contrast = m_SSAO_Contrast;
+		ptr->Intensity = m_SSAO_Intensity;
 		ptr->bEnableSSAO = m_enableSSAO ? 1 : 0;
 	}
 
@@ -3327,6 +3333,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
+		ptr->Contrast = m_SSAO_Contrast;
+		ptr->Intensity = m_SSAO_Intensity;
 		ptr->bEnableSSAO = m_enableSSAO ? 1 : 0;
 	}
 
@@ -4611,6 +4619,8 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 			ptr->ViewMatrix = m_Camera.GetView();
 			ptr->InvProjMatrix = proj.Invert();
 			ptr->bHalfRes = 1;
+			ptr->Contrast = m_SSAO_Contrast;
+			ptr->Intensity = m_SSAO_Intensity;
 			ptr->bEnableSSAO = m_enableSSAO ? 1 : 0;
 		}
 
@@ -4658,6 +4668,8 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 			ptr->ViewMatrix = m_Camera.GetView();
 			ptr->InvProjMatrix = proj.Invert();
 			ptr->bHalfRes = 0;
+			ptr->Contrast = m_SSAO_Contrast;
+			ptr->Intensity = m_SSAO_Intensity;
 			ptr->bEnableSSAO = m_enableSSAO ? 1 : 0;
 		}
 
@@ -5356,6 +5368,8 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SliderFloat("Point Light", &m_PointLightIntensity, 0.0f, 1000.0f);
 	ImGui::SliderFloat("Spot Light", &m_SpotLightIntensity, 0.0f, 10000.0f);
 	ImGui::Checkbox("SSAO", &m_enableSSAO);
+	ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.1f, 10.0f);
+	ImGui::SliderFloat("SSAO Intensity", &m_SSAO_Intensity, 0.0f, 1.0f);
 	ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
 	ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
 	ImGui::Checkbox("Velocity", &m_enableVelocity);

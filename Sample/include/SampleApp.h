@@ -150,6 +150,8 @@ private:
 	float m_PointLightIntensity;
 	float m_SpotLightIntensity;
 	bool m_enableSSAO;
+	float m_SSAO_Contrast;
+	float m_SSAO_Intensity;
 	bool m_debugViewSSAO_FullRes;
 	bool m_debugViewSSAO_HalfRes;
 	bool m_enableVelocity;
