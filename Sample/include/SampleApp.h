@@ -158,6 +158,7 @@ private:
 	bool m_enableSSR;
 	bool m_debugViewSSR;
 	bool m_enableBloom;
+	float m_BloomIntensity;
 	bool m_enableMotionBlur;
 	bool m_enableVolumetricFog;
 	bool m_enableTemporalAA;

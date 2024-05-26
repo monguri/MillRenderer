@@ -21,6 +21,7 @@ cbuffer CbTonemap : register(b0)
 	float BaseLuminance : packoffset(c0.z);
 	float MaxLuminance : packoffset(c0.w);
 	int bEnableBloom : packoffset(c1);
+	float BloomIntensity : packoffset(c1.y);
 }
 
 Texture2D ColorMap : register(t0);
@@ -186,7 +187,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float3 linearColor = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
 	if (bEnableBloom)
 	{
-		linearColor += BloomMap.Sample(PointClampSmp, input.TexCoord).rgb;
+		linearColor += BloomMap.Sample(PointClampSmp, input.TexCoord).rgb * BloomIntensity;
 	}
 
 	float4 result = float4(linearColor, 1);

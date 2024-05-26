@@ -244,7 +244,8 @@ namespace
 		float BaseLuminance;
 		float MaxLuminance;
 		int bEnableBloom;
-		float Padding[3];
+		float BloomIntensity;
+		float Padding[2];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -484,6 +485,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_enableSSR(true)
 , m_debugViewSSR(false)
 , m_enableBloom(true)
+, m_BloomIntensity(1.0f)
 , m_enableMotionBlur(false)
 , m_enableVolumetricFog(true)
 , m_enableTemporalAA(true)
@@ -3547,6 +3549,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		CbTonemap* ptr = m_TonemapCB[i].GetPtr<CbTonemap>();
 		ptr->bEnableBloom = (m_enableBloom ? 1 : 0);
+		ptr->BloomIntensity = m_BloomIntensity;
 	}
 
 	// FXAA用定数バッファの作成
@@ -5118,6 +5121,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 		ptr->BaseLuminance = m_BaseLuminance;
 		ptr->MaxLuminance = m_MaxLuminance;
 		ptr->bEnableBloom = (m_enableBloom ? 1 : 0);
+		ptr->BloomIntensity = m_BloomIntensity;
 	}
 
 	DirectX::TransitionResource(pCmdList, m_TonemapTarget.GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -5376,6 +5380,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::Checkbox("SSR", &m_enableSSR);
 	ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
 	ImGui::Checkbox("Bloom", &m_enableBloom);
+	ImGui::SliderFloat("Bloom Intensity", &m_BloomIntensity, 0.0f, 10.0f);
 	ImGui::Checkbox("Motion Blur", &m_enableMotionBlur);
 	ImGui::Checkbox("Volumetric Fog", &m_enableVolumetricFog);
 	ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
