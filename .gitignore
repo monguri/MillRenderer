@@ -17,6 +17,7 @@
 mono_crash.*
 
 # Build results
+# monguri commented out to add exe, cso and dll file.
 #[Dd]ebug/
 #[Dd]ebugPublic/
 #[Rr]elease/
@@ -396,9 +397,19 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
+# monguri added.
+
 # Shader compiled header file
 *.inc
 
 # Assimp lib/dll
 !assimp/lib/Debug/
 !assimp/lib/Release/
+
+# others in x64/[Debug, Release]
+*.lib
+*.obj
+*.idb
+*.recipe
+*.vcxproj.*
+texconv.exe
