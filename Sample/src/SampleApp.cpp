@@ -5371,7 +5371,9 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
 	ImGui::Checkbox("Velocity", &m_enableVelocity);
 	ImGui::SliderFloat("SSR Intensity", &m_SSR_Intensity, 0.0f, 10.0f);
+#if 0 // TODO: SSRだけでなくVolumetricFogも表示されるので、一旦機能をカット。将来的に他のパスについてもDebugViewを一通り揃えるなら改めてSSRについても正しいものを追加する
 	ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
+#endif
 	ImGui::SliderFloat("Bloom Intensity", &m_BloomIntensity, 0.0f, 10.0f);
 	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
 	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
