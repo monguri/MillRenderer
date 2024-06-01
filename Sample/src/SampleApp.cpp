@@ -79,6 +79,16 @@ namespace
 		TONEMAP_KHRONOS_PBR_NEUTRAL,
 	};
 
+	enum DEBUG_VIEW_RENDER_TARGET
+	{
+		DEBUG_VIEW_NONE = 0,
+		DEBUG_VIEW_DEPTH,
+		DEBUG_VIEW_NORMAL,
+		DEBUG_VIEW_SSAO_FULL_RES,
+		DEBUG_VIEW_SSAO_HALF_RES,
+		DEBUG_VIEW_VELOCITY,
+	};
+
 	struct alignas(256) CbMesh
 	{
 		Matrix World;
@@ -484,11 +494,8 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_spotLightIntensity(1000.0f)
 , m_SSAO_Contrast(1.0f)
 , m_SSAO_Intensity(0.5f)
-, m_debugViewSSAO_FullRes(false)
-, m_debugViewSSAO_HalfRes(false)
 , m_enableVelocity(true)
-, m_debugViewVelocity(false)
-, m_debugViewVelocityContrast(1.0f)
+, m_debugViewContrast(1.0f)
 , m_SSR_Intensity(1.0f)
 , m_debugViewSSR(false)
 , m_BloomIntensity(1.0f)
@@ -499,6 +506,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_enableTemporalAA(true)
 , m_enableFXAA(false)
 , m_enableFXAA_HighQuality(true)
+, m_debugViewRenderTarget(DEBUG_VIEW_NONE)
 {
 }
 
@@ -4211,7 +4219,7 @@ void SampleApp::OnRender()
 
 	DrawFXAA(pCmd);
 
-	if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes || m_debugViewVelocity)
+	if (m_debugViewRenderTarget != DEBUG_VIEW_NONE)
 	{
 		DrawDebugView(pCmd);
 	}
@@ -5329,41 +5337,59 @@ void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarge
 
 void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
 {
-	std::wstring debugPath;
-	if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes)
+	std::wstring debugRenderTarget;
+	switch (m_debugViewRenderTarget)
 	{
-		debugPath = L"SSAO";
-	}
-	else if (m_debugViewVelocity)
-	{
-		debugPath = L"Velocity";
-	}
-	else
-	{
-		assert(false);
+		case DEBUG_VIEW_NONE:
+			assert(false);
+			break;
+		case DEBUG_VIEW_DEPTH:
+			debugRenderTarget = L"Depth";
+			break;
+		case DEBUG_VIEW_NORMAL:
+			debugRenderTarget = L"Normal";
+			break;
+		case DEBUG_VIEW_SSAO_FULL_RES:
+			debugRenderTarget = L"SSAO FullRes";
+			break;
+		case DEBUG_VIEW_SSAO_HALF_RES:
+			debugRenderTarget = L"SSAO FullRes";
+			break;
+		case DEBUG_VIEW_VELOCITY:
+			debugRenderTarget = L"Velocity";
+			break;
+		default:
+			assert(false);
+			break;
 	}
 
-	ScopedTimer scopedTimer(pCmdList, L"DebugView " + debugPath);
+	ScopedTimer scopedTimer(pCmdList, L"DebugView " + debugRenderTarget);
 
 	{
 		CbSampleTexture* ptr = m_DebugViewCB.GetPtr<CbSampleTexture>();
-		if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes)
+		ptr->Contrast = m_debugViewContrast;
+
+		switch (m_debugViewRenderTarget)
 		{
-			ptr->bOnlyRedChannel = 1;
-			ptr->Contrast = 1.0f;
-			ptr->Scale = 1.0f;
-			ptr->Bias = 0.0f;
-		}
-		else if (m_debugViewVelocity)
-		{
-			ptr->bOnlyRedChannel = 0;
-			ptr->Contrast = m_debugViewVelocityContrast;
-			ptr->Scale = 0.5f;
-			ptr->Bias = 0.5f;
-		}
-		else
-		{
-			assert(false);
+			case DEBUG_VIEW_NONE:
+				assert(false);
+				break;
+			case DEBUG_VIEW_DEPTH:
+			case DEBUG_VIEW_SSAO_FULL_RES:
+			case DEBUG_VIEW_SSAO_HALF_RES:
+				ptr->bOnlyRedChannel = 1;
+				ptr->Scale = 1.0f;
+				ptr->Bias = 0.0f;
+				break;
+			case DEBUG_VIEW_NORMAL:
+			case DEBUG_VIEW_VELOCITY:
+				ptr->bOnlyRedChannel = 0;
+				ptr->Scale = 0.5f;
+				ptr->Bias = 0.5f;
+				break;
+			default:
+				assert(false);
+				break;
 		}
 	}
 
@@ -5385,21 +5411,29 @@ void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_DebugViewRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pDebugViewPSO.Get());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_DebugViewCB.GetHandleGPU());
-	if (m_debugViewSSAO_FullRes)
+	switch (m_debugViewRenderTarget)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
-	}
-	else if (m_debugViewSSAO_HalfRes)
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
-	}
-	else if (m_debugViewVelocity)
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTargt.GetHandleSRV()->HandleGPU);
-	}
-	else
-	{
-		assert(false);
+		case DEBUG_VIEW_NONE:
+			assert(false);
+			break;
+		case DEBUG_VIEW_DEPTH:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+			break;
+		case DEBUG_VIEW_NORMAL:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+			break;
+		case DEBUG_VIEW_SSAO_FULL_RES:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
+			break;
+		case DEBUG_VIEW_SSAO_HALF_RES:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
+			break;
+		case DEBUG_VIEW_VELOCITY:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTargt.GetHandleSRV()->HandleGPU);
+			break;
+		default:
+			assert(false);
+			break;
 	}
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -5434,6 +5468,15 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	// imgui_demo.cppを参考にしている。右列のラベル部分のサイズを固定する
     ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
 
+	ImGui::SeparatorText("Debug View");
+	ImGui::RadioButton("No Debug View", &m_debugViewRenderTarget, DEBUG_VIEW_NONE);
+	ImGui::RadioButton("Depth", &m_debugViewRenderTarget, DEBUG_VIEW_DEPTH);
+	ImGui::RadioButton("Normal", &m_debugViewRenderTarget, DEBUG_VIEW_NORMAL);
+	ImGui::RadioButton("SSAO FullRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_FULL_RES);
+	ImGui::RadioButton("SSAO HalfRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_HALF_RES);
+	ImGui::RadioButton("Velocity", &m_debugViewRenderTarget, DEBUG_VIEW_VELOCITY);
+	ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
+
 	ImGui::SeparatorText("Light Intensity");
 	ImGui::SliderFloat("Dir Light Intensity", &m_directionalLightIntensity, 0.0f, 100.0f);
 	ImGui::SliderFloat("Point Light Intensity", &m_pointLightIntensity, 0.0f, 1000.0f);
@@ -5442,14 +5485,10 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SeparatorText("SSAO");
 	ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.01f, 10.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	ImGui::SliderFloat("SSAO Intensity", &m_SSAO_Intensity, 0.0f, 1.0f);
-	ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
-	ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
 
 	ImGui::SeparatorText("Velocity and Motion Blur");
 	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
 	ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
-	ImGui::Checkbox("Debug View Velocity", &m_debugViewVelocity);
-	ImGui::SliderFloat("Debug View Velocity Contrast", &m_debugViewVelocityContrast, 0.01f, 10.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
 
 	ImGui::SeparatorText("Volumetric Fog Scattering Intensity");
@@ -5462,7 +5501,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
 
 	ImGui::SeparatorText("Tonemap");
-	ImGui::RadioButton("None", &m_TonemapType, TONEMAP_NONE);
+	ImGui::RadioButton("No Tonemap", &m_TonemapType, TONEMAP_NONE);
 	ImGui::RadioButton("Reinhard", &m_TonemapType, TONEMAP_REINHARD);
 	ImGui::RadioButton("Gran Turismo", &m_TonemapType, TONEMAP_GT);
 	ImGui::RadioButton("Khronos PBR Neutral", &m_TonemapType, TONEMAP_KHRONOS_PBR_NEUTRAL);

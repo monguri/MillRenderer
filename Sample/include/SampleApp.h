@@ -152,11 +152,8 @@ private:
 	float m_spotLightIntensity;
 	float m_SSAO_Contrast;
 	float m_SSAO_Intensity;
-	bool m_debugViewSSAO_FullRes;
-	bool m_debugViewSSAO_HalfRes;
 	bool m_enableVelocity;
-	bool m_debugViewVelocity;
-	float m_debugViewVelocityContrast;
+	float m_debugViewContrast;
 	float m_SSR_Intensity;
 	bool m_debugViewSSR;
 	float m_BloomIntensity;
@@ -167,6 +164,7 @@ private:
 	bool m_enableTemporalAA;
 	bool m_enableFXAA;
 	bool m_enableFXAA_HighQuality;
+	int m_debugViewRenderTarget;
 
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
