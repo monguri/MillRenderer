@@ -213,8 +213,8 @@ namespace
 		float Near;
 		float Far;
 		Vector3 FrameJitterOffsetValue;
-		float DirectionalLightIntensity;
-		float SpotLightIntensity;
+		float DirectionalLightScatteringIntensity;
+		float SpotLightScatteringIntensity;
 		float Padding[2];
 	};
 
@@ -471,9 +471,9 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_TemporalAASampleIndex(0)
 , m_PrevWorldForMovable(Matrix::Identity)
 , m_PrevViewProjNoJitter(Matrix::Identity)
-, m_DirectionalLightIntensity(10.0f)
-, m_PointLightIntensity(100.0f)
-, m_SpotLightIntensity(1000.0f)
+, m_directionalLightIntensity(10.0f)
+, m_pointLightIntensity(100.0f)
+, m_spotLightIntensity(1000.0f)
 , m_SSAO_Contrast(1.0f)
 , m_SSAO_Intensity(0.5f)
 , m_debugViewSSAO_FullRes(false)
@@ -484,8 +484,8 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_BloomIntensity(1.0f)
 , m_motionBlurScale(1.0f)
 , m_moveFlowerVase(false)
-, m_directionalLightVolumetricFogIntensity(1000.0f)
-, m_spotLightVolumetricFogIntensity(10000.0f)
+, m_directionalLightVolumetricFogScatteringIntensity(1000.0f)
+, m_spotLightVolumetricFogScatteringIntensity(10000.0f)
 , m_enableTemporalAA(true)
 , m_enableFXAA(false)
 , m_enableFXAA_HighQuality(true)
@@ -836,22 +836,22 @@ bool SampleApp::OnInit(HWND hWnd)
 			CbPointLight* ptr = m_PointLightCB[0].GetPtr<CbPointLight>();
 			// 少し黄色っぽい光
 			//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_PointLightIntensity);
+			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_pointLightIntensity);
 
 			ptr = m_PointLightCB[1].GetPtr<CbPointLight>();
 			// 少し黄色っぽい光
 			//*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_PointLightIntensity);
+			*ptr = ComputePointLight(Vector3(-4.95f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_pointLightIntensity);
 
 			ptr = m_PointLightCB[2].GetPtr<CbPointLight>();
 			// 少し黄色っぽい光
 			//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_PointLightIntensity);
+			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, 1.15f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_pointLightIntensity);
 
 			ptr = m_PointLightCB[3].GetPtr<CbPointLight>();
 			// 少し黄色っぽい光
 			//*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 5.0f, Vector3(1.0f, 1.0f, 0.5f), 100.0f);
-			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_PointLightIntensity);
+			*ptr = ComputePointLight(Vector3(3.90f, 1.10f, -1.75f), 20.0f, Vector3(1.0f, 1.0f, 0.5f), m_pointLightIntensity);
 		}
 
 		// スポットライトバッファの設定
@@ -875,7 +875,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			const Vector3& SpotLight1Pos = Vector3(0.0f, 4.0f, 0.0f);
 			CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 			// 少し赤っぽい光
-			*ptr = ComputeSpotLight(0, SpotLight1Dir, SpotLight1Pos, 20.0f, Vector3(1.0f, 0.5f, 0.5f), m_SpotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
+			*ptr = ComputeSpotLight(0, SpotLight1Dir, SpotLight1Pos, 20.0f, Vector3(1.0f, 0.5f, 0.5f), m_spotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 			CbTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight1Dir, SpotLight1Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 
@@ -883,7 +883,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			const Vector3& SpotLight2Pos = Vector3(0.0f, 10.0f, 0.0f);
 			ptr = m_SpotLightCB[1].GetPtr<CbSpotLight>();
 			// 少し緑っぽい光
-			*ptr = ComputeSpotLight(0, SpotLight2Dir, SpotLight2Pos, 20.0f, Vector3(0.5f, 1.0f, 0.5f), m_SpotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
+			*ptr = ComputeSpotLight(0, SpotLight2Dir, SpotLight2Pos, 20.0f, Vector3(0.5f, 1.0f, 0.5f), m_spotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
 			tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight2Dir, SpotLight2Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
@@ -892,7 +892,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			const Vector3& SpotLight3Pos = Vector3(0.0f, 4.0f, 0.0f);
 			ptr = m_SpotLightCB[2].GetPtr<CbSpotLight>();
 			// 少し青っぽい光
-			*ptr = ComputeSpotLight(0, SpotLight3Dir, SpotLight3Pos, 20.0f, Vector3(0.5f, 0.5f, 1.0f), m_SpotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
+			*ptr = ComputeSpotLight(0, SpotLight3Dir, SpotLight3Pos, 20.0f, Vector3(0.5f, 0.5f, 1.0f), m_spotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
 			tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight3Dir, SpotLight3Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
@@ -3402,8 +3402,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
-		ptr->DirectionalLightIntensity = m_directionalLightVolumetricFogIntensity;
-		ptr->SpotLightIntensity = m_spotLightVolumetricFogIntensity;
+		ptr->DirectionalLightScatteringIntensity = m_directionalLightVolumetricFogScatteringIntensity;
+		ptr->SpotLightScatteringIntensity = m_spotLightVolumetricFogScatteringIntensity;
 	}
 
 	// TemporalAA用定数バッファの作成
@@ -4310,20 +4310,20 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 			CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
 			ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f); // 白色光
 			ptr->LightForward = lightForward;
-			ptr->LightIntensity = m_DirectionalLightIntensity;
+			ptr->LightIntensity = m_directionalLightIntensity;
 			ptr->ShadowMapSize = Vector2((float)DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE, 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE);
 		}
 
 		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 		{
 			CbPointLight* ptr = m_PointLightCB[i].GetPtr<CbPointLight>();
-			ptr->LightIntensity = m_PointLightIntensity;
+			ptr->LightIntensity = m_pointLightIntensity;
 		}
 
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
 			CbSpotLight* ptr = m_SpotLightCB[i].GetPtr<CbSpotLight>();
-			ptr->LightIntensity = m_SpotLightIntensity;
+			ptr->LightIntensity = m_spotLightIntensity;
 		}
 	}
 
@@ -4862,8 +4862,8 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 		ptr->InvVRotPMatrix = viewRotProjNoJitter.Invert();
 		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * prevViewProjNoJitter;
 		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
-		ptr->DirectionalLightIntensity = m_directionalLightVolumetricFogIntensity;
-		ptr->SpotLightIntensity = m_spotLightVolumetricFogIntensity;
+		ptr->DirectionalLightScatteringIntensity = m_directionalLightVolumetricFogScatteringIntensity;
+		ptr->SpotLightScatteringIntensity = m_spotLightVolumetricFogScatteringIntensity;
 	}
 
 	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -5365,9 +5365,9 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
     ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
 
 	ImGui::SeparatorText("Light Intensity");
-	ImGui::SliderFloat("Dir Light Intensity", &m_DirectionalLightIntensity, 0.0f, 100.0f);
-	ImGui::SliderFloat("Point Light Intensity", &m_PointLightIntensity, 0.0f, 1000.0f);
-	ImGui::SliderFloat("Spot Light Intensity", &m_SpotLightIntensity, 0.0f, 10000.0f);
+	ImGui::SliderFloat("Dir Light Intensity", &m_directionalLightIntensity, 0.0f, 100.0f);
+	ImGui::SliderFloat("Point Light Intensity", &m_pointLightIntensity, 0.0f, 1000.0f);
+	ImGui::SliderFloat("Spot Light Intensity", &m_spotLightIntensity, 0.0f, 10000.0f);
 
 	ImGui::SeparatorText("SSAO");
 	ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.1f, 10.0f);
@@ -5381,8 +5381,8 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
 
 	ImGui::SeparatorText("Volumetric Fog Scattering Intensity");
-	ImGui::SliderFloat("Dir Light Scattering", &m_directionalLightVolumetricFogIntensity, 0.0f, 10000.0f);
-	ImGui::SliderFloat("Spot Light Scattering", &m_spotLightVolumetricFogIntensity, 0.0f, 100000.0f);
+	ImGui::SliderFloat("Dir Light Scattering", &m_directionalLightVolumetricFogScatteringIntensity, 0.0f, 10000.0f);
+	ImGui::SliderFloat("Spot Light Scattering", &m_spotLightVolumetricFogScatteringIntensity, 0.0f, 100000.0f);
 
 	ImGui::SeparatorText("AA");
 	ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);

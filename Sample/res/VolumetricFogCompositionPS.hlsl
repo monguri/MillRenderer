@@ -12,8 +12,8 @@ cbuffer CbVolumetricFog : register(b0)
 	float Near : packoffset(c8.w);
 	float Far : packoffset(c9);
 	float3 FrameJitterOffsetValue : packoffset(c9.y);
-	float DirectionalLightIntensity : packoffset(c10);
-	float SpotLightIntensity : packoffset(c10.y);
+	float DirectionalLightScatteringIntensity : packoffset(c10);
+	float SpotLightScatteringIntensity : packoffset(c10.y);
 }
 
 Texture2D ColorMap : register(t0);

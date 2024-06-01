@@ -13,7 +13,6 @@
 // It must be equal to the value used in cpp.
 static const uint THREAD_GROUP_SIZE_XYZ = 4;
 
-static const float SPOT_LIGHT_SCATTERING_INTENSITY = 1.0f; // refered UE
 static const float INVERSE_SQUARED_LIGHT_DISTANCE_BIAS_SCALE = 1.0f; // refered UE
 static const float SCATTERING_DISTRIBUTION = 0.2f; // refered UE
 static const float HISTORY_WEIGHT = 0.9; // refered UE
@@ -26,8 +25,8 @@ cbuffer CbVolumetricFog : register(b0)
 	float Near : packoffset(c8.w);
 	float Far : packoffset(c9);
 	float3 FrameJitterOffsetValue : packoffset(c9.y);
-	float DirectionalLightIntensity : packoffset(c10);
-	float SpotLightIntensity : packoffset(c10.y);
+	float DirectionalLightScatteringIntensity : packoffset(c10);
+	float SpotLightScatteringIntensity : packoffset(c10.y);
 }
 
 cbuffer CbDirectionalLight : register(b1)
@@ -244,7 +243,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float3 dirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
 	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, ShadowSmp, DirLightShadowMapSize, dirLightShadowCoord, 0);
 
-	lightScattering += DirLightColor * DirLightIntensity * dirLightShadowMult * DirectionalLightIntensity * HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-DirLightForward, -cameraVector));
+	lightScattering += DirLightColor * DirLightIntensity * dirLightShadowMult * DirectionalLightScatteringIntensity * HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-DirLightForward, -cameraVector));
 
 	float3 cameraOriginNextCellWorldPos = ComputeCellCameraOriginWorldPosition(gridCoordinate + 1, FrameJitterOffsetValue);
 	float cellRadius = length(cameraOriginNextCellWorldPos - cameraOriginWorldPos);
@@ -270,7 +269,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float3 spotLight1ShadowCoord = spotLight1ShadowPos.xyz / spotLight1ShadowPos.w;
 	float spotLight1ShadowMult = GetShadowMultiplier(SpotLight1ShadowMap, ShadowSmp, SpotLight1ShadowMapSize, spotLight1ShadowCoord, 0);
 
-	lightScattering += spotLight1 * spotLight1ShadowMult * SpotLightIntensity 
+	lightScattering += spotLight1 * spotLight1ShadowMult * SpotLightScatteringIntensity 
 						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-spotLight1Dir, -cameraVector));
 
 	float3 spotLight2Dir = 0;
@@ -292,7 +291,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float3 spotLight2ShadowCoord = spotLight2ShadowPos.xyz / spotLight2ShadowPos.w;
 	float spotLight2ShadowMult = GetShadowMultiplier(SpotLight2ShadowMap, ShadowSmp, SpotLight2ShadowMapSize, spotLight2ShadowCoord, 0);
 
-	lightScattering += spotLight2 * spotLight2ShadowMult * SPOT_LIGHT_SCATTERING_INTENSITY
+	lightScattering += spotLight2 * spotLight2ShadowMult * SpotLightScatteringIntensity 
 						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-spotLight2Dir, -cameraVector));
 
 	float3 spotLight3Dir = 0;
@@ -314,7 +313,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float3 spotLight3ShadowCoord = spotLight3ShadowPos.xyz / spotLight3ShadowPos.w;
 	float spotLight3ShadowMult = GetShadowMultiplier(SpotLight3ShadowMap, ShadowSmp, SpotLight3ShadowMapSize, spotLight3ShadowCoord, 0);
 
-	lightScattering += spotLight3 * spotLight3ShadowMult * SPOT_LIGHT_SCATTERING_INTENSITY
+	lightScattering += spotLight3 * spotLight3ShadowMult * SpotLightScatteringIntensity 
 						* HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-spotLight3Dir, -cameraVector));
 
 	// TODO:

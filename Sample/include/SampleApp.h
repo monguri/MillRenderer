@@ -146,9 +146,9 @@ private:
 	DirectX::SimpleMath::Matrix m_PrevWorldForMovable;
 	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitter;
 
-	float m_DirectionalLightIntensity;
-	float m_PointLightIntensity;
-	float m_SpotLightIntensity;
+	float m_directionalLightIntensity;
+	float m_pointLightIntensity;
+	float m_spotLightIntensity;
 	float m_SSAO_Contrast;
 	float m_SSAO_Intensity;
 	bool m_debugViewSSAO_FullRes;
@@ -159,8 +159,8 @@ private:
 	float m_BloomIntensity;
 	float m_motionBlurScale;
 	bool m_moveFlowerVase;
-	float m_directionalLightVolumetricFogIntensity;
-	float m_spotLightVolumetricFogIntensity;
+	float m_directionalLightVolumetricFogScatteringIntensity;
+	float m_spotLightVolumetricFogScatteringIntensity;
 	bool m_enableTemporalAA;
 	bool m_enableFXAA;
 	bool m_enableFXAA_HighQuality;
