@@ -53,7 +53,6 @@ cbuffer CbSSAO : register(b0)
 	int bHalfRes : packoffset(c10.y);
 	float Contrast  : packoffset(c10.z);
 	float Intensity  : packoffset(c10.w);
-	int bEnableSSAO : packoffset(c11);
 }
 
 Texture2D DepthMap : register(t0);
@@ -271,12 +270,5 @@ float4 main(const VSOutput input) : SV_TARGET0
 		result = 1 - (1 - pow(result, Contrast)) * Intensity;
 	}
 
-	if (bEnableSSAO)
-	{
-		return float4(result, result, result, 1);
-	}
-	else
-	{
-		return float4(1, 1, 1, 1);
-	}
+	return float4(result, result, result, 1);
 }
