@@ -5361,34 +5361,46 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 
 	ImGui::Begin("Render Settings");
 
-	ImGui::Text("Light Intensity");
-	ImGui::SliderFloat("Dir Light", &m_DirectionalLightIntensity, 0.0f, 100.0f);
-	ImGui::SliderFloat("Point Light", &m_PointLightIntensity, 0.0f, 1000.0f);
-	ImGui::SliderFloat("Spot Light", &m_SpotLightIntensity, 0.0f, 10000.0f);
+	// imgui_demo.cppを参考にしている。右列のラベル部分のサイズを固定する
+    ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
+
+	ImGui::SeparatorText("Light Intensity");
+	ImGui::SliderFloat("Dir Light Intensity", &m_DirectionalLightIntensity, 0.0f, 100.0f);
+	ImGui::SliderFloat("Point Light Intensity", &m_PointLightIntensity, 0.0f, 1000.0f);
+	ImGui::SliderFloat("Spot Light Intensity", &m_SpotLightIntensity, 0.0f, 10000.0f);
+
+	ImGui::SeparatorText("SSAO");
 	ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.1f, 10.0f);
 	ImGui::SliderFloat("SSAO Intensity", &m_SSAO_Intensity, 0.0f, 1.0f);
 	ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
 	ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
-	ImGui::Checkbox("Velocity", &m_enableVelocity);
+
+	ImGui::SeparatorText("Velocity and Motion Blur");
+	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
+	ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
+	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
+
+	ImGui::SeparatorText("Volumetric Fog Scattering Intensity");
+	ImGui::SliderFloat("Dir Light Scattering", &m_directionalLightVolumetricFogIntensity, 0.0f, 10000.0f);
+	ImGui::SliderFloat("Spot Light Scattering", &m_spotLightVolumetricFogIntensity, 0.0f, 100000.0f);
+
+	ImGui::SeparatorText("AA");
+	ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
+	ImGui::Checkbox("FXAA", &m_enableFXAA);
+	ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
+
+	ImGui::SeparatorText("Tonemap");
+	ImGui::RadioButton("None", &m_TonemapType, TONEMAP_NONE);
+	ImGui::RadioButton("Reinhard", &m_TonemapType, TONEMAP_REINHARD);
+	ImGui::RadioButton("Gran Turismo", &m_TonemapType, TONEMAP_GT);
+	ImGui::RadioButton("Khronos PBR Neutral", &m_TonemapType, TONEMAP_KHRONOS_PBR_NEUTRAL);
+
+	ImGui::SeparatorText("Other Postprocess");
 	ImGui::SliderFloat("SSR Intensity", &m_SSR_Intensity, 0.0f, 10.0f);
 #if 0 // TODO: SSRだけでなくVolumetricFogも表示されるので、一旦機能をカット。将来的に他のパスについてもDebugViewを一通り揃えるなら改めてSSRについても正しいものを追加する
 	ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
 #endif
 	ImGui::SliderFloat("Bloom Intensity", &m_BloomIntensity, 0.0f, 10.0f);
-	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
-	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
-	ImGui::Text("Volumetric Fog Intensity");
-	ImGui::SliderFloat("Dir Light Volume", &m_directionalLightVolumetricFogIntensity, 0.0f, 10000.0f);
-	ImGui::SliderFloat("Spot Light Volume", &m_spotLightVolumetricFogIntensity, 0.0f, 100000.0f);
-	ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
-	ImGui::Checkbox("FXAA", &m_enableFXAA);
-	ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
-
-	ImGui::Text("Tonemap");
-	ImGui::RadioButton("None", &m_TonemapType, TONEMAP_NONE);
-	ImGui::RadioButton("Reinhard", &m_TonemapType, TONEMAP_REINHARD);
-	ImGui::RadioButton("Gran Turismo", &m_TonemapType, TONEMAP_GT);
-	ImGui::RadioButton("Khronos PBR Neutral", &m_TonemapType, TONEMAP_KHRONOS_PBR_NEUTRAL);
 
 	ImGui::End();
 
