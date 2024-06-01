@@ -31,5 +31,18 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float4 prevNdcPos = prevClipPos / prevClipPos.w;
 	float2 prevUV = (prevNdcPos.xy + float2(1, -1)) * float2(0.5, -0.5);
 
-	return float4(input.TexCoord - prevUV, 0, 1);
+	// Even when ClipToPrevClip should be identity, it includes float precision error.
+	// So if velocity is too small, correct to zero for precision of paths after.
+	// ClipToPrevClip includes about 1e-6f size error.
+	float2 velocityCorrected = input.TexCoord - prevUV;
+	if (abs(velocityCorrected.x) < 1e-5f)
+	{
+		velocityCorrected.x = 0.0f;
+	}
+	if (abs(velocityCorrected.y) < 1e-5f)
+	{
+		velocityCorrected.y = 0.0f;
+	}
+
+	return float4(velocityCorrected, 0, 1);
 }

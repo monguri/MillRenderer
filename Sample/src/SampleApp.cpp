@@ -4811,6 +4811,7 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 
 	{
 		CbCameraVelocity* ptr = m_CameraVelocityCB[m_FrameIndex].GetPtr<CbCameraVelocity>();
+		// これはfloat精度の誤差が入る。前フレームとVPが変わらなくても誤差で単位行列にはならない
 		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
 	}
 
@@ -4888,6 +4889,7 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 	{
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
 		ptr->InvVRotPMatrix = viewRotProjNoJitter.Invert();
+		// これはfloat精度の誤差が入る。前フレームとVPが変わらなくても誤差で単位行列にはならない
 		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * prevViewProjNoJitter;
 		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
 		ptr->DirectionalLightScatteringIntensity = m_directionalLightVolumetricFogScatteringIntensity;
