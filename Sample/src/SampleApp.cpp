@@ -487,6 +487,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_debugViewSSAO_FullRes(false)
 , m_debugViewSSAO_HalfRes(false)
 , m_enableVelocity(true)
+, m_debugViewVelocity(false)
 , m_SSR_Intensity(1.0f)
 , m_debugViewSSR(false)
 , m_BloomIntensity(1.0f)
@@ -4208,7 +4209,7 @@ void SampleApp::OnRender()
 
 	DrawFXAA(pCmd);
 
-	if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes)
+	if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes || m_debugViewVelocity)
 	{
 		DrawDebugView(pCmd);
 	}
@@ -5329,6 +5330,14 @@ void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
 	{
 		debugPath = L"SSAO";
 	}
+	else if (m_debugViewVelocity)
+	{
+		debugPath = L"Velocity";
+	}
+	else
+	{
+		assert(false);
+	}
 
 	ScopedTimer scopedTimer(pCmdList, L"DebugView " + debugPath);
 
@@ -5339,6 +5348,12 @@ void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
 			ptr->bOnlyRedChannel = 1;
 			ptr->Scale = 1.0f;
 			ptr->Bias = 0.0f;
+		}
+		else if (m_debugViewVelocity)
+		{
+			ptr->bOnlyRedChannel = 0;
+			ptr->Scale = 0.5f;
+			ptr->Bias = 0.5f;
 		}
 		else
 		{
@@ -5371,6 +5386,10 @@ void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
 	else if (m_debugViewSSAO_HalfRes)
 	{
 		pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
+	}
+	else if (m_debugViewVelocity)
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTargt.GetHandleSRV()->HandleGPU);
 	}
 	else
 	{
@@ -5423,6 +5442,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SeparatorText("Velocity and Motion Blur");
 	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
 	ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
+	ImGui::Checkbox("Debug View Velocity", &m_debugViewVelocity);
 	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
 
 	ImGui::SeparatorText("Volumetric Fog Scattering Intensity");
