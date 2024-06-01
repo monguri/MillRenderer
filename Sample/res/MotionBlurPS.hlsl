@@ -14,7 +14,7 @@ cbuffer CbMotionBlur : register(b0)
 {
 	int Width : packoffset(c0);
 	int Height : packoffset(c0.y);
-	int bEnableMotionBlur : packoffset(c0.z);
+	float Scale : packoffset(c0.z);
 }
 
 Texture2D ColorMap : register(t0);
@@ -36,7 +36,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 {
 	float2 velocityUV = VelocityMap.SampleLevel(PointClampSmp, input.TexCoord, 0).xy;
 	// velocity of pixel space [0, 0]*[Width, Height]. y direction is same as V direction.
-	float2 velocityPS = velocityUV * float2(Width, Height);
+	float2 velocityPS = velocityUV * float2(Width, Height) * Scale;
 	float speedPS = length(velocityPS);
 
 	float halfSampleCount = min(MAX_SAMPLE_COUNT * 0.5f, speedPS / SAMPLE_PIXEL_WIDTH * 0.5f);
@@ -48,7 +48,7 @@ float4 main(const VSOutput input) : SV_TARGET0
 
 	float4 result = ColorMap.Sample(PointClampSmp, input.TexCoord);
 
-	if (speedPS >= MIN_SPEED && bEnableMotionBlur)
+	if (speedPS >= MIN_SPEED)
 	{
 		// accum.a becomes accumulation of weight.
 		float4 accum = float4(result.rgb, 1);

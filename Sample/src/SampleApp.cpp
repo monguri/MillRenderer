@@ -231,7 +231,7 @@ namespace
 	{
 		int Width;
 		int Height;
-		int bEnableMotionBlur;
+		float Scale;
 		float Padding[1];
 	};
 
@@ -481,7 +481,8 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_SSR_Intensity(1.0f)
 , m_debugViewSSR(false)
 , m_BloomIntensity(1.0f)
-, m_enableMotionBlur(false)
+, m_motionBlurScale(1.0f)
+, m_moveFlowerVase(false)
 , m_enableVolumetricFog(true)
 , m_enableTemporalAA(true)
 , m_enableFXAA(false)
@@ -3467,7 +3468,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		CbMotionBlur* ptr = m_MotionBlurCB.GetPtr<CbMotionBlur>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->bEnableMotionBlur = (m_enableMotionBlur ? 1 : 0);
+		ptr->Scale = m_motionBlurScale;
 	}
 
 	// Bloom後工程用定数バッファの作成
@@ -4014,7 +4015,7 @@ void SampleApp::OnRender()
 	Matrix projWithJitter;
 
 	{
-		if (m_enableMotionBlur)
+		if (m_moveFlowerVase)
 		{
 			m_RotateAngle += 0.2f;
 		}
@@ -5040,7 +5041,7 @@ void SampleApp::DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorT
 
 	{
 		CbMotionBlur* ptr = m_MotionBlurCB.GetPtr<CbMotionBlur>();
-		ptr->bEnableMotionBlur = (m_enableMotionBlur ? 1 : 0);
+		ptr->Scale = m_motionBlurScale;
 	}
 
 	DirectX::TransitionResource(pCmdList, m_MotionBlurTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -5368,7 +5369,8 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SliderFloat("SSR Intensity", &m_SSR_Intensity, 0.0f, 10.0f);
 	ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
 	ImGui::SliderFloat("Bloom Intensity", &m_BloomIntensity, 0.0f, 10.0f);
-	ImGui::Checkbox("Motion Blur", &m_enableMotionBlur);
+	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
+	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
 	ImGui::Checkbox("Volumetric Fog", &m_enableVolumetricFog);
 	ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
 	ImGui::Checkbox("FXAA", &m_enableFXAA);
