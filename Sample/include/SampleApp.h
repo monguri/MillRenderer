@@ -72,8 +72,8 @@ private:
 	RootSignature m_DownsampleRootSig;
 	ComPtr<ID3D12PipelineState> m_pFilterPSO;
 	RootSignature m_FilterRootSig;
-	ComPtr<ID3D12PipelineState> m_pDebugRenderTargetPSO;
-	RootSignature m_DebugRenderTargetRootSig;
+	ComPtr<ID3D12PipelineState> m_pDebugViewPSO;
+	RootSignature m_DebugViewRootSig;
 	DepthTarget m_DirLightShadowMapTarget;
 	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SceneColorTarget;
@@ -121,6 +121,7 @@ private:
 	ConstantBuffer m_DownsampleCB[BLOOM_NUM_DOWN_SAMPLE - 1];
 	ConstantBuffer m_BloomHorizontalCB[BLOOM_NUM_DOWN_SAMPLE];
 	ConstantBuffer m_BloomVerticalCB[BLOOM_NUM_DOWN_SAMPLE];
+	ConstantBuffer m_DebugViewCB;
 	ConstantBuffer m_IBL_CB;
 	Texture m_SphereMap;
 	SphereMapConverter m_SphereMapConverter;
@@ -191,6 +192,6 @@ private:
 	void DrawFXAA(ID3D12GraphicsCommandList* pCmdList);
 	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx);
 	void DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer);
-	void DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList);
+	void DrawDebugView(ID3D12GraphicsCommandList* pCmdList);
 	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
 };

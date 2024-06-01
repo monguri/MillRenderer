@@ -271,6 +271,14 @@ namespace
 		float Padding[2]; // TODO:GAUSSIAN_FILTER_SAMPLESが4の倍数なのを前提としている
 	};
 
+	struct alignas(256) CbSampleTexture
+	{
+		int bOnlyRedChannel;
+		float Scale;
+		float Bias;
+		float Padding;
+	};
+
 	struct alignas(256) CbIBL
 	{
 		float TextureSize;
@@ -3138,12 +3146,13 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		RootSignature::Desc desc;
 		desc.Begin()
-			.SetSRV(ShaderStage::PS, 0, 0)
+			.SetCBV(ShaderStage::PS, 0, 0)
+			.SetSRV(ShaderStage::PS, 1, 0)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
 
-		if (!m_DebugRenderTargetRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!m_DebugViewRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
@@ -3186,7 +3195,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_DebugRenderTargetRootSig.GetPtr();
+		desc.pRootSignature = m_DebugViewRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
@@ -3195,7 +3204,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pDebugRenderTargetPSO.GetAddressOf())
+			IID_PPV_ARGS(m_pDebugViewPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -3577,6 +3586,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->SrcHeight = (int)m_BloomSetupTarget[i].GetDesc().Height;
 	}
 
+	// 汎用デバッグ表示用の定数バッファの作成
+	{
+		if (!m_DebugViewCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbSampleTexture* ptr = m_DebugViewCB.GetPtr<CbSampleTexture>();
+		ptr->bOnlyRedChannel = 1;
+		ptr->Scale = 1.0f;
+		ptr->Bias = 0.0f;
+	}
+
 	// シャドウマップとシーンの変換行列用の定数バッファの作成
 	{
 		// モデルのサイズから目分量で決めている
@@ -3814,8 +3837,6 @@ void SampleApp::OnTerm()
 		m_TonemapCB[i].Term();
 	}
 
-	m_IBL_CB.Term();
-
 	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 	{
 		m_PointLightCB[i].Term();
@@ -3854,6 +3875,10 @@ void SampleApp::OnTerm()
 	}
 
 	m_MotionBlurCB.Term();
+
+	m_DebugViewCB.Term();
+
+	m_IBL_CB.Term();
 
 	for (Model* model : m_pModels)
 	{
@@ -3993,8 +4018,8 @@ void SampleApp::OnTerm()
 	m_pFilterPSO.Reset();
 	m_FilterRootSig.Term();
 
-	m_pDebugRenderTargetPSO.Reset();
-	m_DebugRenderTargetRootSig.Term();
+	m_pDebugViewPSO.Reset();
+	m_DebugViewRootSig.Term();
 
 	m_IBLBaker.Term();
 	m_SphereMapConverter.Term();
@@ -4185,7 +4210,7 @@ void SampleApp::OnRender()
 
 	if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes)
 	{
-		DebugDrawSSAO(pCmd);
+		DrawDebugView(pCmd);
 	}
 
 	DrawImGui(pCmd);
@@ -5297,9 +5322,29 @@ void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarge
 	}
 }
 
-void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"DebugSSAO");
+	std::wstring debugPath;
+	if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes)
+	{
+		debugPath = L"SSAO";
+	}
+
+	ScopedTimer scopedTimer(pCmdList, L"DebugView " + debugPath);
+
+	{
+		CbSampleTexture* ptr = m_DebugViewCB.GetPtr<CbSampleTexture>();
+		if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes)
+		{
+			ptr->bOnlyRedChannel = 1;
+			ptr->Scale = 1.0f;
+			ptr->Bias = 0.0f;
+		}
+		else
+		{
+			assert(false);
+		}
+	}
 
 	// R8_UNORMとR10G10B10A2_UNORMではCopyResourceでは非対応でエラーが出るのでシェーダでコピーする
 
@@ -5316,16 +5361,16 @@ void SampleApp::DebugDrawSSAO(ID3D12GraphicsCommandList* pCmdList)
 
 	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
 
-
-	pCmdList->SetGraphicsRootSignature(m_DebugRenderTargetRootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pDebugRenderTargetPSO.Get());
+	pCmdList->SetGraphicsRootSignature(m_DebugViewRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pDebugViewPSO.Get());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_DebugViewCB.GetHandleGPU());
 	if (m_debugViewSSAO_FullRes)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
 	}
 	else if (m_debugViewSSAO_HalfRes)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
 	}
 	else
 	{
