@@ -12,7 +12,8 @@ cbuffer CbVolumetricFog : register(b0)
 	float Near : packoffset(c8.w);
 	float Far : packoffset(c9);
 	float3 FrameJitterOffsetValue : packoffset(c9.y);
-	int bEnableVolumetrcFog : packoffset(c10);
+	float DirectionalLightIntensity : packoffset(c10);
+	float SpotLightIntensity : packoffset(c10.y);
 }
 
 Texture2D ColorMap : register(t0);
@@ -34,17 +35,10 @@ float4 main(const VSOutput input) : SV_TARGET0
 {
 	float3 Color = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
 
-	if (bEnableVolumetrcFog)
-	{
-		float deviceZ = DepthMap.SampleLevel(PointClampSmp, input.TexCoord, 0).r;
-		float linearZ = -ConvertFromDeviceZtoViewZ(deviceZ);
-		float zSlice = (linearZ - Near) / (Far - Near);
+	float deviceZ = DepthMap.SampleLevel(PointClampSmp, input.TexCoord, 0).r;
+	float linearZ = -ConvertFromDeviceZtoViewZ(deviceZ);
+	float zSlice = (linearZ - Near) / (Far - Near);
 
-		float4 fogInscatteringAndOpacity = VolumetricFogIntegration.SampleLevel(LinearClampSmp, float3(input.TexCoord, zSlice), 0);
-		return float4(Color * fogInscatteringAndOpacity.a + fogInscatteringAndOpacity.rgb, 1);
-	}
-	else
-	{
-		return float4(Color, 1);
-	}
+	float4 fogInscatteringAndOpacity = VolumetricFogIntegration.SampleLevel(LinearClampSmp, float3(input.TexCoord, zSlice), 0);
+	return float4(Color * fogInscatteringAndOpacity.a + fogInscatteringAndOpacity.rgb, 1);
 }

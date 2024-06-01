@@ -213,8 +213,9 @@ namespace
 		float Near;
 		float Far;
 		Vector3 FrameJitterOffsetValue;
-		int bEnableVolumetrcFog;
-		float Padding[3];
+		float DirectionalLightIntensity;
+		float SpotLightIntensity;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbTemporalAA
@@ -483,7 +484,8 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_BloomIntensity(1.0f)
 , m_motionBlurScale(1.0f)
 , m_moveFlowerVase(false)
-, m_enableVolumetricFog(true)
+, m_directionalLightVolumetricFogIntensity(1000.0f)
+, m_spotLightVolumetricFogIntensity(10000.0f)
 , m_enableTemporalAA(true)
 , m_enableFXAA(false)
 , m_enableFXAA_HighQuality(true)
@@ -3400,7 +3402,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
 		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
-		ptr->bEnableVolumetrcFog = (m_enableVolumetricFog ? 1 : 0); 
+		ptr->DirectionalLightIntensity = m_directionalLightVolumetricFogIntensity;
+		ptr->SpotLightIntensity = m_spotLightVolumetricFogIntensity;
 	}
 
 	// TemporalAA用定数バッファの作成
@@ -4859,7 +4862,8 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 		ptr->InvVRotPMatrix = viewRotProjNoJitter.Invert();
 		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * prevViewProjNoJitter;
 		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
-		ptr->bEnableVolumetrcFog = (m_enableVolumetricFog ? 1 : 0); 
+		ptr->DirectionalLightIntensity = m_directionalLightVolumetricFogIntensity;
+		ptr->SpotLightIntensity = m_spotLightVolumetricFogIntensity;
 	}
 
 	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -5371,7 +5375,9 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SliderFloat("Bloom Intensity", &m_BloomIntensity, 0.0f, 10.0f);
 	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
 	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
-	ImGui::Checkbox("Volumetric Fog", &m_enableVolumetricFog);
+	ImGui::Text("Volumetric Fog Intensity");
+	ImGui::SliderFloat("Dir Light Volume", &m_directionalLightVolumetricFogIntensity, 0.0f, 10000.0f);
+	ImGui::SliderFloat("Spot Light Volume", &m_spotLightVolumetricFogIntensity, 0.0f, 100000.0f);
 	ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
 	ImGui::Checkbox("FXAA", &m_enableFXAA);
 	ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);

@@ -159,7 +159,8 @@ private:
 	float m_BloomIntensity;
 	float m_motionBlurScale;
 	bool m_moveFlowerVase;
-	bool m_enableVolumetricFog;
+	float m_directionalLightVolumetricFogIntensity;
+	float m_spotLightVolumetricFogIntensity;
 	bool m_enableTemporalAA;
 	bool m_enableFXAA;
 	bool m_enableFXAA_HighQuality;
