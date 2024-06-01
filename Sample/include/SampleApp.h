@@ -156,6 +156,7 @@ private:
 	bool m_debugViewSSAO_HalfRes;
 	bool m_enableVelocity;
 	bool m_debugViewVelocity;
+	float m_debugViewVelocityContrast;
 	float m_SSR_Intensity;
 	bool m_debugViewSSR;
 	float m_BloomIntensity;

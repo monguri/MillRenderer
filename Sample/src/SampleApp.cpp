@@ -274,9 +274,9 @@ namespace
 	struct alignas(256) CbSampleTexture
 	{
 		int bOnlyRedChannel;
+		float Contrast;
 		float Scale;
 		float Bias;
-		float Padding;
 	};
 
 	struct alignas(256) CbIBL
@@ -488,6 +488,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_debugViewSSAO_HalfRes(false)
 , m_enableVelocity(true)
 , m_debugViewVelocity(false)
+, m_debugViewVelocityContrast(1.0f)
 , m_SSR_Intensity(1.0f)
 , m_debugViewSSR(false)
 , m_BloomIntensity(1.0f)
@@ -3597,6 +3598,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		CbSampleTexture* ptr = m_DebugViewCB.GetPtr<CbSampleTexture>();
 		ptr->bOnlyRedChannel = 1;
+		ptr->Contrast = 1.0f;
 		ptr->Scale = 1.0f;
 		ptr->Bias = 0.0f;
 	}
@@ -5346,12 +5348,14 @@ void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
 		if (m_debugViewSSAO_FullRes || m_debugViewSSAO_HalfRes)
 		{
 			ptr->bOnlyRedChannel = 1;
+			ptr->Contrast = 1.0f;
 			ptr->Scale = 1.0f;
 			ptr->Bias = 0.0f;
 		}
 		else if (m_debugViewVelocity)
 		{
 			ptr->bOnlyRedChannel = 0;
+			ptr->Contrast = m_debugViewVelocityContrast;
 			ptr->Scale = 0.5f;
 			ptr->Bias = 0.5f;
 		}
@@ -5434,7 +5438,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SliderFloat("Spot Light Intensity", &m_spotLightIntensity, 0.0f, 10000.0f);
 
 	ImGui::SeparatorText("SSAO");
-	ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.1f, 10.0f);
+	ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.01f, 10.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	ImGui::SliderFloat("SSAO Intensity", &m_SSAO_Intensity, 0.0f, 1.0f);
 	ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
 	ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
@@ -5443,6 +5447,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
 	ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
 	ImGui::Checkbox("Debug View Velocity", &m_debugViewVelocity);
+	ImGui::SliderFloat("Debug View Velocity Contrast", &m_debugViewVelocityContrast, 0.01f, 10.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
 
 	ImGui::SeparatorText("Volumetric Fog Scattering Intensity");
