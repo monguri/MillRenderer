@@ -14,11 +14,10 @@ cbuffer CbSSR : register(b0)
 	int Width : packoffset(c12.z);
 	int Height : packoffset(c12.w);
 	int FrameSampleIndex : packoffset(c13);
-	int bEnableSSR : packoffset(c13.y);
+	float Intensity : packoffset(c13.y);
 	int bDebugViewSSR : packoffset(c13.z);
 }
 
-static const float SSR_INTENSITY = 1.0f; // Referenced UE's value.
 static const float ROUGHNESS_MASK_MUL = -6.66667f; // Referenced UE's value.
 static const uint NUM_STEPS = 16; // Referenced UE's value. SSR_QUALITY=2 and NUM_RAYS=1
 static const float SLOPE_COMPARE_TOLERANCE_SCALE = 4.0f; // Referenced UE's value.
@@ -152,65 +151,57 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 
 float4 main(const VSOutput input) : SV_TARGET0
 {
-	if (bEnableSSR)
+	float3 origColor = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
+
+	float roughness = MetallicRoughnessMap.Sample(PointClampSmp, input.TexCoord).g;
+	float roughnessFade = GetRoughnessFade(roughness);
+	// early return when surface is rough enough.
+	if (roughnessFade <= 0)
 	{
-		float3 origColor = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
-
-		float roughness = MetallicRoughnessMap.Sample(PointClampSmp, input.TexCoord).g;
-		float roughnessFade = GetRoughnessFade(roughness);
-		// early return when surface is rough enough.
-		if (roughnessFade <= 0)
-		{
-			if (bDebugViewSSR)
-			{
-				return float4(0, 0, 0, 1);
-			}
-			else
-			{
-				return float4(origColor, 1);
-			}
-		}
-
-		float stepOffset = InterleavedGradientNoise(input.TexCoord * float2(Width, Height), FrameSampleIndex);
-		//return float4(StepOffset, 1.0f);
-		stepOffset -= 0.5f;
-
-		float deviceZ = GetSceneDeviceZ(input.TexCoord);
-		// [-1,1]x[-1,1]
-		float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
-		float4 ndcPos = float4(screenPos, deviceZ, 1);
-		float3 cameraOriginWorldPos = ConverFromNDCToCameraOriginWS(ndcPos);
-
-		float3 N = GetWSNormal(input.TexCoord);
-		float3 V = normalize(-cameraOriginWorldPos);
-		float3 rayDir = reflect(-V, N);
-
-		float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
-
-		float2 hitUV;
-		bool bHit = RayCast(float3(input.TexCoord, deviceZ), cameraOriginWorldPos, rayDir, -viewZ, stepOffset, roughness, hitUV);
-
-		float3 reflection = 0;
-		if (bHit)
-		{
-			reflection = ColorMap.Sample(PointClampSmp, hitUV).rgb;
-		}
-
-		reflection *= roughnessFade;
-		reflection *= SSR_INTENSITY;
-
 		if (bDebugViewSSR)
 		{
-			return float4(reflection, 1.0f);
+			return float4(0, 0, 0, 1);
 		}
 		else
 		{
-			return float4(origColor + reflection, 1.0f);
+			return float4(origColor, 1);
 		}
+	}
+
+	float stepOffset = InterleavedGradientNoise(input.TexCoord * float2(Width, Height), FrameSampleIndex);
+	//return float4(StepOffset, 1.0f);
+	stepOffset -= 0.5f;
+
+	float deviceZ = GetSceneDeviceZ(input.TexCoord);
+	// [-1,1]x[-1,1]
+	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
+	float4 ndcPos = float4(screenPos, deviceZ, 1);
+	float3 cameraOriginWorldPos = ConverFromNDCToCameraOriginWS(ndcPos);
+
+	float3 N = GetWSNormal(input.TexCoord);
+	float3 V = normalize(-cameraOriginWorldPos);
+	float3 rayDir = reflect(-V, N);
+
+	float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
+
+	float2 hitUV;
+	bool bHit = RayCast(float3(input.TexCoord, deviceZ), cameraOriginWorldPos, rayDir, -viewZ, stepOffset, roughness, hitUV);
+
+	float3 reflection = 0;
+	if (bHit)
+	{
+		reflection = ColorMap.Sample(PointClampSmp, hitUV).rgb;
+	}
+
+	reflection *= roughnessFade;
+	reflection *= Intensity;
+
+	if (bDebugViewSSR)
+	{
+		return float4(reflection, 1.0f);
 	}
 	else
 	{
-		float3 Color = ColorMap.Sample(PointClampSmp, input.TexCoord).rgb;
-		return float4(Color, 1.0f);
+		return float4(origColor + reflection, 1.0f);
 	}
 }

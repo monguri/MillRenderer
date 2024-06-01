@@ -154,7 +154,7 @@ private:
 	bool m_debugViewSSAO_FullRes;
 	bool m_debugViewSSAO_HalfRes;
 	bool m_enableVelocity;
-	bool m_enableSSR;
+	float m_SSR_Intensity;
 	bool m_debugViewSSR;
 	float m_BloomIntensity;
 	bool m_enableMotionBlur;

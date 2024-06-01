@@ -198,7 +198,7 @@ namespace
 		int Width;
 		int Height;
 		int FrameSampleIndex;
-		int bEnableSSR;
+		float Intensity;
 		int bDebugViewSSR;
 		float Padding;
 	};
@@ -478,7 +478,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_debugViewSSAO_FullRes(false)
 , m_debugViewSSAO_HalfRes(false)
 , m_enableVelocity(true)
-, m_enableSSR(true)
+, m_SSR_Intensity(1.0f)
 , m_debugViewSSR(false)
 , m_BloomIntensity(1.0f)
 , m_enableMotionBlur(false)
@@ -3378,7 +3378,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
-		ptr->bEnableSSR = m_enableSSR ? 1 : 0;
+		ptr->Intensity = m_SSR_Intensity;
 		ptr->bDebugViewSSR = m_debugViewSSR ? 1 : 0;
 	}
 
@@ -4817,7 +4817,7 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 		ptr->VRotPMatrix = viewRotProj;
 		ptr->InvVRotPMatrix = viewRotProj.Invert();
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
-		ptr->bEnableSSR = m_enableSSR ? 1 : 0;
+		ptr->Intensity = m_SSR_Intensity;
 		ptr->bDebugViewSSR = m_debugViewSSR ? 1 : 0;
 	}
 
@@ -5365,7 +5365,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::Checkbox("Debug View SSAO FullRes", &m_debugViewSSAO_FullRes);
 	ImGui::Checkbox("Debug View SSAO HalfRes", &m_debugViewSSAO_HalfRes);
 	ImGui::Checkbox("Velocity", &m_enableVelocity);
-	ImGui::Checkbox("SSR", &m_enableSSR);
+	ImGui::SliderFloat("SSR Intensity", &m_SSR_Intensity, 0.0f, 10.0f);
 	ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
 	ImGui::SliderFloat("Bloom Intensity", &m_BloomIntensity, 0.0f, 10.0f);
 	ImGui::Checkbox("Motion Blur", &m_enableMotionBlur);
