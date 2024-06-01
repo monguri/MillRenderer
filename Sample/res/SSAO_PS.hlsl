@@ -267,7 +267,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 	}
 	else
 	{
-		result = 1 - (1 - pow(result, Contrast)) * Intensity;
+		// abs is required to avoid pow() warning.
+		result = 1 - (1 - pow(abs(result), Contrast)) * Intensity;
 	}
 
 	return float4(result, result, result, 1);
