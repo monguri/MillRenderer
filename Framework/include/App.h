@@ -69,7 +69,7 @@ protected:
 	virtual bool OnInit(HWND hWnd) { return true; }
 	virtual void OnTerm() {}
 	virtual void OnRender() {}
-	virtual void OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {}
+	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) { return true; }
 
 private:
 	bool m_SupportHDR;

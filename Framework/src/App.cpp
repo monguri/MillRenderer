@@ -529,7 +529,10 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 
 	if (instance != nullptr)
 	{
-		instance->OnMsgProc(hWnd, msg, wp, lp);
+		if (!instance->OnMsgProc(hWnd, msg, wp, lp))
+		{
+			return true;
+		}
 	}
 
 	return DefWindowProc(hWnd, msg, wp, lp);
