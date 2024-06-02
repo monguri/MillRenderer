@@ -4241,10 +4241,7 @@ void SampleApp::OnRender()
 
 	DrawFXAA(pCmd);
 
-	if (m_debugViewRenderTarget != DEBUG_VIEW_NONE)
-	{
-		DrawDebugView(pCmd);
-	}
+	DrawBackBuffer(pCmd);
 
 	DrawImGui(pCmd);
 
@@ -5213,12 +5210,12 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 		ptr->bEnableFXAAHighQuality = (m_enableFXAA_HighQuality ? 1 : 0);
 	}
 
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
+	const DescriptorHandle* handleRTV = m_FXAA_Target.GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
-	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
+	m_FXAA_Target.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_FXAA_RootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_FXAA_CB.GetHandleGPU());
@@ -5234,7 +5231,7 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx)
@@ -5357,35 +5354,35 @@ void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarge
 	}
 }
 
-void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
-	std::wstring debugRenderTarget;
+	std::wstring renderTargetName;
 	switch (m_debugViewRenderTarget)
 	{
 		case DEBUG_VIEW_NONE:
-			assert(false);
+			renderTargetName = L"Final Result";
 			break;
 		case DEBUG_VIEW_DEPTH:
-			debugRenderTarget = L"Depth";
+			renderTargetName = L"Depth";
 			break;
 		case DEBUG_VIEW_NORMAL:
-			debugRenderTarget = L"Normal";
+			renderTargetName = L"Normal";
 			break;
 		case DEBUG_VIEW_SSAO_FULL_RES:
-			debugRenderTarget = L"SSAO FullRes";
+			renderTargetName = L"SSAO Full Res";
 			break;
 		case DEBUG_VIEW_SSAO_HALF_RES:
-			debugRenderTarget = L"SSAO FullRes";
+			renderTargetName = L"SSAO Half Res";
 			break;
 		case DEBUG_VIEW_VELOCITY:
-			debugRenderTarget = L"Velocity";
+			renderTargetName = L"Velocity";
 			break;
 		default:
 			assert(false);
 			break;
 	}
 
-	ScopedTimer scopedTimer(pCmdList, L"DebugView " + debugRenderTarget);
+	ScopedTimer scopedTimer(pCmdList, L"Draw " + renderTargetName + L"to BackBuffer");
 
 	{
 		CbSampleTexture* ptr = m_DebugViewCB.GetPtr<CbSampleTexture>();
@@ -5394,7 +5391,9 @@ void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
 		switch (m_debugViewRenderTarget)
 		{
 			case DEBUG_VIEW_NONE:
-				assert(false);
+				ptr->bOnlyRedChannel = 0;
+				ptr->Scale = 1.0f;
+				ptr->Bias = 0.0f;
 				break;
 			case DEBUG_VIEW_DEPTH:
 			case DEBUG_VIEW_SSAO_FULL_RES:
@@ -5436,7 +5435,7 @@ void SampleApp::DrawDebugView(ID3D12GraphicsCommandList* pCmdList)
 	switch (m_debugViewRenderTarget)
 	{
 		case DEBUG_VIEW_NONE:
-			assert(false);
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
 		case DEBUG_VIEW_DEPTH:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
