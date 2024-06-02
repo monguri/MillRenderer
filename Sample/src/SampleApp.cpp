@@ -5457,7 +5457,19 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			break;
 	}
 
+#if 0
+	// BackBufferのサイズはウィンドウサイズになっているのでアスペクト比を維持する
+	DXGI_SWAP_CHAIN_DESC desc;
+	m_pSwapChain->GetDesc(&desc);
+
+	D3D12_VIEWPORT viewport = m_Viewport;
+	viewport.Width = desc.BufferDesc.Width;
+	viewport.Height = desc.BufferDesc.Height;
+
+	pCmdList->RSSetViewports(1, &viewport);
+#else
 	pCmdList->RSSetViewports(1, &m_Viewport);
+#endif
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
