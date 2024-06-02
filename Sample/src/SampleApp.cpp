@@ -1563,7 +1563,27 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES],
 			m_Width,
 			m_Height,
-			m_ColorTarget->GetRTVDesc().Format,
+			m_ColorTarget[0].GetRTVDesc().Format,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
+	// FXAA用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_FXAA_Target.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			m_ColorTarget[0].GetRTVDesc().Format,
 			clearColor
 		))
 		{
@@ -2998,7 +3018,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -3963,6 +3983,8 @@ void SampleApp::OnTerm()
 	}
 
 	m_TonemapTarget.Term();
+
+	m_FXAA_Target.Term();
 
 	m_pSponzaOpaquePSO.Reset();
 	m_pSponzaMaskPSO.Reset();
