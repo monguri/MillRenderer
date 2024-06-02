@@ -519,9 +519,20 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			break;
+		case WM_SIZE:
+			if (instance != nullptr && instance->m_pDevice != nullptr && instance->m_pSwapChain != nullptr && wp != SIZE_MINIMIZED)
+			{
+				// Formatˆø”‚ÆFlagsˆø”‚Í‰Šú‰»Žž‚Éì‚Á‚½DXGI_SWAP_CHAIN_DESC‚Æ“¯‚¶’l‚É‚·‚é
+				// –ß‚è’l‚Íˆ—‚µ‚È‚¢
+				instance->m_pSwapChain->ResizeBuffers(0, (UINT)LOWORD(lp), (UINT)HIWORD(lp), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+			}
+			break;
 		case WM_MOVE:
 		case WM_DISPLAYCHANGE:
-			instance->CheckSupportHDR();
+			if (instance != nullptr)
+			{
+				instance->CheckSupportHDR();
+			}
 			break;
 		default:
 			break;
