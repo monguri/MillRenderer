@@ -72,8 +72,8 @@ private:
 	RootSignature m_DownsampleRootSig;
 	ComPtr<ID3D12PipelineState> m_pFilterPSO;
 	RootSignature m_FilterRootSig;
-	ComPtr<ID3D12PipelineState> m_pDebugViewPSO;
-	RootSignature m_DebugViewRootSig;
+	ComPtr<ID3D12PipelineState> m_pBackBufferPSO;
+	RootSignature m_BackBufferRootSig;
 	DepthTarget m_DirLightShadowMapTarget;
 	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SceneColorTarget;
@@ -122,7 +122,7 @@ private:
 	ConstantBuffer m_DownsampleCB[BLOOM_NUM_DOWN_SAMPLE - 1];
 	ConstantBuffer m_BloomHorizontalCB[BLOOM_NUM_DOWN_SAMPLE];
 	ConstantBuffer m_BloomVerticalCB[BLOOM_NUM_DOWN_SAMPLE];
-	ConstantBuffer m_DebugViewCB;
+	ConstantBuffer m_BackBufferCB;
 	ConstantBuffer m_IBL_CB;
 	Texture m_SphereMap;
 	SphereMapConverter m_SphereMapConverter;

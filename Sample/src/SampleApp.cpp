@@ -3172,7 +3172,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // レンダーターゲットデバッグ表示用ルートシグニチャの生成
+    // バックバッファ描画用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
 		desc.Begin()
@@ -3182,14 +3182,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			.AllowIL()
 			.End();
 
-		if (!m_DebugViewRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!m_BackBufferRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 	}
 
-    // レンダーターゲットデバッグ表示用パイプラインステートの生成
+    // バックバッファ描画用パイプラインステートの生成
 	// DXGIフォーマットを指定する必要があるので一般のテクスチャコピー用にはできなかった
 	{
 		std::wstring vsPath;
@@ -3225,7 +3225,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_DebugViewRootSig.GetPtr();
+		desc.pRootSignature = m_BackBufferRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
@@ -3234,7 +3234,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pDebugViewPSO.GetAddressOf())
+			IID_PPV_ARGS(m_pBackBufferPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -3616,15 +3616,15 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->SrcHeight = (int)m_BloomSetupTarget[i].GetDesc().Height;
 	}
 
-	// 汎用デバッグ表示用の定数バッファの作成
+	// バックバッファ描画用の定数バッファの作成
 	{
-		if (!m_DebugViewCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
+		if (!m_BackBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
 		}
 
-		CbSampleTexture* ptr = m_DebugViewCB.GetPtr<CbSampleTexture>();
+		CbSampleTexture* ptr = m_BackBufferCB.GetPtr<CbSampleTexture>();
 		ptr->bOnlyRedChannel = 1;
 		ptr->Contrast = 1.0f;
 		ptr->Scale = 1.0f;
@@ -3907,7 +3907,7 @@ void SampleApp::OnTerm()
 
 	m_MotionBlurCB.Term();
 
-	m_DebugViewCB.Term();
+	m_BackBufferCB.Term();
 
 	m_IBL_CB.Term();
 
@@ -4051,8 +4051,8 @@ void SampleApp::OnTerm()
 	m_pFilterPSO.Reset();
 	m_FilterRootSig.Term();
 
-	m_pDebugViewPSO.Reset();
-	m_DebugViewRootSig.Term();
+	m_pBackBufferPSO.Reset();
+	m_BackBufferRootSig.Term();
 
 	m_IBLBaker.Term();
 	m_SphereMapConverter.Term();
@@ -5385,7 +5385,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	ScopedTimer scopedTimer(pCmdList, L"Draw " + renderTargetName + L"to BackBuffer");
 
 	{
-		CbSampleTexture* ptr = m_DebugViewCB.GetPtr<CbSampleTexture>();
+		CbSampleTexture* ptr = m_BackBufferCB.GetPtr<CbSampleTexture>();
 		ptr->Contrast = m_debugViewContrast;
 
 		switch (m_debugViewRenderTarget)
@@ -5429,9 +5429,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 
 	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
 
-	pCmdList->SetGraphicsRootSignature(m_DebugViewRootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pDebugViewPSO.Get());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_DebugViewCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootSignature(m_BackBufferRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pBackBufferPSO.Get());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandleGPU());
 	switch (m_debugViewRenderTarget)
 	{
 		case DEBUG_VIEW_NONE:
