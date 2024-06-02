@@ -520,11 +520,30 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 			PostQuitMessage(0);
 			break;
 		case WM_SIZE:
-			if (instance != nullptr && instance->m_pDevice != nullptr && instance->m_pSwapChain != nullptr && wp != SIZE_MINIMIZED)
+			if (instance != nullptr
+				&& instance->m_pDevice != nullptr
+				&& instance->m_pSwapChain != nullptr
+				&& instance->m_pPool != nullptr
+				&& wp != SIZE_MINIMIZED)
 			{
+				// バックバッファのレンダーターゲットを作り直すのでコマンドリスト終了まで待つ
+				instance->m_Fence.Sync(instance->m_pQueue.Get());
+
+				for (uint32_t i = 0u; i < FRAME_COUNT; ++i)
+				{
+					instance->m_ColorTarget[i].Term();
+				}
+
 				// Format引数とFlags引数は初期化時に作ったDXGI_SWAP_CHAIN_DESCと同じ値にする
-				// 戻り値は処理しない
+				// 戻り値は見ない
 				instance->m_pSwapChain->ResizeBuffers(0, (UINT)LOWORD(lp), (UINT)HIWORD(lp), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+
+				// Re-Create render target view.
+				for (uint32_t i = 0u; i < FRAME_COUNT; ++i)
+				{
+					// 戻り値は見ない
+					instance->m_ColorTarget[i].InitFromBackBuffer(instance->m_pDevice.Get(), instance->m_pPool[POOL_TYPE_RTV], true, i, instance->m_pSwapChain.Get());
+				}
 			}
 			break;
 		case WM_MOVE:
