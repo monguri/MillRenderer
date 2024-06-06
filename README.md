@@ -31,13 +31,14 @@ Assets are from https://github.com/monguri/glTF-Sample-Viewer-Release.
 About their licenses, look that repositry. 
 
 ## How to execute and operate.
-Execute Sample\project\x64\[Debug, Release]\Sample.exe
-You can operate camera by mouse.
+- "Download zip"
+- Execute Sample\project\x64\[Debug, Release]\Sample.exe
+- You can operate camera by mouse.
 
 ## How to build
-You must get project by git clone --recursive.
-Downloaded zip does not include submodule. 
-Build Sample\project\Sample.sln with Visual Studio 2022.
+- You must get project by git clone --recursive.
+  - "Download zip" does not include submodule. 
+- Build Sample\project\Sample.sln with Visual Studio 2022.
 
 ## Future plan.
 - SSGI
