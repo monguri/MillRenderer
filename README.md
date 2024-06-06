@@ -7,8 +7,8 @@ At default setting, it renders Sponza.
 ![Sponza Screen Shot](https://github.com/monguri/MillRenderer/blob/main/Sponza.png "Sponza Screen Shot")
 
 ## Characteristics
-- First version is based on and refered D3D12Samples of ProjectAsura.
-  - https://github.com/ProjectAsura/D3D12Samples
+- First version is based on and refered sample projects of ProjectAsura.
+  - https://gihyo.jp/book/2021/978-4-297-12365-9/support
 - Currently, I concentrate on developing various rendering passes and expressions.
   - I postpone applying various optimizing techniques. Big techniques that ZPrePass, deferred rendering or some other thing, and smaller techniques.
 - D3D12 application.
@@ -26,7 +26,7 @@ At default setting, it renders Sponza.
   - Motion Blur
   - Tonemap
 
-## Some assets license
+## About some assets license
 Assets are from https://github.com/monguri/glTF-Sample-Viewer-Release.
 About their licenses, look that repositry. 
 
