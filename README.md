@@ -6,7 +6,7 @@ The development is in progress.
 At default setting, it renders Sponza.
 ![Sponza Screen Shot](https://github.com/monguri/MillRenderer/blob/main/Sponza.png "Sponza Screen Shot")
 
-## Characteristics
+## Features
 - First version is based on and refered sample projects of ProjectAsura.
   - https://gihyo.jp/book/2021/978-4-297-12365-9/support
 - Currently, I concentrate on developing various rendering passes and expressions.
