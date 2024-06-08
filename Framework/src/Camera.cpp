@@ -108,10 +108,10 @@ namespace
 
 Camera::Camera()
 {
-	m_Current.Position = Vector3(0.0f, 0.0f, -1.0f);
-	m_Current.Target = Vector3::Zero;
+	m_Current.Position = Vector3(5.0f, 1.0f, 0.0f);
+	m_Current.Target = Vector3(0.0f, 1.0f, 0.0f);
 	m_Current.Upward = Vector3::UnitY;
-	m_Current.Forward = Vector3::UnitZ;
+	m_Current.Forward = -Vector3::UnitX;
 	m_Current.Angle = DirectX::XMFLOAT2(0.0f, 0.0f);
 	m_Current.Distance = 1.0f;
 

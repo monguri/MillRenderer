@@ -516,6 +516,8 @@ SampleApp::~SampleApp()
 
 bool SampleApp::OnInit(HWND hWnd)
 {
+	m_Camera.Reset();
+
 	// imgui初期化
 	{
 		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
@@ -3804,7 +3806,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			ID3D12CommandList* pLists[] = {pCmd};
 			m_pQueue->ExecuteCommandLists(1, pLists);
 
-			m_Fence.Sync(m_pQueue.Get());
+			// Wait command queue finishing.
+			m_Fence.Wait(m_pQueue.Get(), INFINITE);
 		}
 
 		// IBLバッファの設定
@@ -5463,8 +5466,20 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	m_pSwapChain->GetDesc(&desc);
 
 	D3D12_VIEWPORT viewport = m_Viewport;
-	viewport.Width = desc.BufferDesc.Width;
-	viewport.Height = desc.BufferDesc.Height;
+	if ((float)desc.BufferDesc.Width / desc.BufferDesc.Height < (float)m_Width / m_Height)
+	{
+		viewport.Width = desc.BufferDesc.Width;
+		viewport.Height = desc.BufferDesc.Width * ((float)m_Height / m_Width);
+		viewport.TopLeftX = 0.0f;
+		viewport.TopLeftY = desc.BufferDesc.Height * 0.5f - viewport.Height * 0.5f;
+	}
+	else
+	{
+		viewport.Height = desc.BufferDesc.Height;
+		viewport.Width = desc.BufferDesc.Height * ((float)m_Width / m_Height);
+		viewport.TopLeftX = desc.BufferDesc.Width * 0.5f - viewport.Width * 0.5f;
+		viewport.TopLeftY = 0.0f;
+	}
 
 	pCmdList->RSSetViewports(1, &viewport);
 #else
