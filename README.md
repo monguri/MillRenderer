@@ -30,7 +30,7 @@ At default setting, it renders Sponza.
 Assets are from https://github.com/monguri/glTF-Sample-Viewer-Release.
 About their licenses, look that repositry. 
 
-## How to execute and operate.
+## How to execute and operate
 - "Download zip"
 - Execute Sample\project\x64\[Debug, Release]\Sample.exe
 - You can operate camera by mouse.
@@ -40,7 +40,7 @@ About their licenses, look that repositry.
   - "Download zip" does not include submodule. 
 - Build Sample\project\Sample.sln with Visual Studio 2022.
 
-## Future plan.
+## Future plans
 - SSGI
 - Deferred rendering.
 - Sky and cloud.
