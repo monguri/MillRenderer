@@ -6,7 +6,7 @@ The development is in progress.
 At default setting, it renders Sponza.
 ![Sponza Screen Shot](https://github.com/monguri/MillRenderer/blob/main/Sponza.png "Sponza Screen Shot")
 
-## Characteristics
+## Features
 - First version is based on and refered sample projects of ProjectAsura.
   - https://gihyo.jp/book/2021/978-4-297-12365-9/support
 - Currently, I concentrate on developing various rendering passes and expressions.
@@ -30,7 +30,7 @@ At default setting, it renders Sponza.
 Assets are from https://github.com/monguri/glTF-Sample-Viewer-Release.
 About their licenses, look that repositry. 
 
-## How to execute and operate.
+## How to execute and operate
 - "Download zip"
 - Execute Sample\project\x64\[Debug, Release]\Sample.exe
 - You can operate camera by mouse.
@@ -40,7 +40,7 @@ About their licenses, look that repositry.
   - "Download zip" does not include submodule. 
 - Build Sample\project\Sample.sln with Visual Studio 2022.
 
-## Future plan.
+## Future plans
 - SSGI
 - Deferred rendering.
 - Sky and cloud.
