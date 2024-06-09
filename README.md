@@ -14,6 +14,7 @@ At default setting, it renders Sponza.
 - D3D12 application.
 - Multi render target base pass. (Scene color, depth, normal).
 - Forward renderer so far.
+- Internal rendering resolution is fixed to 1920x1080 regardless of the window resolution so far.
 - Direcitonal light with shadow map.
 - Spot lights with shadow map.
 - Point lights without shadow map.
