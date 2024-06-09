@@ -5208,7 +5208,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 		ptr->BloomIntensity = m_BloomIntensity;
 	}
 
-	DirectX::TransitionResource(pCmdList, m_TonemapTarget.GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_TonemapTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	const DescriptorHandle* handleRTV = m_TonemapTarget.GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
@@ -5230,7 +5230,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	DirectX::TransitionResource(pCmdList, m_TonemapTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	DirectX::TransitionResource(pCmdList, m_TonemapTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
@@ -5243,7 +5243,7 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 		ptr->bEnableFXAAHighQuality = (m_enableFXAA_HighQuality ? 1 : 0);
 	}
 
-	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	const DescriptorHandle* handleRTV = m_FXAA_Target.GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
@@ -5264,7 +5264,7 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx)
