@@ -544,6 +544,8 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 					// –ß‚è’l‚ÍŒ©‚È‚¢
 					instance->m_ColorTarget[i].InitFromBackBuffer(instance->m_pDevice.Get(), instance->m_pPool[POOL_TYPE_RTV], true, i, instance->m_pSwapChain.Get());
 				}
+
+				instance->m_FrameIndex = instance->m_pSwapChain->GetCurrentBackBufferIndex();
 			}
 			break;
 		case WM_MOVE:
