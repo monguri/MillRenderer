@@ -15,7 +15,7 @@ At default setting, it renders Sponza.
 - Multi render target base pass. (Scene color, depth, normal).
 - Forward renderer so far.
 - Internal rendering resolution is fixed to 1920x1080 regardless of the window resolution so far.
-- Direcitonal light with shadow map.
+- Direcitonal light with shadow map. (single shadow map so far)
 - Spot lights with shadow map.
 - Point lights without shadow map.
 - Volumetric Fog
@@ -46,6 +46,7 @@ About their licenses, look that repositry.
 - Deferred rendering.
 - Sky and cloud.
 - Visibility map.
+- Cascade shadow map.
 - Some other optimizing techiniques.
 - Vulkan support.
 - etc.
