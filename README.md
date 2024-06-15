@@ -46,7 +46,7 @@ About their licenses, look that repositry.
 - Deferred rendering.
 - Sky and cloud.
 - Visibility map.
-- Cascade shadow map.
+- Cascade shadow map. Point light shadow map.
 - Some other optimizing techiniques.
 - Vulkan support.
 - etc.
