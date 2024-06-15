@@ -12,7 +12,7 @@ At default setting, it renders Sponza.
 - Currently, I concentrate on developing various rendering passes and expressions.
   - I postpone applying various optimizing techniques. Big techniques that ZPrePass, deferred rendering or some other thing, and smaller techniques.
 - D3D12 application.
-- Multi render target base pass. (Scene color, depth, normal).
+- Multi render target base pass. (Scene color, depth, normal and metallic roughness).
 - Forward renderer so far.
 - Internal rendering resolution is fixed to 1920x1080 regardless of the window resolution so far.
 - Direcitonal light with shadow map. (single shadow map so far)
