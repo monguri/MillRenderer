@@ -33,7 +33,7 @@ About their licenses, look that repositry.
 
 ## How to execute and operate
 - "Download zip"
-- Execute Sample\project\x64\[Debug, Release]\Sample.exe
+- Execute Sample\project\x64\\[Debug, Release]\Sample.exe
 - You can operate camera by mouse.
 
 ## How to build
