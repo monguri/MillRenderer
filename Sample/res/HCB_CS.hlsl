@@ -8,7 +8,7 @@ cbuffer CbHZB : register(b0)
 
 static const uint GROUP_TILE_SIZE = 8;
 
-Texture2D DepthMap : register(t0);
+Texture2D ColorMap : register(t0);
 SamplerState PointClampSmp : register(s0);
 
 // the number of output textures need to match HCB_MAX_MIP_BATCH_SIZE of cpp.
@@ -18,17 +18,16 @@ RWTexture2D<float4> OutHCB_Mip2 : register(u2);
 RWTexture2D<float4> OutHCB_Mip3 : register(u3);
 RWTexture2D<float4> OutHCB_Mip4 : register(u4);
 
-groupshared float SharedMaxDeviceZ[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
+groupshared float4 SharedMemory[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
 
 [numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
 void main(uint2 GroupId : SV_GroupID, uint2 DTid : SV_DispatchThreadID, uint groupThreadIndex : SV_GroupIndex)
 {
 	float2 uv = (DTid + 0.5f) * float2(1, HeightScale) / float2(DstMip0Width, DstMip0Height);
-	float4 deviceZ = DepthMap.GatherRed(PointClampSmp, uv, 0);
-	float maxDeviceZ = max(deviceZ.x, max(deviceZ.y, max(deviceZ.z, deviceZ.w)));
-	OutHCB_Mip0[DTid] = maxDeviceZ;
+	float4 color = ColorMap.SampleLevel(PointClampSmp, uv, 0);
+	OutHCB_Mip0[DTid] = color;
 
-	SharedMaxDeviceZ[groupThreadIndex] = maxDeviceZ;
+	SharedMemory[groupThreadIndex] = color;
 
 	// the number of output textures need to match HZB_MAX_MIP_BATCH_SIZE of cpp.
 	for (uint mipLevel = 1; mipLevel < (uint)NumOutputMip; mipLevel++)
@@ -42,33 +41,32 @@ void main(uint2 GroupId : SV_GroupID, uint2 DTid : SV_DispatchThreadID, uint gro
 
 		if (groupThreadIndex < reduceBankSize)
 		{
-			float4 parentMaxDeviceZ;
-			parentMaxDeviceZ.x = SharedMaxDeviceZ[groupThreadIndex * 2];
-			parentMaxDeviceZ.y = SharedMaxDeviceZ[groupThreadIndex * 2 + 1];
-			parentMaxDeviceZ.z = SharedMaxDeviceZ[groupThreadIndex * 2 + parentTileSize];
-			parentMaxDeviceZ.w = SharedMaxDeviceZ[groupThreadIndex * 2 + parentTileSize + 1];
+			float4 color = SharedMemory[groupThreadIndex * 2];
+			float4 rightPixelColor = SharedMemory[groupThreadIndex * 2 + 1];
+			float4 bottomPixelColor = SharedMemory[groupThreadIndex * 2 +  + parentTileSize];
+			float4 rightBottomPixelColor = SharedMemory[groupThreadIndex * 2 +  + parentTileSize + 1];
 
-			float tileMaxDeviceZ = max(parentMaxDeviceZ.x, max(parentMaxDeviceZ.y, max(parentMaxDeviceZ.z, parentMaxDeviceZ.w)));
+			float3 avgColor = (color.rgb + rightPixelColor.rgb + bottomPixelColor.rgb + rightBottomPixelColor.rgb) / 4;
 			uint2 OutputPixelPos = GroupId * tileSize + uint2(groupThreadIndex % tileSize, groupThreadIndex / tileSize);
 
 			if (mipLevel == 1)
 			{
-				OutHCB_Mip1[OutputPixelPos] = tileMaxDeviceZ;
+				OutHCB_Mip1[OutputPixelPos] = float4(avgColor, 1);
 			}
 			else if (mipLevel == 2)
 			{
-				OutHCB_Mip2[OutputPixelPos] = tileMaxDeviceZ;
+				OutHCB_Mip2[OutputPixelPos] = float4(avgColor, 1);
 			}
 			else if (mipLevel == 3)
 			{
-				OutHCB_Mip3[OutputPixelPos] = tileMaxDeviceZ;
+				OutHCB_Mip3[OutputPixelPos] = float4(avgColor, 1);
 			}
 			else if (mipLevel == 4)
 			{
-				OutHCB_Mip4[OutputPixelPos] = tileMaxDeviceZ;
+				OutHCB_Mip4[OutputPixelPos] = float4(avgColor, 1);
 			}
 
-			SharedMaxDeviceZ[groupThreadIndex] = tileMaxDeviceZ;
+			SharedMemory[groupThreadIndex] = float4(avgColor, 1);
 		}
 	}
 }

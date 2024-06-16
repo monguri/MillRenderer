@@ -4667,7 +4667,7 @@ void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
 	std::vector<D3D12_RESOURCE_BARRIER> mipBarriers;
 
 	// バリアの設定。HZBの場合はサブリソースごとにSRVかUAVかで指定を変える
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	for (uint32_t mip = 0; mip < HCB_MAX_NUM_OUTPUT_MIP; mip++)
 	{
@@ -4685,7 +4685,7 @@ void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetComputeRootSignature(m_HCB_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pHCB_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_HCB_CB.GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 
 	for (uint32_t mip = 0; mip < HCB_MAX_NUM_OUTPUT_MIP; mip++)
 	{
@@ -4698,7 +4698,7 @@ void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
