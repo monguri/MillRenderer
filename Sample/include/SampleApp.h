@@ -80,6 +80,7 @@ private:
 	ColorTarget m_SceneNormalTarget;
 	ColorTarget m_SceneMetallicRoughnessTarget;
 	DepthTarget m_SceneDepthTarget;
+	ColorTarget m_HCB_Target;
 	ColorTarget m_HZB_Target;
 	ColorTarget m_SSAOSetupTarget;
 	ColorTarget m_SSAO_HalfResTarget;
@@ -176,6 +177,7 @@ private:
 	void DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
+	void DrawHCB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawHZB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj);

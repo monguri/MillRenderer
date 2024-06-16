@@ -1098,6 +1098,33 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// HCB用ターゲットの生成および
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		// TODO:これらの計算をやっている箇所が複数あり冗長
+		uint32_t mip0SizeX = RoundDownToPowerOfTwo(m_Width);
+		uint32_t mip0SizeY = RoundDownToPowerOfTwo(m_Height);
+		uint32_t numMips = (uint32_t)log2f((float)DirectX::XMMax(mip0SizeX, mip0SizeY));
+
+		if (!m_HCB_Target.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			mip0SizeX,
+			mip0SizeY,
+			m_SceneColorTarget.GetDesc().Format,
+			clearColor,
+			numMips
+		))
+		{
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+			return false;
+		}
+	}
+
 	// HZB用ターゲットの生成と参照用にMipレベルを制限したSRVの例外的生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -3944,6 +3971,7 @@ void SampleApp::OnTerm()
 	m_SceneMetallicRoughnessTarget.Term();
 	m_SceneDepthTarget.Term();
 
+	m_HCB_Target.Term();
 	m_HZB_Target.Term();
 
 	m_SSAOSetupTarget.Term();
@@ -4534,6 +4562,101 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 			pMesh->Draw(pCmdList);
 		}
 	}
+}
+
+void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"BuildHCB");
+
+	// シェーダ側と合わせている
+	const size_t GROUP_SIZE_X = 8;
+	const size_t GROUP_SIZE_Y = 8;
+
+#if 0
+	uint32_t mip0SizeX = (uint32_t)m_HZB_Target.GetDesc().Width;
+	uint32_t mip0SizeY = (uint32_t)m_HZB_Target.GetDesc().Height;
+	uint32_t numMips = m_HZB_Target.GetDesc().MipLevels;
+	uint32_t numDrawCall = (uint32_t)m_pHZB_CBs.size();
+	assert(numDrawCall > 0);
+
+	D3D12_RESOURCE_BARRIER templateBarrier = {};
+	templateBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	templateBarrier.Transition.pResource = m_HZB_Target.GetResource();
+
+	for (uint32_t i = 0; i < numDrawCall; i++)
+	{
+		uint32_t numOutputMip = 0;
+		if (i == 0)
+		{
+			numOutputMip = DirectX::XMMin(numMips, HZB_MAX_NUM_OUTPUT_MIP);
+		}
+		else
+		{
+			numOutputMip = DirectX::XMMin(numMips - HZB_MAX_NUM_OUTPUT_MIP * i, HZB_MAX_NUM_OUTPUT_MIP);
+		}
+		assert(numOutputMip > 0);
+
+		std::vector<D3D12_RESOURCE_BARRIER> mipBarriers;
+
+		// バリアの設定。HZBの場合はサブリソースごとにSRVかUAVかで指定を変える
+		if (i == 0)
+		{
+			DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		}
+		else
+		{
+			D3D12_RESOURCE_BARRIER parentMipBarrier = templateBarrier;
+			parentMipBarrier.Transition.Subresource = HZB_MAX_NUM_OUTPUT_MIP * i - 1;
+			parentMipBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			parentMipBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+
+			mipBarriers.push_back(parentMipBarrier);
+		}
+
+		for (uint32_t mip = 0; mip < numOutputMip; mip++)
+		{
+			D3D12_RESOURCE_BARRIER mipBarrier = templateBarrier;
+			mipBarrier.Transition.Subresource = HZB_MAX_NUM_OUTPUT_MIP * i + mip;
+			mipBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			mipBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+
+			mipBarriers.push_back(mipBarrier);
+		}
+
+		// DirectX::TransitionResource()ではサブリソースごとの指定はできないのでScopedBarrierを使う
+		DirectX::ScopedBarrier mipTransitions(pCmdList, mipBarriers.data(), mipBarriers.size());
+
+		pCmdList->SetComputeRootSignature(m_HZB_RootSig.GetPtr());
+		pCmdList->SetPipelineState(m_pHZB_PSO.Get());
+		pCmdList->SetComputeRootDescriptorTable(0, m_pHZB_CBs[i]->GetHandleGPU());
+		if (i == 0)
+		{
+			pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+		}
+		else
+		{
+			pCmdList->SetComputeRootDescriptorTable(1, m_pHZB_ParentMipSRVs[i - 1]->HandleGPU);
+		}
+
+		for (uint32_t mip = 0; mip < numOutputMip; mip++)
+		{
+			pCmdList->SetComputeRootDescriptorTable(2 + mip, m_HZB_Target.GetHandleUAVs()[HZB_MAX_NUM_OUTPUT_MIP * i + mip]->HandleGPU);
+		}
+
+		// グループ数は切り上げ
+		uint32_t minMipSizeX = (mip0SizeX >> HZB_MAX_NUM_OUTPUT_MIP * i);
+		uint32_t minMipSizeY = (mip0SizeY >> HZB_MAX_NUM_OUTPUT_MIP * i);
+		UINT NumGroupX = DivideAndRoundUp(minMipSizeX, GROUP_SIZE_X);
+		UINT NumGroupY = DivideAndRoundUp(minMipSizeY, GROUP_SIZE_Y);
+		UINT NumGroupZ = 1;
+		pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+		if (i == 0)
+		{
+			DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+	}
+#endif
 }
 
 void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
