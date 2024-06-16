@@ -4653,8 +4653,8 @@ void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
 	ScopedTimer scopedTimer(pCmdList, L"BuildHCB");
 
 	// シェーダ側と合わせている
-	const size_t GROUP_SIZE_X = 8;
-	const size_t GROUP_SIZE_Y = 8;
+	const size_t GROUP_SIZE_X = 1 << (HCB_MAX_NUM_OUTPUT_MIP - 1);
+	const size_t GROUP_SIZE_Y = 1 << (HCB_MAX_NUM_OUTPUT_MIP - 1);
 
 	uint32_t mip0SizeX = (uint32_t)m_HCB_Target.GetDesc().Width;
 	uint32_t mip0SizeY = (uint32_t)m_HCB_Target.GetDesc().Height;
@@ -4706,8 +4706,8 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 	ScopedTimer scopedTimer(pCmdList, L"BuildHZB");
 
 	// シェーダ側と合わせている
-	const size_t GROUP_SIZE_X = 8;
-	const size_t GROUP_SIZE_Y = 8;
+	const size_t GROUP_SIZE_X = 1 << (HZB_MAX_NUM_OUTPUT_MIP - 1);
+	const size_t GROUP_SIZE_Y = 1 << (HZB_MAX_NUM_OUTPUT_MIP - 1);
 
 	uint32_t mip0SizeX = (uint32_t)m_HZB_Target.GetDesc().Width;
 	uint32_t mip0SizeY = (uint32_t)m_HZB_Target.GetDesc().Height;

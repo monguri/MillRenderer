@@ -6,7 +6,7 @@ cbuffer CbHZB : register(b0)
 	int NumOutputMip : packoffset(c0.w);
 }
 
-static const uint GROUP_TILE_SIZE = 8;
+static const uint GROUP_TILE_SIZE = 1 << (4 - 1);
 
 Texture2D ParentTextureMip : register(t0);
 SamplerState PointClampSmp : register(s0);
