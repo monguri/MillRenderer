@@ -87,6 +87,7 @@ namespace
 		DEBUG_VIEW_NORMAL,
 		DEBUG_VIEW_SSAO_FULL_RES,
 		DEBUG_VIEW_SSAO_HALF_RES,
+		DEBUG_VIEW_SSGI,
 		DEBUG_VIEW_VELOCITY,
 	};
 
@@ -1099,7 +1100,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-	// HCB用ターゲットの生成および
+	// HCB用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -1311,6 +1312,31 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// Wait command queue finishing.
 		m_Fence.Wait(m_pQueue.Get(), INFINITE);
+	}
+
+	// SSGI用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		// 半解像度パスとして扱う
+		uint32_t width = DivideAndRoundUp(m_Width, 2);
+		uint32_t height = DivideAndRoundUp(m_Height, 2);
+
+		if (!m_SSGI_Target.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			width,
+			height,
+			m_SceneColorTarget.GetDesc().Format,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+			return false;
+		}
 	}
 
 	// AmbientLight用カラーターゲットの生成
@@ -2298,6 +2324,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.Begin()
 			.SetSRV(ShaderStage::PS, 0, 0)
 			.SetSRV(ShaderStage::PS, 1, 1)
+			.SetSRV(ShaderStage::PS, 2, 2)
 			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
 			.AllowIL()
 			.End();
@@ -4059,6 +4086,8 @@ void SampleApp::OnTerm()
 	m_SSAO_FullResTarget.Term();
 	m_SSAO_RandomizationTex.Term();
 
+	m_SSGI_Target.Term();
+
 	m_AmbientLightTarget.Term();
 
 	m_ObjectVelocityTarget.Term();
@@ -4939,6 +4968,7 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_AmbientLightRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_SSGI_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pAmbientLightPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -5572,6 +5602,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		case DEBUG_VIEW_SSAO_HALF_RES:
 			renderTargetName = L"SSAO Half Res";
 			break;
+		case DEBUG_VIEW_SSGI:
+			renderTargetName = L"SSGI";
+			break;
 		case DEBUG_VIEW_VELOCITY:
 			renderTargetName = L"Velocity";
 			break;
@@ -5589,6 +5622,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		switch (m_debugViewRenderTarget)
 		{
 			case DEBUG_VIEW_NONE:
+			case DEBUG_VIEW_SSGI:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 1.0f;
 				ptr->Bias = 0.0f;
@@ -5646,6 +5680,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			break;
 		case DEBUG_VIEW_SSAO_HALF_RES:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
+			break;
+		case DEBUG_VIEW_SSGI:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSGI_Target.GetHandleSRV()->HandleGPU);
 			break;
 		case DEBUG_VIEW_VELOCITY:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTargt.GetHandleSRV()->HandleGPU);
@@ -5713,6 +5750,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::RadioButton("Normal", &m_debugViewRenderTarget, DEBUG_VIEW_NORMAL);
 	ImGui::RadioButton("SSAO FullRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_FULL_RES);
 	ImGui::RadioButton("SSAO HalfRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_HALF_RES);
+	ImGui::RadioButton("SSGI", &m_debugViewRenderTarget, DEBUG_VIEW_SSGI);
 	ImGui::RadioButton("Velocity", &m_debugViewRenderTarget, DEBUG_VIEW_VELOCITY);
 	ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 
