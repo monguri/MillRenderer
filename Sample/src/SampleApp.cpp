@@ -4372,6 +4372,8 @@ void SampleApp::OnRender()
 		DrawSSAO(pCmd, projNoJitter);
 	}
 
+	DrawSSGI(pCmd);
+
 	DrawAmbientLight(pCmd);
 
 	if (m_enableVelocity)
@@ -5010,6 +5012,35 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 		DirectX::TransitionResource(pCmdList, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
+}
+
+void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"SSGI");
+
+	DirectX::TransitionResource(pCmdList, m_HCB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	pCmdList->SetComputeRootSignature(m_SSGI_RootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pSSGI_PSO.Get());
+	pCmdList->SetComputeRootDescriptorTable(0, m_HCB_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_HZB_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_SSGI_Target.GetHandleUAVs()[0]->HandleGPU);
+
+	// シェーダ側と合わせている
+	const size_t GROUP_SIZE_X = 4;
+	const size_t GROUP_SIZE_Y = 4;
+
+	// グループ数は切り上げ
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_SSGI_Target.GetDesc().Width, GROUP_SIZE_X);
+	UINT NumGroupY = DivideAndRoundUp(m_SSGI_Target.GetDesc().Height, GROUP_SIZE_Y);
+	UINT NumGroupZ = 1;
+	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+	DirectX::TransitionResource(pCmdList, m_HCB_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)

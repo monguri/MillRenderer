@@ -4,7 +4,7 @@ SamplerState PointClampSmp : register(s0);
 
 RWTexture2D<float4> OutResult : register(u0);
 
-[numthreads(1, 1, 1)]
+[numthreads(4, 4, 16)]
 void main( uint2 DTid : SV_DispatchThreadID )
 {
 	OutResult[DTid] = float4(0, 0, 0, 0);
