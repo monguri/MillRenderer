@@ -46,6 +46,8 @@ private:
 	RootSignature m_SSAOSetupRootSig;
 	ComPtr<ID3D12PipelineState> m_pSSAO_PSO;
 	RootSignature m_SSAO_RootSig;
+	ComPtr<ID3D12PipelineState> m_pSSGI_PSO;
+	RootSignature m_SSGI_RootSig;
 	ComPtr<ID3D12PipelineState> m_pAmbientLightPSO;
 	RootSignature m_AmbientLightRootSig;
 	ComPtr<ID3D12PipelineState> m_pObjectVelocityPSO;

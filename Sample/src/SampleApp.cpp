@@ -2318,6 +2318,61 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+    // SSGI用ルートシグニチャの生成
+	{
+		RootSignature::Desc desc;
+		desc = desc.Begin()
+			.SetSRV(ShaderStage::ALL, 0, 0)
+			.SetSRV(ShaderStage::ALL, 1, 1)
+			.SetUAV(ShaderStage::ALL, 2, 0)
+			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp).End();
+
+		if (!m_SSGI_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+	}
+
+    // SSGIパス用パイプラインステートの生成
+	{
+		std::wstring csPath;
+
+		if (!SearchFilePath(L"SSGI_CS.cso", csPath))
+		{
+			ELOG("Error : Compute Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pCSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_SSGI_RootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSSGI_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // AmbientLight用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -4150,6 +4205,9 @@ void SampleApp::OnTerm()
 
 	m_pSSAO_PSO.Reset();
 	m_SSAO_RootSig.Term();
+
+	m_pSSGI_PSO.Reset();
+	m_SSGI_RootSig.Term();
 
 	m_pAmbientLightPSO.Reset();
 	m_AmbientLightRootSig.Term();
