@@ -191,9 +191,13 @@ namespace
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
 	struct alignas(256) CbSSGI
 	{
-		Matrix ViewMatrix;
+		Matrix InvVRotPMatrix;
+		float Near;
+		float Far;
 		int Width;
 		int Height;
+		int FrameSampleIndex;
+		float Padding[3];
 	};
 
 	struct alignas(256) CbObjectVelocity
@@ -3584,9 +3588,12 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		CbSSGI* ptr = m_SSGI_CB.GetPtr<CbSSGI>();
-		ptr->ViewMatrix = Matrix::Identity;
+		ptr->InvVRotPMatrix = Matrix::Identity;
+		ptr->Near = CAMERA_NEAR;
+		ptr->Far = CAMERA_FAR;
 		ptr->Width = (int)m_SSGI_Target.GetDesc().Width;
 		ptr->Height = m_SSGI_Target.GetDesc().Height;
+		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
 	}
 
 	// ObjectVelocity用定数バッファの作成
@@ -4398,7 +4405,14 @@ void SampleApp::OnRender()
 		DrawSSAO(pCmd, projNoJitter);
 	}
 
-	DrawSSGI(pCmd);
+	if (m_enableTemporalAA)
+	{
+		DrawSSGI(pCmd, viewProjWithJitter);
+	}
+	else
+	{
+		DrawSSGI(pCmd, viewProjNoJitter);
+	}
 
 	DrawAmbientLight(pCmd);
 
@@ -5040,13 +5054,14 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 	}
 }
 
-void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProj)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSGI");
 
 	{
 		CbSSGI* ptr = m_SSGI_CB.GetPtr<CbSSGI>();
-		ptr->ViewMatrix = m_Camera.GetView();
+		ptr->InvVRotPMatrix = viewRotProj.Invert();
+		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
 	}
 
 	DirectX::TransitionResource(pCmdList, m_HCB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
