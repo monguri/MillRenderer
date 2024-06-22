@@ -188,6 +188,14 @@ namespace
 		float Intensity;
 	};
 
+	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	struct alignas(256) CbSSGI
+	{
+		Matrix ViewMatrix;
+		int Width;
+		int Height;
+	};
+
 	struct alignas(256) CbObjectVelocity
 	{
 		Matrix CurWVPWithJitter;
@@ -2322,9 +2330,11 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		RootSignature::Desc desc;
 		desc = desc.Begin()
-			.SetSRV(ShaderStage::ALL, 0, 0)
-			.SetSRV(ShaderStage::ALL, 1, 1)
-			.SetUAV(ShaderStage::ALL, 2, 0)
+			.SetCBV(ShaderStage::ALL, 0, 0)
+			.SetSRV(ShaderStage::ALL, 1, 0)
+			.SetSRV(ShaderStage::ALL, 2, 1)
+			.SetSRV(ShaderStage::ALL, 3, 2)
+			.SetUAV(ShaderStage::ALL, 4, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp).End();
 
 		if (!m_SSGI_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
@@ -3565,6 +3575,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Intensity = m_SSAO_Intensity;
 	}
 
+	// SSGIパス用定数バッファの作成
+	{
+		if (!m_SSGI_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSGI)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbSSGI* ptr = m_SSGI_CB.GetPtr<CbSSGI>();
+		ptr->ViewMatrix = Matrix::Identity;
+		ptr->Width = (int)m_SSGI_Target.GetDesc().Width;
+		ptr->Height = m_SSGI_Target.GetDesc().Height;
+	}
+
 	// ObjectVelocity用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -4080,6 +4104,8 @@ void SampleApp::OnTerm()
 	m_pHZB_CBs.clear();
 
 	m_SSAOSetupCB.Term();
+
+	m_SSGI_CB.Term();
 
 	m_SSR_CB.Term();
 
@@ -5018,15 +5044,23 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSGI");
 
+	{
+		CbSSGI* ptr = m_SSGI_CB.GetPtr<CbSSGI>();
+		ptr->ViewMatrix = m_Camera.GetView();
+	}
+
 	DirectX::TransitionResource(pCmdList, m_HCB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_SSGI_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSSGI_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_HCB_Target.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_HZB_Target.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_SSGI_Target.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_CB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_HCB_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_HZB_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_SSGI_Target.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 4;
@@ -5040,6 +5074,7 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList)
 
 	DirectX::TransitionResource(pCmdList, m_HCB_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
