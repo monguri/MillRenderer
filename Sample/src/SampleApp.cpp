@@ -199,7 +199,8 @@ namespace
 		int Width;
 		int Height;
 		int FrameSampleIndex;
-		float Padding[3];
+		float Intensity;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbObjectVelocity
@@ -510,6 +511,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_spotLightIntensity(1000.0f)
 , m_SSAO_Contrast(1.0f)
 , m_SSAO_Intensity(0.5f)
+, m_SSGI_Intensity(0.0f)
 , m_enableVelocity(true)
 , m_debugViewContrast(1.0f)
 , m_SSR_Intensity(1.0f)
@@ -3598,6 +3600,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Width = (int)m_SSGI_Target.GetDesc().Width;
 		ptr->Height = m_SSGI_Target.GetDesc().Height;
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
+		ptr->Intensity = m_SSGI_Intensity;
 	}
 
 	// ObjectVelocity用定数バッファの作成
@@ -5068,6 +5071,7 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 		ptr->VRotPMatrix = viewRotProj;
 		ptr->InvVRotPMatrix = viewRotProj.Invert();
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
+		ptr->Intensity = m_SSGI_Intensity;
 	}
 
 	DirectX::TransitionResource(pCmdList, m_HCB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -5908,12 +5912,15 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.01f, 10.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	ImGui::SliderFloat("SSAO Intensity", &m_SSAO_Intensity, 0.0f, 1.0f);
 
+	ImGui::SeparatorText("SSGI(WIP)");
+	ImGui::SliderFloat("SSGI Intensity", &m_SSGI_Intensity, 0.0f, 1.0f);
+
 	ImGui::SeparatorText("Velocity and Motion Blur");
 	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
 	ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
 	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
 
-	ImGui::SeparatorText("Volumetric Fog Scattering Intensity");
+	ImGui::SeparatorText("Volumetric Fog Intensity");
 	ImGui::SliderFloat("Dir Light Scattering", &m_directionalLightVolumetricFogScatteringIntensity, 0.0f, 10000.0f);
 	ImGui::SliderFloat("Spot Light Scattering", &m_spotLightVolumetricFogScatteringIntensity, 0.0f, 100000.0f);
 

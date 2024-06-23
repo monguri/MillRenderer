@@ -161,6 +161,7 @@ private:
 	float m_spotLightIntensity;
 	float m_SSAO_Contrast;
 	float m_SSAO_Intensity;
+	float m_SSGI_Intensity;
 	bool m_enableVelocity;
 	float m_debugViewContrast;
 	float m_SSR_Intensity;

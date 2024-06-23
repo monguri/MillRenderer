@@ -9,6 +9,7 @@ cbuffer CbSSGI : register(b0)
 	int Width : packoffset(c12.z);
 	int Height : packoffset(c12.w);
 	int FrameSampleIndex : packoffset(c13);
+	float Intensity : packoffset(c13.y);
 }
 
 Texture2D HCB : register(t0);
@@ -318,13 +319,13 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint Gro
 		float3 sampleColor = HCB.SampleLevel(PointClampSmp, hitUV, mipLevel).rgb;
 		float sampleColorWeight = rcp(1 + Luminance(sampleColor));
 		float3 diffuseColor = sampleColor * sampleColorWeight;
-		SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].xyz = diffuseColor;
+		SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].rgb = diffuseColor;
 	}
 	else
 	{
-		SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].xyz = 0;
+		SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].rgb = 0;
 	}
-	SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].w = 0;
+	SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].a = 0;
 
 	GroupMemoryBarrierWithGroupSync();
 
@@ -334,12 +335,12 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint Gro
 
 		for (uint raySeqId = 0; raySeqId < CONFIG_RAY_COUNT; raySeqId++)
 		{
-			diffuseColor += SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].xyz;
+			diffuseColor += SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].rgb;
 		}
 
 		diffuseColor *= rcp(CONFIG_RAY_COUNT);
 		diffuseColor *= rcp(1 - Luminance(diffuseColor));
 
-		OutResult[groupPixelOffset] = float4(diffuseColor, 1);
+		OutResult[groupPixelOffset] = float4(diffuseColor, 1) * Intensity;
 	}
 }
