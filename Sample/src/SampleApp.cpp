@@ -1123,7 +1123,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		// TODO:これらの計算をやっている箇所が複数あり冗長
 		uint32_t mip0SizeX = RoundDownToPowerOfTwo(m_Width);
 		uint32_t mip0SizeY = RoundDownToPowerOfTwo(m_Height);
-		uint32_t numMips = (uint32_t)log2f((float)DirectX::XMMax(mip0SizeX, mip0SizeY));
 
 		if (!m_HCB_Target.InitUnorderedAccessTarget
 		(
@@ -1135,7 +1134,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			mip0SizeY,
 			m_SceneColorTarget.GetDesc().Format,
 			clearColor,
-			numMips
+			HCB_MAX_NUM_OUTPUT_MIP
 		))
 		{
 			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
@@ -4794,7 +4793,6 @@ void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
 
 	uint32_t mip0SizeX = (uint32_t)m_HCB_Target.GetDesc().Width;
 	uint32_t mip0SizeY = (uint32_t)m_HCB_Target.GetDesc().Height;
-	uint32_t numMips = m_HCB_Target.GetDesc().MipLevels;
 
 	D3D12_RESOURCE_BARRIER templateBarrier = {};
 	templateBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
