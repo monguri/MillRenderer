@@ -316,7 +316,7 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint Gro
 	bool bHit = RayCast(float3(uv, deviceZ), cameraOriginWorldPos, L, -viewZ, CONFIG_RAY_STEPS, stepOffset, roughness, mipLevel, hitUV);
 	if (bHit)
 	{
-		float3 sampleColor = HCB.SampleLevel(PointClampSmp, hitUV, mipLevel).rgb;
+		float3 sampleColor = HCB.SampleLevel(PointClampSmp, hitUV * float2(1, (float)Height / Width), mipLevel).rgb;
 		float sampleColorWeight = rcp(1 + Luminance(sampleColor));
 		float3 diffuseColor = sampleColor * sampleColorWeight;
 		SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].rgb = diffuseColor;
