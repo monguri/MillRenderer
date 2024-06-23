@@ -144,7 +144,7 @@ float3x3 GetTangentBasis(float3 tangentZ)
 {
 	const float Sign = tangentZ.z >= 0 ? 1 : -1;
 	const float a = -rcp(Sign + tangentZ.z);
-	const float b = tangentZ.x + tangentZ.y * a;
+	const float b = tangentZ.x * tangentZ.y * a;
 
 	float3 tangentX = {
 		1 + Sign * a * tangentZ.x * tangentZ.x,
