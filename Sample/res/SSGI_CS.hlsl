@@ -328,5 +328,18 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint Gro
 
 	GroupMemoryBarrierWithGroupSync();
 
-	OutResult[DTid] = float4(0, 0, 0, 0);
+	if (GroupThreadIndex < TILE_PIXEL_COUNT)
+	{
+		float3 diffuseColor = 0;
+
+		for (uint raySeqId = 0; raySeqId < CONFIG_RAY_COUNT; raySeqId++)
+		{
+			diffuseColor += SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].xyz;
+		}
+
+		diffuseColor *= rcp(CONFIG_RAY_COUNT);
+		diffuseColor *= rcp(1 - Luminance(diffuseColor));
+
+		OutResult[groupPixelOffset] = float4(diffuseColor, 1);
+	}
 }
