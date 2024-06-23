@@ -95,7 +95,7 @@ float3 GetWSNormal(float2 uv)
 	return normalize(NormalMap.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f);
 }
 
-bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, float depth, float stepOffset, float roughness, out float2 hitUV)
+bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, float depth, uint numSteps, float stepOffset, float roughness, out float mipLevel, out float2 hitUV)
 {
 	// ray length to be depth is referenced UE.
 	float3 cameraOriginRayEnd = cameraOriginRayStart + rayDir * depth;
@@ -106,7 +106,7 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 
 	// z is deviceZ so steps are not uniform on world space.
 	float3 rayStepUVz = rayEndUVz - rayStartUVz;
-	float step = 1.0f / NUM_STEPS;
+	float step = 1.0f / numSteps;
 	rayStepUVz *= step;
 	float3 rayUVz = rayStartUVz + rayStepUVz * stepOffset;
 
@@ -119,14 +119,14 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 	bool bHit = false;
 	float sampleDepthDiff;
 	float preSampleDepthDiff = 0.0f;
-	float mipLevel = 1.0f; // start level refered UE.
+	mipLevel = 1.0f; // start level refered UE.
 
-	for (stepCount = 0; stepCount < NUM_STEPS; stepCount++)
+	for (stepCount = 0; stepCount < numSteps; stepCount++)
 	{
 		float3 sampleUVz = rayUVz + rayStepUVz * (stepCount + 1);
 		float sampleDepth = GetHZBDeviceZ(sampleUVz.xy, mipLevel);
 		// Refered UE. SSR become as blurrier as high roughness.
-		mipLevel += 4.0f / NUM_STEPS * roughness;
+		mipLevel += 4.0f / numSteps * roughness;
 
 		sampleDepthDiff = sampleDepth - sampleUVz.z;
 		bHit = (abs(sampleDepthDiff + compareTolerance) < compareTolerance);
@@ -185,7 +185,8 @@ float4 main(const VSOutput input) : SV_TARGET0
 	float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
 
 	float2 hitUV;
-	bool bHit = RayCast(float3(input.TexCoord, deviceZ), cameraOriginWorldPos, rayDir, -viewZ, stepOffset, roughness, hitUV);
+	float mipLevel = 0; // not used
+	bool bHit = RayCast(float3(input.TexCoord, deviceZ), cameraOriginWorldPos, rayDir, -viewZ, NUM_STEPS, stepOffset, roughness, mipLevel, hitUV);
 
 	float3 reflection = 0;
 	if (bHit)

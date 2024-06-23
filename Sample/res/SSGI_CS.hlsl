@@ -1,12 +1,14 @@
 cbuffer CbSSGI : register(b0)
 {
 	// TODO: may be not necessary
-	float4x4 InvVRotPMatrix : packoffset(c0);
-	float Near : packoffset(c4);
-	float Far : packoffset(c4.y);
-	int Width : packoffset(c4.z);
-	int Height : packoffset(c4.w);
-	int FrameSampleIndex : packoffset(c5);
+	float4x4 ProjMatrix : packoffset(c0);
+	float4x4 VRotPMatrix : packoffset(c4);
+	float4x4 InvVRotPMatrix : packoffset(c8);
+	float Near : packoffset(c12);
+	float Far : packoffset(c12.y);
+	int Width : packoffset(c12.z);
+	int Height : packoffset(c12.w);
+	int FrameSampleIndex : packoffset(c13);
 }
 
 Texture2D HCB : register(t0);
@@ -20,18 +22,22 @@ RWTexture2D<float4> OutResult : register(u0);
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
+ // Referenced UE's value. QUALITY == 3
+static const uint CONFIG_RAY_STEPS = 8;
+static const uint CONFIG_RAY_COUNT = 16;
+
+static const float SLOPE_COMPARE_TOLERANCE_SCALE = 4.0f; // Referenced UE's value.
 static const uint TILE_PIXEL_SIZE_X = 4;
 static const uint TILE_PIXEL_SIZE_Y = 4;
-static const uint CONFIG_RAY_COUNT = 16;
 static const uint TILE_PIXEL_COUNT = TILE_PIXEL_SIZE_X * TILE_PIXEL_SIZE_Y;
 static const uint LANE_PER_GROUPS = TILE_PIXEL_COUNT * CONFIG_RAY_COUNT;
 
-groupshared float4 SharedMemory[TILE_PIXEL_COUNT];
+groupshared float4 SharedMemory[TILE_PIXEL_COUNT * CONFIG_RAY_COUNT];
 
 // TODO: same as the function of SSR_PS.hlsl
 float3 GetWSNormal(float2 uv)
 {
-	return normalize(NormalMap.Sample(PointClampSmp, uv).xyz * 2.0f - 1.0f);
+	return normalize(NormalMap.SampleLevel(PointClampSmp, uv, 0).xyz * 2.0f - 1.0f);
 }
 
 // TODO: same as the function of SSR_PS.hlsl
@@ -65,6 +71,13 @@ float3 ConverFromNDCToCameraOriginWS(float4 ndcPos)
 	float4 cameraOriginWorldPos = mul(InvVRotPMatrix, clipPos);
 	
 	return cameraOriginWorldPos.xyz;
+}
+
+float3 ConverFromCameraOriginWSToNDC(float3 cameraOriginWorldPos)
+{
+	float4 clipPos = mul(VRotPMatrix, float4(cameraOriginWorldPos, 1.0f));
+	float4 ndcPos = clipPos / clipPos.w;
+	return ndcPos.xyz;
 }
 
 // refered UE's Rand3DPCG16()
@@ -187,8 +200,74 @@ float3 ComputeL(float3 N, float2 E)
 }
 
 // TODO: same as the function of SSR_PS.hlsl
-bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, float depth, float stepOffset, float roughness, out float2 hitUV)
+// Referenced UE's implementation
+float InterleavedGradientNoise(float2 pixelPos, float frameId)
 {
+	// magic values are found by experimentation
+	pixelPos += frameId * (float2(47, 17) * 0.695f);
+
+	const float3 MAGIC_NUMBER = float3(0.06711056f, 0.00583715f, 52.9829189f);
+	return frac(MAGIC_NUMBER.z * frac(dot(pixelPos, MAGIC_NUMBER.xy)));
+}
+
+// TODO: same as the function of SSR_PS.hlsl
+bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, float depth, uint numSteps, float stepOffset, float roughness, out float mipLevel, out float2 hitUV)
+{
+	// ray length to be depth is referenced UE.
+	float3 cameraOriginRayEnd = cameraOriginRayStart + rayDir * depth;
+	float3 rayEndNDC = ConverFromCameraOriginWSToNDC(cameraOriginRayEnd);
+	float3 rayEndUVz = float3(rayEndNDC.xy * float2(0.5f, -0.5f) + 0.5f, rayEndNDC.z);
+	// viewport clip
+	rayEndUVz.xy = saturate(rayEndUVz.xy);
+
+	// z is deviceZ so steps are not uniform on world space.
+	float3 rayStepUVz = rayEndUVz - rayStartUVz;
+	float step = 1.0f / numSteps;
+	rayStepUVz *= step;
+	float3 rayUVz = rayStartUVz + rayStepUVz * stepOffset;
+
+	float4 rayStartClipPos = mul(VRotPMatrix, float4(cameraOriginRayStart, 1.0f));
+	float4 rayDepthClipPos = rayStartClipPos + mul(ProjMatrix, float4(0, 0, -depth, 0));
+	float3 rayDepthNDC = rayDepthClipPos.xyz / rayDepthClipPos.w;
+
+	float compareTolerance = max(abs(rayStepUVz.z), (rayDepthNDC.z - rayStartUVz.z) * SLOPE_COMPARE_TOLERANCE_SCALE * step);
+	uint stepCount;
+	bool bHit = false;
+	float sampleDepthDiff;
+	float preSampleDepthDiff = 0.0f;
+	mipLevel = 1.0f; // start level refered UE.
+
+	for (stepCount = 0; stepCount < numSteps; stepCount++)
+	{
+		float3 sampleUVz = rayUVz + rayStepUVz * (stepCount + 1);
+		float sampleDepth = GetHZBDeviceZ(sampleUVz.xy, mipLevel);
+		// Refered UE. SSR become as blurrier as high roughness.
+		mipLevel += 4.0f / numSteps * roughness;
+
+		sampleDepthDiff = sampleDepth - sampleUVz.z;
+		bHit = (abs(sampleDepthDiff + compareTolerance) < compareTolerance);
+		if (bHit)
+		{
+			break;
+		}
+
+		preSampleDepthDiff = sampleDepthDiff;
+	}
+
+	hitUV = 0;
+	if (bHit)
+	{
+		float timeLerp = saturate(preSampleDepthDiff / (preSampleDepthDiff - sampleDepthDiff));
+		float intersectTime = stepCount + timeLerp;
+		hitUV = rayUVz.xy + rayStepUVz.xy * intersectTime;
+	}
+
+	return bHit;
+}
+
+float Luminance(float3 linearColor)
+{
+	return dot(linearColor, float3(0.3f, 0.59f, 0.11f));
 }
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, CONFIG_RAY_COUNT)]
@@ -205,9 +284,9 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint Gro
 	// Store 
 	if (raySequenceId == 0)
 	{
-		SharedMemory[groupPixelId].xyz = GetWSNormal(uv);
+		SharedMemory[/* raySequenceId * TILE_PIXEL_COUNT + */ groupPixelId].xyz = GetWSNormal(uv);
 
-		SharedMemory[groupPixelId].w = GetHZBDeviceZ(uv, 0);
+		SharedMemory[/* raySequenceId * TILE_PIXEL_COUNT + */ groupPixelId].w = GetHZBDeviceZ(uv, 0);
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -217,7 +296,6 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint Gro
 	float deviceZ = SharedMemory[groupPixelId].w;
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
 	float3 cameraOriginWorldPos = ConverFromNDCToCameraOriginWS(ndcPos);
-	// TODO: don't need ?
 
 	float3 N = SharedMemory[groupPixelId].xyz;
 
@@ -225,6 +303,30 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint Gro
 	float2 E = Hammersley16(raySequenceId, CONFIG_RAY_COUNT, randomSeed);
 	float3 L = ComputeL(N, E);
 
+	float viewZ = ConvertFromDeviceZtoViewZ(deviceZ);
+
+	float stepOffset = InterleavedGradientNoise(float2(pixelPosition), FrameSampleIndex);
+	stepOffset -= 0.5f;
+
+	float roughness = 1;
+
+	float2 hitUV;
+	float mipLevel = 0; // not used
+	bool bHit = RayCast(float3(uv, deviceZ), cameraOriginWorldPos, L, -viewZ, CONFIG_RAY_STEPS, stepOffset, roughness, mipLevel, hitUV);
+	if (bHit)
+	{
+		float3 sampleColor = HCB.SampleLevel(PointClampSmp, hitUV, mipLevel).rgb;
+		float sampleColorWeight = rcp(1 + Luminance(sampleColor));
+		float3 diffuseColor = sampleColor * sampleColorWeight;
+		SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].xyz = diffuseColor;
+	}
+	else
+	{
+		SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].xyz = 0;
+	}
+	SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].w = 0;
+
+	GroupMemoryBarrierWithGroupSync();
 
 	OutResult[DTid] = float4(0, 0, 0, 0);
 }

@@ -191,6 +191,8 @@ namespace
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
 	struct alignas(256) CbSSGI
 	{
+		Matrix ProjMatrix;
+		Matrix VRotPMatrix;
 		Matrix InvVRotPMatrix;
 		float Near;
 		float Far;
@@ -3588,6 +3590,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		CbSSGI* ptr = m_SSGI_CB.GetPtr<CbSSGI>();
+		ptr->ProjMatrix = Matrix::Identity;
+		ptr->VRotPMatrix = Matrix::Identity;
 		ptr->InvVRotPMatrix = Matrix::Identity;
 		ptr->Near = CAMERA_NEAR;
 		ptr->Far = CAMERA_FAR;
@@ -4407,11 +4411,11 @@ void SampleApp::OnRender()
 
 	if (m_enableTemporalAA)
 	{
-		DrawSSGI(pCmd, viewProjWithJitter);
+		DrawSSGI(pCmd, projWithJitter, viewProjWithJitter);
 	}
 	else
 	{
-		DrawSSGI(pCmd, viewProjNoJitter);
+		DrawSSGI(pCmd, projNoJitter, viewProjNoJitter);
 	}
 
 	DrawAmbientLight(pCmd);
@@ -5054,12 +5058,14 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 	}
 }
 
-void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProj)
+void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSGI");
 
 	{
 		CbSSGI* ptr = m_SSGI_CB.GetPtr<CbSSGI>();
+		ptr->ProjMatrix = proj;
+		ptr->VRotPMatrix = viewRotProj;
 		ptr->InvVRotPMatrix = viewRotProj.Invert();
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
 	}
