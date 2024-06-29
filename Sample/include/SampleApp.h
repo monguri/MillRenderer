@@ -48,6 +48,8 @@ private:
 	RootSignature m_SSAO_RootSig;
 	ComPtr<ID3D12PipelineState> m_pSSGI_PSO;
 	RootSignature m_SSGI_RootSig;
+	ComPtr<ID3D12PipelineState> m_pDenoiseSSGI_PSO;
+	RootSignature m_DenoiseSSGI_RootSig;
 	ComPtr<ID3D12PipelineState> m_pAmbientLightPSO;
 	RootSignature m_AmbientLightRootSig;
 	ComPtr<ID3D12PipelineState> m_pObjectVelocityPSO;
@@ -91,7 +93,7 @@ private:
 	ColorTarget m_SSAO_FullResTarget;
 	Texture m_SSAO_RandomizationTex;
 	ColorTarget m_SSGI_Target;
-	ColorTarget m_DenoisedSSGI_Target;
+	ColorTarget m_DenoiseSSGI_Target;
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_ObjectVelocityTarget;
 	ColorTarget m_VelocityTargt;
@@ -191,7 +193,7 @@ private:
 	void DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj);
 	void DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj);
-	void DrawStackowiakDenoiser(ID3D12GraphicsCommandList* pCmdList);
+	void DrawDenoiseSSGI(ID3D12GraphicsCommandList* pCmdList);
 	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
 	void DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter);
 	void DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter);
