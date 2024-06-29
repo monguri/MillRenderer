@@ -335,7 +335,7 @@ void main(uint2 groupThreadID : SV_GroupThreadID, uint2 groupID : SV_GroupID, ui
 
 		for (uint raySeqId = 0; raySeqId < CONFIG_RAY_COUNT; raySeqId++)
 		{
-			diffuseColor += SharedMemory[raySequenceId * TILE_PIXEL_COUNT + groupPixelId].rgb;
+			diffuseColor += SharedMemory[raySeqId * TILE_PIXEL_COUNT + groupPixelId].rgb;
 		}
 
 		diffuseColor *= rcp(CONFIG_RAY_COUNT);
