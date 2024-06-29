@@ -272,15 +272,15 @@ float Luminance(float3 linearColor)
 }
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, CONFIG_RAY_COUNT)]
-void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
+void main(uint2 groupThreadID : SV_GroupThreadID, uint2 groupID : SV_GroupID, uint groupThreadIndex : SV_GroupIndex)
 {
-	uint groupPixelId = GroupThreadIndex % TILE_PIXEL_COUNT;
-	uint raySequenceId = GroupThreadIndex / TILE_PIXEL_COUNT;
-	uint2 groupPixelOffset = DTid;
-	uint2 pixelPosition = GroupId * uint2(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y) + groupPixelOffset;
+	uint groupPixelId = groupThreadIndex % TILE_PIXEL_COUNT;
+	uint raySequenceId = groupThreadIndex / TILE_PIXEL_COUNT;
+	uint2 groupPixelOffset = groupThreadID;
+	uint2 pixelPosition = groupID * uint2(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y) + groupPixelOffset;
 
 	float2 rcpDimension = 1.0f / float2(Width, Height);
-	float2 uv = (groupPixelOffset + 0.5f) * rcpDimension;
+	float2 uv = (pixelPosition + 0.5f) * rcpDimension;
 
 	// Store 
 	if (raySequenceId == 0)
@@ -329,7 +329,7 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint Gro
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if (GroupThreadIndex < TILE_PIXEL_COUNT)
+	if (groupThreadIndex < TILE_PIXEL_COUNT)
 	{
 		float3 diffuseColor = 0;
 
@@ -341,6 +341,6 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 GroupId : SV_GroupID, uint Gro
 		diffuseColor *= rcp(CONFIG_RAY_COUNT);
 		diffuseColor *= rcp(1 - Luminance(diffuseColor));
 
-		OutResult[groupPixelOffset] = float4(diffuseColor, 1) * Intensity;
+		OutResult[pixelPosition] = float4(diffuseColor, 1) * Intensity;
 	}
 }
