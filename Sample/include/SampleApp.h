@@ -91,6 +91,7 @@ private:
 	ColorTarget m_SSAO_FullResTarget;
 	Texture m_SSAO_RandomizationTex;
 	ColorTarget m_SSGI_Target;
+	ColorTarget m_DenoisedSSGI_Target;
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_ObjectVelocityTarget;
 	ColorTarget m_VelocityTargt;

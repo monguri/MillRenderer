@@ -1354,6 +1354,27 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// SSGIデノイズ用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_DenoisedSSGI_Target.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			m_SSGI_Target.GetDesc().Width,
+			m_SSGI_Target.GetDesc().Height,
+			m_SceneColorTarget.GetDesc().Format,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+			return false;
+		}
+	}
+
 	// AmbientLight用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -4181,6 +4202,7 @@ void SampleApp::OnTerm()
 	m_SSAO_RandomizationTex.Term();
 
 	m_SSGI_Target.Term();
+	m_DenoisedSSGI_Target.Term();
 
 	m_AmbientLightTarget.Term();
 
