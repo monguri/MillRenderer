@@ -4420,6 +4420,8 @@ void SampleApp::OnRender()
 		DrawSSGI(pCmd, projNoJitter, viewProjNoJitter);
 	}
 
+	DrawStackowiakDenoiser(pCmd);
+
 	DrawAmbientLight(pCmd);
 
 	if (m_enableVelocity)
@@ -5099,6 +5101,10 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawStackowiakDenoiser(ID3D12GraphicsCommandList* pCmdList)
+{
 }
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
