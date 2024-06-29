@@ -13,6 +13,7 @@ At default setting, it renders Sponza.
   - I postpone applying various optimizing techniques. Big techniques that ZPrePass, deferred rendering or some other thing, and smaller techniques.
 - D3D12 application.
 - All shaders are SM5.0 so far.
+- Tested only on RTX3060. Not tested yet on Radeon.
 - Multi render target base pass. (Scene color, depth, normal and metallic roughness).
 - Forward renderer so far.
 - Internal rendering resolution is fixed to 1920x1080 regardless of the window resolution so far.
