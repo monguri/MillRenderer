@@ -11,17 +11,19 @@ RWTexture2D<float4> OutResult : register(u0);
 
 static const uint TILE_PIXEL_SIZE_X = 8;
 static const uint TILE_PIXEL_SIZE_Y = 8;
+static const uint SAMPLE_COUNT = 8;
+static const uint STACKOWIAK_SAMPLE_SET_COUNT = 4;
 
-static const float2 STACKOWIAK_SAMPLE_SET_0[8 * 4] =
+static const uint2 STACKOWIAK_SAMPLE_SET_0[8 * 4] =
 {
-	float2(-0.5, -0.5), float2(+0.5, -0.5), float2(-0.5, +0.5), float2(+0.5, +0.5),
-	float2(-1.5, +0.5), float2(-1.5, -0.5), float2(-0.5, +1.5), float2(+1.5, -0.5),
-	float2(+0.5, -1.5), float2(+2.5, -0.5), float2(+1.5, +0.5), float2(-0.5, -1.5),
-	float2(-1.5, -2.5), float2(-0.5, -2.5), float2(-1.5, -1.5), float2(-0.5, +2.5),
-	float2(-1.5, +1.5), float2(+1.5, -2.5), float2(-1.5, +2.5), float2(+1.5, +2.5),
-	float2(+0.5, -2.5), float2(-2.5, -0.5), float2(-2.5, -1.5), float2(-2.5, +0.5),
-	float2(+0.5, +1.5), float2(+0.5, +2.5), float2(-3.5, +0.5), float2(+0.5, +3.5),
-	float2(+1.5, -1.5), float2(+3.5, -0.5), float2(+2.5, +1.5), float2(+3.5, +0.5),
+	uint2(-1, -1), uint2(+1, -1), uint2(-1, +1), uint2(+1, +1),
+	uint2(-2, +1), uint2(-2, -1), uint2(-1, +2), uint2(+2, -1),
+	uint2(+1, -2), uint2(+3, -1), uint2(+2, +1), uint2(-1, -2),
+	uint2(-2, -3), uint2(-1, -3), uint2(-2, -2), uint2(-1, +3),
+	uint2(-2, +2), uint2(+2, -3), uint2(-2, +3), uint2(+2, +3),
+	uint2(+1, -3), uint2(-3, -1), uint2(-3, -2), uint2(-3, +1),
+	uint2(+1, +2), uint2(+1, +3), uint2(-4, +1), uint2(+1, +4),
+	uint2(+2, -2), uint2(+4, -1), uint2(+3, +2), uint2(+4, +1),
 };
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
@@ -29,13 +31,24 @@ void main(uint2 DTid : SV_DispatchThreadID)
 {
 	uint2 pixelPosition = DTid;
 	float4 result = 0;
-	float2 bufferUV = (pixelPosition + 0.5f) / float2(Width, Height);
+	float2 rcpDimension = 1.0f / float2(Width, Height);
+	float2 bufferUV = (pixelPosition + 0.5f) * rcpDimension;
 
 	// center
 	result += SSGIMap.SampleLevel(PointClampSmp, bufferUV, 0);
 
 	// assign 0,1,2,3 to each neighbor 4 pixels
 	uint sampleTrackId = (pixelPosition.x & 1) | ((pixelPosition.y & 1) << 1);
+
+	// rest samples
+	for (uint i = 1; i < SAMPLE_COUNT; i++)
+	{
+		uint2 sampleOffset = STACKOWIAK_SAMPLE_SET_0[i * STACKOWIAK_SAMPLE_SET_COUNT + sampleTrackId];
+		float2 sampleBufferUV = bufferUV + sampleOffset * rcpDimension;
+		result += SSGIMap.SampleLevel(PointClampSmp, sampleBufferUV, 0);
+	}
+
+	result /= SAMPLE_COUNT;
 
 	OutResult[pixelPosition] = result;
 }
