@@ -122,6 +122,7 @@ private:
 	ConstantBuffer m_SSAO_HalfResCB[FRAME_COUNT];
 	ConstantBuffer m_SSAO_FullResCB[FRAME_COUNT];
 	ConstantBuffer m_SSGI_CB;
+	ConstantBuffer m_DenoiseSSGI_CB;
 	ConstantBuffer m_ObjectVelocityCB[FRAME_COUNT];
 	ConstantBuffer m_CameraVelocityCB[FRAME_COUNT];
 	ConstantBuffer m_SSR_CB;

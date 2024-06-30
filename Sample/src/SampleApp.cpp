@@ -203,6 +203,14 @@ namespace
 		float Padding[2];
 	};
 
+	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	struct alignas(256) CbDenoiseSSGI
+	{
+		int Width;
+		int Height;
+		float Padding[2];
+	};
+
 	struct alignas(256) CbObjectVelocity
 	{
 		Matrix CurWVPWithJitter;
@@ -2415,8 +2423,9 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		RootSignature::Desc desc;
 		desc = desc.Begin()
-			.SetSRV(ShaderStage::ALL, 0, 0)
-			.SetUAV(ShaderStage::ALL, 1, 0)
+			.SetCBV(ShaderStage::ALL, 0, 0)
+			.SetSRV(ShaderStage::ALL, 1, 0)
+			.SetUAV(ShaderStage::ALL, 2, 0)
 			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp).End();
 
 		if (!m_DenoiseSSGI_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
@@ -3677,6 +3686,19 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Intensity = m_SSGI_Intensity;
 	}
 
+	// DenoiseSSGIパス用定数バッファの作成
+	{
+		if (!m_DenoiseSSGI_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSGI)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbDenoiseSSGI* ptr = m_DenoiseSSGI_CB.GetPtr<CbDenoiseSSGI>();
+		ptr->Width = (int)m_DenoiseSSGI_Target.GetDesc().Width;
+		ptr->Height = m_DenoiseSSGI_Target.GetDesc().Height;
+	}
+
 	// ObjectVelocity用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
@@ -4194,6 +4216,8 @@ void SampleApp::OnTerm()
 	m_SSAOSetupCB.Term();
 
 	m_SSGI_CB.Term();
+
+	m_DenoiseSSGI_CB.Term();
 
 	m_SSR_CB.Term();
 
@@ -5191,8 +5215,9 @@ void SampleApp::DrawDenoiseSSGI(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_DenoiseSSGI_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pDenoiseSSGI_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_Target.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_DenoiseSSGI_Target.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(0, m_DenoiseSSGI_CB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_SSGI_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_DenoiseSSGI_Target.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
