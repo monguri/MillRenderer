@@ -1,6 +1,5 @@
 cbuffer CbSSGI : register(b0)
 {
-	// TODO: may be not necessary
 	float4x4 ProjMatrix : packoffset(c0);
 	float4x4 VRotPMatrix : packoffset(c4);
 	float4x4 InvVRotPMatrix : packoffset(c8);
