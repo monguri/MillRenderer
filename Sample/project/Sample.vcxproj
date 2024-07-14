@@ -65,7 +65,7 @@
       </DelayLoadDLLs>
     </Link>
     <FxCompile>
-      <ShaderModel>5.0</ShaderModel>
+      <ShaderModel>6.6</ShaderModel>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -88,7 +88,7 @@
       </DelayLoadDLLs>
     </Link>
     <FxCompile>
-      <ShaderModel>5.0</ShaderModel>
+      <ShaderModel>6.6</ShaderModel>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
