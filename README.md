@@ -12,7 +12,7 @@ At default setting, it renders Sponza.
 - Currently, I concentrate on developing various rendering passes and expressions.
   - I postpone applying various optimizing techniques. Big techniques that ZPrePass, deferred rendering or some other thing, and smaller techniques.
 - D3D12 application.
-- All shaders are SM5.0 so far.
+- All shaders are SM6.6 so far.
 - Tested only on RTX3060. Not tested yet on Radeon.
 - Multi render target base pass. (Scene color, depth, normal and metallic roughness).
 - Forward renderer so far.
