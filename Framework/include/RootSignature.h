@@ -68,6 +68,7 @@ public:
 	~RootSignature();
 
 	bool Init(ID3D12Device* pDevice, const D3D12_ROOT_SIGNATURE_DESC* pDesc);
+	bool Init(ID3D12Device* pDevice, ComPtr<ID3DBlob> pRootSignatureBlob);
 	void Term();
 	ID3D12RootSignature* GetPtr() const;
 

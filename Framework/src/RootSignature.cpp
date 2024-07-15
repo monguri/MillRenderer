@@ -1,5 +1,6 @@
 #include "RootSignature.h"
 #include "Logger.h"
+#include "d3dcompiler.h"
 
 RootSignature::Desc::Desc()
 : m_Desc()
@@ -153,19 +154,19 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 			break;
 		case MinMagLinearMipPointWrap:
-			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+			desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
 			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 			break;
 		case MinMagLinearMipPointClamp:
-			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+			desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
 			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			break;
 		case MinMagLinearMipPointBorder:
-			desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+			desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
 			desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 			desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 			desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
@@ -368,6 +369,26 @@ bool RootSignature::Init(ID3D12Device* pDevice, const D3D12_ROOT_SIGNATURE_DESC*
 		pBlob->GetBufferSize(),
 		IID_PPV_ARGS(m_RootSignature.GetAddressOf())
 	);
+	if (FAILED(hr))
+	{
+		ELOG("Error : Root Signature Create Failed. retcode = 0x%x", hr);
+		return false;
+	}
+
+	return true;
+}
+
+bool RootSignature::Init(ID3D12Device* pDevice, ComPtr<ID3DBlob> pRootSignatureBlob)
+{
+	ComPtr<ID3DBlob> pRSBlob;
+	HRESULT hr = D3DGetBlobPart(pRootSignatureBlob->GetBufferPointer(), pRootSignatureBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+	if (FAILED(hr))
+	{
+		ELOG("Error : D3DGetBlobPart Failed. retcode = 0x%x", hr);
+		return false;
+	}
+
+	hr = pDevice->CreateRootSignature(0, pRSBlob->GetBufferPointer(), pRSBlob->GetBufferSize(), IID_PPV_ARGS(m_RootSignature.GetAddressOf()));
 	if (FAILED(hr))
 	{
 		ELOG("Error : Root Signature Create Failed. retcode = 0x%x", hr);
