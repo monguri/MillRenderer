@@ -1874,6 +1874,26 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 
+#if 0 // TODO: Tried RootSignature in HLSL
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		// TODO:一旦は作り直しで
+		m_SponzaRootSig.Term();
+		if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		desc.pRootSignature = m_SponzaRootSig.GetPtr();
+#endif
+
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pSponzaOpaquePSO.GetAddressOf())

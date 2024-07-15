@@ -1,43 +1,5 @@
 #include "BRDF.hlsli"
 
-#define RS "RootFlags"\
-"("\
-"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
-" | DENY_HULL_SHADER_ROOT_ACCESS"\
-" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
-" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
-")"\
-", DescriptorTable"\
-"("\
-"CBV(b0, numDescriptors = 3), "\
-"SRV(t0, numDescriptors = 8)"\
-")"\
-", StaticSampler"\
-"("\
-"s0"\
-", filter = FILTER_ANISOTROPIC"\
-", addressU = TEXTURE_ADDRESS_WRAP"\
-", addressV = TEXTURE_ADDRESS_WRAP"\
-", addressW = TEXTURE_ADDRESS_WRAP"\
-", maxAnisotropy = 16"\
-", comparisonFunc = COMPARISON_NEVER"\
-", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-", visibility = SHADER_VISIBILITY_PIXEL"\
-")"\
-", StaticSampler"\
-"("\
-"s1"\
-", filter = FILTER_MIN_MAG_MIP_LINEAR"\
-", addressU = TEXTURE_ADDRESS_WRAP"\
-", addressV = TEXTURE_ADDRESS_WRAP"\
-", addressW = TEXTURE_ADDRESS_WRAP"\
-", maxAnisotropy = 1"\
-", comparisonFunc = COMPARISON_NEVER"\
-", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-", visibility = SHADER_VISIBILITY_PIXEL"\
-")"\
-
-
 struct VSOutput
 {
 	float4 Position : SV_POSITION;
@@ -173,7 +135,6 @@ float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, floa
 	return specularLight * FssEss;
 }
 
-[RootSignature(RS)]
 PSOutput main(VSOutput input)
 {
 	PSOutput output = (PSOutput)0;
