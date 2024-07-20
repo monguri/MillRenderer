@@ -2897,6 +2897,20 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_VolumetricFogCompositionRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_VolumetricFogCompositionRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
