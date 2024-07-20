@@ -2494,6 +2494,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+#if 0
     // AmbientLight用ルートシグニチャの生成
 	{
 		RootSignature::Desc desc;
@@ -2511,6 +2512,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 	}
+#endif
 
     // AmbientLight用パイプラインステートの生成
 	{
@@ -2545,6 +2547,22 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
 			return false;
 		}
+
+#if 1
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_AmbientLightRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+#endif
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_AmbientLightRootSig.GetPtr();
