@@ -1,4 +1,5 @@
-#define RS "RootFlags"\
+#define RS ""\
+"RootFlags"\
 "("\
 "ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
 " | DENY_HULL_SHADER_ROOT_ACCESS"\
@@ -7,7 +8,17 @@
 ")"\
 ", DescriptorTable"\
 "("\
-"SRV(t0, numDescriptors = 3)"\
+"SRV(t0)"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+", DescriptorTable"\
+"("\
+"SRV(t1)"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+", DescriptorTable"\
+"("\
+"SRV(t2)"\
 ", visibility = SHADER_VISIBILITY_PIXEL"\
 ")"\
 ", StaticSampler"\
