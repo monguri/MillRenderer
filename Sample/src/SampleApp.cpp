@@ -3298,25 +3298,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // 汎用フィルタ用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetCBV(ShaderStage::PS, 0, 0)
-			.SetSRV(ShaderStage::PS, 1, 0)
-			.SetSRV(ShaderStage::PS, 2, 1)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::MinMagLinearMipPointBorder)
-			.AllowIL()
-			.End();
-
-		if (!m_FilterRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // 汎用フィルタ用パイプラインステートの生成
+    // 汎用フィルタ用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -3347,6 +3329,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_FilterRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
