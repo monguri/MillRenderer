@@ -2843,26 +2843,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // VolumetricFog Composition用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetCBV(ShaderStage::PS, 0, 0)
-			.SetSRV(ShaderStage::PS, 1, 0)
-			.SetSRV(ShaderStage::PS, 2, 1)
-			.SetSRV(ShaderStage::PS, 3, 2)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearClamp)
-			.AllowIL()
-			.End();
-
-		if (!m_VolumetricFogCompositionRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
     // VolumetricFog Composition用パイプラインステートの生成
 	{
 		std::wstring vsPath;
@@ -2930,26 +2910,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // TemporalAA用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetCBV(ShaderStage::ALL, 0, 0)
-			.SetSRV(ShaderStage::ALL, 1, 0)
-			.SetSRV(ShaderStage::ALL, 2, 1)
-			.SetSRV(ShaderStage::ALL, 3, 2)
-			.SetUAV(ShaderStage::ALL, 4, 0)
-			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp)
-			.End();
-
-		if (!m_TemporalAA_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // TemporalAA用パイプラインステートの生成
+    // TemporalAA用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring csPath;
 
@@ -2965,6 +2926,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_TemporalAA_RootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 

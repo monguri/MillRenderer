@@ -1,3 +1,21 @@
+#define ROOT_SIGNATURE ""\
+"DescriptorTable(CBV(b0))"\
+", DescriptorTable(SRV(t0))"\
+", DescriptorTable(SRV(t1))"\
+", DescriptorTable(SRV(t2))"\
+", DescriptorTable(UAV(u0))"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_MIN_MAG_MIP_POINT"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+")"\
+
 static const uint TEMPORAL_AA_NUM_PLUS_SAMPLE = 5;
 
 cbuffer CbTemporalAA : register(b0)
@@ -89,6 +107,7 @@ uint GetTileIndex(uint2 GTid, int2 pixelOffset)
 	return tilePos.x + tilePos.y * TILE_WIDTH;
 }
 
+[RootSignature(ROOT_SIGNATURE)]
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
 void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID, uint2 GTid : SV_GroupThreadID, uint GTidx : SV_GroupIndex)
 {
