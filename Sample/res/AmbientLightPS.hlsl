@@ -1,4 +1,4 @@
-#define RS ""\
+#define ROOT_SIGNATURE ""\
 "RootFlags"\
 "("\
 "ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
@@ -33,7 +33,7 @@ Texture2D SSAOMap : register(t1);
 Texture2D SSGIMap : register(t2);
 SamplerState PointClampSmp : register(s0);
 
-[RootSignature(RS)]
+[RootSignature(ROOT_SIGNATURE)]
 float4 main(const VSOutput input) : SV_TARGET0
 {
 	float4 color = ColorMap.Sample(PointClampSmp, input.TexCoord);

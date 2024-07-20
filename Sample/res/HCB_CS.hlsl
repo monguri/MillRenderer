@@ -1,4 +1,4 @@
-#define RS ""\
+#define ROOT_SIGNATURE ""\
 "DescriptorTable(CBV(b0))"\
 ", DescriptorTable(SRV(t0))"\
 ", DescriptorTable(UAV(u0))"\
@@ -40,7 +40,7 @@ RWTexture2D<float4> OutHCB_Mip4 : register(u4);
 
 groupshared float4 SharedMemory[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
 
-[RootSignature(RS)]
+[RootSignature(ROOT_SIGNATURE)]
 [numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
 void main(uint2 GroupId : SV_GroupID, uint2 DTid : SV_DispatchThreadID, uint groupThreadIndex : SV_GroupIndex)
 {
