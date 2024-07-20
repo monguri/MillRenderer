@@ -2182,24 +2182,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // SSAO準備パス用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetCBV(ShaderStage::PS, 0, 0)
-			.SetSRV(ShaderStage::PS, 1, 0)
-			.SetSRV(ShaderStage::PS, 2, 1)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
-			.AllowIL()
-			.End();
-
-		if (!m_SSAOSetupRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
 	// スクリーンスペース描画パス用のInputElement。解放されないようにスコープ外で定義。
 	D3D12_INPUT_ELEMENT_DESC SSPassInputElements[2];
 	SSPassInputElements[0].SemanticName = "POSITION";
@@ -2239,7 +2221,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		SSPassPSODescCommon.SampleDesc.Quality = 0;
 	}
 
-    // SSAO準備パス用パイプラインステートの生成
+    // SSAO準備パス用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -2270,6 +2252,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_SSAOSetupRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
