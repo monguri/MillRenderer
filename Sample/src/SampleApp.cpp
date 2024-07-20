@@ -1688,38 +1688,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
-	if (!RENDER_SPONZA)
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetCBV(ShaderStage::VS, 0, 0)
-			.SetCBV(ShaderStage::VS, 1, 1)
-			.SetCBV(ShaderStage::PS, 2, 0)
-			.SetCBV(ShaderStage::PS, 3, 1)
-			.SetCBV(ShaderStage::PS, 4, 2)
-			.SetSRV(ShaderStage::PS, 5, 0)
-			.SetSRV(ShaderStage::PS, 6, 1)
-			.SetSRV(ShaderStage::PS, 7, 2)
-			.SetSRV(ShaderStage::PS, 8, 3)
-			.SetSRV(ShaderStage::PS, 9, 4)
-			.SetSRV(ShaderStage::PS, 10, 5)
-			.SetSRV(ShaderStage::PS, 11, 6)
-			.SetSRV(ShaderStage::PS, 12, 7)
-
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::AnisotropicWrap)
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::LinearWrap)
-
-			.AllowIL()
-			.End();
-
-		if (!m_SceneRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
     // シーン用ルートシグニチャとパイプラインステートの生成
 	if (RENDER_SPONZA)
 	{
@@ -1881,6 +1849,36 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 	else
 	{
+		// AlphaModeがOpaqueのマテリアル用
+		std::wstring psPath;
+		if (!SearchFilePath(L"BasePassOpaquePS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pPSBlob;
+		HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_SceneRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
 		// シャドウマップ描画用のパイプラインステートディスクリプタ
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.InputLayout = MeshVertex::InputLayout;
@@ -1908,7 +1906,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		ComPtr<ID3DBlob> pVSBlob;
-		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
@@ -1930,23 +1928,22 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		// AlphaModeがMaskのシャドウマップ描画用
-		std::wstring psPath;
 		if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		ComPtr<ID3DBlob> pPSBlob;
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		ComPtr<ID3DBlob> pDepthMaskPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pDepthMaskPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
 		desc.RasterizerState = DirectX::CommonStates::CullNone;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
@@ -1960,19 +1957,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		// AlphaModeがOpaqueのマテリアル用
-		if (!SearchFilePath(L"BasePassOpaquePS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.NumRenderTargets = 3;
 		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
