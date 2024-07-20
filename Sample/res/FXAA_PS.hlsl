@@ -1,3 +1,28 @@
+// At FXAA.cpp of D3DSample, filter is D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT
+// but D3D12_FILTER_MIN_MAG_MIP_LINEAR is enough because the texture has no mipmap. 
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+")"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_MIN_MAG_MIP_LINEAR"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+
 // used D3DSamples FXAA3_11.h FXAA_PC default value.
 static const float QUALITY_SUBPIX = 0.75f;
 static const float QUALITY_EDGE_THRESHOLD = 0.166f;
@@ -46,6 +71,7 @@ float RGBtoLuma(float3 rgb)
 	return dot(rgb, float3(0.299f, 0.587f, 0.114f));
 }
 
+[RootSignature(ROOT_SIGNATURE)]
 float4 main(const VSOutput input) : SV_TARGET0
 {
 	float2 posM = input.TexCoord;
