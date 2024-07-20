@@ -1,3 +1,22 @@
+#define ROOT_SIGNATURE ""\
+"DescriptorTable(CBV(b0))"\
+", DescriptorTable(SRV(t0))"\
+", DescriptorTable(UAV(u0))"\
+", DescriptorTable(UAV(u1))"\
+", DescriptorTable(UAV(u2))"\
+", DescriptorTable(UAV(u3))"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_MIN_MAG_MIP_POINT"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+")"\
+
 cbuffer CbHZB : register(b0)
 {
 	int DstMip0Width : packoffset(c0);
@@ -19,6 +38,7 @@ RWTexture2D<float> OutHZB_Mip3 : register(u3);
 
 groupshared float SharedMaxDeviceZ[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
 
+[RootSignature(ROOT_SIGNATURE)]
 [numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
 void main(uint2 GroupId : SV_GroupID, uint2 DTid : SV_DispatchThreadID, uint groupThreadIndex : SV_GroupIndex)
 {

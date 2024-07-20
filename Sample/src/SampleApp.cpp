@@ -2129,28 +2129,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // HZB作成パス用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc = desc.Begin()
-			.SetCBV(ShaderStage::ALL, 0, 0)
-			.SetSRV(ShaderStage::ALL, 1, 0);
-
-		for (uint32_t mip = 0; mip < HZB_MAX_NUM_OUTPUT_MIP; mip++)
-		{
-			desc = desc.SetUAV(ShaderStage::ALL, 2 + mip, mip);
-		}
-
-		desc = desc.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp).End();
-
-		if (!m_HZB_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // HZB作成パス用パイプラインステートの生成
+    // HZB作成パス用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring csPath;
 
@@ -2166,6 +2145,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_HZB_RootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
