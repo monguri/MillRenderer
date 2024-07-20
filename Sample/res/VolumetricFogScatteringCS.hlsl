@@ -2,6 +2,43 @@
 #define SINGLE_SAMPLE_SHADOW_MAP
 #include "ShadowMap.hlsli"
 
+#define ROOT_SIGNATURE ""\
+"DescriptorTable(CBV(b0))"\
+", DescriptorTable(CBV(b1))"\
+", DescriptorTable(CBV(b2))"\
+", DescriptorTable(CBV(b3))"\
+", DescriptorTable(CBV(b4))"\
+", DescriptorTable(CBV(b5))"\
+", DescriptorTable(CBV(b6))"\
+", DescriptorTable(SRV(t0))"\
+", DescriptorTable(SRV(t1))"\
+", DescriptorTable(SRV(t2))"\
+", DescriptorTable(SRV(t3))"\
+", DescriptorTable(SRV(t4))"\
+", DescriptorTable(UAV(u0))"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_MIN_MAG_MIP_LINEAR"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+")"\
+", StaticSampler"\
+"("\
+"s1"\
+", filter = FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_LESS_EQUAL"\
+", borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE"\
+")"\
+
 #ifndef F_PI
 #define F_PI 3.14159265358979323f
 #endif //F_PI
@@ -226,6 +263,7 @@ float3 EvaluateSpotLight
 	return lightColor * att / F_PI;
 }
 
+[RootSignature(ROOT_SIGNATURE)]
 [numthreads(THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ, THREAD_GROUP_SIZE_XYZ)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {

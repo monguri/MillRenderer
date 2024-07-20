@@ -2737,35 +2737,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // VolumetricFog Scattering用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetCBV(ShaderStage::ALL, 0, 0)
-			.SetCBV(ShaderStage::ALL, 1, 1)
-			.SetCBV(ShaderStage::ALL, 2, 2)
-			.SetCBV(ShaderStage::ALL, 3, 3)
-			.SetCBV(ShaderStage::ALL, 4, 4)
-			.SetCBV(ShaderStage::ALL, 5, 5)
-			.SetCBV(ShaderStage::ALL, 6, 6)
-			.SetSRV(ShaderStage::ALL, 7, 0)
-			.SetSRV(ShaderStage::ALL, 8, 1)
-			.SetSRV(ShaderStage::ALL, 9, 2)
-			.SetSRV(ShaderStage::ALL, 10, 3)
-			.SetSRV(ShaderStage::ALL, 11, 4)
-			.SetUAV(ShaderStage::ALL, 12, 0)
-			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearClamp)
-			.AddStaticCmpSmp(ShaderStage::ALL, 1, SamplerState::MinMagLinearMipPointClamp)
-			.End();
-
-		if (!m_VolumetricFogScatteringRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // VolumetricFog Scattering用パイプラインステートの生成
+    // VolumetricFog Scattering用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring csPath;
 
@@ -2781,6 +2753,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_VolumetricFogScatteringRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
