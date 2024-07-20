@@ -2076,28 +2076,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // HCB作成パス用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc = desc.Begin()
-			.SetCBV(ShaderStage::ALL, 0, 0)
-			.SetSRV(ShaderStage::ALL, 1, 0);
-
-		for (uint32_t mip = 0; mip < HCB_MAX_NUM_OUTPUT_MIP; mip++)
-		{
-			desc = desc.SetUAV(ShaderStage::ALL, 2 + mip, mip);
-		}
-
-		desc = desc.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp).End();
-
-		if (!m_HCB_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // HCB作成パス用パイプラインステートの生成
+    // HCB作成パス用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring csPath;
 
@@ -2113,6 +2092,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_HCB_RootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
@@ -2494,27 +2487,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-#if 0
-    // AmbientLight用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetSRV(ShaderStage::PS, 0, 0)
-			.SetSRV(ShaderStage::PS, 1, 1)
-			.SetSRV(ShaderStage::PS, 2, 2)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
-			.AllowIL()
-			.End();
-
-		if (!m_AmbientLightRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-#endif
-
-    // AmbientLight用パイプラインステートの生成
+    // AmbientLight用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -2548,7 +2521,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-#if 1
 		ComPtr<ID3DBlob> pRSBlob;
 		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 		if (FAILED(hr))
@@ -2562,7 +2534,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
-#endif
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
 		desc.pRootSignature = m_AmbientLightRootSig.GetPtr();
