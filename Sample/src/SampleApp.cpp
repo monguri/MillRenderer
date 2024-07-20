@@ -2355,25 +2355,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // SSGI用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc = desc.Begin()
-			.SetCBV(ShaderStage::ALL, 0, 0)
-			.SetSRV(ShaderStage::ALL, 1, 0)
-			.SetSRV(ShaderStage::ALL, 2, 1)
-			.SetSRV(ShaderStage::ALL, 3, 2)
-			.SetUAV(ShaderStage::ALL, 4, 0)
-			.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp).End();
-
-		if (!m_SSGI_RootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // SSGI用パイプラインステートの生成
+    // SSGI用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring csPath;
 
@@ -2389,6 +2371,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_SSGI_RootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 

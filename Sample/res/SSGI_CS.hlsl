@@ -1,3 +1,21 @@
+#define ROOT_SIGNATURE ""\
+"DescriptorTable(CBV(b0))"\
+", DescriptorTable(SRV(t0))"\
+", DescriptorTable(SRV(t1))"\
+", DescriptorTable(SRV(t2))"\
+", DescriptorTable(UAV(u0))"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_MIN_MAG_MIP_POINT"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+")"\
+
 cbuffer CbSSGI : register(b0)
 {
 	float4x4 ProjMatrix : packoffset(c0);
@@ -270,6 +288,7 @@ float Luminance(float3 linearColor)
 	return dot(linearColor, float3(0.3f, 0.59f, 0.11f));
 }
 
+[RootSignature(ROOT_SIGNATURE)]
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, CONFIG_RAY_COUNT)]
 void main(uint2 groupThreadID : SV_GroupThreadID, uint2 groupID : SV_GroupID, uint groupThreadIndex : SV_GroupIndex)
 {
