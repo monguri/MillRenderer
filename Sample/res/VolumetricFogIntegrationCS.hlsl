@@ -1,3 +1,8 @@
+#define ROOT_SIGNATURE ""\
+"DescriptorTable(CBV(b0))"\
+", DescriptorTable(SRV(t0))"\
+", DescriptorTable(UAV(u0))"\
+
 // It must be equal to the value used in cpp.
 static const uint THREAD_GROUP_SIZE_XY = 8;
 
@@ -54,6 +59,7 @@ float3 ComputeCellCameraOriginWorldPosition(float3 gridCoordinate, float3 cellOf
 	return cameraOriginWorldPos;
 }
 
+[RootSignature(ROOT_SIGNATURE)]
 [numthreads(THREAD_GROUP_SIZE_XY, THREAD_GROUP_SIZE_XY, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
