@@ -3030,23 +3030,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // Bloom前工程用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetSRV(ShaderStage::PS, 0, 0)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
-			.AllowIL()
-			.End();
-
-		if (!m_BloomSetupRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // Bloom前工程用パイプラインステートの生成
+    // Bloom前工程用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -3077,6 +3061,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_BloomSetupRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
