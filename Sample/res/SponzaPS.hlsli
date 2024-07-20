@@ -8,36 +8,36 @@
 #define MIN_DIST (0.01)
 #endif // MIN_DIST
 
-#if 0 // TODO: Tried RootSignature in HLSL
 #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
-	#define RS "RootFlags"\
+	#define ROOT_SIGNATURE ""\
+	"RootFlags"\
 	"("\
 	"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
 	" | DENY_HULL_SHADER_ROOT_ACCESS"\
 	" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
 	" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
 	")"\
-	", DescriptorTable"\
-	"("\
-	"CBV(b0)"\
-	", CBV(b1)"\
-	", visibility = SHADER_VISIBILITY_VERTEX"\
-	")"\
-	", DescriptorTable"\
-	"("\
-	"CBV(b0)"\
-	", CBV(b1)"\
-	", CBV(b2)"\
-	", CBV(b3)"\
-	", CBV(b4)"\
-	", CBV(b5)"\
-	", CBV(b6)"\
-	", CBV(b7)"\
-	", CBV(b8)"\
-	", CBV(b9)"\
-	", SRV(t0, numDescriptors = 9)"\
-	", visibility = SHADER_VISIBILITY_PIXEL"\
-	")"\
+	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
+	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_VERTEX)"\
+	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b6), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b7), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b8), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t8), visibility = SHADER_VISIBILITY_PIXEL)"\
 	", StaticSampler"\
 	"("\
 	"s0"\
@@ -64,34 +64,35 @@
 	")"
 #else // #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
 	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-		#define RS "RootFlags"\
+		#define ROOT_SIGNATURE ""\
+		"RootFlags"\
 		"("\
 		"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
 		" | DENY_HULL_SHADER_ROOT_ACCESS"\
 		" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
 		" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
 		")"\
-		", DescriptorTable"\
-		"("\
-		"CBV(b0)"\
-		", CBV(b1)"\
-		", visibility = SHADER_VISIBILITY_VERTEX"\
-		")"\
-		", DescriptorTable"\
-		"("\
-		"CBV(b0)"\
-		", CBV(b1)"\
-		", CBV(b2)"\
-		", CBV(b3)"\
-		", CBV(b4)"\
-		", CBV(b5)"\
-		", CBV(b6)"\
-		", CBV(b7)"\
-		", CBV(b8)"\
-		", CBV(b9)"\
-		", SRV(t0, numDescriptors = 9)"\
-		", visibility = SHADER_VISIBILITY_PIXEL"\
-		")"\
+		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
+		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_VERTEX)"\
+		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b6), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b7), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b8), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t8), visibility = SHADER_VISIBILITY_PIXEL)"\
 		", StaticSampler"\
 		"("\
 		"s0"\
@@ -117,34 +118,35 @@
 		", visibility = SHADER_VISIBILITY_PIXEL"\
 		")"
 	#else // #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-		#define RS "RootFlags"\
+		#define ROOT_SIGNATURE ""\
+		"RootFlags"\
 		"("\
 		"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
 		" | DENY_HULL_SHADER_ROOT_ACCESS"\
 		" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
 		" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
 		")"\
-		", DescriptorTable"\
-		"("\
-		"CBV(b0)"\
-		", CBV(b1)"\
-		", visibility = SHADER_VISIBILITY_VERTEX"\
-		")"\
-		", DescriptorTable"\
-		"("\
-		"CBV(b0)"\
-		", CBV(b1)"\
-		", CBV(b2)"\
-		", CBV(b3)"\
-		", CBV(b4)"\
-		", CBV(b5)"\
-		", CBV(b6)"\
-		", CBV(b7)"\
-		", CBV(b8)"\
-		", CBV(b9)"\
-		", SRV(t0, numDescriptors = 9)"\
-		", visibility = SHADER_VISIBILITY_PIXEL"\
-		")"\
+		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
+		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_VERTEX)"\
+		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b6), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b7), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b8), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t8), visibility = SHADER_VISIBILITY_PIXEL)"\
 		", StaticSampler"\
 		"("\
 		"s0"\
@@ -171,7 +173,6 @@
 		")"
 	#endif // #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 #endif // #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
-#endif // TODO: Tried RootSignature in HLSL
 
 // referenced UE.
 static const float DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE = 6353.17f;
@@ -510,9 +511,7 @@ float3 EvaluateSpotLightReflection
 	return brdf * light * shadow;
 }
 
-#if 0 // TODO: Tried RootSignature in HLSL
-[RootSignature(RS)]
-#endif
+[RootSignature(ROOT_SIGNATURE)]
 PSOutput main(VSOutput input)
 {
 	PSOutput output = (PSOutput)0;

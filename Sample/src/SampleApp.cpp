@@ -25,10 +25,6 @@
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
 #define RENDER_SPONZA true
 
-// シェーダ側にも同じ定数があるので変えるときは同時に変えること
-#define USE_MANUAL_PCF_FOR_SHADOW_MAP
-//#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-
 using namespace DirectX::SimpleMath;
 
 namespace
@@ -1693,53 +1689,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 
     // シーン用ルートシグニチャの生成。デプスだけ描画するパスにも使用される
-	if (RENDER_SPONZA)
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetCBV(ShaderStage::VS, 0, 0)
-			.SetCBV(ShaderStage::VS, 1, 1)
-			.SetCBV(ShaderStage::PS, 2, 0)
-			.SetCBV(ShaderStage::PS, 3, 1)
-			.SetCBV(ShaderStage::PS, 4, 2)
-			.SetCBV(ShaderStage::PS, 5, 3)
-			.SetCBV(ShaderStage::PS, 6, 4)
-			.SetCBV(ShaderStage::PS, 7, 5)
-			.SetCBV(ShaderStage::PS, 8, 6)
-			.SetCBV(ShaderStage::PS, 9, 7)
-			.SetCBV(ShaderStage::PS, 10, 8)
-			.SetCBV(ShaderStage::PS, 11, 9)
-
-			.SetSRV(ShaderStage::PS, 12, 0)
-			.SetSRV(ShaderStage::PS, 13, 1)
-			.SetSRV(ShaderStage::PS, 14, 2)
-			.SetSRV(ShaderStage::PS, 15, 3)
-			.SetSRV(ShaderStage::PS, 16, 4)
-			.SetSRV(ShaderStage::PS, 17, 5)
-			.SetSRV(ShaderStage::PS, 18, 6)
-			.SetSRV(ShaderStage::PS, 19, 7)
-			.SetSRV(ShaderStage::PS, 20, 8)
-
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::AnisotropicWrap)
-#ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::PointClamp)
-#else
-	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-			.AddStaticCmpSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
-	#else
-			.AddStaticSmp(ShaderStage::PS, 1, SamplerState::MinMagLinearMipPointClamp)
-	#endif
-#endif
-			.AllowIL()
-			.End();
-
-		if (!m_SponzaRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-	else
+	if (!RENDER_SPONZA)
 	{
 		RootSignature::Desc desc;
 		desc.Begin()
@@ -1770,9 +1720,55 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // シーン用パイプラインステートの生成
+    // シーン用ルートシグニチャとパイプラインステートの生成
 	if (RENDER_SPONZA)
 	{
+		// AlphaModeがOpaqueのシャドウマップ描画用
+		std::wstring vsPath;
+		if (!SearchFilePath(L"SponzaVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		// AlphaModeがOpaqueのマテリアル用
+		std::wstring psPath;
+		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
 		// シャドウマップ描画用のパイプラインステートディスクリプタ
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.InputLayout = MeshVertex::InputLayout;
@@ -1791,22 +1787,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
 		desc.RasterizerState.DepthBias = 100;
 
-		// AlphaModeがOpaqueのシャドウマップ描画用
-		std::wstring vsPath;
-		if (!SearchFilePath(L"SponzaVS.cso", vsPath))
-		{
-			ELOG("Error : Vertex Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pVSBlob;
-		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-			return false;
-		}
-
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		// PSは実行しないので設定しない
@@ -1822,23 +1802,22 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		// AlphaModeがMaskのシャドウマップ描画用
-		std::wstring psPath;
 		if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		ComPtr<ID3DBlob> pPSBlob;
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		ComPtr<ID3DBlob> pDepthMaskPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pDepthMaskPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
 		desc.RasterizerState = DirectX::CommonStates::CullNone;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
@@ -1852,19 +1831,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		// AlphaModeがOpaqueのマテリアル用
-		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.NumRenderTargets = 3;
 		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
@@ -1873,26 +1839,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-
-#if 0 // TODO: Tried RootSignature in HLSL
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		// TODO:一旦は作り直しで
-		m_SponzaRootSig.Term();
-		if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		desc.pRootSignature = m_SponzaRootSig.GetPtr();
-#endif
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
