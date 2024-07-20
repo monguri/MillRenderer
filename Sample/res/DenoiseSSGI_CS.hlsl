@@ -1,3 +1,19 @@
+#define ROOT_SIGNATURE ""\
+"DescriptorTable(CBV(b0))"\
+", DescriptorTable(SRV(t0))"\
+", DescriptorTable(UAV(u0))"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_MIN_MAG_MIP_POINT"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+")"\
+
 cbuffer CbDenoiseSSGI : register(b0)
 {
 	int Width : packoffset(c0);
@@ -26,6 +42,7 @@ static const uint2 STACKOWIAK_SAMPLE_SET_0[8 * 4] =
 	uint2(+2, -2), uint2(+4, -1), uint2(+3, +2), uint2(+4, +1),
 };
 
+[RootSignature(ROOT_SIGNATURE)]
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
 void main(uint2 DTid : SV_DispatchThreadID)
 {
