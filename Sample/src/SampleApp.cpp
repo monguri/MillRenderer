@@ -2963,25 +2963,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // MotionBlur用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetCBV(ShaderStage::PS, 0, 0)
-			.SetSRV(ShaderStage::PS, 1, 0)
-			.SetSRV(ShaderStage::PS, 2, 1)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
-			.AllowIL()
-			.End();
-
-		if (!m_MotionBlurRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // MotionBlur用パイプラインステートの生成
+    // MotionBlur用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -3012,6 +2994,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_MotionBlurRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
