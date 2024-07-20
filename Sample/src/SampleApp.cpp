@@ -3365,24 +3365,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // バックバッファ描画用ルートシグニチャの生成
-	{
-		RootSignature::Desc desc;
-		desc.Begin()
-			.SetCBV(ShaderStage::PS, 0, 0)
-			.SetSRV(ShaderStage::PS, 1, 0)
-			.AddStaticSmp(ShaderStage::PS, 0, SamplerState::PointClamp)
-			.AllowIL()
-			.End();
-
-		if (!m_BackBufferRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-	}
-
-    // バックバッファ描画用パイプラインステートの生成
+    // バックバッファ描画用ルートシグニチャとパイプラインステートの生成
 	// DXGIフォーマットを指定する必要があるので一般のテクスチャコピー用にはできなかった
 	{
 		std::wstring vsPath;
@@ -3414,6 +3397,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_BackBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
