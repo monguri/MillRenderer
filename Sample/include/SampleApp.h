@@ -48,8 +48,10 @@ private:
 	RootSignature m_SSAO_RootSig;
 	ComPtr<ID3D12PipelineState> m_pSSGI_PSO;
 	RootSignature m_SSGI_RootSig;
-	ComPtr<ID3D12PipelineState> m_pSSGI_Denoise_PSO;
-	RootSignature m_SSGI_Denoise_RootSig;
+	ComPtr<ID3D12PipelineState> m_pSSGI_DenoisePSO;
+	RootSignature m_SSGI_DenoiseRootSig;
+	ComPtr<ID3D12PipelineState> m_pSSGI_TemporalAccumulationPSO;
+	RootSignature m_SSGI_TemporalAccumulationRootSig;
 	ComPtr<ID3D12PipelineState> m_pAmbientLightPSO;
 	RootSignature m_AmbientLightRootSig;
 	ComPtr<ID3D12PipelineState> m_pObjectVelocityPSO;
@@ -93,7 +95,8 @@ private:
 	ColorTarget m_SSAO_FullResTarget;
 	Texture m_SSAO_RandomizationTex;
 	ColorTarget m_SSGI_Target;
-	ColorTarget m_SSGI_Denoise_Target;
+	ColorTarget m_SSGI_DenoiseTarget;
+	ColorTarget m_SSGI_TemporalAccumulationTarget;
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_ObjectVelocityTarget;
 	ColorTarget m_VelocityTargt;
@@ -122,7 +125,8 @@ private:
 	ConstantBuffer m_SSAO_HalfResCB[FRAME_COUNT];
 	ConstantBuffer m_SSAO_FullResCB[FRAME_COUNT];
 	ConstantBuffer m_SSGI_CB;
-	ConstantBuffer m_SSGI_Denoise_CB;
+	ConstantBuffer m_SSGI_DenoiseCB;
+	ConstantBuffer m_SSGI_TemporalAccumulationCB;
 	ConstantBuffer m_ObjectVelocityCB[FRAME_COUNT];
 	ConstantBuffer m_CameraVelocityCB[FRAME_COUNT];
 	ConstantBuffer m_SSR_CB;
@@ -195,6 +199,7 @@ private:
 	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj);
 	void DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj);
 	void DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList);
+	void DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdList);
 	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
 	void DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter);
 	void DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter);

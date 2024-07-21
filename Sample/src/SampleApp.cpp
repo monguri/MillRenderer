@@ -1362,7 +1362,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-		if (!m_SSGI_Denoise_Target.InitUnorderedAccessTarget
+		if (!m_SSGI_DenoiseTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RES],
@@ -2342,7 +2342,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		std::wstring csPath;
 
-		if (!SearchFilePath(L"SSGI_Denoise_CS.cso", csPath))
+		if (!SearchFilePath(L"SSGI_DenoiseCS.cso", csPath))
 		{
 			ELOG("Error : Compute Shader Not Found");
 			return false;
@@ -2365,14 +2365,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!m_SSGI_Denoise_RootSig.Init(m_pDevice.Get(), pRSBlob))
+		if (!m_SSGI_DenoiseRootSig.Init(m_pDevice.Get(), pRSBlob))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
 		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_SSGI_Denoise_RootSig.GetPtr();
+		desc.pRootSignature = m_SSGI_DenoiseRootSig.GetPtr();
 		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
 		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
 		desc.NodeMask = 0;
@@ -2382,7 +2382,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateComputePipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pSSGI_Denoise_PSO.GetAddressOf())
+			IID_PPV_ARGS(m_pSSGI_DenoisePSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -3535,15 +3535,15 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// SSGI_Denoiseパス用定数バッファの作成
 	{
-		if (!m_SSGI_Denoise_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSGI)))
+		if (!m_SSGI_DenoiseCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSGI)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
 		}
 
-		CbSSGI_Denoise* ptr = m_SSGI_Denoise_CB.GetPtr<CbSSGI_Denoise>();
-		ptr->Width = (int)m_SSGI_Denoise_Target.GetDesc().Width;
-		ptr->Height = m_SSGI_Denoise_Target.GetDesc().Height;
+		CbSSGI_Denoise* ptr = m_SSGI_DenoiseCB.GetPtr<CbSSGI_Denoise>();
+		ptr->Width = (int)m_SSGI_DenoiseTarget.GetDesc().Width;
+		ptr->Height = m_SSGI_DenoiseTarget.GetDesc().Height;
 	}
 
 	// ObjectVelocity用定数バッファの作成
@@ -4064,7 +4064,7 @@ void SampleApp::OnTerm()
 
 	m_SSGI_CB.Term();
 
-	m_SSGI_Denoise_CB.Term();
+	m_SSGI_DenoiseCB.Term();
 
 	m_SSR_CB.Term();
 
@@ -4127,7 +4127,7 @@ void SampleApp::OnTerm()
 	m_SSAO_RandomizationTex.Term();
 
 	m_SSGI_Target.Term();
-	m_SSGI_Denoise_Target.Term();
+	m_SSGI_DenoiseTarget.Term();
 
 	m_AmbientLightTarget.Term();
 
@@ -4195,8 +4195,8 @@ void SampleApp::OnTerm()
 	m_pSSGI_PSO.Reset();
 	m_SSGI_RootSig.Term();
 
-	m_pSSGI_Denoise_PSO.Reset();
-	m_SSGI_Denoise_RootSig.Term();
+	m_pSSGI_DenoisePSO.Reset();
+	m_SSGI_DenoiseRootSig.Term();
 
 	m_pAmbientLightPSO.Reset();
 	m_AmbientLightRootSig.Term();
@@ -5058,26 +5058,26 @@ void SampleApp::DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList)
 	ScopedTimer scopedTimer(pCmdList, L"Denoise SSGI");
 
 	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SSGI_Denoise_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	pCmdList->SetComputeRootSignature(m_SSGI_Denoise_RootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pSSGI_Denoise_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_Denoise_CB.GetHandleGPU());
+	pCmdList->SetComputeRootSignature(m_SSGI_DenoiseRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pSSGI_DenoisePSO.Get());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_DenoiseCB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SSGI_Target.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_SSGI_Denoise_Target.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_SSGI_DenoiseTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
 	const size_t GROUP_SIZE_Y = 8;
 
 	// グループ数は切り上げ
-	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_SSGI_Denoise_Target.GetDesc().Width, GROUP_SIZE_X);
-	UINT NumGroupY = DivideAndRoundUp(m_SSGI_Denoise_Target.GetDesc().Height, GROUP_SIZE_Y);
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_SSGI_DenoiseTarget.GetDesc().Width, GROUP_SIZE_X);
+	UINT NumGroupY = DivideAndRoundUp(m_SSGI_DenoiseTarget.GetDesc().Height, GROUP_SIZE_Y);
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
 	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SSGI_Denoise_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
@@ -5094,7 +5094,7 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_AmbientLightRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_SSGI_Denoise_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_SSGI_DenoiseTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pAmbientLightPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -5808,7 +5808,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case DEBUG_VIEW_SSGI:
-			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSGI_Denoise_Target.GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSGI_DenoiseTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case DEBUG_VIEW_VELOCITY:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTargt.GetHandleSRV()->HandleGPU);
