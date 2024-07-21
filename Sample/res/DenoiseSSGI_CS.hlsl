@@ -30,16 +30,16 @@ static const uint TILE_PIXEL_SIZE_Y = 8;
 static const uint SAMPLE_COUNT = 8;
 static const uint STACKOWIAK_SAMPLE_SET_COUNT = 4;
 
-static const uint2 STACKOWIAK_SAMPLE_SET_0[8 * 4] =
+static const int2 STACKOWIAK_SAMPLE_SET_0[8 * 4] =
 {
-	uint2(-1, -1), uint2(+1, -1), uint2(-1, +1), uint2(+1, +1),
-	uint2(-2, +1), uint2(-2, -1), uint2(-1, +2), uint2(+2, -1),
-	uint2(+1, -2), uint2(+3, -1), uint2(+2, +1), uint2(-1, -2),
-	uint2(-2, -3), uint2(-1, -3), uint2(-2, -2), uint2(-1, +3),
-	uint2(-2, +2), uint2(+2, -3), uint2(-2, +3), uint2(+2, +3),
-	uint2(+1, -3), uint2(-3, -1), uint2(-3, -2), uint2(-3, +1),
-	uint2(+1, +2), uint2(+1, +3), uint2(-4, +1), uint2(+1, +4),
-	uint2(+2, -2), uint2(+4, -1), uint2(+3, +2), uint2(+4, +1),
+	int2(-1, -1), int2(+1, -1), int2(-1, +1), int2(+1, +1),
+	int2(-2, +1), int2(-2, -1), int2(-1, +2), int2(+2, -1),
+	int2(+1, -2), int2(+3, -1), int2(+2, +1), int2(-1, -2),
+	int2(-2, -3), int2(-1, -3), int2(-2, -2), int2(-1, +3),
+	int2(-2, +2), int2(+2, -3), int2(-2, +3), int2(+2, +3),
+	int2(+1, -3), int2(-3, -1), int2(-3, -2), int2(-3, +1),
+	int2(+1, +2), int2(+1, +3), int2(-4, +1), int2(+1, +4),
+	int2(+2, -2), int2(+4, -1), int2(+3, +2), int2(+4, +1),
 };
 
 [RootSignature(ROOT_SIGNATURE)]
@@ -60,7 +60,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	// rest samples
 	for (uint i = 1; i < SAMPLE_COUNT; i++)
 	{
-		uint2 sampleOffset = STACKOWIAK_SAMPLE_SET_0[i * STACKOWIAK_SAMPLE_SET_COUNT + sampleTrackId];
+		int2 sampleOffset = STACKOWIAK_SAMPLE_SET_0[i * STACKOWIAK_SAMPLE_SET_COUNT + sampleTrackId];
 		float2 sampleBufferUV = bufferUV + sampleOffset * rcpDimension;
 		result += SSGIMap.SampleLevel(PointClampSmp, sampleBufferUV, 0);
 	}
