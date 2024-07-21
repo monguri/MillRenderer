@@ -1379,6 +1379,27 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// SSGI Temporal Accumulation用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_SSGI_TemporalAccumulationTarget.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			(uint32_t)m_SSGI_Target.GetDesc().Width,
+			m_SSGI_Target.GetDesc().Height,
+			m_SceneColorTarget.GetDesc().Format,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+			return false;
+		}
+	}
+
 	// AmbientLight用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -2383,6 +2404,59 @@ bool SampleApp::OnInit(HWND hWnd)
 		hr = m_pDevice->CreateComputePipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pSSGI_DenoisePSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
+    // SSGI Temporal Acclumulationパス用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring csPath;
+
+		if (!SearchFilePath(L"SSGI_TemporalAccumulationCS.cso", csPath))
+		{
+			ELOG("Error : Compute Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pCSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_SSGI_TemporalAccumulationRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_SSGI_TemporalAccumulationRootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSSGI_TemporalAccumulationPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -4128,6 +4202,7 @@ void SampleApp::OnTerm()
 
 	m_SSGI_Target.Term();
 	m_SSGI_DenoiseTarget.Term();
+	m_SSGI_TemporalAccumulationTarget.Term();
 
 	m_AmbientLightTarget.Term();
 
@@ -4197,6 +4272,9 @@ void SampleApp::OnTerm()
 
 	m_pSSGI_DenoisePSO.Reset();
 	m_SSGI_DenoiseRootSig.Term();
+
+	m_pSSGI_TemporalAccumulationPSO.Reset();
+	m_SSGI_TemporalAccumulationRootSig.Term();
 
 	m_pAmbientLightPSO.Reset();
 	m_AmbientLightRootSig.Term();
@@ -4371,6 +4449,8 @@ void SampleApp::OnRender()
 	}
 
 	DrawSSGI_Denoise(pCmd);
+
+	DrawSSGI_TemporalAccumulation(pCmd);
 
 	DrawAmbientLight(pCmd);
 
@@ -5055,7 +5135,7 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 void SampleApp::DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"Denoise SSGI");
+	ScopedTimer scopedTimer(pCmdList, L"SSGI Denoise");
 
 	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -5080,6 +5160,32 @@ void SampleApp::DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
+void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"SSGI TemporalAccumulation");
+
+	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SSGI_TemporalAccumulationTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	pCmdList->SetComputeRootSignature(m_SSGI_TemporalAccumulationRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pSSGI_TemporalAccumulationPSO.Get());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_DenoiseTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_SSGI_TemporalAccumulationTarget.GetHandleUAVs()[0]->HandleGPU);
+
+	// シェーダ側と合わせている
+	const size_t GROUP_SIZE_X = 8;
+	const size_t GROUP_SIZE_Y = 8;
+
+	// グループ数は切り上げ
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_SSGI_TemporalAccumulationTarget.GetDesc().Width, GROUP_SIZE_X);
+	UINT NumGroupY = DivideAndRoundUp(m_SSGI_TemporalAccumulationTarget.GetDesc().Height, GROUP_SIZE_Y);
+	UINT NumGroupZ = 1;
+	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SSGI_TemporalAccumulationTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"AmbientLight");
@@ -5094,7 +5200,7 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_AmbientLightRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_SSGI_DenoiseTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_SSGI_TemporalAccumulationTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pAmbientLightPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);

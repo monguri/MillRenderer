@@ -132,6 +132,9 @@
     <FxCompile Include="..\res\SSGI_DenoiseCS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
+    <FxCompile Include="..\res\SSGI_TemporalAccumulationCS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
