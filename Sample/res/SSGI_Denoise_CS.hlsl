@@ -14,7 +14,7 @@
 ", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
 ")"\
 
-cbuffer CbDenoiseSSGI : register(b0)
+cbuffer CbSSGI_Denoise : register(b0)
 {
 	int Width : packoffset(c0);
 	int Height : packoffset(c0.y);

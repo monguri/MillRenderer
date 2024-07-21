@@ -129,7 +129,7 @@
     <FxCompile Include="..\res\SSGI_CS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\DenoiseSSGI_CS.hlsl">
+    <FxCompile Include="..\res\SSGI_Denoise_CS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>
