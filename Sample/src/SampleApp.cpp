@@ -81,10 +81,10 @@ namespace
 		DEBUG_VIEW_NONE = 0,
 		DEBUG_VIEW_DEPTH,
 		DEBUG_VIEW_NORMAL,
+		DEBUG_VIEW_VELOCITY,
 		DEBUG_VIEW_SSAO_FULL_RES,
 		DEBUG_VIEW_SSAO_HALF_RES,
 		DEBUG_VIEW_SSGI,
-		DEBUG_VIEW_VELOCITY,
 	};
 
 	struct alignas(256) CbMesh
@@ -159,6 +159,18 @@ namespace
 		int NumOutputMip;
 	};
 
+	struct alignas(256) CbObjectVelocity
+	{
+		Matrix CurWVPWithJitter;
+		Matrix CurWVPNoJitter;
+		Matrix PrevWVPNoJitter;
+	};
+
+	struct alignas(256) CbCameraVelocity
+	{
+		Matrix ClipToPrevClip;
+	};
+
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
 	struct alignas(256) CbSSAOSetup
 	{
@@ -205,18 +217,6 @@ namespace
 		int Width;
 		int Height;
 		float Padding[2];
-	};
-
-	struct alignas(256) CbObjectVelocity
-	{
-		Matrix CurWVPWithJitter;
-		Matrix CurWVPNoJitter;
-		Matrix PrevWVPNoJitter;
-	};
-
-	struct alignas(256) CbCameraVelocity
-	{
-		Matrix ClipToPrevClip;
 	};
 
 	struct alignas(256) CbSSR
@@ -513,10 +513,10 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_directionalLightIntensity(10.0f)
 , m_pointLightIntensity(100.0f)
 , m_spotLightIntensity(1000.0f)
+, m_enableVelocity(true)
 , m_SSAO_Contrast(1.0f)
 , m_SSAO_Intensity(0.5f)
 , m_SSGI_Intensity(0.0f)
-, m_enableVelocity(true)
 , m_debugViewContrast(1.0f)
 , m_SSR_Intensity(1.0f)
 , m_debugViewSSR(false)
@@ -1208,6 +1208,46 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// ObjectVelocity用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_ObjectVelocityTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R32G32_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
+	// CameraVelocity用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_VelocityTargt.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R32G32_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// SSAO準備パス用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -1412,46 +1452,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R10G10B10A2_UNORM,
-			clearColor
-		))
-		{
-			ELOG("Error : ColorTarget::Init() Failed.");
-			return false;
-		}
-	}
-
-	// ObjectVelocity用カラーターゲットの生成
-	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-		if (!m_ObjectVelocityTarget.InitRenderTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
-			m_Width,
-			m_Height,
-			DXGI_FORMAT_R32G32_FLOAT,
-			clearColor
-		))
-		{
-			ELOG("Error : ColorTarget::Init() Failed.");
-			return false;
-		}
-	}
-
-	// CameraVelocity用カラーターゲットの生成
-	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-		if (!m_VelocityTargt.InitRenderTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
-			m_Width,
-			m_Height,
-			DXGI_FORMAT_R32G32_FLOAT,
 			clearColor
 		))
 		{
@@ -2133,6 +2133,81 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+    // ObjectVelocity用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring vsPath;
+		if (!SearchFilePath(L"ObjectVelocityVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		std::wstring psPath;
+		if (!SearchFilePath(L"ObjectVelocityPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_ObjectVelocityRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout = MeshVertex::InputLayout;
+		desc.pRootSignature = m_ObjectVelocityRootSig.GetPtr();
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		desc.SampleMask = UINT_MAX;
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_ObjectVelocityTarget.GetRTVDesc().Format;
+		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pObjectVelocityPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
 	// スクリーンスペース描画パス用のInputElement。解放されないようにスコープ外で定義。
 	D3D12_INPUT_ELEMENT_DESC SSPassInputElements[2];
 	SSPassInputElements[0].SemanticName = "POSITION";
@@ -2170,6 +2245,73 @@ bool SampleApp::OnInit(HWND hWnd)
 		SSPassPSODescCommon.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // 上書き必須
 		SSPassPSODescCommon.SampleDesc.Count = 1;
 		SSPassPSODescCommon.SampleDesc.Quality = 0;
+	}
+
+    // CameraVelocity用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"CameraVelocityPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_CameraVelocityRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_CameraVelocityRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RTVFormats[0] = m_VelocityTargt.GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pCameraVelocityPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
 	}
 
     // SSAO準備パス用ルートシグニチャとパイプラインステートの生成
@@ -2524,148 +2666,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pAmbientLightPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
-
-    // ObjectVelocity用ルートシグニチャとパイプラインステートの生成
-	{
-		std::wstring vsPath;
-		if (!SearchFilePath(L"ObjectVelocityVS.cso", vsPath))
-		{
-			ELOG("Error : Vertex Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pVSBlob;
-		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-			return false;
-		}
-
-		std::wstring psPath;
-		if (!SearchFilePath(L"ObjectVelocityPS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pPSBlob;
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		if (!m_ObjectVelocityRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout = MeshVertex::InputLayout;
-		desc.pRootSignature = m_ObjectVelocityRootSig.GetPtr();
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
-		desc.SampleMask = UINT_MAX;
-		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_ObjectVelocityTarget.GetRTVDesc().Format;
-		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
-		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-
-		hr = m_pDevice->CreateGraphicsPipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pObjectVelocityPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
-
-    // CameraVelocity用ルートシグニチャとパイプラインステートの生成
-	{
-		std::wstring vsPath;
-		std::wstring psPath;
-
-		if (!SearchFilePath(L"QuadVS.cso", vsPath))
-		{
-			ELOG("Error : Vertex Shader Not Found");
-			return false;
-		}
-
-		if (!SearchFilePath(L"CameraVelocityPS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pVSBlob;
-		ComPtr<ID3DBlob> pPSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-			return false;
-		}
-
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		if (!m_CameraVelocityRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_CameraVelocityRootSig.GetPtr();
-		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_VelocityTargt.GetRTVDesc().Format;
-
-		hr = m_pDevice->CreateGraphicsPipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pCameraVelocityPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -3524,6 +3524,34 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// ObjectVelocity用定数バッファの作成
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
+	{
+		if (!m_ObjectVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbObjectVelocity)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbObjectVelocity* ptr = m_ObjectVelocityCB[i].GetPtr<CbObjectVelocity>();
+		ptr->CurWVPWithJitter = Matrix::Identity;
+		ptr->CurWVPNoJitter = Matrix::Identity;
+		ptr->PrevWVPNoJitter = Matrix::Identity;
+	}
+
+	// CameraVelocity用定数バッファの作成
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
+	{
+		if (!m_CameraVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCameraVelocity)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbCameraVelocity* ptr = m_CameraVelocityCB[i].GetPtr<CbCameraVelocity>();
+		ptr->ClipToPrevClip = Matrix::Identity;
+	}
+
 	// SSAO準備パス用定数バッファの作成
 	{
 		if (!m_SSAOSetupCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAOSetup)))
@@ -3618,34 +3646,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		CbSSGI_Denoise* ptr = m_SSGI_DenoiseCB.GetPtr<CbSSGI_Denoise>();
 		ptr->Width = (int)m_SSGI_DenoiseTarget.GetDesc().Width;
 		ptr->Height = m_SSGI_DenoiseTarget.GetDesc().Height;
-	}
-
-	// ObjectVelocity用定数バッファの作成
-	for (uint32_t i = 0; i < FRAME_COUNT; i++)
-	{
-		if (!m_ObjectVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbObjectVelocity)))
-		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
-
-		CbObjectVelocity* ptr = m_ObjectVelocityCB[i].GetPtr<CbObjectVelocity>();
-		ptr->CurWVPWithJitter = Matrix::Identity;
-		ptr->CurWVPNoJitter = Matrix::Identity;
-		ptr->PrevWVPNoJitter = Matrix::Identity;
-	}
-
-	// CameraVelocity用定数バッファの作成
-	for (uint32_t i = 0; i < FRAME_COUNT; i++)
-	{
-		if (!m_CameraVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCameraVelocity)))
-		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
-
-		CbCameraVelocity* ptr = m_CameraVelocityCB[i].GetPtr<CbCameraVelocity>();
-		ptr->ClipToPrevClip = Matrix::Identity;
 	}
 
 	// SSR用定数バッファの作成
@@ -4106,10 +4106,10 @@ void SampleApp::OnTerm()
 		m_CameraCB[i].Term();
 		m_DirLightShadowMapTransformCB[i].Term();
 		m_TransformCB[i].Term();
-		m_SSAO_HalfResCB[i].Term();
-		m_SSAO_FullResCB[i].Term();
 		m_ObjectVelocityCB[i].Term();
 		m_CameraVelocityCB[i].Term();
+		m_SSAO_HalfResCB[i].Term();
+		m_SSAO_FullResCB[i].Term();
 		m_TemporalAA_CB[i].Term();
 		m_TonemapCB[i].Term();
 	}
@@ -4194,6 +4194,10 @@ void SampleApp::OnTerm()
 	m_HCB_Target.Term();
 	m_HZB_Target.Term();
 
+	m_ObjectVelocityTarget.Term();
+
+	m_VelocityTargt.Term();
+
 	m_SSAOSetupTarget.Term();
 
 	m_SSAO_HalfResTarget.Term();
@@ -4205,10 +4209,6 @@ void SampleApp::OnTerm()
 	m_SSGI_TemporalAccumulationTarget.Term();
 
 	m_AmbientLightTarget.Term();
-
-	m_ObjectVelocityTarget.Term();
-
-	m_VelocityTargt.Term();
 
 	m_SSR_Target.Term();
 
@@ -4261,6 +4261,12 @@ void SampleApp::OnTerm()
 	m_pHZB_PSO.Reset();
 	m_HZB_RootSig.Term();
 
+	m_pObjectVelocityPSO.Reset();
+	m_ObjectVelocityRootSig.Term();
+
+	m_pCameraVelocityPSO.Reset();
+	m_CameraVelocityRootSig.Term();
+
 	m_pSSAOSetupPSO.Reset();
 	m_SSAOSetupRootSig.Term();
 
@@ -4278,12 +4284,6 @@ void SampleApp::OnTerm()
 
 	m_pAmbientLightPSO.Reset();
 	m_AmbientLightRootSig.Term();
-
-	m_pObjectVelocityPSO.Reset();
-	m_ObjectVelocityRootSig.Term();
-
-	m_pCameraVelocityPSO.Reset();
-	m_CameraVelocityRootSig.Term();
 
 	m_pSSR_PSO.Reset();
 	m_SSR_RootSig.Term();
@@ -4428,6 +4428,20 @@ void SampleApp::OnRender()
 
 	DrawHZB(pCmd);
 
+	if (m_enableVelocity)
+	{
+		if (m_enableTemporalAA)
+		{
+			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+		}
+		else
+		{
+			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+		}
+
+		DrawCameraVelocity(pCmd, viewProjNoJitter);
+	}
+
 	DrawSSAOSetup(pCmd);
 
 	if (m_enableTemporalAA)
@@ -4453,20 +4467,6 @@ void SampleApp::OnRender()
 	DrawSSGI_TemporalAccumulation(pCmd);
 
 	DrawAmbientLight(pCmd);
-
-	if (m_enableVelocity)
-	{
-		if (m_enableTemporalAA)
-		{
-			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
-		}
-		else
-		{
-			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
-		}
-
-		DrawCameraVelocity(pCmd, viewProjNoJitter);
-	}
 
 	if (m_enableTemporalAA)
 	{
@@ -4960,6 +4960,91 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 	}
 }
 
+void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter)
+{
+	ScopedTimer scopedTimer(pCmdList, L"ObjectVelocity");
+
+	// 変換行列用の定数バッファの更新
+	{
+		CbObjectVelocity* ptr = m_ObjectVelocityCB[m_FrameIndex].GetPtr<CbObjectVelocity>();
+		// 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->CurWVPWithJitter = world * viewProjWithJitter;
+		ptr->CurWVPNoJitter = world * viewProjNoJitter;
+		ptr->PrevWVPNoJitter = prevWorld * prevViewProjNoJitter;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_ObjectVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	const DescriptorHandle* handleRTV = m_ObjectVelocityTarget.GetHandleRTV();
+	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, &handleDSV->HandleCPU);
+
+	m_ObjectVelocityTarget.ClearView(pCmdList);
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
+	pCmdList->SetGraphicsRootSignature(m_ObjectVelocityRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_ObjectVelocityCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pCmdList->SetPipelineState(m_pObjectVelocityPSO.Get());
+
+	// Movableなものだけ描画
+	for (const Model* model : m_pModels)
+	{
+		for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
+		{
+			const Mesh* pMesh = model->GetMesh(meshIdx);
+			if (pMesh->GetMobility() != Mobility::Movable)
+			{
+				continue;
+			}
+
+			pMesh->Draw(pCmdList);
+		}
+	}
+
+	DirectX::TransitionResource(pCmdList, m_ObjectVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter)
+{
+	ScopedTimer scopedTimer(pCmdList, L"CameraVelocity");
+
+	{
+		CbCameraVelocity* ptr = m_CameraVelocityCB[m_FrameIndex].GetPtr<CbCameraVelocity>();
+		// これはfloat精度の誤差が入る。前フレームとVPが変わらなくても誤差で単位行列にはならない
+		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_VelocityTargt.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_VelocityTargt.ClearView(pCmdList);
+
+	pCmdList->SetGraphicsRootSignature(m_CameraVelocityRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraVelocityCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_ObjectVelocityTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pCameraVelocityPSO.Get());
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
 void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSAOSetup");
@@ -5213,91 +5298,6 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-}
-
-void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter)
-{
-	ScopedTimer scopedTimer(pCmdList, L"ObjectVelocity");
-
-	// 変換行列用の定数バッファの更新
-	{
-		CbObjectVelocity* ptr = m_ObjectVelocityCB[m_FrameIndex].GetPtr<CbObjectVelocity>();
-		// 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->CurWVPWithJitter = world * viewProjWithJitter;
-		ptr->CurWVPNoJitter = world * viewProjNoJitter;
-		ptr->PrevWVPNoJitter = prevWorld * prevViewProjNoJitter;
-	}
-
-	DirectX::TransitionResource(pCmdList, m_ObjectVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-	const DescriptorHandle* handleRTV = m_ObjectVelocityTarget.GetHandleRTV();
-	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
-	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, &handleDSV->HandleCPU);
-
-	m_ObjectVelocityTarget.ClearView(pCmdList);
-
-	pCmdList->RSSetViewports(1, &m_Viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
-
-	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
-	pCmdList->SetGraphicsRootSignature(m_ObjectVelocityRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_ObjectVelocityCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	pCmdList->SetPipelineState(m_pObjectVelocityPSO.Get());
-
-	// Movableなものだけ描画
-	for (const Model* model : m_pModels)
-	{
-		for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
-		{
-			const Mesh* pMesh = model->GetMesh(meshIdx);
-			if (pMesh->GetMobility() != Mobility::Movable)
-			{
-				continue;
-			}
-
-			pMesh->Draw(pCmdList);
-		}
-	}
-
-	DirectX::TransitionResource(pCmdList, m_ObjectVelocityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-}
-
-void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter)
-{
-	ScopedTimer scopedTimer(pCmdList, L"CameraVelocity");
-
-	{
-		CbCameraVelocity* ptr = m_CameraVelocityCB[m_FrameIndex].GetPtr<CbCameraVelocity>();
-		// これはfloat精度の誤差が入る。前フレームとVPが変わらなくても誤差で単位行列にはならない
-		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
-	}
-
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-	const DescriptorHandle* handleRTV = m_VelocityTargt.GetHandleRTV();
-	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
-
-	m_VelocityTargt.ClearView(pCmdList);
-
-	pCmdList->SetGraphicsRootSignature(m_CameraVelocityRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraVelocityCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_ObjectVelocityTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetPipelineState(m_pCameraVelocityPSO.Get());
-
-	pCmdList->RSSetViewports(1, &m_Viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
-	
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
-	pCmdList->IASetVertexBuffers(0, 1, &VBV);
-
-	pCmdList->DrawInstanced(3, 1, 0, 0);
-
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj)
@@ -5980,10 +5980,10 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::RadioButton("No Debug View", &m_debugViewRenderTarget, DEBUG_VIEW_NONE);
 	ImGui::RadioButton("Depth", &m_debugViewRenderTarget, DEBUG_VIEW_DEPTH);
 	ImGui::RadioButton("Normal", &m_debugViewRenderTarget, DEBUG_VIEW_NORMAL);
+	ImGui::RadioButton("Velocity", &m_debugViewRenderTarget, DEBUG_VIEW_VELOCITY);
 	ImGui::RadioButton("SSAO FullRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_FULL_RES);
 	ImGui::RadioButton("SSAO HalfRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_HALF_RES);
 	ImGui::RadioButton("SSGI", &m_debugViewRenderTarget, DEBUG_VIEW_SSGI);
-	ImGui::RadioButton("Velocity", &m_debugViewRenderTarget, DEBUG_VIEW_VELOCITY);
 	ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 
 	ImGui::SeparatorText("Light Intensity");
@@ -5991,17 +5991,17 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SliderFloat("Point Light Intensity", &m_pointLightIntensity, 0.0f, 1000.0f);
 	ImGui::SliderFloat("Spot Light Intensity", &m_spotLightIntensity, 0.0f, 10000.0f);
 
+	ImGui::SeparatorText("Velocity and Motion Blur");
+	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
+	ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
+	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
+
 	ImGui::SeparatorText("SSAO");
 	ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.01f, 10.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	ImGui::SliderFloat("SSAO Intensity", &m_SSAO_Intensity, 0.0f, 1.0f);
 
 	ImGui::SeparatorText("SSGI(WIP)");
 	ImGui::SliderFloat("SSGI Intensity", &m_SSGI_Intensity, 0.0f, 1.0f);
-
-	ImGui::SeparatorText("Velocity and Motion Blur");
-	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
-	ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
-	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
 
 	ImGui::SeparatorText("Volumetric Fog Intensity");
 	ImGui::SliderFloat("Dir Light Scattering", &m_directionalLightVolumetricFogScatteringIntensity, 0.0f, 10000.0f);
