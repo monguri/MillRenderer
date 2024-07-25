@@ -36,6 +36,23 @@ static const uint TILE_PIXEL_SIZE_Y = 8;
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
 void main(uint2 DTid : SV_DispatchThreadID)
 {
+	//
+	// sample current and history colors
+	//
 	uint2 pixelPosition = DTid;
+	float2 rcpDimension = 1.0f / float2(Width, Height);
+	float2 uv = (pixelPosition + 0.5f) * rcpDimension;
+	float2 velocity = VelocityMap.SampleLevel(PointClampSmp, uv, 0).rg;
+	float2 prevUV = uv - velocity;
+
+	float4 history = 0;
+
+	// when prev UV is off screen, ignore history.
+	bool bIgnoreHistory = ((min(prevUV.x, prevUV.y) <= 0.0f) || (max(prevUV.x, prevUV.y) >= 1.0f));
+	if (!bIgnoreHistory)
+	{
+		history = HistoryMap.SampleLevel(PointClampSmp, prevUV, 0);
+	}
+
 	OutResult[pixelPosition] = SSGIMap[pixelPosition];
 }
