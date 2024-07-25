@@ -98,7 +98,7 @@ private:
 	Texture m_SSAO_RandomizationTex;
 	ColorTarget m_SSGI_Target;
 	ColorTarget m_SSGI_DenoiseTarget;
-	ColorTarget m_SSGI_TemporalAccumulationTarget;
+	ColorTarget m_SSGI_TemporalAccumulationTarget[FRAME_COUNT];
 	ColorTarget m_AmbientLightTarget;
 	ColorTarget m_SSR_Target;
 	ColorTarget m_VolumetricFogScatteringTarget[FRAME_COUNT];
@@ -201,8 +201,8 @@ private:
 	void DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj);
 	void DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj);
 	void DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList);
-	void DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdList);
-	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList);
+	void DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& prevTarget, const ColorTarget& curTarget);
+	void DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SSGI_CurTarget);
 	void DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj);
 	void DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewRotProjNoJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter, const ColorTarget& prevTarget, const ColorTarget& curTarget);
 	void DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& curTarget);

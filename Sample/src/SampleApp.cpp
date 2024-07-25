@@ -1423,20 +1423,23 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-		if (!m_SSGI_TemporalAccumulationTarget.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
-			(uint32_t)m_SSGI_Target.GetDesc().Width,
-			m_SSGI_Target.GetDesc().Height,
-			m_SceneColorTarget.GetDesc().Format,
-			clearColor
-		))
+		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
-			return false;
+			if (!m_SSGI_TemporalAccumulationTarget[i].InitUnorderedAccessTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES],
+				nullptr, // RTVは作らない。クリアする必要がないので
+				m_pPool[POOL_TYPE_RES],
+				(uint32_t)m_SSGI_Target.GetDesc().Width,
+				m_SSGI_Target.GetDesc().Height,
+				m_SceneColorTarget.GetDesc().Format,
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+				return false;
+			}
 		}
 	}
 
@@ -4206,7 +4209,10 @@ void SampleApp::OnTerm()
 
 	m_SSGI_Target.Term();
 	m_SSGI_DenoiseTarget.Term();
-	m_SSGI_TemporalAccumulationTarget.Term();
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
+	{
+		m_SSGI_TemporalAccumulationTarget[i].Term();
+	}
 
 	m_AmbientLightTarget.Term();
 
@@ -4464,9 +4470,12 @@ void SampleApp::OnRender()
 
 	DrawSSGI_Denoise(pCmd);
 
-	DrawSSGI_TemporalAccumulation(pCmd);
+	const ColorTarget& SSGI_PrevTarget = m_SSGI_TemporalAccumulationTarget[m_FrameIndex];
+	const ColorTarget& SSGI_CurTarget = m_SSGI_TemporalAccumulationTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
 
-	DrawAmbientLight(pCmd);
+	DrawSSGI_TemporalAccumulation(pCmd, SSGI_PrevTarget, SSGI_CurTarget);
+
+	DrawAmbientLight(pCmd, SSGI_CurTarget);
 
 	if (m_enableTemporalAA)
 	{
@@ -5245,33 +5254,36 @@ void SampleApp::DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& prevTarget, const ColorTarget& curTarget)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSGI TemporalAccumulation");
 
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SSGI_TemporalAccumulationTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_SSGI_TemporalAccumulationRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSSGI_TemporalAccumulationPSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_DenoiseTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_SSGI_TemporalAccumulationTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, prevTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, curTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
 	const size_t GROUP_SIZE_Y = 8;
 
 	// グループ数は切り上げ
-	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_SSGI_TemporalAccumulationTarget.GetDesc().Width, GROUP_SIZE_X);
-	UINT NumGroupY = DivideAndRoundUp(m_SSGI_TemporalAccumulationTarget.GetDesc().Height, GROUP_SIZE_Y);
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)curTarget.GetDesc().Width, GROUP_SIZE_X);
+	UINT NumGroupY = DivideAndRoundUp(curTarget.GetDesc().Height, GROUP_SIZE_Y);
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SSGI_TemporalAccumulationTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SSGI_CurTarget)
 {
 	ScopedTimer scopedTimer(pCmdList, L"AmbientLight");
 
@@ -5285,7 +5297,7 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_AmbientLightRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_SSGI_TemporalAccumulationTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, SSGI_CurTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pAmbientLightPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
