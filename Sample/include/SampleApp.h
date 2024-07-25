@@ -91,7 +91,7 @@ private:
 	ColorTarget m_HCB_Target;
 	ColorTarget m_HZB_Target;
 	ColorTarget m_ObjectVelocityTarget;
-	ColorTarget m_VelocityTargt;
+	ColorTarget m_VelocityTarget;
 	ColorTarget m_SSAOSetupTarget;
 	ColorTarget m_SSAO_HalfResTarget;
 	ColorTarget m_SSAO_FullResTarget;

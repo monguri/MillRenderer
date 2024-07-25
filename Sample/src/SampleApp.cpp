@@ -1232,7 +1232,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-		if (!m_VelocityTargt.InitRenderTarget
+		if (!m_VelocityTarget.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -2304,7 +2304,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_VelocityTargt.GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_VelocityTarget.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -4199,7 +4199,7 @@ void SampleApp::OnTerm()
 
 	m_ObjectVelocityTarget.Term();
 
-	m_VelocityTargt.Term();
+	m_VelocityTarget.Term();
 
 	m_SSAOSetupTarget.Term();
 
@@ -5029,12 +5029,12 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
 	}
 
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_VelocityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	const DescriptorHandle* handleRTV = m_VelocityTargt.GetHandleRTV();
+	const DescriptorHandle* handleRTV = m_VelocityTarget.GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
-	m_VelocityTargt.ClearView(pCmdList);
+	m_VelocityTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_CameraVelocityRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraVelocityCB[m_FrameIndex].GetHandleGPU());
@@ -5051,7 +5051,7 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_VelocityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
@@ -5260,7 +5260,7 @@ void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdLis
 
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_VelocityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_SSGI_TemporalAccumulationRootSig.GetPtr());
@@ -5281,7 +5281,7 @@ void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdLis
 
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_VelocityTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -5529,7 +5529,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float tempor
 		DirectX::TransitionResource(pCmdList, m_SSR_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	}
 	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_VelocityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
@@ -5544,7 +5544,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float tempor
 		pCmdList->SetComputeRootDescriptorTable(1, m_SSR_Target.GetHandleSRV()->HandleGPU);
 	}
 	pCmdList->SetComputeRootDescriptorTable(2, prevTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_VelocityTargt.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, curTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
@@ -5566,7 +5566,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float tempor
 		DirectX::TransitionResource(pCmdList, m_SSR_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_VelocityTargt.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_VelocityTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -5589,7 +5589,7 @@ void SampleApp::DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	pCmdList->SetGraphicsRootSignature(m_MotionBlurRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_MotionBlurCB.GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, InputColor.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_VelocityTargt.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pMotionBlurPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -5931,7 +5931,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSGI_DenoiseTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case DEBUG_VIEW_VELOCITY:
-			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTargt.GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 			break;
 		default:
 			assert(false);
