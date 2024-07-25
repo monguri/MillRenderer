@@ -359,6 +359,6 @@ void main(uint2 groupThreadID : SV_GroupThreadID, uint2 groupID : SV_GroupID, ui
 		diffuseColor *= rcp(CONFIG_RAY_COUNT);
 		diffuseColor *= rcp(1 - Luminance(diffuseColor));
 
-		OutResult[pixelPosition] = float4(diffuseColor, 1) * Intensity;
+		OutResult[pixelPosition] = float4(diffuseColor * Intensity, 1);
 	}
 }
