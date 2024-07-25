@@ -5268,7 +5268,8 @@ void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdLis
 	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_DenoiseCB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SSGI_DenoiseTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, prevTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, curTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_VelocityTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, curTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
