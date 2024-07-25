@@ -1,10 +1,12 @@
 #define ROOT_SIGNATURE ""\
 "DescriptorTable(SRV(t0))"\
 ", DescriptorTable(SRV(t1))"\
+", DescriptorTable(SRV(t2))"\
 ", DescriptorTable(UAV(u0))"\
 
 Texture2D SSGIMap : register(t0);
 Texture2D HistoryMap : register(t1);
+Texture2D VelocityMap : register(t2);
 
 RWTexture2D<float4> OutResult : register(u0);
 
