@@ -5254,6 +5254,7 @@ void SampleApp::DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
+// TODO: SSGIのTemporalAccumulationはUEの実装が汎用的すぎて参考にするのが難しいので一旦開発を止めている
 void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& prevTarget, const ColorTarget& curTarget)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SSGI TemporalAccumulation");
