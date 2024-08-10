@@ -4503,6 +4503,8 @@ void SampleApp::OnRender()
 		DrawDirectionalLightShadowMap(pCmd, lightForward);
 	}
 
+	DrawSkyTransmittanceLUT(pCmd);
+
 	if (m_enableTemporalAA)
 	{
 		DrawScene(pCmd, lightForward, viewProjWithJitter, view, projWithJitter);
@@ -4696,6 +4698,29 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+}
+
+void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"SkyTransmiattanceLUT");
+
+	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	pCmdList->SetComputeRootSignature(m_SkyTransmittanceLUT_RootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pSkyTransmittanceLUT_PSO.Get());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyTransmittanceLUT_Target.GetHandleUAVs()[0]->HandleGPU);
+
+	// シェーダ側と合わせている
+	const size_t GROUP_SIZE_X = 8;
+	const size_t GROUP_SIZE_Y = 8;
+
+	// グループ数は切り上げ
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_SkyTransmittanceLUT_Target.GetDesc().Width, GROUP_SIZE_X);
+	UINT NumGroupY = DivideAndRoundUp(m_SkyTransmittanceLUT_Target.GetDesc().Height, GROUP_SIZE_Y);
+	UINT NumGroupZ = 1;
+	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const Matrix& view, const Matrix& proj)
