@@ -116,6 +116,12 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.6</ShaderModel>
     </FxCompile>
+    <FxCompile Include="..\res\SkyTransmittanceLUT_CS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.6</ShaderModel>
+    </FxCompile>
     <FxCompile Include="..\res\SSGI_DenoiseCS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>

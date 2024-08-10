@@ -28,6 +28,8 @@ private:
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
 
 	Texture m_DummyTexture;
+	ComPtr<ID3D12PipelineState> m_pSkyTransmittanceLUT_PSO;
+	RootSignature m_SkyTransmittanceLUT_RootSig;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaOpaquePSO;
