@@ -36,6 +36,9 @@ namespace
 	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 
+	static constexpr uint32_t SKY_TRANSMITTANCE_LUT_WIDTH = 256; // UEを参考にした
+	static constexpr uint32_t SKY_TRANSMITTANCE_LUT_HEIGHT = 64; // UEを参考にした
+
 	static constexpr uint32_t HCB_MAX_NUM_OUTPUT_MIP = 5; // UEを参考にした
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
 
@@ -1038,6 +1041,27 @@ bool SampleApp::OnInit(HWND hWnd)
 				m_SpotLightShadowMapScissor.top = 0;
 				m_SpotLightShadowMapScissor.bottom = (LONG)m_SpotLightShadowMapTarget[0].GetDesc().Height;
 			}
+		}
+	}
+
+	// 空の透過率LUT用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_SkyTransmittanceLUT_Target.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			SKY_TRANSMITTANCE_LUT_WIDTH,
+			SKY_TRANSMITTANCE_LUT_HEIGHT,
+			DXGI_FORMAT_R11G11B10_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+			return false;
 		}
 	}
 
@@ -4188,6 +4212,8 @@ void SampleApp::OnTerm()
 	{
 		m_SpotLightShadowMapTarget[i].Term();
 	}
+
+	m_SkyTransmittanceLUT_Target.Term();
 
 	m_SceneColorTarget.Term();
 	m_SceneNormalTarget.Term();
