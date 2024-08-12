@@ -135,6 +135,14 @@ namespace
 		Vector2 ShadowMapSize; // x is pixel size, y is texel size on UV.
 	};
 
+	struct alignas(256) CbSkyAtmosphere
+	{
+		int Width;
+		int Height;
+		float bottomRadiusKm;
+		float topRadiusKm;
+	};
+
 	struct alignas(256) CbCamera
 	{
 		Vector3 CameraPosition;
@@ -942,6 +950,21 @@ bool SampleApp::OnInit(HWND hWnd)
 			tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight3Dir, SpotLight3Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 		}
+	}
+
+	// 空の描画用のバッファの設定
+	{
+		if (!m_SkyAtmosphereCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSkyAtmosphere)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB.GetPtr<CbSkyAtmosphere>();
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+		ptr->topRadiusKm = 6360.0f; // UEのSkyAtmosphereComponentを参考にしている
+		ptr->bottomRadiusKm = 6420.0f; // UEのSkyAtmosphereComponentを参考にしている
 	}
 
 	// カメラバッファの設定
@@ -4214,6 +4237,8 @@ void SampleApp::OnTerm()
 	}
 	m_pHZB_CBs.clear();
 
+	m_SkyAtmosphereCB.Term();
+
 	m_SSAOSetupCB.Term();
 
 	m_SSGI_CB.Term();
@@ -4708,7 +4733,8 @@ void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_SkyTransmittanceLUT_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSkyTransmittanceLUT_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SkyTransmittanceLUT_Target.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_SkyTransmittanceLUT_Target.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
