@@ -43,6 +43,35 @@ struct SamplingSetup
 	float sampleCountIni; // Used when VariableSampleCount is false
 };
 
+/**
+ * Returns near intersection in x, far intersection in y, or both -1 if no intersection.
+ * RayDirection does not need to be unit length.
+ */
+float2 RayIntersectSphere(float3 rayOrigin, float3 rayDirection, float4 sphere)
+{
+	float3 localPosition = rayOrigin - sphere.xyz;
+	float localPositionSqr = dot(localPosition, localPosition);
+
+	float3 quadraticCoef;
+	quadraticCoef.x = dot(rayDirection, rayDirection);
+	quadraticCoef.y = 2 * dot(rayDirection, localPosition);
+	quadraticCoef.z = localPositionSqr - sphere.w * sphere.w;
+
+	float discriminant = quadraticCoef.y * quadraticCoef.y - 4 * quadraticCoef.x * quadraticCoef.z;
+	// TODO:‰Šú’l‚ª-1‚Å–â‘è‚È‚¢H
+	float2 intersections = -1;
+
+	// Only continue if the ray intersects the sphere
+	[flatten]
+	if (discriminant >= 0)
+	{
+		float sqrtDiscriminant = sqrt(discriminant);
+		intersections = (-quadraticCoef.y + float2(-1, 1) * sqrtDiscriminant) / (2 * quadraticCoef.x);
+	}
+
+	return intersections;
+}
+
 // In this function, all world position are relative to the planet center (itself expressed within translated world space)
 SingleScatteringResult IntegrateSingleScatteredLuminance(
 	in float4 SVPos, in float3 worldPos, in float3 worldDir,
@@ -61,7 +90,29 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 
 
 	// TODO:impl
+	float3 planetO = float3(0.0f, 0.0f, 0.0f);
 	float tMax = 0.0f;
+
+	float tBottom = 0.0f;
+	float2 solB = RayIntersectSphere(worldPos, worldDir, float4(planetO, bottomRadiusKm));
+	float2 solT = RayIntersectSphere(worldPos, worldDir, float4(planetO, topRadiusKm));
+
+	const bool bNoBotIntersection = all(solB < 0.0f);
+	const bool bNoTopIntersection = all(solT < 0.0f);
+	if (bNoTopIntersection)
+	{
+		tMax = 0.0f;
+		return result;
+	}
+	else if (bNoBotIntersection)
+	{
+		tMax = max(solT.x, solT.y);
+	}
+	else
+	{
+		tBottom = max(0.0f, min(solB.x, solB.y));
+		tMax = tBottom;
+	}
 
 	float sampleCount = sampling.sampleCountIni;
 	float sampleCountFloor = sampling.sampleCountIni;
