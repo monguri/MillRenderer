@@ -18,6 +18,8 @@
 
 RWTexture2D<float3> OutResult : register(u0);
 
+static const float MULTI_SCATTERING_SAMPLE_COUNT = 15.0f; // referenced UE.
+
 static const uint TILE_PIXEL_SIZE_X = 8;
 static const uint TILE_PIXEL_SIZE_Y = 8;
 
@@ -27,6 +29,25 @@ void main(uint2 DTid : SV_DispatchThreadID)
 {
 	float2 pixPos = DTid + 0.5f;
 	float2 uv = pixPos / float2(MultiScatteringLUT_Width, MultiScatteringLUT_Height);
+	// We do no apply UV transform from sub range here as it has minimal impact.
+
+	float cosLightZenithAngle = uv.x * 2.0f - 1.0f;
+	float3 lightDir = float3(0.0f, sqrt(1.0f - cosLightZenithAngle * cosLightZenithAngle), cosLightZenithAngle);
+	const float3 nullLightDirection = float3(0.0f, 0.0f, 1.0f);
+	const float3 nullLightIlluminance = float3(0.0f, 0.0f, 0.0f);
+	const float3 oneIlluminance = float3(1.0f, 1.0f, 1.0f);
+	float viewHeight = bottomRadiusKm + uv.y * (topRadiusKm - bottomRadiusKm);
+
+	float3 worldPos = float3(0.0f, 0.0f, viewHeight);
+	float3 worldDir = float3(0.0f, 0.0f, 1.0f);
+
+	SamplingSetup sampling = (SamplingSetup)0;
+	{
+		sampling.variableSampleCount = false;
+		sampling.sampleCountIni = MULTI_SCATTERING_SAMPLE_COUNT;
+	}
+
+	const bool ground = false;
 
 	OutResult[pixPos] = float3(0, 0, 0);
 }
