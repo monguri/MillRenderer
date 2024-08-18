@@ -963,8 +963,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB.GetPtr<CbSkyAtmosphere>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->topRadiusKm = 6360.0f; // UEのSkyAtmosphereComponentを参考にしている
-		ptr->bottomRadiusKm = 6420.0f; // UEのSkyAtmosphereComponentを参考にしている
+		ptr->bottomRadiusKm = 6360.0f; // UEのSkyAtmosphereComponentを参考にしている
+		ptr->topRadiusKm = 6420.0f; // UEのSkyAtmosphereComponentを参考にしている
 	}
 
 	// カメラバッファの設定
