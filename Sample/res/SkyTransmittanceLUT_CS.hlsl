@@ -8,10 +8,12 @@
 
 cbuffer CbSkyAtmosphere : register(b0)
 {
-	int Width : packoffset(c0);
-	int Height : packoffset(c0.y);
-	float bottomRadiusKm : packoffset(c0.z);
-	float topRadiusKm : packoffset(c0.w);
+	int TransmittanceLUT_Width : packoffset(c0);
+	int TransmittanceLUT_Height : packoffset(c0.y);
+	int MultiScatteringLUT_Width : packoffset(c0.z);
+	int MultiScatteringLUT_Height : packoffset(c0.w);
+	float bottomRadiusKm : packoffset(c1);
+	float topRadiusKm : packoffset(c1.y);
 };
 
 RWTexture2D<float3> OutResult : register(u0);
@@ -274,7 +276,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 void main(uint2 DTid : SV_DispatchThreadID)
 {
 	float2 pixPos = DTid + 0.5f;
-	float2 uv = pixPos / float2(Width, Height);
+	float2 uv = pixPos / float2(TransmittanceLUT_Width, TransmittanceLUT_Height);
 
 	float viewHeight;
 	float viewZenithCosAngle;

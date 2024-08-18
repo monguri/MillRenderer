@@ -139,10 +139,13 @@ namespace
 
 	struct alignas(256) CbSkyAtmosphere
 	{
-		int Width;
-		int Height;
+		int TransmittanceLUT_Width;
+		int TransmittanceLUT_Height;
+		int MultiScatteringLUT_Width;
+		int MultiScatteringLUT_Height;
 		float bottomRadiusKm;
 		float topRadiusKm;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbCamera
@@ -963,8 +966,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB.GetPtr<CbSkyAtmosphere>();
-		ptr->Width = SKY_TRANSMITTANCE_LUT_WIDTH;
-		ptr->Height = SKY_TRANSMITTANCE_LUT_HEIGHT;
+		ptr->TransmittanceLUT_Width = SKY_TRANSMITTANCE_LUT_WIDTH;
+		ptr->TransmittanceLUT_Height = SKY_TRANSMITTANCE_LUT_HEIGHT;
+		ptr->MultiScatteringLUT_Width = SKY_MULTI_SCATTERING_LUT_WIDTH;
+		ptr->MultiScatteringLUT_Height = SKY_MULTI_SCATTERING_LUT_HEIGHT;
 		ptr->bottomRadiusKm = 6360.0f; // UEのSkyAtmosphereComponentを参考にしている
 		ptr->topRadiusKm = 6420.0f; // UEのSkyAtmosphereComponentを参考にしている
 	}
