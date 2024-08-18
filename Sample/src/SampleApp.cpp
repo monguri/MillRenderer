@@ -4613,6 +4613,7 @@ void SampleApp::OnRender()
 	}
 
 	DrawSkyTransmittanceLUT(pCmd);
+	DrawSkyMultiScatteringLUT(pCmd);
 
 	if (m_enableTemporalAA)
 	{
@@ -4811,7 +4812,7 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 
 void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SkyTransmiattanceLUT");
+	ScopedTimer scopedTimer(pCmdList, L"SkyTransmittanceLUT");
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -4831,6 +4832,31 @@ void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"SkyMultiScatteringLUT");
+
+	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	pCmdList->SetComputeRootSignature(m_SkyMultiScatteringLUT_RootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pSkyMultiScatteringLUT_PSO.Get());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_SkyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_SkyMultiScatteringLUT_Target.GetHandleUAVs()[0]->HandleGPU);
+
+	// シェーダ側と合わせている
+	const size_t GROUP_SIZE_X = 8;
+	const size_t GROUP_SIZE_Y = 8;
+
+	// グループ数は切り上げ
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_SkyMultiScatteringLUT_Target.GetDesc().Width, GROUP_SIZE_X);
+	UINT NumGroupY = DivideAndRoundUp(m_SkyMultiScatteringLUT_Target.GetDesc().Height, GROUP_SIZE_Y);
+	UINT NumGroupZ = 1;
+	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const Matrix& view, const Matrix& proj)
