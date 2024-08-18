@@ -89,6 +89,7 @@ private:
 	DepthTarget m_DirLightShadowMapTarget;
 	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SkyTransmittanceLUT_Target;
+	ColorTarget m_SkyMultiScatteringLUT_Target;
 	ColorTarget m_SceneColorTarget;
 	ColorTarget m_SceneNormalTarget;
 	ColorTarget m_SceneMetallicRoughnessTarget;
