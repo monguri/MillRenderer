@@ -30,6 +30,8 @@ private:
 	Texture m_DummyTexture;
 	ComPtr<ID3D12PipelineState> m_pSkyTransmittanceLUT_PSO;
 	RootSignature m_SkyTransmittanceLUT_RootSig;
+	ComPtr<ID3D12PipelineState> m_pSkyMultiScatteringLUT_PSO;
+	RootSignature m_SkyMultiScatteringLUT_RootSig;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaOpaquePSO;

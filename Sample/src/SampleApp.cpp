@@ -1812,6 +1812,59 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+    // 空の多重散乱LUT用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring csPath;
+
+		if (!SearchFilePath(L"SkyMultiScatteringLUT_CS.cso", csPath))
+		{
+			ELOG("Error : Compute Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pCSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_SkyMultiScatteringLUT_RootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_SkyMultiScatteringLUT_RootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSkyMultiScatteringLUT_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // シーン用ルートシグニチャとパイプラインステートの生成
 	if (RENDER_SPONZA)
 	{
@@ -4353,6 +4406,8 @@ void SampleApp::OnTerm()
 
 	m_pSkyTransmittanceLUT_PSO.Reset();
 	m_SkyTransmittanceLUT_RootSig.Term();
+	m_pSkyMultiScatteringLUT_PSO.Reset();
+	m_SkyMultiScatteringLUT_RootSig.Term();
 
 	m_pSponzaOpaquePSO.Reset();
 	m_pSponzaMaskPSO.Reset();
