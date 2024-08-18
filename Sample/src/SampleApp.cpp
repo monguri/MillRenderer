@@ -961,8 +961,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB.GetPtr<CbSkyAtmosphere>();
-		ptr->Width = m_Width;
-		ptr->Height = m_Height;
+		ptr->Width = SKY_TRANSMITTANCE_LUT_WIDTH;
+		ptr->Height = SKY_TRANSMITTANCE_LUT_HEIGHT;
 		ptr->bottomRadiusKm = 6360.0f; // UEのSkyAtmosphereComponentを参考にしている
 		ptr->topRadiusKm = 6420.0f; // UEのSkyAtmosphereComponentを参考にしている
 	}
