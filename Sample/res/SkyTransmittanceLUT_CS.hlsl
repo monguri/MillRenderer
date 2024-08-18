@@ -152,8 +152,8 @@ struct SamplingSetup
 // In this function, all world position are relative to the planet center (itself expressed within translated world space)
 SingleScatteringResult IntegrateSingleScatteredLuminance(
 	in float4 SVPos, in float3 worldPos, in float3 worldDir,
-	in SamplingSetup sampling, in float3 light0dir, in float3 light0Illuminance
-)
+	in bool ground, in SamplingSetup sampling, in float3 light0dir,
+	in float3 light0Illuminance)
 {
 	SingleScatteringResult result;
 	result.opticalDepth = 0;
@@ -257,7 +257,12 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		const float3 sampleTransmittance = exp(-sampleOpticalDepth);
 		opticalDepth += sampleOpticalDepth;
 
-		// TODO:impl
+		//TODO: To get only optical depth, it's enough.
+	}
+
+	if (ground && tMax == tBottom)
+	{
+		//TODO: To get only optical depth, it's enough.
 	}
 
 	result.opticalDepth = opticalDepth;
@@ -286,6 +291,13 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	}
 
 	const bool ground = false;
+	const float3 nullLightDirection = float3(0.0f, 0.0f, 1.0f);
+	const float3 nullLightIlluminance = float3(0.0f, 0.0f, 0.0f);
 
-	OutResult[pixPos] = float3(0, 0, 0);
+	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
+		float4(pixPos, 0.0f, 1.0f), worldPos, worldDir,
+		ground, sampling, nullLightDirection, nullLightIlluminance);
+	float3 transmittance = exp(-ss.opticalDepth);
+
+	OutResult[pixPos] = transmittance;
 }
