@@ -4,6 +4,8 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
+static const float3 GROUND_ALBEDO_LINEAR = 0.4f;
+
 static const float MIE_ANISOTOROPY = 0.8f; // referenced UE.
 static const float EARTH_RAYLEIGH_SCALE_HEIGHT = 8.0f; // referenced UE.
 static const float EARTH_MIE_SCALE_HEIGHT = 1.2f; // referenced UE.
@@ -38,6 +40,47 @@ cbuffer CbSkyAtmosphere : register(b0)
 	float bottomRadiusKm : packoffset(c1);
 	float topRadiusKm : packoffset(c1.y);
 };
+
+Texture2D TransmittanceLUT_Texture : register(t0);
+SamplerState TransmittanceLUT_TextureSampler : register(s0);
+
+// Transmittance LUT function parameterisation from Bruneton 2017 https://github.com/ebruneton/precomputed_atmospheric_scattering
+// uv in [0,1]
+// ViewZenithCosAngle in [-1,1]
+// ViewHeight in [bottomRAdius, topRadius]
+
+void UVtoLUTTransmittanceParams(out float viewHeight, out float viewZenithCosAngle, in float bottomRadius, in float topRadius, in float2 uv)
+{
+	float xmu = uv.x;
+	float xr = uv.y;
+
+	float h = sqrt(topRadius * topRadius - bottomRadius * bottomRadius);
+	float rho = h * xr;
+	viewHeight = sqrt(rho * rho + bottomRadius * bottomRadius);
+
+	float dmin = topRadius - viewHeight;
+	float dmax = rho + h;
+	float d = dmin + xmu * (dmax - dmin); // lerp(dmin, dmax, xmu)
+	// law of cosines. viewHeight-angle-d triangle.
+	viewZenithCosAngle = d == 0.0f ? 1.0f : (h * h - rho * rho - d * d) / (2.0f * viewHeight * d);
+	viewZenithCosAngle = clamp(viewZenithCosAngle, -1.0f, 1.0f);
+}
+
+void LutTransmittanceParamsToUV(in float viewHeight, in float viewZenithCosAngle, in float bottomRadius, in float topRadius, out float2 uv)
+{
+	float h = sqrt(max(0.0f, topRadius * topRadius - bottomRadius * bottomRadius));
+	float rho = sqrt(max(0.0f, viewHeight * viewHeight - bottomRadius * bottomRadius));
+
+	float discriminant = viewHeight * viewHeight * (viewZenithCosAngle * viewZenithCosAngle - 1.0f) + topRadius * topRadius;
+	float d = max(0.0f, (-viewHeight * viewZenithCosAngle + sqrt(discriminant))); // Distance to atmosphere boundary
+
+	float dmin = topRadius - viewHeight;
+	float dmax = rho + h;
+	float xmu = (d - dmin) / (dmax - dmin);
+	float xr = rho / h;
+
+	uv = float2(xmu, xr);
+}
 
 /**
  * Returns near intersection in x, far intersection in y, or both -1 if no intersection.
@@ -86,9 +129,16 @@ float RayleighPhase(float cosTheta)
 
 struct MediumSampleRGB
 {
+	float3 scattering;
 	float3 extinction;
+
+	float3 scatteringMie;
 	float3 extinctionMie;
+
+	float3 scatteringRay;
 	float3 extinctionRay;
+
+	float3 scatteringOzo;
 	float3 extinctionOzo;
 };
 
@@ -102,19 +152,39 @@ MediumSampleRGB SampleAthosphereMediumRGB(in float3 worldPos)
 		saturate(ABSORPTION_DENSITY0_LINEAR_TERM * sampleHeight + ABSORPTION_DENSITY0_CONSTANT_TERM) :
 		saturate(ABSORPTION_DENSITY1_LINEAR_TERM * sampleHeight + ABSORPTION_DENSITY1_CONSTANT_TERM);
 
+	const float3 mieScattering = MIE_SCATTERING * MIE_SCATTERING_SCALE;
+
 	MediumSampleRGB s;
+
+	s.scatteringMie = densityMie * mieScattering;
 	s.extinctionMie = densityMie * MIE_EXTINCTION;
+
+	s.scatteringRay = densityRay * RAYLEIGH_SCATTERING;
 	s.extinctionRay = densityRay * RAYLEIGH_SCATTERING;
+
+	s.scatteringOzo = 0.0f;
 	s.extinctionOzo = densityOzo * OZON_ABSORPTION;
 
+	s.scattering = s.scatteringMie + s.scatteringRay + s.scatteringOzo;
 	s.extinction = s.extinctionMie + s.extinctionRay + s.extinctionOzo;
 
 	return s;
 }
 
+float3 GetTransmittance(in float lightZenithCosAngle, in float pHeight)
+{
+	float2 uv;
+	LutTransmittanceParamsToUV(pHeight, lightZenithCosAngle, bottomRadiusKm, topRadiusKm, uv);
+
+	float3 transmittanceToLight = TransmittanceLUT_Texture.SampleLevel(TransmittanceLUT_TextureSampler, uv, 0).rgb;
+	return transmittanceToLight;
+}
+
 struct SingleScatteringResult
 {
+	float3 L; // Scattered light (luminance)
 	float3 opticalDepth; // Optical depth (1/m)
+	float3 multiScatAs1;
 };
 
 struct SamplingSetup
@@ -129,11 +199,13 @@ struct SamplingSetup
 // In this function, all world position are relative to the planet center (itself expressed within translated world space)
 SingleScatteringResult IntegrateSingleScatteredLuminance(
 	in float4 SVPos, in float3 worldPos, in float3 worldDir,
-	in bool ground, in SamplingSetup sampling, in float3 light0dir,
-	in float3 light0Illuminance)
+	in bool ground, in SamplingSetup sampling, in bool mieRayPhase,
+	in float3 light0dir, in float3 light0Illuminance)
 {
 	SingleScatteringResult result;
+	result.L = 0;
 	result.opticalDepth = 0;
+	result.multiScatAs1 = 0;
 
 	if (dot(worldPos, worldPos) <= bottomRadiusKm * bottomRadiusKm)
 	{
@@ -187,9 +259,10 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	float rayleighPhaseValueLight0 = RayleighPhase(cosTheta);
 
 	// Ray march the atmosphere to integrate optical depth
+	float3 L = 0.0f;
+	float3 throughput = 1.0f;
 	float3 opticalDepth = 0.0f;
 	float t = 0.0f;
-	float tPrev = 0.0f;
 
 	float pixelNoise = 0.3f; // from UE's DEFAULT_SAMPLE_OFFSET 
 	for (float sampleI = 0.0f; sampleI < sampleCount; sampleI += 1.0f)
@@ -234,14 +307,39 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		const float3 sampleTransmittance = exp(-sampleOpticalDepth);
 		opticalDepth += sampleOpticalDepth;
 
-		//TODO: To get only optical depth, it's enough.
+		// TODO:impl L and throughput calculation
+		// 1 is the integration of luminance over the 4pi of a sphere, and assuming an isotropic phase function of 1.0/(4*PI) 
+		result.multiScatAs1 += throughput * medium.scattering * 1.0f * dt;
+
+		// MultiScatteredLuminance is already pre-exposed, atmospheric light contribution needs to be pre exposed
+		// Multi-scattering is also not affected by PlanetShadow or TransmittanceToLight because it contains diffuse light after single scattering.
+
+		// TODO:impl
+		float3 S = 1.0f;
+		//float3 S		= ExposedLight0Illuminance * (PlanetShadow0 * TransmittanceToLight0 * PhaseTimesScattering0			+ MultiScatteredLuminance0 * Medium.Scattering);
+
+		// See slide 28 at http://www.frostbite.com/2015/08/physically-based-unified-volumetric-rendering-in-frostbite/ 
+		float3 Sint = (S - S * sampleTransmittance) / medium.extinction; // integrate along the current step segment 
+
+		L += throughput * Sint;
+		throughput *= sampleTransmittance;
 	}
 
 	if (ground && tMax == tBottom)
 	{
-		//TODO: To get only optical depth, it's enough.
+		// Account for bounced light off the planet
+		float3 p = worldPos + tBottom * worldDir;
+		float pHeight = length(p);
+
+		const float3 upVector = p / pHeight;
+		float light0ZenighCosAngle = dot(light0dir, upVector);
+		float3 transmittanceToLight0 = GetTransmittance(light0ZenighCosAngle, pHeight);
+
+		const float NdotL0 = saturate(dot(upVector, light0dir));
+		L += light0Illuminance * transmittanceToLight0 * throughput * NdotL0 * GROUND_ALBEDO_LINEAR / F_PI;
 	}
 
+	result.L = L;
 	result.opticalDepth = opticalDepth;
 	return result;
 }

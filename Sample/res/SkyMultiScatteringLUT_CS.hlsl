@@ -47,9 +47,9 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		sampling.sampleCountIni = MULTI_SCATTERING_SAMPLE_COUNT;
 	}
 
-	// TODO:impl
 	const bool ground = true;
 	const bool mieRayPhase = false;
+
 
 	OutResult[pixPos] = float3(0, 0, 0);
 }
