@@ -70,6 +70,25 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// シーン用デプスターゲットの生成
+	{
+		if (!m_SceneDepthTarget.Init
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_DSV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_D32_FLOAT,
+			1.0f,
+			0
+		))
+		{
+			ELOG("Error : DepthTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// パーティクル描画用カラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -86,6 +105,96 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		))
 		{
 			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
+    // パーティクル描画用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"DrawParticlesVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"DrawParticlesPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_DrawParticlesRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_INPUT_ELEMENT_DESC dummyInputElem;
+		dummyInputElem.SemanticName = "POSITION";
+		dummyInputElem.SemanticIndex = 0;
+		dummyInputElem.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+		dummyInputElem.InputSlot = 0;
+		dummyInputElem.AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		dummyInputElem.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		dummyInputElem.InstanceDataStepRate = 0;
+
+		D3D12_INPUT_LAYOUT_DESC InputLayout;
+		InputLayout.pInputElementDescs = &dummyInputElem;
+		InputLayout.NumElements = 1;
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout = InputLayout;
+		desc.pRootSignature = m_DrawParticlesRootSig.GetPtr();
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		desc.SampleMask = UINT_MAX;
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_DrawParticlesTarget.GetRTVDesc().Format;
+		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pDrawParticlesPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 			return false;
 		}
 	}
@@ -253,7 +362,11 @@ void ParticleSampleApp::OnTerm()
 
 	m_BackBufferCB.Term();
 
+	m_SceneDepthTarget.Term();
 	m_DrawParticlesTarget.Term();
+
+	m_pDrawParticlesPSO.Reset();
+	m_DrawParticlesRootSig.Term();
 
 	m_pBackBufferPSO.Reset();
 	m_BackBufferRootSig.Term();

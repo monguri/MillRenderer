@@ -22,10 +22,11 @@ private:
 	int m_PrevCursorY = 0;
 	ComPtr<ID3D12PipelineState> m_pDrawParticlesPSO;
 	RootSignature m_DrawParticlesRootSig;
-	ColorTarget m_DrawParticlesTarget;
 	ComPtr<ID3D12PipelineState> m_pBackBufferPSO;
 	RootSignature m_BackBufferRootSig;
 	VertexBuffer m_QuadVB;
+	DepthTarget m_SceneDepthTarget;
+	ColorTarget m_DrawParticlesTarget;
 	ConstantBuffer m_BackBufferCB;
 
 	virtual bool OnInit(HWND hWnd) override;
