@@ -381,7 +381,7 @@ void ParticleSampleApp::OnRender()
 	};
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
-	
+
 	DrawParticles(pCmd);
 
 	DrawBackBuffer(pCmd);
@@ -521,6 +521,28 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
 
+	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	const DescriptorHandle* handleRTV = m_DrawParticlesTarget.GetHandleRTV();
+	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, &handleDSV->HandleCPU);
+
+	m_DrawParticlesTarget.ClearView(pCmdList);
+	m_SceneDepthTarget.ClearView(pCmdList);
+
+	pCmdList->SetGraphicsRootSignature(m_DrawParticlesRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pDrawParticlesPSO.Get());
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+	pCmdList->DrawInstanced(1, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void ParticleSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
