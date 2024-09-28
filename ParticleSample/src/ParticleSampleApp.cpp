@@ -11,10 +11,23 @@
 #include <DirectXHelpers.h>
 
 // Framework
+#include "FileUtil.h"
 #include "Logger.h"
 #include "ScopedTimer.h"
 
 using namespace DirectX::SimpleMath;
+
+namespace
+{
+	struct alignas(256) CbSampleTexture
+	{
+		int bOnlyRedChannel;
+		float Contrast;
+		float Scale;
+		float Bias;
+	};
+}
+
 ParticleSampleApp::ParticleSampleApp(uint32_t width, uint32_t height)
 : App(width, height, DXGI_FORMAT_R10G10B10A2_UNORM)
 {
@@ -56,6 +69,173 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 	}
+
+	// パーティクル描画用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_DrawParticlesTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			m_ColorTarget[0].GetRTVDesc().Format,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
+	// スクリーンスペース描画パス用のInputElement。解放されないようにスコープ外で定義。
+	D3D12_INPUT_ELEMENT_DESC SSPassInputElements[2];
+	SSPassInputElements[0].SemanticName = "POSITION";
+	SSPassInputElements[0].SemanticIndex = 0;
+	SSPassInputElements[0].Format = DXGI_FORMAT_R32G32_FLOAT;
+	SSPassInputElements[0].InputSlot = 0;
+	SSPassInputElements[0].AlignedByteOffset = 0;
+	SSPassInputElements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+	SSPassInputElements[0].InstanceDataStepRate = 0;
+
+	SSPassInputElements[1].SemanticName = "TEXCOORD";
+	SSPassInputElements[1].SemanticIndex = 0;
+	SSPassInputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+	SSPassInputElements[1].InputSlot = 0;
+	SSPassInputElements[1].AlignedByteOffset = 8;
+	SSPassInputElements[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+	SSPassInputElements[1].InstanceDataStepRate = 0;
+
+	// スクリーンスペース描画パス用のD3D12_GRAPHICS_PIPELINE_STATE_DESCの共通項
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC SSPassPSODescCommon = {};
+	{
+		SSPassPSODescCommon.InputLayout.pInputElementDescs = SSPassInputElements;
+		SSPassPSODescCommon.InputLayout.NumElements = 2;
+		SSPassPSODescCommon.pRootSignature = nullptr; // 上書き必須
+		SSPassPSODescCommon.VS.pShaderBytecode = nullptr; // 上書き必須。TODO:使いまわそうとしたらエラーになった。
+		SSPassPSODescCommon.VS.BytecodeLength = 0; // 上書き必須。TODO:使いまわそうとしたらエラーになった。
+		SSPassPSODescCommon.PS.pShaderBytecode = nullptr; // 上書き必須
+		SSPassPSODescCommon.PS.BytecodeLength = 0; // 上書き必須
+		SSPassPSODescCommon.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
+		SSPassPSODescCommon.BlendState = DirectX::CommonStates::Opaque;
+		SSPassPSODescCommon.DepthStencilState = DirectX::CommonStates::DepthNone;
+		SSPassPSODescCommon.SampleMask = UINT_MAX;
+		SSPassPSODescCommon.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		SSPassPSODescCommon.NumRenderTargets = 1;
+		SSPassPSODescCommon.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // 上書き必須
+		SSPassPSODescCommon.SampleDesc.Count = 1;
+		SSPassPSODescCommon.SampleDesc.Quality = 0;
+	}
+
+    // バックバッファ描画用ルートシグニチャとパイプラインステートの生成
+	// DXGIフォーマットを指定する必要があるので一般のテクスチャコピー用にはできなかった
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"SampleTexturePS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_BackBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_BackBufferRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pBackBufferPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
+	// スクリーンスペースパス用頂点バッファの生成
+	{
+		struct Vertex
+		{
+			float px;
+			float py;
+			float tx;
+			float ty;
+		};
+
+		if (!m_QuadVB.Init<Vertex>(m_pDevice.Get(), 3 * sizeof(Vertex)))
+		{
+			ELOG("Error : VertexBuffer::Init Failed.");
+			return false;
+		}
+
+		Vertex* ptr = m_QuadVB.Map<Vertex>();
+		assert(ptr != nullptr);
+		ptr[0].px = -1.0f; ptr[0].py = 1.0f; ptr[0].tx = 0.0f; ptr[0].ty = 0.0f;
+		ptr[1].px = 3.0f; ptr[1].py = 1.0f; ptr[1].tx = 2.0f; ptr[1].ty = 0.0f;
+		ptr[2].px = -1.0f; ptr[2].py = -3.0f; ptr[2].tx = 0.0f; ptr[2].ty = 2.0f;
+		m_QuadVB.Unmap();
+	}
+
+	// バックバッファ描画用の定数バッファの作成
+	{
+		if (!m_BackBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbSampleTexture* ptr = m_BackBufferCB.GetPtr<CbSampleTexture>();
+		ptr->bOnlyRedChannel = 1;
+		ptr->Contrast = 1.0f;
+		ptr->Scale = 1.0f;
+		ptr->Bias = 0.0f;
+	}
+
 	return true;
 }
 
@@ -68,6 +248,15 @@ void ParticleSampleApp::OnTerm()
 		ImGui_ImplWin32_Shutdown();
 		ImGui::DestroyContext();
 	}
+
+	m_QuadVB.Term();
+
+	m_BackBufferCB.Term();
+
+	m_DrawParticlesTarget.Term();
+
+	m_pBackBufferPSO.Reset();
+	m_BackBufferRootSig.Term();
 }
 
 void ParticleSampleApp::OnRender()
@@ -80,6 +269,10 @@ void ParticleSampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 	
+	DrawParticles(pCmd);
+
+	DrawBackBuffer(pCmd);
+
 	DrawImGui(pCmd);
 
 	pCmd->Close();
@@ -209,6 +402,68 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	}
 
 	return true;
+}
+
+void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
+
+}
+
+void ParticleSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"Draw BackBuffer");
+
+	// R8_UNORMとR10G10B10A2_UNORMではCopyResourceでは非対応でエラーが出るのでシェーダでコピーする
+
+	//DirectX::TransitionResource(pCmd, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	//DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
+	//pCmd->CopyResource(m_ColorTarget[m_FrameIndex].GetResource(), m_SSAO_FullResTarget.GetResource());
+	//DirectX::TransitionResource(pCmd, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	//DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
+
+	pCmdList->SetGraphicsRootSignature(m_BackBufferRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pBackBufferPSO.Get());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_DrawParticlesTarget.GetHandleSRV()->HandleGPU);
+
+	// BackBufferのサイズはウィンドウサイズになっているのでアスペクト比を維持する
+	DXGI_SWAP_CHAIN_DESC desc;
+	m_pSwapChain->GetDesc(&desc);
+
+	D3D12_VIEWPORT viewport = m_Viewport;
+	if ((float)desc.BufferDesc.Width / desc.BufferDesc.Height < (float)m_Width / m_Height)
+	{
+		viewport.Width = (float)desc.BufferDesc.Width;
+		viewport.Height = desc.BufferDesc.Width * ((float)m_Height / m_Width);
+		viewport.TopLeftX = 0.0f;
+		viewport.TopLeftY = desc.BufferDesc.Height * 0.5f - viewport.Height * 0.5f;
+	}
+	else
+	{
+		viewport.Height = (float)desc.BufferDesc.Height;
+		viewport.Width = desc.BufferDesc.Height * ((float)m_Width / m_Height);
+		viewport.TopLeftX = desc.BufferDesc.Width * 0.5f - viewport.Width * 0.5f;
+		viewport.TopLeftY = 0.0f;
+	}
+
+	pCmdList->RSSetViewports(1, &viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void ParticleSampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
