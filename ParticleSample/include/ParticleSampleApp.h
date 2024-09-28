@@ -17,6 +17,10 @@ public:
 	virtual ~ParticleSampleApp();
 
 private:
+	Camera m_Camera;
+	int m_PrevCursorX = 0;
+	int m_PrevCursorY = 0;
+
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
 	virtual void OnRender() override;
