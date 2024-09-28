@@ -25,4 +25,6 @@ private:
 	virtual void OnTerm() override;
 	virtual void OnRender() override;
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
+
+	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
 };
