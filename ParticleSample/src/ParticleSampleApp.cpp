@@ -359,16 +359,16 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 	// パーティクル用のStructuredBufferの作成
 	{
 		ParticleData particleData[NUM_PARTICES] = {
-			{Vector3::Zero},
-			{Vector3::Zero},
-			{Vector3::Zero},
-			{Vector3::Zero},
-			{Vector3::Zero},
-			{Vector3::Zero},
-			{Vector3::Zero},
-			{Vector3::Zero},
-			{Vector3::Zero},
-			{Vector3::Zero},
+			{Vector3(0, 0, 0)},
+			{Vector3(0, 0, 0.1f)},
+			{Vector3(0, 0, 0.2f)},
+			{Vector3(0, 0, 0.3f)},
+			{Vector3(0, 0, 0.4f)},
+			{Vector3(0, 0, 0.5f)},
+			{Vector3(0, 0, 0.6f)},
+			{Vector3(0, 0, 0.7f)},
+			{Vector3(0, 0, 0.8f)},
+			{Vector3(0, 0, 0.9f)},
 		};
 
 		if (!m_ParticlesSB.Init<ParticleData>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], nullptr, NUM_PARTICES, false, particleData))

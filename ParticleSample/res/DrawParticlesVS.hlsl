@@ -12,7 +12,5 @@ StructuredBuffer<ParticleData> ParticlesData : register(t0);
 
 float4 main(uint instanceID : SV_InstanceID) : SV_POSITION
 {
-	float3 pos = ParticlesData[instanceID].Position;
-	float4 worldPos = float4(pos.xy, 0.1 * instanceID + pos.z, 1);
-	return mul(ViewProj, worldPos);
+	return mul(ViewProj, float4(ParticlesData[instanceID].Position, 1));
 }
