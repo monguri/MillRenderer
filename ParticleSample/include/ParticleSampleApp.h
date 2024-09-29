@@ -4,6 +4,7 @@
 #include "App.h"
 #include "VertexBuffer.h"
 #include "ConstantBuffer.h"
+#include "StructuredBuffer.h"
 #include "ColorTarget.h"
 #include "DepthTarget.h"
 #include "RootSignature.h"
@@ -28,6 +29,7 @@ private:
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_DrawParticlesTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
+	StructuredBuffer m_ParticlesSB;
 	ConstantBuffer m_BackBufferCB;
 
 	virtual bool OnInit(HWND hWnd) override;

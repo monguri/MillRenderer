@@ -23,9 +23,16 @@ namespace
 	static constexpr float CAMERA_NEAR = 0.1f;
 	static constexpr float CAMERA_FAR = 100.0f;
 
+	static constexpr uint32_t NUM_PARTICES = 10;
+
 	struct alignas(256) CbCamera
 	{
 		Matrix ViewProj;
+	};
+
+	struct ParticleData
+	{
+		Vector3 Position;
 	};
 
 	struct alignas(256) CbSampleTexture
@@ -349,6 +356,28 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// パーティクル用のStructuredBufferの作成
+	{
+		ParticleData particleData[NUM_PARTICES] = {
+			{Vector3::Zero},
+			{Vector3::Zero},
+			{Vector3::Zero},
+			{Vector3::Zero},
+			{Vector3::Zero},
+			{Vector3::Zero},
+			{Vector3::Zero},
+			{Vector3::Zero},
+			{Vector3::Zero},
+			{Vector3::Zero},
+		};
+
+		if (!m_ParticlesSB.Init<ParticleData>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], nullptr, NUM_PARTICES, false, particleData))
+		{
+			ELOG("Error : StructuredBuffer::Init() Failed.");
+			return false;
+		}
+	}
+
 	// バックバッファ描画用の定数バッファの作成
 	{
 		if (!m_BackBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
@@ -383,6 +412,8 @@ void ParticleSampleApp::OnTerm()
 	{
 		m_CameraCB[i].Term();
 	}
+
+	m_ParticlesSB.Term();
 
 	m_BackBufferCB.Term();
 
@@ -568,6 +599,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 
 	pCmdList->SetGraphicsRootSignature(m_DrawParticlesRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_ParticlesSB.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pDrawParticlesPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -575,7 +607,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-	pCmdList->DrawInstanced(1, 10, 0, 0);
+	pCmdList->DrawInstanced(1, NUM_PARTICES, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
