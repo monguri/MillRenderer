@@ -22,15 +22,17 @@ bool StructuredBuffer::Init
 	DescriptorPool* pPoolSRV,
 	DescriptorPool* pPoolUAV,
 	size_t count,
-	size_t size,
+	size_t structureSize,
 	bool useUAV,
 	const void* pInitData
 )
 {
-	if (pDevice == nullptr || pPoolSRV == nullptr || (useUAV && pPoolUAV == nullptr) || count == 0 || size == 0)
+	if (pDevice == nullptr || pPoolSRV == nullptr || (useUAV && pPoolUAV == nullptr) || count == 0 || structureSize == 0)
 	{
 		return false;
 	}
+
+	size_t dataSize = count * structureSize;
 
 	assert(m_pPoolSRV == nullptr);
 	assert(m_pHandleSRV == nullptr);
@@ -69,7 +71,7 @@ bool StructuredBuffer::Init
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Alignment = 0;
-	desc.Width = UINT64(count * size);
+	desc.Width = UINT64(dataSize);
 	desc.Height = 1;
 	desc.DepthOrArraySize = 1;
 	desc.MipLevels = 1;
@@ -101,7 +103,7 @@ bool StructuredBuffer::Init
 			return false;
 		}
 
-		memcpy(ptr, pInitData, size);
+		memcpy(ptr, pInitData, dataSize);
 
 		Unmap();
 	}
@@ -112,7 +114,7 @@ bool StructuredBuffer::Init
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Buffer.FirstElement = 0;
 	srvDesc.Buffer.NumElements = (UINT)count;
-	srvDesc.Buffer.StructureByteStride = (UINT)size;
+	srvDesc.Buffer.StructureByteStride = (UINT)structureSize;
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
 	pDevice->CreateShaderResourceView(
@@ -128,7 +130,7 @@ bool StructuredBuffer::Init
 		uavDesc.Format = DXGI_FORMAT_UNKNOWN;
 		uavDesc.Buffer.FirstElement = 0;
 		uavDesc.Buffer.NumElements = (UINT)count;
-		uavDesc.Buffer.StructureByteStride = (UINT)size;
+		uavDesc.Buffer.StructureByteStride = (UINT)structureSize;
 		uavDesc.Buffer.CounterOffsetInBytes = 0;
 
 		pDevice->CreateUnorderedAccessView(

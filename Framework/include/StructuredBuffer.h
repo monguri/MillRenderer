@@ -18,7 +18,7 @@ public:
 		DescriptorPool* pPoolSRV,
 		DescriptorPool* pPoolUAV,
 		size_t count,
-		size_t size,
+		size_t structureSize,
 		bool useUAV,
 		const void* pInitData = nullptr
 	);
