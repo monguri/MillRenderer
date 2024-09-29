@@ -1,6 +1,7 @@
 #include "StructuredBuffer.h"
 #include "DescriptorPool.h"
 #include <assert.h>
+#include <DirectXHelpers.h>
 
 StructuredBuffer::StructuredBuffer()
 : m_pBuffer(nullptr)
@@ -19,6 +20,7 @@ StructuredBuffer::~StructuredBuffer()
 bool StructuredBuffer::Init
 (
 	ID3D12Device* pDevice,
+	ID3D12GraphicsCommandList* pCmdList,
 	DescriptorPool* pPoolSRV,
 	DescriptorPool* pPoolUAV,
 	size_t count,
@@ -62,7 +64,7 @@ bool StructuredBuffer::Init
 	}
 
 	D3D12_HEAP_PROPERTIES prop = {};
-	prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+	prop.Type = D3D12_HEAP_TYPE_DEFAULT;
 	prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 	prop.CreationNodeMask = 1;
@@ -79,14 +81,14 @@ bool StructuredBuffer::Init
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	desc.Flags = useUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
 
 	HRESULT hr = pDevice->CreateCommittedResource
 	(
 		&prop,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COPY_DEST, // コピー用の状態にしておく
 		nullptr,
 		IID_PPV_ARGS(m_pBuffer.GetAddressOf())
 	);
@@ -95,17 +97,56 @@ bool StructuredBuffer::Init
 		return false;
 	}
 
-	if (pInitData != nullptr)
+	// データ書き込み
 	{
-		void* ptr = Map();
-		if (ptr == nullptr)
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		prop.CreationNodeMask = 1;
+		prop.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		desc.Alignment = 0;
+		desc.Width = dataSize;
+		desc.Height = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		HRESULT hr = pDevice->CreateCommittedResource
+		(
+			&prop,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pUploadBuffer.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		void* ptr;
+		hr = m_pUploadBuffer->Map(0, nullptr, &ptr);
+		if (FAILED(hr) || ptr == nullptr)
 		{
 			return false;
 		}
 
 		memcpy(ptr, pInitData, dataSize);
 
-		Unmap();
+		m_pUploadBuffer->Unmap(0, nullptr);
+
+		pCmdList->CopyBufferRegion(m_pBuffer.Get(), 0, m_pUploadBuffer.Get(), 0, dataSize);
+
+		DirectX::TransitionResource(pCmdList, m_pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
 	}
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -132,6 +173,7 @@ bool StructuredBuffer::Init
 		uavDesc.Buffer.NumElements = (UINT)count;
 		uavDesc.Buffer.StructureByteStride = (UINT)structureSize;
 		uavDesc.Buffer.CounterOffsetInBytes = 0;
+		uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
 		pDevice->CreateUnorderedAccessView(
 			m_pBuffer.Get(),
@@ -147,6 +189,7 @@ bool StructuredBuffer::Init
 void StructuredBuffer::Term()
 {
 	m_pBuffer.Reset();
+	m_pUploadBuffer.Reset(); // TODO:本当はコピーのExecuteCommandLists後にすぐ消せるのだが。
 
 	if (m_pHandleSRV != nullptr && m_pPoolSRV != nullptr)
 	{
@@ -198,3 +241,9 @@ DescriptorHandle* StructuredBuffer::GetHandleUAV() const
 {
 	return m_pHandleUAV;
 }
+
+ID3D12Resource* StructuredBuffer::GetResource() const
+{
+	return m_pBuffer.Get();
+}
+

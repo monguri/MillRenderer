@@ -15,6 +15,7 @@ public:
 	bool Init
 	(
 		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
 		DescriptorPool* pPoolSRV,
 		DescriptorPool* pPoolUAV,
 		size_t count,
@@ -27,14 +28,15 @@ public:
 	bool Init
 	(
 		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
 		DescriptorPool* pPoolSRV,
 		DescriptorPool* pPoolUAV,
 		size_t count,
 		bool useUAV,
-		const T* pInitData = nullptr
+		const T* pInitData
 	)
 	{
-		return Init(pDevice, pPoolSRV, pPoolUAV, count, sizeof(T), useUAV, pInitData);
+		return Init(pDevice, pCmdList, pPoolSRV, pPoolUAV, count, sizeof(T), useUAV, pInitData);
 	}
 
 	void Term();
@@ -51,8 +53,11 @@ public:
 	DescriptorHandle* GetHandleSRV() const;
 	DescriptorHandle* GetHandleUAV() const;
 
+	ID3D12Resource* GetResource() const;
+
 private:
 	ComPtr<ID3D12Resource> m_pBuffer;
+	ComPtr<ID3D12Resource> m_pUploadBuffer;
 	DescriptorHandle* m_pHandleSRV;
 	DescriptorHandle* m_pHandleUAV;
 	DescriptorPool* m_pPoolUAV;

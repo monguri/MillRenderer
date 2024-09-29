@@ -358,6 +358,8 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 
 	// パーティクル用のStructuredBufferの作成
 	{
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
 		ParticleData particleData[NUM_PARTICES] = {
 			{Vector3(0, 0, 0)},
 			{Vector3(0, 0, 0.1f)},
@@ -371,11 +373,20 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 			{Vector3(0, 0, 0.9f)},
 		};
 
-		if (!m_ParticlesSB.Init<ParticleData>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], nullptr, NUM_PARTICES, false, particleData))
+		if (!m_ParticlesSB.Init<ParticleData>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], NUM_PARTICES, true, particleData))
 		{
 			ELOG("Error : StructuredBuffer::Init() Failed.");
 			return false;
 		}
+		DirectX::TransitionResource(pCmd, m_ParticlesSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+
+		// Wait command queue finishing.
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
 	// バックバッファ描画用の定数バッファの作成
@@ -442,6 +453,7 @@ void ParticleSampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 
+	UpdateParticles(pCmd);
 	DrawParticles(pCmd, viewProj);
 
 	DrawBackBuffer(pCmd);
@@ -577,6 +589,13 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	return true;
 }
 
+void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"Update Particles");
+
+
+}
+
 void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const Matrix& viewProj)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
@@ -589,6 +608,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	DirectX::TransitionResource(pCmdList, m_ParticlesSB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	const DescriptorHandle* handleRTV = m_DrawParticlesTarget.GetHandleRTV();
 	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
@@ -611,6 +631,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_ParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void ParticleSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)

@@ -37,6 +37,7 @@ private:
 	virtual void OnRender() override;
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 
+	void UpdateParticles(ID3D12GraphicsCommandList* pCmdList);
 	void DrawParticles(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj);
 	void DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
