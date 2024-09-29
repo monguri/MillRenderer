@@ -166,21 +166,9 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		D3D12_INPUT_ELEMENT_DESC dummyInputElem;
-		dummyInputElem.SemanticName = "POSITION";
-		dummyInputElem.SemanticIndex = 0;
-		dummyInputElem.Format = DXGI_FORMAT_R32G32B32_FLOAT;
-		dummyInputElem.InputSlot = 0;
-		dummyInputElem.AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-		dummyInputElem.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		dummyInputElem.InstanceDataStepRate = 0;
-
-		D3D12_INPUT_LAYOUT_DESC InputLayout;
-		InputLayout.pInputElementDescs = &dummyInputElem;
-		InputLayout.NumElements = 1;
-
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout = InputLayout;
+		desc.InputLayout.NumElements = 0;
+		desc.InputLayout.pInputElementDescs = nullptr;
 		desc.pRootSignature = m_DrawParticlesRootSig.GetPtr();
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
