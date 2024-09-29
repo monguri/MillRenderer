@@ -370,7 +370,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		}
 
 		CbSampleTexture* ptr = m_BackBufferCB.GetPtr<CbSampleTexture>();
-		ptr->bOnlyRedChannel = 1;
+		ptr->bOnlyRedChannel = 0;
 		ptr->Contrast = 1.0f;
 		ptr->Scale = 1.0f;
 		ptr->Bias = 0.0f;
