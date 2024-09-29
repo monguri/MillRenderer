@@ -587,7 +587,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-	pCmdList->DrawInstanced(1, 1, 0, 0);
+	pCmdList->DrawInstanced(1, 10, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
