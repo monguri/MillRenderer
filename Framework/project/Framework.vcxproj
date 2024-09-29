@@ -27,6 +27,7 @@
     <ClCompile Include="..\src\RenderModel.cpp" />
     <ClCompile Include="..\src\ResMesh.cpp" />
     <ClCompile Include="..\src\RootSignature.cpp" />
+    <ClCompile Include="..\src\StructuredBuffer.cpp" />
     <ClCompile Include="..\src\Texture.cpp" />
     <ClCompile Include="..\src\VertexBuffer.cpp" />
   </ItemGroup>
@@ -51,6 +52,7 @@
     <ClInclude Include="..\include\ResMesh.h" />
     <ClInclude Include="..\include\RootSignature.h" />
     <ClInclude Include="..\include\ScopedTimer.h" />
+    <ClInclude Include="..\include\StructuredBuffer.h" />
     <ClInclude Include="..\include\Texture.h" />
     <ClInclude Include="..\include\VertexBuffer.h" />
   </ItemGroup>
