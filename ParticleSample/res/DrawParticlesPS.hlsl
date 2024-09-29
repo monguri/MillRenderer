@@ -6,6 +6,7 @@
 " | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
 " | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
 ")"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
 
 [RootSignature(ROOT_SIGNATURE)]
 float4 main() : SV_TARGET

@@ -27,6 +27,7 @@ private:
 	VertexBuffer m_QuadVB;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_DrawParticlesTarget;
+	ConstantBuffer m_CameraCB[FRAME_COUNT];
 	ConstantBuffer m_BackBufferCB;
 
 	virtual bool OnInit(HWND hWnd) override;
@@ -34,7 +35,7 @@ private:
 	virtual void OnRender() override;
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 
-	void DrawParticles(ID3D12GraphicsCommandList* pCmdList);
+	void DrawParticles(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj);
 	void DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
 };

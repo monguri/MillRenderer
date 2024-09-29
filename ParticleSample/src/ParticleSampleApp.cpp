@@ -19,6 +19,15 @@ using namespace DirectX::SimpleMath;
 
 namespace
 {
+	static constexpr float CAMERA_FOV_Y_DEGREE = 37.5f;
+	static constexpr float CAMERA_NEAR = 0.1f;
+	static constexpr float CAMERA_FAR = 100.0f;
+
+	struct alignas(256) CbCamera
+	{
+		Matrix ViewProj;
+	};
+
 	struct alignas(256) CbSampleTexture
 	{
 		int bOnlyRedChannel;
@@ -330,6 +339,28 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		m_QuadVB.Unmap();
 	}
 
+	// カメラの定数バッファの作成
+	{
+		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
+		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
+
+		const Matrix& view = m_Camera.GetView();
+		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+		const Matrix& viewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
+		{
+			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCamera)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+
+			CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+			ptr->ViewProj = viewProj;
+		}
+	}
+
 	// バックバッファ描画用の定数バッファの作成
 	{
 		if (!m_BackBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
@@ -360,6 +391,11 @@ void ParticleSampleApp::OnTerm()
 
 	m_QuadVB.Term();
 
+	for (uint32_t i = 0; i < FRAME_COUNT; i++)
+	{
+		m_CameraCB[i].Term();
+	}
+
 	m_BackBufferCB.Term();
 
 	m_SceneDepthTarget.Term();
@@ -374,6 +410,11 @@ void ParticleSampleApp::OnTerm()
 
 void ParticleSampleApp::OnRender()
 {
+	const Matrix& view = m_Camera.GetView();
+	constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
+	float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
+	const Matrix& viewProj = view * Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 	ID3D12DescriptorHeap* const pHeaps[] = {
@@ -382,7 +423,7 @@ void ParticleSampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 
-	DrawParticles(pCmd);
+	DrawParticles(pCmd, viewProj);
 
 	DrawBackBuffer(pCmd);
 
@@ -517,9 +558,15 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	return true;
 }
 
-void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
+void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const Matrix& viewProj)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
+
+	// 定数バッファの更新
+	{
+		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+		ptr->ViewProj = viewProj;
+	}
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -532,6 +579,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
 	m_SceneDepthTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_DrawParticlesRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetPipelineState(m_pDrawParticlesPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
