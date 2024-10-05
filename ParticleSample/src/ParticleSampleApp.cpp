@@ -722,9 +722,11 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
 
+	const StructuredBuffer& currParticlesSB = m_ParticlesSB[(m_FrameIndex + 1) % 2];
+
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-	DirectX::TransitionResource(pCmdList, m_ParticlesSB[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, currParticlesSB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	const DescriptorHandle* handleRTV = m_DrawParticlesTarget.GetHandleRTV();
 	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
@@ -735,7 +737,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_DrawParticlesRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_ParticlesSB[m_FrameIndex].GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, currParticlesSB.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pDrawParticlesPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -747,7 +749,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_ParticlesSB[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, currParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void ParticleSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
