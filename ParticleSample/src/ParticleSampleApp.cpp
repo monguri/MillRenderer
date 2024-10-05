@@ -120,7 +120,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 
 	// パーティクル描画用カラーターゲットの生成
 	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+		float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 		if (!m_DrawParticlesTarget.InitRenderTarget
 		(
@@ -138,7 +138,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // パーティクル更新用ルートシグニチャとパイプラインステートの生成
+	// パーティクル更新用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring csPath;
 
@@ -191,7 +191,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // パーティクル描画用ルートシグニチャとパイプラインステートの生成
+	// パーティクル描画用ルートシグニチャとコマンドシグネチャとパイプラインステートの生成
 	{
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -265,6 +265,28 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		if (FAILED(hr))
 		{
 			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
+	// パーティクル描画用コマンドシグニチャの生成
+	{
+		D3D12_INDIRECT_ARGUMENT_DESC argDesc;
+		argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+		D3D12_COMMAND_SIGNATURE_DESC csDesc;
+		csDesc.ByteStride = sizeof(D3D12_DRAW_ARGUMENTS);
+		csDesc.NodeMask = 1;
+		csDesc.NumArgumentDescs = 1;
+		csDesc.pArgumentDescs = &argDesc;
+
+		HRESULT hr = m_pDevice->CreateCommandSignature(
+			&csDesc,
+			nullptr,
+			IID_PPV_ARGS(m_pDrawParticlesCommandSig.GetAddressOf()));
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateCommandSignature Failed. retcode = 0x%x", hr);
 			return false;
 		}
 	}
@@ -422,10 +444,10 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
 	// パーティクル用のStructuredBufferの作成
 	{
-		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
-
 		ParticleData particleData[NUM_PARTICES] = {
 			{Vector3(0, 0, 0), Vector3(0, 10, 0), 10},
 			{Vector3(0, 0, 0.1f), Vector3(0, 10, 0), 10},
@@ -448,14 +470,21 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 			}
 			DirectX::TransitionResource(pCmd, m_ParticlesSB[i].GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
+	}
 
-		pCmd->Close();
+	// パーティクル描画用のDrawIndirectArgsBufferの作成
+	{
+		D3D12_DRAW_ARGUMENTS args;
+		args.InstanceCount = NUM_PARTICES;
+		args.StartInstanceLocation = 0;
+		args.StartVertexLocation = 0;
+		args.VertexCountPerInstance = 1;
 
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
-
-		// Wait command queue finishing.
-		m_Fence.Wait(m_pQueue.Get(), INFINITE);
+		if (!m_DrawParticlesIndirectArgsBB.Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), true, &args))
+		{
+			ELOG("Error : ByteAddressBuffer::Init() Failed.");
+			return false;
+		}
 	}
 
 	// 時間関係の定数バッファの作成
@@ -485,6 +514,12 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		ptr->Bias = 0.0f;
 	}
 
+	pCmd->Close();
+	ID3D12CommandList* pLists[] = {pCmd};
+	m_pQueue->ExecuteCommandLists(1, pLists);
+	// Wait command queue finishing.
+	m_Fence.Wait(m_pQueue.Get(), INFINITE);
+
 	m_PrevTime = std::chrono::high_resolution_clock::now();
 
 	return true;
@@ -508,6 +543,8 @@ void ParticleSampleApp::OnTerm()
 		m_ParticlesSB[i].Term();
 	}
 
+	m_DrawParticlesIndirectArgsBB.Term();
+
 	m_TimeCB.Term();
 	m_BackBufferCB.Term();
 
@@ -519,6 +556,7 @@ void ParticleSampleApp::OnTerm()
 
 	m_pDrawParticlesPSO.Reset();
 	m_DrawParticlesRootSig.Term();
+	m_pDrawParticlesCommandSig.Reset();
 
 	m_pBackBufferPSO.Reset();
 	m_BackBufferRootSig.Term();
@@ -712,7 +750,7 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList)
 	const size_t NUM_THREAD_X = 64;
 
 	// TODO: マジックナンバー
-	UINT NumGroupX = DivideAndRoundUp(10, NUM_THREAD_X);
+	UINT NumGroupX = DivideAndRoundUp(NUM_PARTICES, NUM_THREAD_X);
 	pCmdList->Dispatch(NumGroupX, 1, 1);
 
 	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -745,7 +783,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-	pCmdList->DrawInstanced(1, NUM_PARTICES, 0, 0);
+	pCmdList->ExecuteIndirect(m_pDrawParticlesCommandSig.Get(), 1, m_DrawParticlesIndirectArgsBB.GetResource(), 0, nullptr, 0);
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

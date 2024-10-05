@@ -6,6 +6,7 @@
 #include "VertexBuffer.h"
 #include "ConstantBuffer.h"
 #include "StructuredBuffer.h"
+#include "ByteAddressBuffer.h"
 #include "ColorTarget.h"
 #include "DepthTarget.h"
 #include "RootSignature.h"
@@ -27,6 +28,7 @@ private:
 	RootSignature m_UpdateParticlesRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawParticlesPSO;
 	RootSignature m_DrawParticlesRootSig;
+	ComPtr<ID3D12CommandSignature> m_pDrawParticlesCommandSig;
 	ComPtr<ID3D12PipelineState> m_pBackBufferPSO;
 	RootSignature m_BackBufferRootSig;
 	VertexBuffer m_QuadVB;
@@ -34,6 +36,7 @@ private:
 	ColorTarget m_DrawParticlesTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 	StructuredBuffer m_ParticlesSB[FRAME_COUNT];
+	ByteAddressBuffer m_DrawParticlesIndirectArgsBB;
 	ConstantBuffer m_TimeCB;
 	ConstantBuffer m_BackBufferCB;
 
