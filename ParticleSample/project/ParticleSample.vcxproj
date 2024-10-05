@@ -104,6 +104,7 @@
     <ClInclude Include="..\include\ParticleSampleApp.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\res\Particle.hlsli" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

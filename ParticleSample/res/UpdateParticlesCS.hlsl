@@ -1,8 +1,9 @@
+#include "Particle.hlsli"
+
 #define ROOT_SIGNATURE ""\
 "DescriptorTable(CBV(b0))"\
 ", DescriptorTable(SRV(t0))"\
 ", DescriptorTable(UAV(u0))"\
-
 
 static const uint NUM_THREAD_X = 64;
 static const float Gravity = -9.8f;
@@ -11,12 +12,6 @@ cbuffer CbTime : register(b0)
 {
 	float DeltaTime : packoffset(c0);
 }
-
-struct ParticleData
-{
-	float3 Position;
-	float3 Velocity;
-};
 
 StructuredBuffer<ParticleData> PrevParticlesData : register(t0);
 RWStructuredBuffer<ParticleData> CurrParticlesData : register(u0);

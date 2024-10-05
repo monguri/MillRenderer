@@ -34,6 +34,7 @@ namespace
 	{
 		Vector3 Position;
 		Vector3 Velocity;
+		uint32_t Life;
 	};
 
 	struct alignas(256) CbTime
@@ -426,16 +427,16 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 		ParticleData particleData[NUM_PARTICES] = {
-			{Vector3(0, 0, 0), Vector3(0, 10, 0)},
-			{Vector3(0, 0, 0.1f), Vector3(0, 10, 0)},
-			{Vector3(0, 0, 0.2f), Vector3(0, 10, 0)},
-			{Vector3(0, 0, 0.3f), Vector3(0, 10, 0)},
-			{Vector3(0, 0, 0.4f), Vector3(0, 10, 0)},
-			{Vector3(0, 0, 0.5f), Vector3(0, 10, 0)},
-			{Vector3(0, 0, 0.6f), Vector3(0, 10, 0)},
-			{Vector3(0, 0, 0.7f), Vector3(0, 10, 0)},
-			{Vector3(0, 0, 0.8f), Vector3(0, 10, 0)},
-			{Vector3(0, 0, 0.9f), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0), Vector3(0, 10, 0), 10},
+			{Vector3(0, 0, 0.1f), Vector3(0, 10, 0), 10},
+			{Vector3(0, 0, 0.2f), Vector3(0, 10, 0), 10},
+			{Vector3(0, 0, 0.3f), Vector3(0, 10, 0), 10},
+			{Vector3(0, 0, 0.4f), Vector3(0, 10, 0), 10},
+			{Vector3(0, 0, 0.5f), Vector3(0, 10, 0), 10},
+			{Vector3(0, 0, 0.6f), Vector3(0, 10, 0), 10},
+			{Vector3(0, 0, 0.7f), Vector3(0, 10, 0), 10},
+			{Vector3(0, 0, 0.8f), Vector3(0, 10, 0), 10},
+			{Vector3(0, 0, 0.9f), Vector3(0, 10, 0), 10},
 		};
 
 		for (uint32_t i = 0; i < FRAME_COUNT; i++)
