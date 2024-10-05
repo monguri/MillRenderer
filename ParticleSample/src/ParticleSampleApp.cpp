@@ -475,15 +475,18 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 	// パーティクル描画用のDrawIndirectArgsBufferの作成
 	{
 		D3D12_DRAW_ARGUMENTS args;
-		args.InstanceCount = NUM_PARTICES;
-		args.StartInstanceLocation = 0;
-		args.StartVertexLocation = 0;
 		args.VertexCountPerInstance = 1;
+		args.InstanceCount = NUM_PARTICES;
+		args.StartVertexLocation = 0;
+		args.StartInstanceLocation = 0;
 
-		if (!m_DrawParticlesIndirectArgsBB.Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), true, &args))
+		for (uint32_t i = 0; i < FRAME_COUNT; i++)
 		{
-			ELOG("Error : ByteAddressBuffer::Init() Failed.");
-			return false;
+			if (!m_DrawParticlesIndirectArgsBB[i].Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), true, &args))
+			{
+				ELOG("Error : ByteAddressBuffer::Init() Failed.");
+				return false;
+			}
 		}
 	}
 
@@ -541,9 +544,9 @@ void ParticleSampleApp::OnTerm()
 	{
 		m_CameraCB[i].Term();
 		m_ParticlesSB[i].Term();
+		m_DrawParticlesIndirectArgsBB[i].Term();
 	}
 
-	m_DrawParticlesIndirectArgsBB.Term();
 
 	m_TimeCB.Term();
 	m_BackBufferCB.Term();
@@ -595,8 +598,13 @@ void ParticleSampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 
-	UpdateParticles(pCmd);
-	DrawParticles(pCmd);
+	const StructuredBuffer& prevParticlesSB = m_ParticlesSB[m_FrameIndex];
+	const StructuredBuffer& currParticlesSB = m_ParticlesSB[(m_FrameIndex + 1) % 2];
+	const ByteAddressBuffer& prevDrawParticlesArgsBB = m_DrawParticlesIndirectArgsBB[m_FrameIndex];
+	const ByteAddressBuffer& currDrawParticlesArgsBB = m_DrawParticlesIndirectArgsBB[(m_FrameIndex + 1) % 2];
+
+	UpdateParticles(pCmd, prevParticlesSB, currParticlesSB, prevDrawParticlesArgsBB, currDrawParticlesArgsBB);
+	DrawParticles(pCmd, currParticlesSB, currDrawParticlesArgsBB);
 
 	DrawBackBuffer(pCmd);
 
@@ -731,12 +739,9 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	return true;
 }
 
-void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList)
+void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Update Particles");
-
-	const StructuredBuffer& prevParticlesSB = m_ParticlesSB[m_FrameIndex];
-	const StructuredBuffer& currParticlesSB = m_ParticlesSB[(m_FrameIndex + 1) % 2];
 
 	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
@@ -745,6 +750,8 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetComputeRootDescriptorTable(0, m_TimeCB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, prevParticlesSB.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, currParticlesSB.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, prevDrawParticlesArgsBB.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, currDrawParticlesArgsBB.GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t NUM_THREAD_X = 64;
@@ -756,11 +763,9 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
-void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
+void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& currDrawParticlesArgsBB)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
-
-	const StructuredBuffer& currParticlesSB = m_ParticlesSB[(m_FrameIndex + 1) % 2];
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -783,7 +788,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-	pCmdList->ExecuteIndirect(m_pDrawParticlesCommandSig.Get(), 1, m_DrawParticlesIndirectArgsBB.GetResource(), 0, nullptr, 0);
+	pCmdList->ExecuteIndirect(m_pDrawParticlesCommandSig.Get(), 1, currDrawParticlesArgsBB.GetResource(), 0, nullptr, 0);
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

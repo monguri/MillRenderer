@@ -36,7 +36,7 @@ private:
 	ColorTarget m_DrawParticlesTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 	StructuredBuffer m_ParticlesSB[FRAME_COUNT];
-	ByteAddressBuffer m_DrawParticlesIndirectArgsBB;
+	ByteAddressBuffer m_DrawParticlesIndirectArgsBB[FRAME_COUNT];
 	ConstantBuffer m_TimeCB;
 	ConstantBuffer m_BackBufferCB;
 
@@ -45,8 +45,8 @@ private:
 	virtual void OnRender() override;
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 
-	void UpdateParticles(ID3D12GraphicsCommandList* pCmdList);
-	void DrawParticles(ID3D12GraphicsCommandList* pCmdList);
+	void UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB);
+	void DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& currDrawParticlesArgsBB);
 	void DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
 };
