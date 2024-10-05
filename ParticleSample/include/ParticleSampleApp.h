@@ -29,7 +29,7 @@ private:
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_DrawParticlesTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
-	StructuredBuffer m_ParticlesSB;
+	StructuredBuffer m_ParticlesSB[FRAME_COUNT];
 	ConstantBuffer m_BackBufferCB;
 
 	virtual bool OnInit(HWND hWnd) override;
