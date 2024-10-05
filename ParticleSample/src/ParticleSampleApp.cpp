@@ -33,6 +33,13 @@ namespace
 	struct ParticleData
 	{
 		Vector3 Position;
+		Vector3 Velocity;
+	};
+
+	struct alignas(256) CbTime
+	{
+		float DeltaTime;
+		Vector3 Dummy;
 	};
 
 	struct alignas(256) CbSampleTexture
@@ -42,6 +49,11 @@ namespace
 		float Scale;
 		float Bias;
 	};
+
+	uint32_t DivideAndRoundUp(uint32_t dividend, uint32_t divisor)
+	{
+		return (dividend + divisor - 1) / divisor;
+	}
 }
 
 ParticleSampleApp::ParticleSampleApp(uint32_t width, uint32_t height)
@@ -121,6 +133,59 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		))
 		{
 			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
+    // パーティクル更新用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring csPath;
+
+		if (!SearchFilePath(L"UpdateParticlesCS.cso", csPath))
+		{
+			ELOG("Error : Compute Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pCSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_UpdateParticlesRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_UpdateParticlesRootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pUpdateParticlesPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
 			return false;
 		}
 	}
@@ -361,16 +426,16 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 		ParticleData particleData[NUM_PARTICES] = {
-			{Vector3(0, 0, 0)},
-			{Vector3(0, 0, 0.1f)},
-			{Vector3(0, 0, 0.2f)},
-			{Vector3(0, 0, 0.3f)},
-			{Vector3(0, 0, 0.4f)},
-			{Vector3(0, 0, 0.5f)},
-			{Vector3(0, 0, 0.6f)},
-			{Vector3(0, 0, 0.7f)},
-			{Vector3(0, 0, 0.8f)},
-			{Vector3(0, 0, 0.9f)},
+			{Vector3(0, 0, 0), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0.1f), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0.2f), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0.3f), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0.4f), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0.5f), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0.6f), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0.7f), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0.8f), Vector3(0, 10, 0)},
+			{Vector3(0, 0, 0.9f), Vector3(0, 10, 0)},
 		};
 
 		for (uint32_t i = 0; i < FRAME_COUNT; i++)
@@ -392,6 +457,18 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
+	// 時間関係の定数バッファの作成
+	{
+		if (!m_TimeCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTime)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbTime* ptr = m_TimeCB.GetPtr<CbTime>();
+		ptr->DeltaTime = 0.0f;
+	}
+
 	// バックバッファ描画用の定数バッファの作成
 	{
 		if (!m_BackBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
@@ -406,6 +483,8 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		ptr->Scale = 1.0f;
 		ptr->Bias = 0.0f;
 	}
+
+	m_PrevTime = std::chrono::high_resolution_clock::now();
 
 	return true;
 }
@@ -428,10 +507,14 @@ void ParticleSampleApp::OnTerm()
 		m_ParticlesSB[i].Term();
 	}
 
+	m_TimeCB.Term();
 	m_BackBufferCB.Term();
 
 	m_SceneDepthTarget.Term();
 	m_DrawParticlesTarget.Term();
+
+	m_pUpdateParticlesPSO.Reset();
+	m_UpdateParticlesRootSig.Term();
 
 	m_pDrawParticlesPSO.Reset();
 	m_DrawParticlesRootSig.Term();
@@ -442,10 +525,28 @@ void ParticleSampleApp::OnTerm()
 
 void ParticleSampleApp::OnRender()
 {
+	using namespace std::chrono;
+	const high_resolution_clock::time_point& currTime = high_resolution_clock::now();
+	const milliseconds& elapsedMS = duration_cast<milliseconds>(currTime - m_PrevTime);
+	m_PrevTime = currTime;
+
 	const Matrix& view = m_Camera.GetView();
 	constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 	float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 	const Matrix& viewProj = view * Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+
+	// 定数バッファの更新
+	{
+		{
+			CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+			ptr->ViewProj = viewProj;
+		}
+
+		{
+			CbTime* ptr = m_TimeCB.GetPtr<CbTime>();
+			ptr->DeltaTime = elapsedMS.count() / 1000.0f;
+		}
+	}
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
@@ -456,7 +557,7 @@ void ParticleSampleApp::OnRender()
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 
 	UpdateParticles(pCmd);
-	DrawParticles(pCmd, viewProj);
+	DrawParticles(pCmd);
 
 	DrawBackBuffer(pCmd);
 
@@ -595,18 +696,30 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Update Particles");
 
+	const StructuredBuffer& prevParticlesSB = m_ParticlesSB[m_FrameIndex];
+	const StructuredBuffer& currParticlesSB = m_ParticlesSB[(m_FrameIndex + 1) % 2];
 
+	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+	pCmdList->SetComputeRootSignature(m_UpdateParticlesRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pUpdateParticlesPSO.Get());
+	pCmdList->SetComputeRootDescriptorTable(0, m_TimeCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, prevParticlesSB.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, currParticlesSB.GetHandleUAV()->HandleGPU);
+
+	// シェーダ側と合わせている
+	const size_t NUM_THREAD_X = 64;
+
+	// TODO: マジックナンバー
+	UINT NumGroupX = DivideAndRoundUp(10, NUM_THREAD_X);
+	pCmdList->Dispatch(NumGroupX, 1, 1);
+
+	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
-void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const Matrix& viewProj)
+void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
-
-	// 定数バッファの更新
-	{
-		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		ptr->ViewProj = viewProj;
-	}
 
 	DirectX::TransitionResource(pCmdList, m_DrawParticlesTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);

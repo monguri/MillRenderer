@@ -6,6 +6,7 @@ cbuffer CbCamera : register(b0)
 struct ParticleData
 {
 	float3 Position;
+	float3 Velocity;
 };
 
 StructuredBuffer<ParticleData> ParticlesData : register(t0);
