@@ -23,7 +23,9 @@ namespace
 	static constexpr float CAMERA_NEAR = 0.1f;
 	static constexpr float CAMERA_FAR = 100.0f;
 
-	static constexpr uint32_t NUM_PARTICES = 10;
+	static constexpr uint32_t MAX_NUM_PARTICLES = 1024 * 1024;
+	static const uint32_t NUM_SPAWN_PER_FRAME = 10;
+	static const uint32_t INITIAL_LIFE = 100;
 
 	struct alignas(256) CbCamera
 	{
@@ -448,22 +450,9 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 
 	// パーティクル用のStructuredBufferの作成
 	{
-		ParticleData particleData[NUM_PARTICES] = {
-			{Vector3(0, 0, 0), Vector3(0, 10, 0), 10},
-			{Vector3(0, 0, 0.1f), Vector3(0, 10, 0), 10},
-			{Vector3(0, 0, 0.2f), Vector3(0, 10, 0), 10},
-			{Vector3(0, 0, 0.3f), Vector3(0, 10, 0), 10},
-			{Vector3(0, 0, 0.4f), Vector3(0, 10, 0), 10},
-			{Vector3(0, 0, 0.5f), Vector3(0, 10, 0), 10},
-			{Vector3(0, 0, 0.6f), Vector3(0, 10, 0), 10},
-			{Vector3(0, 0, 0.7f), Vector3(0, 10, 0), 10},
-			{Vector3(0, 0, 0.8f), Vector3(0, 10, 0), 10},
-			{Vector3(0, 0, 0.9f), Vector3(0, 10, 0), 10},
-		};
-
 		for (uint32_t i = 0; i < FRAME_COUNT; i++)
 		{
-			if (!m_ParticlesSB[i].Init<ParticleData>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], NUM_PARTICES, true, particleData))
+			if (!m_ParticlesSB[i].Init<ParticleData>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], MAX_NUM_PARTICLES, true, nullptr))
 			{
 				ELOG("Error : StructuredBuffer::Init() Failed.");
 				return false;
@@ -476,7 +465,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 	{
 		D3D12_DRAW_ARGUMENTS args;
 		args.VertexCountPerInstance = 1;
-		args.InstanceCount = NUM_PARTICES;
+		args.InstanceCount = 0;
 		args.StartVertexLocation = 0;
 		args.StartInstanceLocation = 0;
 
@@ -741,26 +730,35 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 
 void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB)
 {
-	ScopedTimer scopedTimer(pCmdList, L"Update Particles");
+	{
+		ScopedTimer scopedTimer(pCmdList, L"Reset Num Particles");
+	}
 
-	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	{
+		ScopedTimer scopedTimer(pCmdList, L"Update Particles");
 
-	pCmdList->SetComputeRootSignature(m_UpdateParticlesRootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pUpdateParticlesPSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_TimeCB.GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, prevParticlesSB.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, currParticlesSB.GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, prevDrawParticlesArgsBB.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(4, currDrawParticlesArgsBB.GetHandleUAV()->HandleGPU);
+		DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-	// シェーダ側と合わせている
-	const size_t NUM_THREAD_X = 64;
+		pCmdList->SetComputeRootSignature(m_UpdateParticlesRootSig.GetPtr());
+		pCmdList->SetPipelineState(m_pUpdateParticlesPSO.Get());
 
-	// TODO: マジックナンバー
-	UINT NumGroupX = DivideAndRoundUp(NUM_PARTICES, NUM_THREAD_X);
-	pCmdList->Dispatch(NumGroupX, 1, 1);
+		static const uint32_t rootConstants[2] = {NUM_SPAWN_PER_FRAME, INITIAL_LIFE};
+		pCmdList->SetComputeRoot32BitConstants(0, 2, rootConstants, 0);
 
-	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		pCmdList->SetComputeRootDescriptorTable(1, m_TimeCB.GetHandleGPU());
+		pCmdList->SetComputeRootDescriptorTable(2, prevParticlesSB.GetHandleSRV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(3, currParticlesSB.GetHandleUAV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(4, prevDrawParticlesArgsBB.GetHandleSRV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(5, currDrawParticlesArgsBB.GetHandleUAV()->HandleGPU);
+
+		// シェーダ側と合わせている
+		const size_t NUM_THREAD_X = 64;
+		// TODO: マジックナンバー
+		UINT NumGroupX = DivideAndRoundUp(MAX_NUM_PARTICLES, NUM_THREAD_X);
+		pCmdList->Dispatch(NumGroupX, 1, 1);
+
+		DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	}
 }
 
 void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& currDrawParticlesArgsBB)
