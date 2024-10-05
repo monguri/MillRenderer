@@ -34,6 +34,11 @@ bool StructuredBuffer::Init
 		return false;
 	}
 
+	if (pInitData != nullptr && pCmdList == nullptr)
+	{
+		return false;
+	}
+
 	size_t dataSize = count * structureSize;
 
 	assert(m_pPoolSRV == nullptr);
@@ -88,7 +93,7 @@ bool StructuredBuffer::Init
 		&prop,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_COPY_DEST, // コピー用の状態にしておく
+		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_PPV_ARGS(m_pBuffer.GetAddressOf())
 	);
@@ -98,7 +103,12 @@ bool StructuredBuffer::Init
 	}
 
 	// データ書き込み
+	if (pInitData != nullptr)
 	{
+		assert(pCmdList != nullptr);
+
+		DirectX::TransitionResource(pCmdList, m_pBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+
 		D3D12_HEAP_PROPERTIES prop = {};
 		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
 		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
