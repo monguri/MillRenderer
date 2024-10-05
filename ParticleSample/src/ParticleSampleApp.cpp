@@ -731,7 +731,7 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB)
 {
 	{
-		ScopedTimer scopedTimer(pCmdList, L"Reset Num Particles");
+		ScopedTimer scopedTimer(pCmdList, L"Clear Instance Count");
 	}
 
 	{
