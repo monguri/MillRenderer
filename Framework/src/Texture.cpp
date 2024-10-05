@@ -189,7 +189,7 @@ bool Texture::InitFromData
 			&prop,
 			D3D12_HEAP_FLAG_NONE,
 			&desc,
-			D3D12_RESOURCE_STATE_COPY_DEST, // コピー用の状態にしておく
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 			nullptr,
 			IID_PPV_ARGS(m_pTex.GetAddressOf())
 		);
@@ -275,6 +275,8 @@ bool Texture::InitFromData
 
 	// テクスチャ作成とコピー
 	{
+		DirectX::TransitionResource(pCmdList, GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+
 		D3D12_TEXTURE_COPY_LOCATION src;
 		src.pResource = m_pUploadBuffer.Get();
 		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
