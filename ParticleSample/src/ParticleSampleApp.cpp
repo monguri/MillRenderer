@@ -25,8 +25,7 @@ namespace
 
 	static constexpr uint32_t MAX_NUM_PARTICLES = 1024 * 1024;
 	// シェーダ側と合わせている
-	// TODO: WaveIntrinsicsを使っているのでNVIDIA GPUを前提に32にしている。
-	static const size_t NUM_THREAD_X = 32;
+	static const size_t NUM_THREAD_X = 64;
 
 	struct alignas(256) CbCamera
 	{

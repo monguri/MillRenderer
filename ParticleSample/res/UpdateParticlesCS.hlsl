@@ -32,8 +32,8 @@ RWByteAddressBuffer CurrDrawParticlesIndirectArgs : register(u1);
 
 #if !USE_WAVE_INTRINSICS
 groupshared uint gsNumParticleInGroup;
-#endif 
 groupshared uint gsGroupParticlesIdxOffset;
+#endif 
 
 float GetRandomNumberLegacy(float2 texCoord, int Seed)
 {
@@ -46,6 +46,8 @@ void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 {
 #if USE_WAVE_INTRINSICS
 	bool isAlive = false;
+	uint activeFlag = 0;
+	uint inactiveFlag = 1;
 #else
 	if (gtID == 0)
 	{
@@ -92,18 +94,23 @@ void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 
 #if USE_WAVE_INTRINSICS
 	isAlive = true;
+	activeFlag = 1;
+	inactiveFlag = 0;
 	uint4 activeLaneMask = WaveActiveBallot(isAlive);
-	uint numActiveParticles = countbits(activeLaneMask.x) + countbits(activeLaneMask.y) + countbits(activeLaneMask.z) + countbits(activeLaneMask.w);
-	uint particleIdxInGroup = WavePrefixCountBits(isAlive);
+	uint numAliveParticles = countbits(activeLaneMask.x) + countbits(activeLaneMask.y) + countbits(activeLaneMask.z) + countbits(activeLaneMask.w);
+	uint particleIdxInWave = WavePrefixCountBits(isAlive);
 
-	// first alive particle
-	if (particleIdxInGroup == 0)
+	uint preSumNumParticle;
+	// first alive particle in wave
+	if (particleIdxInWave == 0)
 	{
-		CurrDrawParticlesIndirectArgs.InterlockedAdd(BYTE_OFFSET_INSTANCE_COUNT, numActiveParticles, gsGroupParticlesIdxOffset);
+		CurrDrawParticlesIndirectArgs.InterlockedAdd(BYTE_OFFSET_INSTANCE_COUNT, numAliveParticles, preSumNumParticle);
 	}
-	GroupMemoryBarrierWithGroupSync();
 
-	CurrParticlesData[gsGroupParticlesIdxOffset + particleIdxInGroup] = currData;
+	uint firstAliveParticleLaneIdx = WavePrefixSum(activeFlag) * WavePrefixProduct(inactiveFlag);
+	uint waveParticleIdxOffset = WaveReadLaneAt(preSumNumParticle, firstAliveParticleLaneIdx);
+
+	CurrParticlesData[waveParticleIdxOffset + particleIdxInWave] = currData;
 #else
 	uint particleIdxInGroup;
 	InterlockedAdd(gsNumParticleInGroup, 1, particleIdxInGroup);
