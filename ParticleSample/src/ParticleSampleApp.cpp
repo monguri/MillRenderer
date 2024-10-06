@@ -29,7 +29,8 @@ namespace
 
 	struct alignas(256) CbCamera
 	{
-		Matrix ViewProj;
+		Matrix View;
+		Matrix Proj;
 	};
 
 	struct ParticleData
@@ -325,6 +326,8 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		//desc.RasterizerState = DirectX::CommonStates::Wireframe;
+		//desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_DrawParticlesTarget.GetRTVDesc().Format;
@@ -507,7 +510,6 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 
 		const Matrix& view = m_Camera.GetView();
 		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
-		const Matrix& viewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
@@ -518,7 +520,8 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 			}
 
 			CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-			ptr->ViewProj = viewProj;
+			ptr->View = view;
+			ptr->Proj = proj;
 		}
 	}
 
@@ -554,6 +557,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 	// パーティクル描画用のDrawIndirectArgsBufferの作成
 	{
 		D3D12_DRAW_ARGUMENTS args;
+		//args.VertexCountPerInstance = 4;
 		args.VertexCountPerInstance = 1;
 		args.InstanceCount = 0;
 		args.StartVertexLocation = 0;
@@ -660,12 +664,13 @@ void ParticleSampleApp::OnRender()
 	const Matrix& view = m_Camera.GetView();
 	constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 	float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
-	const Matrix& viewProj = view * Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+	const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
 
 	// 定数バッファの更新
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		ptr->ViewProj = viewProj;
+		ptr->View = view;
+		ptr->Proj = proj;
 	}
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
@@ -886,6 +891,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+	//pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	pCmdList->ExecuteIndirect(m_pDrawParticlesCommandSig.Get(), 1, currDrawParticlesArgsBB.GetResource(), 0, nullptr, 0);
 
