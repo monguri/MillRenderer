@@ -23,6 +23,11 @@ private:
 	Camera m_Camera;
 	int m_PrevCursorX = 0;
 	int m_PrevCursorY = 0;
+
+	uint32_t m_NumSpawnPerFrame = 10;
+	uint32_t m_InitialLife = 100;
+	float m_InitialVelocityScale = 1.0f;
+
 	std::chrono::high_resolution_clock::time_point m_PrevTime;
 	ComPtr<ID3D12PipelineState> m_pResetNumParticlesPSO;
 	RootSignature m_ResetNumParticlesRootSig;
@@ -39,7 +44,7 @@ private:
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 	StructuredBuffer m_ParticlesSB[FRAME_COUNT];
 	ByteAddressBuffer m_DrawParticlesIndirectArgsBB[FRAME_COUNT];
-	ConstantBuffer m_TimeCB;
+	ConstantBuffer m_SimulationCB;
 	ConstantBuffer m_BackBufferCB;
 
 	virtual bool OnInit(HWND hWnd) override;

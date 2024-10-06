@@ -19,9 +19,10 @@ cbuffer CbRootConstants : register(b0)
 	uint InitialLife : packoffset(c0.y);
 }
 
-cbuffer CbTime : register(b1)
+cbuffer CbSimulation : register(b1)
 {
 	float DeltaTime : packoffset(c0);
+	float InitialVelocityScale : packoffset(c0.y);
 }
 
 StructuredBuffer<ParticleData> PrevParticlesData : register(t0);
@@ -74,7 +75,7 @@ void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 		float randomVal = GetRandomNumberLegacy(0, dtID);
 		float sin, cos;
 		sincos(randomVal * 2 * PI, sin, cos);
-		currData.Velocity = float3(cos, 2, sin) * randomVal;
+		currData.Velocity = float3(cos, 2, sin) * randomVal * InitialVelocityScale;
 
 		currData.Life = InitialLife;
 	}

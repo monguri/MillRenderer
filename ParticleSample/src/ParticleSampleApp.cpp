@@ -24,8 +24,6 @@ namespace
 	static constexpr float CAMERA_FAR = 100.0f;
 
 	static constexpr uint32_t MAX_NUM_PARTICLES = 1024 * 1024;
-	static const uint32_t NUM_SPAWN_PER_FRAME = 10;
-	static const uint32_t INITIAL_LIFE = 100;
 
 	struct alignas(256) CbCamera
 	{
@@ -39,10 +37,11 @@ namespace
 		uint32_t Life;
 	};
 
-	struct alignas(256) CbTime
+	struct alignas(256) CbSimulation
 	{
 		float DeltaTime;
-		Vector3 Dummy;
+		float InitialVelocityScale;
+		Vector2 Dummy;
 	};
 
 	struct alignas(256) CbSampleTexture
@@ -534,14 +533,15 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 
 	// 時間関係の定数バッファの作成
 	{
-		if (!m_TimeCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTime)))
+		if (!m_SimulationCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSimulation)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
 		}
 
-		CbTime* ptr = m_TimeCB.GetPtr<CbTime>();
+		CbSimulation* ptr = m_SimulationCB.GetPtr<CbSimulation>();
 		ptr->DeltaTime = 0.0f;
+		ptr->InitialVelocityScale = 1.0f;
 	}
 
 	// バックバッファ描画用の定数バッファの作成
@@ -590,7 +590,7 @@ void ParticleSampleApp::OnTerm()
 	}
 
 
-	m_TimeCB.Term();
+	m_SimulationCB.Term();
 	m_BackBufferCB.Term();
 
 	m_SceneDepthTarget.Term();
@@ -630,8 +630,9 @@ void ParticleSampleApp::OnRender()
 		}
 
 		{
-			CbTime* ptr = m_TimeCB.GetPtr<CbTime>();
+			CbSimulation* ptr = m_SimulationCB.GetPtr<CbSimulation>();
 			ptr->DeltaTime = elapsedMS.count() / 1000.0f;
+			ptr->InitialVelocityScale = m_InitialVelocityScale;
 		}
 	}
 
@@ -804,10 +805,10 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, con
 	pCmdList->SetComputeRootSignature(m_UpdateParticlesRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pUpdateParticlesPSO.Get());
 
-	static const uint32_t rootConstants[2] = {NUM_SPAWN_PER_FRAME, INITIAL_LIFE};
+	uint32_t rootConstants[2] = {m_NumSpawnPerFrame, m_InitialLife};
 	pCmdList->SetComputeRoot32BitConstants(0, 2, rootConstants, 0);
 
-	pCmdList->SetComputeRootDescriptorTable(1, m_TimeCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_SimulationCB.GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(2, prevParticlesSB.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, currParticlesSB.GetHandleUAV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, prevDrawParticlesArgsBB.GetHandleSRV()->HandleGPU);
@@ -930,7 +931,9 @@ void ParticleSampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	// imgui_demo.cppを参考にしている。右列のラベル部分のサイズを固定する
     ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
 
-	ImGui::SeparatorText("Debug View");
+	ImGui::SliderInt("Num Spawn Per Frame", reinterpret_cast<int*>(& m_NumSpawnPerFrame), 1, 1024);
+	ImGui::SliderInt("Initial Life", reinterpret_cast<int*>(& m_InitialLife), 1, 1024);
+	ImGui::SliderFloat("Initial Velocity Scale", &m_InitialVelocityScale, 0.1f, 10.0f);
 
 	ImGui::End();
 
