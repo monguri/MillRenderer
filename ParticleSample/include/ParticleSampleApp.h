@@ -24,6 +24,8 @@ private:
 	int m_PrevCursorX = 0;
 	int m_PrevCursorY = 0;
 	std::chrono::high_resolution_clock::time_point m_PrevTime;
+	ComPtr<ID3D12PipelineState> m_pResetNumParticlesPSO;
+	RootSignature m_ResetNumParticlesRootSig;
 	ComPtr<ID3D12PipelineState> m_pUpdateParticlesPSO;
 	RootSignature m_UpdateParticlesRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawParticlesPSO;
@@ -45,6 +47,7 @@ private:
 	virtual void OnRender() override;
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 
+	void ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, const ByteAddressBuffer& currDrawParticlesArgsBB);
 	void UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB);
 	void DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& currDrawParticlesArgsBB);
 	void DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList);
