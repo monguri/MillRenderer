@@ -40,11 +40,15 @@ float GetRandomNumberLegacy(float2 texCoord, int Seed)
 [numthreads(NUM_THREAD_X, 1, 1)]
 void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 {
+#if 0
 	if (gtID == 0)
 	{
 		gsNumParticleInGroup = 0;
 	}
 	GroupMemoryBarrierWithGroupSync();
+#else
+	bool isAlive = false;
+#endif
 
 	uint prevNumParticles = PrevDrawParticlesIndirectArgs.Load(BYTE_OFFSET_INSTANCE_COUNT);
 
@@ -82,10 +86,12 @@ void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 		return;
 	}
 
+#if 0
 	uint particleIdxInGroup;
 	InterlockedAdd(gsNumParticleInGroup, 1, particleIdxInGroup);
 	GroupMemoryBarrierWithGroupSync();
 
+	// first alive particle
 	if (particleIdxInGroup == 0)
 	{
 		CurrDrawParticlesIndirectArgs.InterlockedAdd(BYTE_OFFSET_INSTANCE_COUNT, gsNumParticleInGroup, gsGroupParticlesIdxOffset);
@@ -93,4 +99,19 @@ void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 	GroupMemoryBarrierWithGroupSync();
 
 	CurrParticlesData[gsGroupParticlesIdxOffset + particleIdxInGroup] = currData;
+#else
+	isAlive = true;
+	uint4 activeLaneMask = WaveActiveBallot(isAlive);
+	uint numActiveParticles = countbits(activeLaneMask.x) + countbits(activeLaneMask.y) + countbits(activeLaneMask.z) + countbits(activeLaneMask.w);
+	uint particleIdxInGroup = WavePrefixCountBits(isAlive);
+
+	// first alive particle
+	if (particleIdxInGroup == 0)
+	{
+		CurrDrawParticlesIndirectArgs.InterlockedAdd(BYTE_OFFSET_INSTANCE_COUNT, numActiveParticles, gsGroupParticlesIdxOffset);
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	CurrParticlesData[gsGroupParticlesIdxOffset + particleIdxInGroup] = currData;
+#endif
 }
