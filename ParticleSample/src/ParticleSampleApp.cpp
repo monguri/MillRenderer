@@ -326,9 +326,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		//desc.RasterizerState = DirectX::CommonStates::Wireframe;
-		//desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_DrawParticlesTarget.GetRTVDesc().Format;
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
@@ -557,8 +555,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 	// パーティクル描画用のDrawIndirectArgsBufferの作成
 	{
 		D3D12_DRAW_ARGUMENTS args;
-		//args.VertexCountPerInstance = 4;
-		args.VertexCountPerInstance = 1;
+		args.VertexCountPerInstance = 4;
 		args.InstanceCount = 0;
 		args.StartVertexLocation = 0;
 		args.StartInstanceLocation = 0;
@@ -890,8 +887,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 	
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-	//pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	pCmdList->ExecuteIndirect(m_pDrawParticlesCommandSig.Get(), 1, currDrawParticlesArgsBB.GetResource(), 0, nullptr, 0);
 
