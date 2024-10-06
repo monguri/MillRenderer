@@ -8,8 +8,6 @@
 ", DescriptorTable(SRV(t1))"\
 ", DescriptorTable(UAV(u1))"\
 
-static const uint NUM_THREAD_X = 64;
-static const uint BYTE_OFFSET_INSTANCE_COUNT = 4;
 static const float GRAVITY = 9.8f;
 static const float PI = 3.14159265358979323f;
 

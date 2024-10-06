@@ -31,6 +31,7 @@ private:
 	std::chrono::high_resolution_clock::time_point m_PrevTime;
 	ComPtr<ID3D12PipelineState> m_pResetNumParticlesPSO;
 	RootSignature m_ResetNumParticlesRootSig;
+	ComPtr<ID3D12CommandSignature> m_pUpdateParticlesCommandSig;
 	ComPtr<ID3D12PipelineState> m_pUpdateParticlesPSO;
 	RootSignature m_UpdateParticlesRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawParticlesPSO;
@@ -42,6 +43,7 @@ private:
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_DrawParticlesTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
+	ByteAddressBuffer m_DispatchIndirectArgsBB;
 	StructuredBuffer m_ParticlesSB[FRAME_COUNT];
 	ByteAddressBuffer m_DrawParticlesIndirectArgsBB[FRAME_COUNT];
 	ConstantBuffer m_SimulationCB;
@@ -52,8 +54,8 @@ private:
 	virtual void OnRender() override;
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 
-	void ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, const ByteAddressBuffer& currDrawParticlesArgsBB);
-	void UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB);
+	void ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB);
+	void UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB, const std::chrono::milliseconds& deltaTimeMS);
 	void DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& currDrawParticlesArgsBB);
 	void DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
