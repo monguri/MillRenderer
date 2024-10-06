@@ -11,6 +11,8 @@
 static const float GRAVITY = 9.8f;
 static const float PI = 3.14159265358979323f;
 
+#define USE_WAVE_INTRINSICS 1
+
 cbuffer CbRootConstants : register(b0)
 {
 	uint NumSpawnPerFrame : packoffset(c0);
@@ -28,7 +30,9 @@ RWStructuredBuffer<ParticleData> CurrParticlesData : register(u0);
 ByteAddressBuffer PrevDrawParticlesIndirectArgs : register(t1);
 RWByteAddressBuffer CurrDrawParticlesIndirectArgs : register(u1);
 
+#if !USE_WAVE_INTRINSICS
 groupshared uint gsNumParticleInGroup;
+#endif 
 groupshared uint gsGroupParticlesIdxOffset;
 
 float GetRandomNumberLegacy(float2 texCoord, int Seed)
@@ -40,14 +44,14 @@ float GetRandomNumberLegacy(float2 texCoord, int Seed)
 [numthreads(NUM_THREAD_X, 1, 1)]
 void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 {
-#if 0
+#if USE_WAVE_INTRINSICS
+	bool isAlive = false;
+#else
 	if (gtID == 0)
 	{
 		gsNumParticleInGroup = 0;
 	}
 	GroupMemoryBarrierWithGroupSync();
-#else
-	bool isAlive = false;
 #endif
 
 	uint prevNumParticles = PrevDrawParticlesIndirectArgs.Load(BYTE_OFFSET_INSTANCE_COUNT);
@@ -86,20 +90,7 @@ void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 		return;
 	}
 
-#if 0
-	uint particleIdxInGroup;
-	InterlockedAdd(gsNumParticleInGroup, 1, particleIdxInGroup);
-	GroupMemoryBarrierWithGroupSync();
-
-	// first alive particle
-	if (particleIdxInGroup == 0)
-	{
-		CurrDrawParticlesIndirectArgs.InterlockedAdd(BYTE_OFFSET_INSTANCE_COUNT, gsNumParticleInGroup, gsGroupParticlesIdxOffset);
-	}
-	GroupMemoryBarrierWithGroupSync();
-
-	CurrParticlesData[gsGroupParticlesIdxOffset + particleIdxInGroup] = currData;
-#else
+#if USE_WAVE_INTRINSICS
 	isAlive = true;
 	uint4 activeLaneMask = WaveActiveBallot(isAlive);
 	uint numActiveParticles = countbits(activeLaneMask.x) + countbits(activeLaneMask.y) + countbits(activeLaneMask.z) + countbits(activeLaneMask.w);
@@ -109,6 +100,19 @@ void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 	if (particleIdxInGroup == 0)
 	{
 		CurrDrawParticlesIndirectArgs.InterlockedAdd(BYTE_OFFSET_INSTANCE_COUNT, numActiveParticles, gsGroupParticlesIdxOffset);
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	CurrParticlesData[gsGroupParticlesIdxOffset + particleIdxInGroup] = currData;
+#else
+	uint particleIdxInGroup;
+	InterlockedAdd(gsNumParticleInGroup, 1, particleIdxInGroup);
+	GroupMemoryBarrierWithGroupSync();
+
+	// first alive particle
+	if (particleIdxInGroup == 0)
+	{
+		CurrDrawParticlesIndirectArgs.InterlockedAdd(BYTE_OFFSET_INSTANCE_COUNT, gsNumParticleInGroup, gsGroupParticlesIdxOffset);
 	}
 	GroupMemoryBarrierWithGroupSync();
 
