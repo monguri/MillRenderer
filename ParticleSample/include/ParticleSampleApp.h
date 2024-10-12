@@ -24,8 +24,8 @@ private:
 	int m_PrevCursorX = 0;
 	int m_PrevCursorY = 0;
 
-	uint32_t m_NumSpawnPerFrame = 10;
-	uint32_t m_InitialLife = 100;
+	uint32_t m_NumSpawnPerFrame = 512;
+	uint32_t m_InitialLife = 512;
 	float m_InitialVelocityScale = 1.0f;
 
 	std::chrono::high_resolution_clock::time_point m_PrevTime;
