@@ -972,8 +972,8 @@ void ParticleSampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	// imgui_demo.cppを参考にしている。右列のラベル部分のサイズを固定する
     ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
 
-	ImGui::SliderInt("Num Spawn Per Frame", reinterpret_cast<int*>(& m_NumSpawnPerFrame), 1, 1024);
-	ImGui::SliderInt("Initial Life", reinterpret_cast<int*>(& m_InitialLife), 1, 1024);
+	ImGui::SliderInt("Num Spawn Per Frame", reinterpret_cast<int*>(& m_NumSpawnPerFrame), 1, 8192);
+	ImGui::SliderInt("Initial Life", reinterpret_cast<int*>(& m_InitialLife), 1, 8192);
 	ImGui::SliderFloat("Initial Velocity Scale", &m_InitialVelocityScale, 0.1f, 10.0f);
 
 	ImGui::End();
