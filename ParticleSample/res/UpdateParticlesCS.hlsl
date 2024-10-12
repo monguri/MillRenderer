@@ -11,7 +11,7 @@
 static const float GRAVITY = 9.8f;
 static const float PI = 3.14159265358979323f;
 
-#define USE_WAVE_INTRINSICS 0
+#define USE_WAVE_INTRINSICS 1
 
 cbuffer CbRootConstants : register(b0)
 {
@@ -91,12 +91,12 @@ void main(uint dtID : SV_DispatchThreadID, uint gtID : SV_GroupThreadID)
 	}
 
 #if USE_WAVE_INTRINSICS
-	uint numAliveParticles = WaveActiveCountBits(true);
+	uint numAliveParticlesInWave = WaveActiveCountBits(true);
 
 	uint preSumNumParticle;
 	if (WaveIsFirstLane())
 	{
-		CurrDrawParticlesIndirectArgs.InterlockedAdd(BYTE_OFFSET_INSTANCE_COUNT, numAliveParticles, preSumNumParticle);
+		CurrDrawParticlesIndirectArgs.InterlockedAdd(BYTE_OFFSET_INSTANCE_COUNT, numAliveParticlesInWave, preSumNumParticle);
 	}
 
 	uint waveParticleIdxOffset = WaveReadLaneFirst(preSumNumParticle);
