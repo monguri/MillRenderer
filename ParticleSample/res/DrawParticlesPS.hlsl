@@ -1,3 +1,15 @@
+//#define DYNAMIC_RESOURCES
+
+#ifdef DYNAMIC_RESOURCES
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
+" | SAMPLER_HEAP_DIRECTLY_INDEXED"\
+" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
+")"\
+
+#else
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
 "("\
@@ -8,6 +20,8 @@
 ")"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_VERTEX)"\
+
+#endif
 
 [RootSignature(ROOT_SIGNATURE)]
 float4 main() : SV_TARGET

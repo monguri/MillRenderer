@@ -15,6 +15,8 @@
 #include "Logger.h"
 #include "ScopedTimer.h"
 
+//#define DYNAMIC_RESOURCES
+
 using namespace DirectX::SimpleMath;
 
 namespace
@@ -102,6 +104,40 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 	}
+
+#ifdef DYNAMIC_RESOURCES
+	// Dynamic Resourcesを使うためには、Resource Binding Tier 3以上、Shader Model 6.6以上が必要
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS featureOptions{};
+		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{};
+		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_6;
+		HRESULT hr = m_pDevice.Get()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureOptions, sizeof(featureOptions));
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CheckFeatureSupport() Failed.");
+			return false;
+		}
+
+		if (featureOptions.ResourceBindingTier < D3D12_RESOURCE_BINDING_TIER_3)
+		{
+			ELOG("Error : D3D12_RESOURCE_BINDING_TIER_3 not suppoted.");
+			return false;
+		}
+
+		hr = m_pDevice.Get()->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel));
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CheckFeatureSupport() Failed.");
+			return false;
+		}
+
+		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_6)
+		{
+			ELOG("Error : D3D_SHADER_MODEL_6_6 not suppoted.");
+			return false;
+		}
+	}
+#endif // #ifdef DYNAMIC_RESOUCES
 
 	// シーン用デプスターゲットの生成
 	{
@@ -880,8 +916,10 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 	m_SceneDepthTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_DrawParticlesRootSig.GetPtr());
+#ifndef DYNAMIC_RESOURCES 
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetGraphicsRootDescriptorTable(1, currParticlesSB.GetHandleSRV()->HandleGPU);
+#endif
 	pCmdList->SetPipelineState(m_pDrawParticlesPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
