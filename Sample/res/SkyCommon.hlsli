@@ -31,6 +31,9 @@ static const float ABSORPTION_DENSITY0_CONSTANT_TERM = OZON_TIP_VALUE - OZON_TIP
 static const float ABSORPTION_DENSITY1_LINEAR_TERM = -ABSORPTION_DENSITY0_LINEAR_TERM;
 static const float ABSORPTION_DENSITY1_CONSTANT_TERM = OZON_TIP_VALUE - OZON_TIP_ALTITUDE * ABSORPTION_DENSITY1_LINEAR_TERM;
 
+// Float accuracy offset in Sky unit (km, so this is 1m). Should match the one in FAtmosphereSetup::ComputeViewData
+static const float PLANET_RADIUS_OFFSET = 0.001f;
+
 cbuffer CbSkyAtmosphere : register(b0)
 {
 	int TransmittanceLUT_Width : packoffset(c0);
@@ -43,44 +46,6 @@ cbuffer CbSkyAtmosphere : register(b0)
 
 Texture2D TransmittanceLUT_Texture : register(t0);
 SamplerState TransmittanceLUT_TextureSampler : register(s0);
-
-// Transmittance LUT function parameterisation from Bruneton 2017 https://github.com/ebruneton/precomputed_atmospheric_scattering
-// uv in [0,1]
-// ViewZenithCosAngle in [-1,1]
-// ViewHeight in [bottomRAdius, topRadius]
-
-void UVtoLUTTransmittanceParams(out float viewHeight, out float viewZenithCosAngle, in float bottomRadius, in float topRadius, in float2 uv)
-{
-	float xmu = uv.x;
-	float xr = uv.y;
-
-	float h = sqrt(topRadius * topRadius - bottomRadius * bottomRadius);
-	float rho = h * xr;
-	viewHeight = sqrt(rho * rho + bottomRadius * bottomRadius);
-
-	float dmin = topRadius - viewHeight;
-	float dmax = rho + h;
-	float d = dmin + xmu * (dmax - dmin); // lerp(dmin, dmax, xmu)
-	// law of cosines. viewHeight-angle-d triangle.
-	viewZenithCosAngle = d == 0.0f ? 1.0f : (h * h - rho * rho - d * d) / (2.0f * viewHeight * d);
-	viewZenithCosAngle = clamp(viewZenithCosAngle, -1.0f, 1.0f);
-}
-
-void LutTransmittanceParamsToUV(in float viewHeight, in float viewZenithCosAngle, in float bottomRadius, in float topRadius, out float2 uv)
-{
-	float h = sqrt(max(0.0f, topRadius * topRadius - bottomRadius * bottomRadius));
-	float rho = sqrt(max(0.0f, viewHeight * viewHeight - bottomRadius * bottomRadius));
-
-	float discriminant = viewHeight * viewHeight * (viewZenithCosAngle * viewZenithCosAngle - 1.0f) + topRadius * topRadius;
-	float d = max(0.0f, (-viewHeight * viewZenithCosAngle + sqrt(discriminant))); // Distance to atmosphere boundary
-
-	float dmin = topRadius - viewHeight;
-	float dmax = rho + h;
-	float xmu = (d - dmin) / (dmax - dmin);
-	float xr = rho / h;
-
-	uv = float2(xmu, xr);
-}
 
 /**
  * Returns near intersection in x, far intersection in y, or both -1 if no intersection.
@@ -125,6 +90,74 @@ float RayleighPhase(float cosTheta)
 {
 	float factor = 3.0f / (16.0f * F_PI);
 	return factor * (1.0f + cosTheta * cosTheta);
+}
+
+// - RayOrigin: ray origin
+// - RayDir: normalized ray direction
+// - SphereCenter: sphere center
+// - SphereRadius: sphere radius
+// - Returns distance from RayOrigin to closest intersecion with sphere,
+//   or -1.0 if no intersection.
+float RaySphereIntersectNearest(float3 rayOrigin, float3 rayDir, float3 sphereCenter, float sphereRadius)
+{
+	float2 sol = RayIntersectSphere(rayOrigin, rayDir, float4(sphereCenter, sphereRadius));
+	float sol0 = sol.x;
+	float sol1 = sol.y;
+	if (sol0 < 0.0f && sol1 < 0.0f)
+	{
+		return -1.0f;
+	}
+	if (sol0 < 0.0f)
+	{
+		return max(0.0f, sol1);
+	}
+	else if (sol1 < 0.0f)
+	{
+		return max(0.0f, sol0);
+	}
+	return max(0.0f, min(sol0, sol1));
+}
+
+////////////////////////////////////////////////////////////
+// LUT functions
+////////////////////////////////////////////////////////////
+
+// Transmittance LUT function parameterisation from Bruneton 2017 https://github.com/ebruneton/precomputed_atmospheric_scattering
+// uv in [0,1]
+// ViewZenithCosAngle in [-1,1]
+// ViewHeight in [bottomRAdius, topRadius]
+
+void UVtoLUTTransmittanceParams(out float viewHeight, out float viewZenithCosAngle, in float bottomRadius, in float topRadius, in float2 uv)
+{
+	float xmu = uv.x;
+	float xr = uv.y;
+
+	float h = sqrt(topRadius * topRadius - bottomRadius * bottomRadius);
+	float rho = h * xr;
+	viewHeight = sqrt(rho * rho + bottomRadius * bottomRadius);
+
+	float dmin = topRadius - viewHeight;
+	float dmax = rho + h;
+	float d = dmin + xmu * (dmax - dmin); // lerp(dmin, dmax, xmu)
+	// law of cosines. viewHeight-angle-d triangle.
+	viewZenithCosAngle = d == 0.0f ? 1.0f : (h * h - rho * rho - d * d) / (2.0f * viewHeight * d);
+	viewZenithCosAngle = clamp(viewZenithCosAngle, -1.0f, 1.0f);
+}
+
+void LutTransmittanceParamsToUV(in float viewHeight, in float viewZenithCosAngle, in float bottomRadius, in float topRadius, out float2 uv)
+{
+	float h = sqrt(max(0.0f, topRadius * topRadius - bottomRadius * bottomRadius));
+	float rho = sqrt(max(0.0f, viewHeight * viewHeight - bottomRadius * bottomRadius));
+
+	float discriminant = viewHeight * viewHeight * (viewZenithCosAngle * viewZenithCosAngle - 1.0f) + topRadius * topRadius;
+	float d = max(0.0f, (-viewHeight * viewZenithCosAngle + sqrt(discriminant))); // Distance to atmosphere boundary
+
+	float dmin = topRadius - viewHeight;
+	float dmax = rho + h;
+	float xmu = (d - dmin) / (dmax - dmin);
+	float xr = rho / h;
+
+	uv = float2(xmu, xr);
 }
 
 struct MediumSampleRGB
@@ -198,7 +231,7 @@ struct SamplingSetup
 
 // In this function, all world position are relative to the planet center (itself expressed within translated world space)
 SingleScatteringResult IntegrateSingleScatteredLuminance(
-	in float4 SVPos, in float3 worldPos, in float3 worldDir,
+	in float3 worldPos, in float3 worldDir,
 	in bool ground, in SamplingSetup sampling, in bool mieRayPhase,
 	in float3 light0dir, in float3 light0Illuminance)
 {
@@ -264,6 +297,8 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	float3 opticalDepth = 0.0f;
 	float t = 0.0f;
 
+	float3 exposedLight0Illuminance = light0Illuminance;
+
 	float pixelNoise = 0.3f; // from UE's DEFAULT_SAMPLE_OFFSET 
 	for (float sampleI = 0.0f; sampleI < sampleCount; sampleI += 1.0f)
 	{
@@ -307,16 +342,37 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		const float3 sampleTransmittance = exp(-sampleOpticalDepth);
 		opticalDepth += sampleOpticalDepth;
 
+		// Phase and transmittance for light 0
+		const float3 upVector = p / pHeight;
+		float light0ZenighCosAngle = dot(light0dir, upVector);
+		float3 transmittanceToLight0 = GetTransmittance(light0ZenighCosAngle, pHeight);
+		float3 phaseTimesScattering0;
+		float3 phaseTimesScattering0MieOnly;
+		float3 phaseTimesScattering0RayOnly;
+		if (mieRayPhase)
+		{
+			phaseTimesScattering0MieOnly = medium.scatteringMie * miePhaseValueLight0;
+			phaseTimesScattering0RayOnly = medium.scatteringRay * rayleighPhaseValueLight0;
+			phaseTimesScattering0 = phaseTimesScattering0MieOnly + phaseTimesScattering0RayOnly;
+		}
+		else
+		{
+			phaseTimesScattering0MieOnly = medium.scatteringMie * uniformPhase;
+			phaseTimesScattering0RayOnly = medium.scatteringRay * uniformPhase;
+			phaseTimesScattering0 = medium.scattering * uniformPhase;
+		}
+		
+		// Planet shadow
+		float tPlanet0 = RaySphereIntersectNearest(p, light0dir, planetO + PLANET_RADIUS_OFFSET * upVector, bottomRadiusKm);
+		float planetShadow0 = tPlanet0 >= 0.0f ? 0.0f : 1.0f;
+		
 		// TODO:impl L and throughput calculation
 		// 1 is the integration of luminance over the 4pi of a sphere, and assuming an isotropic phase function of 1.0/(4*PI) 
 		result.multiScatAs1 += throughput * medium.scattering * 1.0f * dt;
 
 		// MultiScatteredLuminance is already pre-exposed, atmospheric light contribution needs to be pre exposed
 		// Multi-scattering is also not affected by PlanetShadow or TransmittanceToLight because it contains diffuse light after single scattering.
-
-		// TODO:impl
-		float3 S = 1.0f;
-		//float3 S		= ExposedLight0Illuminance * (PlanetShadow0 * TransmittanceToLight0 * PhaseTimesScattering0			+ MultiScatteredLuminance0 * Medium.Scattering);
+		float3 S = exposedLight0Illuminance * (planetShadow0 * transmittanceToLight0 * phaseTimesScattering0);
 
 		// See slide 28 at http://www.frostbite.com/2015/08/physically-based-unified-volumetric-rendering-in-frostbite/ 
 		float3 Sint = (S - S * sampleTransmittance) / medium.extinction; // integrate along the current step segment 

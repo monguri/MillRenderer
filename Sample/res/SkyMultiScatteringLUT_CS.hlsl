@@ -35,7 +35,6 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	float3 lightDir = float3(0.0f, sqrt(1.0f - cosLightZenithAngle * cosLightZenithAngle), cosLightZenithAngle);
 	const float3 nullLightDirection = float3(0.0f, 0.0f, 1.0f);
 	const float3 nullLightIlluminance = float3(0.0f, 0.0f, 0.0f);
-	const float3 oneIlluminance = float3(1.0f, 1.0f, 1.0f);
 	float viewHeight = bottomRadiusKm + uv.y * (topRadiusKm - bottomRadiusKm);
 
 	float3 worldPos = float3(0.0f, 0.0f, viewHeight);
@@ -50,6 +49,24 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	const bool ground = true;
 	const bool mieRayPhase = false;
 
+	const float sphereSolidAngle = 4.0f * F_PI;
+	const float isotropicPhase = 1.0f / sphereSolidAngle;
 
-	OutResult[pixPos] = float3(0, 0, 0);
+	SingleScatteringResult r0 = IntegrateSingleScatteredLuminance(
+		worldPos, worldDir,
+		ground, sampling, mieRayPhase,
+		nullLightDirection, nullLightIlluminance);
+	SingleScatteringResult r1 = IntegrateSingleScatteredLuminance(
+		worldPos, -worldDir,
+		ground, sampling, mieRayPhase,
+		nullLightDirection, nullLightIlluminance);
+
+	float3 integratedIlluminance = (sphereSolidAngle / 2.0f) * (r0.L + r1.L);
+	float3 multiScatAs1 = (1.0f / 2.0f) * (r0.multiScatAs1 + r1.multiScatAs1);
+	float3 inscatteredLuminance = integratedIlluminance * isotropicPhase;
+
+	float3 multiScatAs1SQR = multiScatAs1 * multiScatAs1;
+	float3 L = inscatteredLuminance * (1.0f + multiScatAs1 + multiScatAs1SQR + multiScatAs1 * multiScatAs1SQR * multiScatAs1SQR * multiScatAs1SQR);
+
+	OutResult[int2(pixPos)] = L;
 }

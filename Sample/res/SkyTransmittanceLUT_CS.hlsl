@@ -36,7 +36,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	const float3 nullLightIlluminance = float3(0.0f, 0.0f, 0.0f);
 
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
-		float4(pixPos, 0.0f, 1.0f), worldPos, worldDir,
+		worldPos, worldDir,
 		ground, sampling, mieRayPhase,
 		nullLightDirection, nullLightIlluminance);
 	float3 transmittance = exp(-ss.opticalDepth);
