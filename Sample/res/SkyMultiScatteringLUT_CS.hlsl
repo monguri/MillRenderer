@@ -33,7 +33,6 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 	float cosLightZenithAngle = uv.x * 2.0f - 1.0f;
 	float3 lightDir = float3(0.0f, sqrt(1.0f - cosLightZenithAngle * cosLightZenithAngle), cosLightZenithAngle);
-	const float3 nullLightDirection = float3(0.0f, 0.0f, 1.0f);
 	const float3 oneLightIlluminance = float3(1.0f, 1.0f, 1.0f);
 	float viewHeight = bottomRadiusKm + uv.y * (topRadiusKm - bottomRadiusKm);
 
@@ -55,11 +54,11 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	SingleScatteringResult r0 = IntegrateSingleScatteredLuminance(
 		worldPos, worldDir,
 		ground, sampling, mieRayPhase,
-		nullLightDirection, oneLightIlluminance);
+		lightDir, oneLightIlluminance);
 	SingleScatteringResult r1 = IntegrateSingleScatteredLuminance(
 		worldPos, -worldDir,
 		ground, sampling, mieRayPhase,
-		nullLightDirection, oneLightIlluminance);
+		lightDir, oneLightIlluminance);
 
 	float3 integratedIlluminance = (sphereSolidAngle / 2.0f) * (r0.L + r1.L);
 	float3 multiScatAs1 = (1.0f / 2.0f) * (r0.multiScatAs1 + r1.multiScatAs1);
