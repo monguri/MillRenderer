@@ -4,7 +4,7 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
-static const float3 GROUND_ALBEDO_LINEAR = 0.4f;
+static const float3 GROUND_ALBEDO_LINEAR = 0.401978f; // referenced UE.
 
 static const float MIE_ANISOTOROPY = 0.8f; // referenced UE.
 static const float EARTH_RAYLEIGH_SCALE_HEIGHT = 8.0f; // referenced UE.
