@@ -45,7 +45,7 @@ cbuffer CbSkyAtmosphere : register(b0)
 };
 
 Texture2D TransmittanceLUT_Texture : register(t0);
-SamplerState TransmittanceLUT_TextureSampler : register(s0);
+SamplerState LinearClampSampler : register(s0);
 
 /**
  * Returns near intersection in x, far intersection in y, or both -1 if no intersection.
@@ -209,7 +209,7 @@ float3 GetTransmittance(in float lightZenithCosAngle, in float pHeight)
 	float2 uv;
 	LutTransmittanceParamsToUV(pHeight, lightZenithCosAngle, bottomRadiusKm, topRadiusKm, uv);
 
-	float3 transmittanceToLight = TransmittanceLUT_Texture.SampleLevel(TransmittanceLUT_TextureSampler, uv, 0).rgb;
+	float3 transmittanceToLight = TransmittanceLUT_Texture.SampleLevel(LinearClampSampler, uv, 0).rgb;
 	return transmittanceToLight;
 }
 
