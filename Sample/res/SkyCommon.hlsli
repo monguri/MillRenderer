@@ -40,8 +40,10 @@ cbuffer CbSkyAtmosphere : register(b0)
 	int TransmittanceLUT_Height : packoffset(c0.y);
 	int MultiScatteringLUT_Width : packoffset(c0.z);
 	int MultiScatteringLUT_Height : packoffset(c0.w);
-	float bottomRadiusKm : packoffset(c1);
-	float topRadiusKm : packoffset(c1.y);
+	int ViewLUT_Width : packoffset(c1);
+	int ViewLUT_Height : packoffset(c1.y);
+	float bottomRadiusKm : packoffset(c1.z);
+	float topRadiusKm : packoffset(c1.w);
 };
 
 Texture2D TransmittanceLUT_Texture : register(t0);

@@ -40,6 +40,8 @@ namespace
 	static constexpr uint32_t SKY_TRANSMITTANCE_LUT_HEIGHT = 64; // UEを参考にした
 	static constexpr uint32_t SKY_MULTI_SCATTERING_LUT_WIDTH = 32; // UEを参考にした
 	static constexpr uint32_t SKY_MULTI_SCATTERING_LUT_HEIGHT = 32; // UEを参考にした
+	static constexpr uint32_t SKY_VIEW_LUT_WIDTH = 192; // UEを参考にした
+	static constexpr uint32_t SKY_VIEW_LUT_HEIGHT = 104; // UEを参考にした
 
 	static constexpr uint32_t HCB_MAX_NUM_OUTPUT_MIP = 5; // UEを参考にした
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
@@ -143,6 +145,8 @@ namespace
 		int TransmittanceLUT_Height;
 		int MultiScatteringLUT_Width;
 		int MultiScatteringLUT_Height;
+		int ViewLUT_Width;
+		int ViewLUT_Height;
 		float bottomRadiusKm;
 		float topRadiusKm;
 		float Padding[2];
@@ -970,6 +974,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->TransmittanceLUT_Height = SKY_TRANSMITTANCE_LUT_HEIGHT;
 		ptr->MultiScatteringLUT_Width = SKY_MULTI_SCATTERING_LUT_WIDTH;
 		ptr->MultiScatteringLUT_Height = SKY_MULTI_SCATTERING_LUT_HEIGHT;
+		ptr->ViewLUT_Width = SKY_VIEW_LUT_WIDTH;
+		ptr->ViewLUT_Height = SKY_VIEW_LUT_HEIGHT;
 		ptr->bottomRadiusKm = 6360.0f; // UEのSkyAtmosphereComponentを参考にしている
 		ptr->topRadiusKm = 6420.0f; // UEのSkyAtmosphereComponentを参考にしている
 	}
@@ -1107,6 +1113,27 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES],
 			SKY_MULTI_SCATTERING_LUT_WIDTH,
 			SKY_MULTI_SCATTERING_LUT_HEIGHT,
+			DXGI_FORMAT_R11G11B10_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+			return false;
+		}
+	}
+
+	// 空のLUT用カラーターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+		if (!m_SkyViewLUT_Target.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			SKY_VIEW_LUT_WIDTH,
+			SKY_VIEW_LUT_HEIGHT,
 			DXGI_FORMAT_R11G11B10_FLOAT,
 			clearColor
 		))
@@ -1885,6 +1912,59 @@ bool SampleApp::OnInit(HWND hWnd)
 		hr = m_pDevice->CreateComputePipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pSkyMultiScatteringLUT_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
+    // 空のLUT用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring csPath;
+
+		if (!SearchFilePath(L"SkyViewLUT_CS.cso", csPath))
+		{
+			ELOG("Error : Compute Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pCSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_SkyViewLUT_RootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_SkyViewLUT_RootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pSkyViewLUT_PSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -4374,6 +4454,7 @@ void SampleApp::OnTerm()
 
 	m_SkyTransmittanceLUT_Target.Term();
 	m_SkyMultiScatteringLUT_Target.Term();
+	m_SkyViewLUT_Target.Term();
 
 	m_SceneColorTarget.Term();
 	m_SceneNormalTarget.Term();
@@ -4437,6 +4518,8 @@ void SampleApp::OnTerm()
 	m_SkyTransmittanceLUT_RootSig.Term();
 	m_pSkyMultiScatteringLUT_PSO.Reset();
 	m_SkyMultiScatteringLUT_RootSig.Term();
+	m_pSkyViewLUT_PSO.Reset();
+	m_SkyViewLUT_RootSig.Term();
 
 	m_pSponzaOpaquePSO.Reset();
 	m_pSponzaMaskPSO.Reset();
@@ -4868,6 +4951,22 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList)
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+	pCmdList->SetComputeRootSignature(m_SkyViewLUT_RootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pSkyViewLUT_PSO.Get());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_SkyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_SkyViewLUT_Target.GetHandleUAVs()[0]->HandleGPU);
+
+	// シェーダ側と合わせている
+	const size_t GROUP_SIZE_X = 8;
+	const size_t GROUP_SIZE_Y = 8;
+
+	// グループ数は切り上げ
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_SkyViewLUT_Target.GetDesc().Width, GROUP_SIZE_X);
+	UINT NumGroupY = DivideAndRoundUp(m_SkyViewLUT_Target.GetDesc().Height, GROUP_SIZE_Y);
+	UINT NumGroupZ = 1;
+	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

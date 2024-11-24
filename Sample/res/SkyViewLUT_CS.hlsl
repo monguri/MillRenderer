@@ -27,7 +27,7 @@ static const uint TILE_PIXEL_SIZE_Y = 8;
 void main(uint2 DTid : SV_DispatchThreadID)
 {
 	float2 pixPos = DTid + 0.5f;
-	float2 uv = pixPos / float2(MultiScatteringLUT_Width, MultiScatteringLUT_Height);
+	float2 uv = pixPos / float2(ViewLUT_Width, ViewLUT_Height);
 
-	OutResult[int2(pixPos)] = MultiScatteredLuminaceLutTexture.Sample Level(LinearClampSampler, uv, 0).rgb;
+	OutResult[int2(pixPos)] = MultiScatteredLuminaceLutTexture.SampleLevel(LinearClampSampler, uv, 0).rgb;
 }

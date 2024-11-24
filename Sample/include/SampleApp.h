@@ -32,6 +32,8 @@ private:
 	RootSignature m_SkyTransmittanceLUT_RootSig;
 	ComPtr<ID3D12PipelineState> m_pSkyMultiScatteringLUT_PSO;
 	RootSignature m_SkyMultiScatteringLUT_RootSig;
+	ComPtr<ID3D12PipelineState> m_pSkyViewLUT_PSO;
+	RootSignature m_SkyViewLUT_RootSig;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaOpaquePSO;
@@ -90,6 +92,7 @@ private:
 	DepthTarget m_SpotLightShadowMapTarget[NUM_SPOT_LIGHTS];
 	ColorTarget m_SkyTransmittanceLUT_Target;
 	ColorTarget m_SkyMultiScatteringLUT_Target;
+	ColorTarget m_SkyViewLUT_Target;
 	ColorTarget m_SceneColorTarget;
 	ColorTarget m_SceneNormalTarget;
 	ColorTarget m_SceneMetallicRoughnessTarget;
