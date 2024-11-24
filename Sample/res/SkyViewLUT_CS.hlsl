@@ -3,6 +3,7 @@
 #define ROOT_SIGNATURE ""\
 "DescriptorTable(CBV(b0))"\
 ", DescriptorTable(SRV(t0))"\
+", DescriptorTable(SRV(t1))"\
 ", DescriptorTable(UAV(u0))"\
 ", StaticSampler"\
 "("\
@@ -16,7 +17,7 @@
 ", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
 ")"\
 
-Texture2D MultiScatteredLuminaceLutTexture : register(t0);
+Texture2D MultiScatteredLuminaceLutTexture : register(t1);
 RWTexture2D<float3> OutResult : register(u0);
 
 static const uint TILE_PIXEL_SIZE_X = 8;
