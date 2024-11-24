@@ -42,6 +42,9 @@ namespace
 	static constexpr uint32_t SKY_MULTI_SCATTERING_LUT_HEIGHT = 32; // UEを参考にした
 	static constexpr uint32_t SKY_VIEW_LUT_WIDTH = 192; // UEを参考にした
 	static constexpr uint32_t SKY_VIEW_LUT_HEIGHT = 104; // UEを参考にした
+	static constexpr float PLANET_BOTTOM_RADIUS_KM = 6360.0f;
+	static constexpr float PLANET_TOP_RADIUS_KM = 6420.0f;
+	static constexpr float KmToCm = 100000.0f;
 
 	static constexpr uint32_t HCB_MAX_NUM_OUTPUT_MIP = 5; // UEを参考にした
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
@@ -976,8 +979,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->MultiScatteringLUT_Height = SKY_MULTI_SCATTERING_LUT_HEIGHT;
 		ptr->ViewLUT_Width = SKY_VIEW_LUT_WIDTH;
 		ptr->ViewLUT_Height = SKY_VIEW_LUT_HEIGHT;
-		ptr->bottomRadiusKm = 6360.0f; // UEのSkyAtmosphereComponentを参考にしている
-		ptr->topRadiusKm = 6420.0f; // UEのSkyAtmosphereComponentを参考にしている
+		ptr->bottomRadiusKm = PLANET_BOTTOM_RADIUS_KM;
+		ptr->topRadiusKm = PLANET_TOP_RADIUS_KM;
 	}
 
 	// カメラバッファの設定
@@ -4948,6 +4951,30 @@ void SampleApp::DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList)
 void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SkyViewLUT");
+
+	{
+		const Vector3& planetCenterWS = Vector3(0, 0, -PLANET_BOTTOM_RADIUS_KM) * KmToCm ;
+		Vector3 yAxis = m_Camera.GetPosition() - planetCenterWS;
+		yAxis.Normalize();
+
+		Vector3 zAxis = m_Camera.GetView().Backward();
+
+		if (fabsf(yAxis.Dot(zAxis)) > 0.999f)
+		{
+			// TODO:SkyViewLutReferential作成の続き
+		}
+		else
+		{
+			Vector3 xAxis = yAxis.Cross(zAxis);
+			xAxis.Normalize();
+
+			zAxis = xAxis.Cross(yAxis);
+
+			// TODO:SkyViewLutReferential作成の続き
+
+
+		}
+	}
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
