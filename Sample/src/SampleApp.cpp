@@ -4966,6 +4966,8 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList)
 		if (fabsf(yAxis.Dot(zAxis)) > 0.999f)
 		{
 			// [ Duff et al. 2017, "Building an Orthonormal Basis, Revisited" ]
+			// Duffの論文ではN、t、bで考えられているが、それをyAxis、zAxis、xAxisに
+			// 読み替えて実装している
 			const float sign = yAxis.y >= 0.0 ? 1.0f : -1.0f;
 			const float a = -1.0f / (sign + yAxis.y);
 			const float b = yAxis.z * yAxis.x * a;
