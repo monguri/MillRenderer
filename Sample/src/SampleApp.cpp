@@ -152,7 +152,7 @@ namespace
 		int ViewLUT_Height;
 		float bottomRadiusKm;
 		float topRadiusKm;
-		float Padding[2];
+		Matrix skyViewLutReferential;
 	};
 
 	struct alignas(256) CbCamera
@@ -966,21 +966,25 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// 空の描画用のバッファの設定
 	{
-		if (!m_SkyAtmosphereCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSkyAtmosphere)))
+		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
+			if (!m_SkyAtmosphereCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSkyAtmosphere)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
 
-		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB.GetPtr<CbSkyAtmosphere>();
-		ptr->TransmittanceLUT_Width = SKY_TRANSMITTANCE_LUT_WIDTH;
-		ptr->TransmittanceLUT_Height = SKY_TRANSMITTANCE_LUT_HEIGHT;
-		ptr->MultiScatteringLUT_Width = SKY_MULTI_SCATTERING_LUT_WIDTH;
-		ptr->MultiScatteringLUT_Height = SKY_MULTI_SCATTERING_LUT_HEIGHT;
-		ptr->ViewLUT_Width = SKY_VIEW_LUT_WIDTH;
-		ptr->ViewLUT_Height = SKY_VIEW_LUT_HEIGHT;
-		ptr->bottomRadiusKm = PLANET_BOTTOM_RADIUS_KM;
-		ptr->topRadiusKm = PLANET_TOP_RADIUS_KM;
+			CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[i].GetPtr<CbSkyAtmosphere>();
+			ptr->TransmittanceLUT_Width = SKY_TRANSMITTANCE_LUT_WIDTH;
+			ptr->TransmittanceLUT_Height = SKY_TRANSMITTANCE_LUT_HEIGHT;
+			ptr->MultiScatteringLUT_Width = SKY_MULTI_SCATTERING_LUT_WIDTH;
+			ptr->MultiScatteringLUT_Height = SKY_MULTI_SCATTERING_LUT_HEIGHT;
+			ptr->ViewLUT_Width = SKY_VIEW_LUT_WIDTH;
+			ptr->ViewLUT_Height = SKY_VIEW_LUT_HEIGHT;
+			ptr->bottomRadiusKm = PLANET_BOTTOM_RADIUS_KM;
+			ptr->topRadiusKm = PLANET_TOP_RADIUS_KM;
+			ptr->skyViewLutReferential = Matrix::Identity;
+		}
 	}
 
 	// カメラバッファの設定
@@ -4379,6 +4383,7 @@ void SampleApp::OnTerm()
 		m_SSAO_FullResCB[i].Term();
 		m_TemporalAA_CB[i].Term();
 		m_TonemapCB[i].Term();
+		m_SkyAtmosphereCB[i].Term();
 	}
 
 	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
@@ -4400,8 +4405,6 @@ void SampleApp::OnTerm()
 		}
 	}
 	m_pHZB_CBs.clear();
-
-	m_SkyAtmosphereCB.Term();
 
 	m_SSAOSetupCB.Term();
 
@@ -4905,7 +4908,7 @@ void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_SkyTransmittanceLUT_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSkyTransmittanceLUT_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SkyTransmittanceLUT_Target.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
@@ -4930,7 +4933,7 @@ void SampleApp::DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_SkyMultiScatteringLUT_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSkyMultiScatteringLUT_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SkyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_SkyMultiScatteringLUT_Target.GetHandleUAVs()[0]->HandleGPU);
 
@@ -4958,22 +4961,32 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList)
 		yAxis.Normalize();
 
 		Vector3 zAxis = m_Camera.GetView().Backward();
+		Vector3 xAxis;
 
 		if (fabsf(yAxis.Dot(zAxis)) > 0.999f)
 		{
-			// TODO:SkyViewLutReferential作成の続き
+			// [ Duff et al. 2017, "Building an Orthonormal Basis, Revisited" ]
+			const float sign = yAxis.y >= 0.0 ? 1.0f : -1.0f;
+			const float a = -1.0f / (sign + yAxis.y);
+			const float b = yAxis.z * yAxis.x * a;
+			zAxis = Vector3(sign * b, -sign * yAxis.z, 1 + sign * a * yAxis.z * yAxis.z);
+			xAxis = Vector3(sign + a * yAxis.x * yAxis.x, -zAxis.x, b);
 		}
 		else
 		{
-			Vector3 xAxis = yAxis.Cross(zAxis);
+			xAxis = yAxis.Cross(zAxis);
 			xAxis.Normalize();
 
 			zAxis = xAxis.Cross(yAxis);
-
-			// TODO:SkyViewLutReferential作成の続き
-
-
 		}
+
+		Matrix skyViewLutReferential;
+		skyViewLutReferential.Right(xAxis);
+		skyViewLutReferential.Up(yAxis);
+		skyViewLutReferential.Backward(zAxis);
+
+		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[m_FrameIndex].GetPtr<CbSkyAtmosphere>();
+		ptr->skyViewLutReferential = skyViewLutReferential;
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -4981,7 +4994,7 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_SkyViewLUT_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSkyViewLUT_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandleGPU());
 	pCmdList->SetComputeRootDescriptorTable(1, m_SkyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_SkyMultiScatteringLUT_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_SkyViewLUT_Target.GetHandleUAVs()[0]->HandleGPU);

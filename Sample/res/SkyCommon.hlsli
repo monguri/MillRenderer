@@ -44,6 +44,7 @@ cbuffer CbSkyAtmosphere : register(b0)
 	int ViewLUT_Height : packoffset(c1.y);
 	float bottomRadiusKm : packoffset(c1.z);
 	float topRadiusKm : packoffset(c1.w);
+	float4x4 skyViewLutReferential : packoffset(c2);;
 };
 
 Texture2D TransmittanceLUT_Texture : register(t0);
