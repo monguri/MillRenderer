@@ -19,7 +19,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	float viewHeight;
 	float viewZenithCosAngle;
 
-	UVtoLUTTransmittanceParams(viewHeight, viewZenithCosAngle, bottomRadiusKm, topRadiusKm, uv);
+	UVtoLUTTransmittanceParams(viewHeight, viewZenithCosAngle, BottomRadiusKm, TopRadiusKm, uv);
 
 	float3 worldPos = float3(0.0f, viewHeight, 0.0f);
 	float3 worldDir = float3(sqrt(1.0f - viewZenithCosAngle * viewZenithCosAngle), viewZenithCosAngle, 0.0f);

@@ -150,9 +150,11 @@ namespace
 		int MultiScatteringLUT_Height;
 		int ViewLUT_Width;
 		int ViewLUT_Height;
-		float bottomRadiusKm;
-		float topRadiusKm;
-		Matrix skyViewLutReferential;
+		float BottomRadiusKm;
+		float TopRadiusKm;
+		Matrix SkyViewLutReferential;
+		Vector3 AtmosphereLightDirection;
+		float Padding[1];
 	};
 
 	struct alignas(256) CbCamera
@@ -981,9 +983,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			ptr->MultiScatteringLUT_Height = SKY_MULTI_SCATTERING_LUT_HEIGHT;
 			ptr->ViewLUT_Width = SKY_VIEW_LUT_WIDTH;
 			ptr->ViewLUT_Height = SKY_VIEW_LUT_HEIGHT;
-			ptr->bottomRadiusKm = PLANET_BOTTOM_RADIUS_KM;
-			ptr->topRadiusKm = PLANET_TOP_RADIUS_KM;
-			ptr->skyViewLutReferential = Matrix::Identity;
+			ptr->BottomRadiusKm = PLANET_BOTTOM_RADIUS_KM;
+			ptr->TopRadiusKm = PLANET_TOP_RADIUS_KM;
+			ptr->SkyViewLutReferential = Matrix::Identity;
+			ptr->AtmosphereLightDirection = Vector3(0, -1, 0);
 		}
 	}
 
@@ -4703,7 +4706,7 @@ void SampleApp::OnRender()
 
 	DrawSkyTransmittanceLUT(pCmd);
 	DrawSkyMultiScatteringLUT(pCmd);
-	DrawSkyViewLUT(pCmd);
+	DrawSkyViewLUT(pCmd, lightForward);
 
 	if (m_enableTemporalAA)
 	{
@@ -4951,7 +4954,7 @@ void SampleApp::DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList)
+void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Vector3& dirLightDir)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SkyViewLUT");
 
@@ -4984,15 +4987,16 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList)
 			zAxis = xAxis.Cross(yAxis);
 		}
 
-		Matrix skyViewLutReferential;
-		skyViewLutReferential.Right(xAxis);
-		skyViewLutReferential.Up(yAxis);
-		skyViewLutReferential.Backward(zAxis);
+		Matrix SkyViewLutReferential;
+		SkyViewLutReferential.Right(xAxis);
+		SkyViewLutReferential.Up(yAxis);
+		SkyViewLutReferential.Backward(zAxis);
 		// 逆行列を計算
-		skyViewLutReferential.Transpose();
+		SkyViewLutReferential.Transpose();
 
 		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[m_FrameIndex].GetPtr<CbSkyAtmosphere>();
-		ptr->skyViewLutReferential = skyViewLutReferential;
+		ptr->SkyViewLutReferential = SkyViewLutReferential;
+		ptr->AtmosphereLightDirection = dirLightDir;
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
