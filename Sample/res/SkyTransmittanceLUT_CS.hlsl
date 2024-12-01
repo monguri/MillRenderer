@@ -21,8 +21,8 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 	UVtoLUTTransmittanceParams(viewHeight, viewZenithCosAngle, bottomRadiusKm, topRadiusKm, uv);
 
-	float3 worldPos = float3(0.0f, 0.0f, viewHeight);
-	float3 worldDir = float3(0.0f, sqrt(1.0f - viewZenithCosAngle * viewZenithCosAngle), viewZenithCosAngle);
+	float3 worldPos = float3(0.0f, viewHeight, 0.0f);
+	float3 worldDir = float3(sqrt(1.0f - viewZenithCosAngle * viewZenithCosAngle), viewZenithCosAngle, 0.0f);
 
 	SamplingSetup sampling = (SamplingSetup)0;
 	{
@@ -32,7 +32,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 	const bool ground = false;
 	const bool mieRayPhase = false;
-	const float3 nullLightDirection = float3(0.0f, 0.0f, 1.0f);
+	const float3 nullLightDirection = float3(0.0f, 1.0f, 0.0f);
 	const float3 nullLightIlluminance = float3(0.0f, 0.0f, 0.0f);
 
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
