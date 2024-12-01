@@ -4986,6 +4986,8 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList)
 		skyViewLutReferential.Right(xAxis);
 		skyViewLutReferential.Up(yAxis);
 		skyViewLutReferential.Backward(zAxis);
+		// 逆行列を計算
+		skyViewLutReferential.Transpose();
 
 		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[m_FrameIndex].GetPtr<CbSkyAtmosphere>();
 		ptr->skyViewLutReferential = skyViewLutReferential;
