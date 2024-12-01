@@ -31,6 +31,54 @@ RWTexture2D<float3> OutResult : register(u0);
 static const uint TILE_PIXEL_SIZE_X = 8;
 static const uint TILE_PIXEL_SIZE_Y = 8;
 
+// SkyViewLut is a new texture used for fast sky rendering.
+// It is low resolution of the sky rendering around the camera,
+// basically a lat/long parameterisation with more texel close to the horizon for more accuracy during sun set.
+void UvToSkyViewLutParams(out float3 viewDir, in float viewHeight, in float2 uv)
+{
+	// Constrain uvs to valid sub texel range (avoid zenith derivative issue making LUT usage visible)
+
+	float2 size = float2(ViewLUT_Width, ViewLUT_Height);
+	uv = FromSubUvsToUnit(uv, size, 1 / size);
+
+	float vHorizon = sqrt(viewHeight * viewHeight - BottomRadiusKm * BottomRadiusKm);
+	float cosBeta = vHorizon / viewHeight;
+
+	float beta = acos(cosBeta);
+	float zenithHorizonAngle = F_PI - beta;
+	
+	float viewZenithAngle;
+	if (uv.y < 0.5f)
+	{
+		float coord = 2 * uv.y;
+		coord = 1.0f - coord;
+		coord *= coord;
+		coord = 1.0f - coord;
+		viewZenithAngle = zenithHorizonAngle * coord;
+	}
+	else
+	{
+		float coord = 2 * uv.y - 1;
+		coord *= coord;
+		viewZenithAngle = zenithHorizonAngle * beta * coord;
+	}
+
+	float cosViewZenithAngle = cos(viewZenithAngle);
+	float sinViewZenithAngle = sqrt(1 - cosViewZenithAngle * cosViewZenithAngle) * (viewZenithAngle > 0.0f ? 1.0f : -1.0f); // Equivalent to sin(viewZenithAngle)
+
+	float longitudeViewCosAngle = uv.x * 2 * F_PI;
+
+	// Make sure those values are in range as it could disrupt other math done later such as sqrt(1.0-c*c)
+	float cosLongitudeViewCosAngle = cos(longitudeViewCosAngle);
+	float sinLongitudeViewCosAngle = sqrt(1 - cosLongitudeViewCosAngle * cosLongitudeViewCosAngle) * (longitudeViewCosAngle <= F_PI ? 1.0f : -1.0f); // Equivalent to sin(longitudeViewCosAngle)
+
+	viewDir = float3(
+		sinViewZenithAngle * cosLongitudeViewCosAngle,
+		sinViewZenithAngle * sinLongitudeViewCosAngle,
+		cosViewZenithAngle 
+	);
+}
+
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
 void main(uint2 DTid : SV_DispatchThreadID)
