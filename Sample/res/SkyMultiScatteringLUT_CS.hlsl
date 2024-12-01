@@ -32,12 +32,12 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	// We do no apply UV transform from sub range here as it has minimal impact.
 
 	float cosLightZenithAngle = uv.x * 2.0f - 1.0f;
-	float3 lightDir = float3(0.0f, sqrt(1.0f - cosLightZenithAngle * cosLightZenithAngle), cosLightZenithAngle);
+	float3 lightDir = float3(sqrt(1.0f - cosLightZenithAngle * cosLightZenithAngle), cosLightZenithAngle, 0.0f);
 	const float3 oneLightIlluminance = float3(1.0f, 1.0f, 1.0f);
 	float viewHeight = bottomRadiusKm + uv.y * (topRadiusKm - bottomRadiusKm);
 
-	float3 worldPos = float3(0.0f, 0.0f, viewHeight);
-	float3 worldDir = float3(0.0f, 0.0f, 1.0f);
+	float3 worldPos = float3(0.0f, viewHeight, 0.0f);
+	float3 worldDir = float3(0.0f, 1.0f, 0.0f);
 
 	SamplingSetup sampling = (SamplingSetup)0;
 	{
