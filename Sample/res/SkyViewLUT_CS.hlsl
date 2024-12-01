@@ -2,6 +2,7 @@
 
 #define ROOT_SIGNATURE ""\
 "DescriptorTable(CBV(b0))"\
+", DescriptorTable(CBV(b1))"\
 ", DescriptorTable(SRV(t0))"\
 ", DescriptorTable(SRV(t1))"\
 ", DescriptorTable(UAV(u0))"\
@@ -16,6 +17,11 @@
 ", comparisonFunc = COMPARISON_NEVER"\
 ", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
 ")"\
+
+cbuffer CbCamera
+{
+	float3 CameraPosition : packoffset(c0);
+};
 
 Texture2D MultiScatteredLuminaceLutTexture : register(t1);
 RWTexture2D<float3> OutResult : register(u0);

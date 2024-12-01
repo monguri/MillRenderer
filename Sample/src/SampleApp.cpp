@@ -4999,9 +4999,10 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetComputeRootSignature(m_SkyViewLUT_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSkyViewLUT_PSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_SkyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_SkyMultiScatteringLUT_Target.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_SkyViewLUT_Target.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(2, m_SkyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_SkyMultiScatteringLUT_Target.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_SkyViewLUT_Target.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
