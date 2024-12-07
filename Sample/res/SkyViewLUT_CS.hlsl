@@ -79,6 +79,27 @@ void UvToSkyViewLutParams(out float3 viewDir, in float viewHeight, in float2 uv)
 	);
 }
 
+bool MoveToTopAtmosphere(inout float3 worldPos, in float3 worldDir, in float atmosphereTopRadius)
+{
+	float viewHeight = length(worldPos);
+	if (viewHeight > atmosphereTopRadius)
+	{
+		float tTop = RaySphereIntersectNearest(worldPos, worldDir, float3(0, 0, 0), atmosphereTopRadius);
+		if (tTop >= 0)
+		{
+			float3 upVector = worldPos / viewHeight;
+			float3 upOffset = upVector * -PLANET_RADIUS_OFFSET;
+			worldPos = worldPos + worldDir * tTop + upOffset;
+		}
+		else
+		{
+			// Ray is not intersecting the atmosphere
+			return false;
+		}
+	}
+	return true; // ok to start tracing
+}
+
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
 void main(uint2 DTid : SV_DispatchThreadID)
@@ -105,6 +126,14 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	float3 atmosphereLightDirection = AtmosphereLightDirection;
 	atmosphereLightDirection = mul(localReferencial, atmosphereLightDirection);
 
+	// Move to top atmosphere as the starting point for ray marching.
+	// This is critical to be after the above to not disrupt above atmosphere tests and voxel selection.
+	if (!MoveToTopAtmosphere(worldPos, worldDir, TopRadiusKm))
+	{
+		// Ray is not intersecting the atmosphere
+		OutResult[int2(pixPos)] = 0.0f;
+		return;
+	}
 
 	OutResult[int2(pixPos)] = MultiScatteredLuminaceLutTexture.SampleLevel(LinearClampSampler, uv, 0).rgb;
 }
