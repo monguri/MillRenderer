@@ -31,6 +31,10 @@ RWTexture2D<float3> OutResult : register(u0);
 static const uint TILE_PIXEL_SIZE_X = 8;
 static const uint TILE_PIXEL_SIZE_Y = 8;
 
+static const float FAST_SKY_SAMPLE_COUNT_MIN = 4;
+static const float FAST_SKY_SAMPLE_COUNT_MAX = 32;
+static const float FAST_SKY_DISTANCE_TO_SAMPLE_COUNT_MAX_INV = 1.0f / 150;
+
 // SkyViewLut is a new texture used for fast sky rendering.
 // It is low resolution of the sky rendering around the camera,
 // basically a lat/long parameterisation with more texel close to the horizon for more accuracy during sun set.
@@ -135,5 +139,21 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		return;
 	}
 
-	OutResult[int2(pixPos)] = MultiScatteredLuminaceLutTexture.SampleLevel(LinearClampSampler, uv, 0).rgb;
+	SamplingSetup sampling = (SamplingSetup)0;
+	{
+		sampling.variableSampleCount = true;
+		sampling.minSampleCount = FAST_SKY_SAMPLE_COUNT_MIN;
+		sampling.maxSampleCount = FAST_SKY_SAMPLE_COUNT_MAX ;
+		sampling.distanceToSampleCountMaxInv = FAST_SKY_DISTANCE_TO_SAMPLE_COUNT_MAX_INV;
+	}
+
+	const bool ground = false;
+	const bool mieRayPhase = true;
+
+	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
+		worldPos, worldDir,
+		ground, sampling, mieRayPhase,
+		atmosphereLightDirection, AtmosphereLightIlluminanceOuterSpace);
+
+	OutResult[int2(pixPos)] = ss.L;
 }

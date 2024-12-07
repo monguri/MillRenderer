@@ -155,6 +155,8 @@ namespace
 		Matrix SkyViewLutReferential;
 		Vector3 AtmosphereLightDirection;
 		float Padding[1];
+		Vector3 AtmosphereLightIlluminanceOuterSpace;
+		float Padding2[1];
 	};
 
 	struct alignas(256) CbCamera
@@ -986,7 +988,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			ptr->BottomRadiusKm = PLANET_BOTTOM_RADIUS_KM;
 			ptr->TopRadiusKm = PLANET_TOP_RADIUS_KM;
 			ptr->SkyViewLutReferential = Matrix::Identity;
-			ptr->AtmosphereLightDirection = Vector3(0, -1, 0);
+			ptr->AtmosphereLightDirection = Vector3(0, -1, 0); // TODO: 後から制御可能にする
+			ptr->AtmosphereLightIlluminanceOuterSpace = m_directionalLightIntensity * Vector3(1, 1, 1);
 		}
 	}
 

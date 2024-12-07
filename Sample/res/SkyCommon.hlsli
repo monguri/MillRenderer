@@ -46,6 +46,7 @@ cbuffer CbSkyAtmosphere : register(b0)
 	float TopRadiusKm : packoffset(c1.w);
 	float4x4 SkyViewLutReferential : packoffset(c2);
 	float3 AtmosphereLightDirection : packoffset(c6);
+	float3 AtmosphereLightIlluminanceOuterSpace : packoffset(c7);
 };
 
 Texture2D TransmittanceLUT_Texture : register(t0);
