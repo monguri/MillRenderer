@@ -18,7 +18,7 @@
 ", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
 ")"\
 
-static const float CM_TO_KM = 0.00001f;
+static const float M_TO_KM = 0.001f;
 
 cbuffer CbCamera
 {
@@ -111,7 +111,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	float2 pixPos = DTid + 0.5f;
 	float2 uv = pixPos / float2(ViewLUT_Width, ViewLUT_Height);
 
-	float3 worldPos = CameraPosition * CM_TO_KM - float3(0, -BottomRadiusKm, 0);
+	float3 worldPos = CameraPosition * M_TO_KM - float3(0, -BottomRadiusKm, 0);
 
 	// For the sky view lut to work, and not be distorted, we need to transform the view and light directions 
 	// into a referential with UP being perpendicular to the ground. And with origin at the planet center.
