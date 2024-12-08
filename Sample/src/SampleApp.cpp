@@ -4667,7 +4667,7 @@ void SampleApp::OnRender()
 		viewRotProjWithJitter = viewRot * projWithJitter;
 	}
 
-	// ディレクショナルライト方向（の逆方向ベクトル）の更新
+	// ディレクショナルライト方向の更新
 	Vector3 lightForward;
 	{
 		//const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
@@ -4999,7 +4999,7 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Vector
 
 		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[m_FrameIndex].GetPtr<CbSkyAtmosphere>();
 		ptr->SkyViewLutReferential = SkyViewLutReferential;
-		ptr->AtmosphereLightDirection = dirLightDir;
+		ptr->AtmosphereLightDirection = -dirLightDir;
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
