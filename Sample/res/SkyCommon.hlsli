@@ -50,6 +50,7 @@ cbuffer CbSkyAtmosphere : register(b0)
 };
 
 Texture2D TransmittanceLUT_Texture : register(t0);
+Texture2D MultiScatteredLuminaceLutTexture : register(t1);
 SamplerState LinearClampSampler : register(s0);
 
 /**
@@ -215,6 +216,14 @@ MediumSampleRGB SampleAthosphereMediumRGB(in float3 worldPos)
 	return s;
 }
 
+float3 GetMultipleScattering(float3 worldPos, float viewZenithCosAngle)
+{
+	float2 uv = saturate(float2(viewZenithCosAngle * 0.5f + 0.5f, (length(worldPos) - BottomRadiusKm) / (TopRadiusKm - BottomRadiusKm)));
+	// We do no apply UV transform to sub range here as it has minimal impact.
+	float3 multiScatteredLuminance = MultiScatteredLuminaceLutTexture.SampleLevel(LinearClampSampler, uv, 0).rgb;
+	return multiScatteredLuminance;
+}
+
 float3 GetTransmittance(in float lightZenithCosAngle, in float pHeight)
 {
 	float2 uv;
@@ -244,7 +253,7 @@ struct SamplingSetup
 SingleScatteringResult IntegrateSingleScatteredLuminance(
 	in float3 worldPos, in float3 worldDir,
 	in bool ground, in SamplingSetup sampling, in bool mieRayPhase,
-	in float3 light0dir, in float3 light0Illuminance)
+	in float3 light0dir, in float3 light0Illuminance, in bool useMultiScattering)
 {
 	SingleScatteringResult result;
 	result.L = 0;
@@ -355,8 +364,8 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 
 		// Phase and transmittance for light 0
 		const float3 upVector = p / pHeight;
-		float light0ZenighCosAngle = dot(light0dir, upVector);
-		float3 transmittanceToLight0 = GetTransmittance(light0ZenighCosAngle, pHeight);
+		float light0ZenithCosAngle = dot(light0dir, upVector);
+		float3 transmittanceToLight0 = GetTransmittance(light0ZenithCosAngle, pHeight);
 		float3 phaseTimesScattering0;
 		float3 phaseTimesScattering0MieOnly;
 		float3 phaseTimesScattering0RayOnly;
@@ -373,8 +382,15 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 			phaseTimesScattering0 = medium.scattering * uniformPhase;
 		}
 		
+		// Multiple scattering approximation
+		float3 multiScatteredLuminance0 = 0.0f;
+		if (useMultiScattering)
+		{
+			multiScatteredLuminance0 = GetMultipleScattering(p, light0ZenithCosAngle);
+		}
+
 		// Planet shadow
-		float tPlanet0 = RaySphereIntersectNearest(p, light0dir, planetO + PLANET_RADIUS_OFFSET * upVector, BottomRadiusKm);
+			float tPlanet0 = RaySphereIntersectNearest(p, light0dir, planetO + PLANET_RADIUS_OFFSET * upVector, BottomRadiusKm);
 		float planetShadow0 = tPlanet0 >= 0.0f ? 0.0f : 1.0f;
 		
 		// TODO:impl L and throughput calculation
@@ -383,7 +399,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 
 		// MultiScatteredLuminance is already pre-exposed, atmospheric light contribution needs to be pre exposed
 		// Multi-scattering is also not affected by PlanetShadow or TransmittanceToLight because it contains diffuse light after single scattering.
-		float3 S = exposedLight0Illuminance * (planetShadow0 * transmittanceToLight0 * phaseTimesScattering0);
+		float3 S = exposedLight0Illuminance * (planetShadow0 * transmittanceToLight0 * phaseTimesScattering0) + multiScatteredLuminance0 * medium.scattering;
 
 		// See slide 28 at http://www.frostbite.com/2015/08/physically-based-unified-volumetric-rendering-in-frostbite/ 
 		float3 Sint = (S - S * sampleTransmittance) / medium.extinction; // integrate along the current step segment 
@@ -399,8 +415,8 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		float pHeight = length(p);
 
 		const float3 upVector = p / pHeight;
-		float light0ZenighCosAngle = dot(light0dir, upVector);
-		float3 transmittanceToLight0 = GetTransmittance(light0ZenighCosAngle, pHeight);
+		float light0ZenithCosAngle = dot(light0dir, upVector);
+		float3 transmittanceToLight0 = GetTransmittance(light0ZenithCosAngle, pHeight);
 
 		const float NdotL0 = saturate(dot(upVector, light0dir));
 		L += light0Illuminance * transmittanceToLight0 * throughput * NdotL0 * GROUND_ALBEDO_LINEAR / F_PI;

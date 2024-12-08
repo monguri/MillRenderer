@@ -25,7 +25,6 @@ cbuffer CbCamera
 	float3 CameraPosition : packoffset(c0);
 };
 
-Texture2D MultiScatteredLuminaceLutTexture : register(t1);
 RWTexture2D<float3> OutResult : register(u0);
 
 static const uint TILE_PIXEL_SIZE_X = 8;
@@ -149,11 +148,13 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 	const bool ground = false;
 	const bool mieRayPhase = true;
+	const bool useMultiScattering = false;
 
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
 		worldPos, worldDir,
 		ground, sampling, mieRayPhase,
-		atmosphereLightDirection, AtmosphereLightIlluminanceOuterSpace);
+		atmosphereLightDirection, AtmosphereLightIlluminanceOuterSpace, 
+		useMultiScattering);
 
 	OutResult[int2(pixPos)] = ss.L;
 }
