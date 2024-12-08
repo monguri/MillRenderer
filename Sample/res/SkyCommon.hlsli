@@ -390,7 +390,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		}
 
 		// Planet shadow
-			float tPlanet0 = RaySphereIntersectNearest(p, light0dir, planetO + PLANET_RADIUS_OFFSET * upVector, BottomRadiusKm);
+		float tPlanet0 = RaySphereIntersectNearest(p, light0dir, planetO + PLANET_RADIUS_OFFSET * upVector, BottomRadiusKm);
 		float planetShadow0 = tPlanet0 >= 0.0f ? 0.0f : 1.0f;
 		
 		// TODO:impl L and throughput calculation
