@@ -34,13 +34,14 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	const bool mieRayPhase = false;
 	const float3 nullLightDirection = float3(0.0f, 1.0f, 0.0f);
 	const float3 nullLightIlluminance = float3(0.0f, 0.0f, 0.0f);
+	const bool whiteTransmittance = true;
 	const bool multipleScatteringApproxSamplingEnabled = false;
 
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
 		worldPos, worldDir,
 		ground, sampling, mieRayPhase,
 		nullLightDirection, nullLightIlluminance,
-		multipleScatteringApproxSamplingEnabled);
+		whiteTransmittance, multipleScatteringApproxSamplingEnabled);
 	float3 transmittance = exp(-ss.opticalDepth);
 
 	OutResult[pixPos] = transmittance;

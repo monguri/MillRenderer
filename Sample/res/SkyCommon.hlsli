@@ -224,12 +224,18 @@ float3 GetMultipleScattering(float3 worldPos, float viewZenithCosAngle)
 	return multiScatteredLuminance;
 }
 
-float3 GetTransmittance(in float lightZenithCosAngle, in float pHeight)
+float3 GetTransmittance(in float lightZenithCosAngle, in float pHeight, in bool whiteTransmittance)
 {
 	float2 uv;
 	LutTransmittanceParamsToUV(pHeight, lightZenithCosAngle, BottomRadiusKm, TopRadiusKm, uv);
 
-	float3 transmittanceToLight = TransmittanceLUT_Texture.SampleLevel(LinearClampSampler, uv, 0).rgb;
+
+	float3 transmittanceToLight = 1.0f;
+	if (!whiteTransmittance)
+	{
+		transmittanceToLight = TransmittanceLUT_Texture.SampleLevel(LinearClampSampler, uv, 0).rgb;
+	}
+	
 	return transmittanceToLight;
 }
 
@@ -253,7 +259,9 @@ struct SamplingSetup
 SingleScatteringResult IntegrateSingleScatteredLuminance(
 	in float3 worldPos, in float3 worldDir,
 	in bool ground, in SamplingSetup sampling, in bool mieRayPhase,
-	in float3 light0dir, in float3 light0Illuminance, in bool multipleScatteringApproxSamplingEnabled)
+	in float3 light0dir, in float3 light0Illuminance,
+	in bool whiteTransmittance,
+	in bool multipleScatteringApproxSamplingEnabled)
 {
 	SingleScatteringResult result;
 	result.L = 0;
@@ -372,7 +380,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		// Phase and transmittance for light 0
 		const float3 upVector = p / pHeight;
 		float light0ZenithCosAngle = dot(light0dir, upVector);
-		float3 transmittanceToLight0 = GetTransmittance(light0ZenithCosAngle, pHeight);
+		float3 transmittanceToLight0 = GetTransmittance(light0ZenithCosAngle, pHeight, whiteTransmittance);
 		float3 phaseTimesScattering0;
 		float3 phaseTimesScattering0MieOnly;
 		float3 phaseTimesScattering0RayOnly;
@@ -423,7 +431,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 
 		const float3 upVector = p / pHeight;
 		float light0ZenithCosAngle = dot(light0dir, upVector);
-		float3 transmittanceToLight0 = GetTransmittance(light0ZenithCosAngle, pHeight);
+		float3 transmittanceToLight0 = GetTransmittance(light0ZenithCosAngle, pHeight, whiteTransmittance);
 
 		const float NdotL0 = saturate(dot(upVector, light0dir));
 		L += light0Illuminance * transmittanceToLight0 * throughput * NdotL0 * GROUND_ALBEDO_LINEAR / F_PI;
