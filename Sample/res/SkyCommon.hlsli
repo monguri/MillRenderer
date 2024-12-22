@@ -194,7 +194,7 @@ MediumSampleRGB SampleAthosphereMediumRGB(in float3 worldPos)
 	const float densityMie = exp(MIE_DENSITY_EXP_SCALE * sampleHeight);
 	const float densityRay = exp(RAYLEIGH_DENSITY_EXP_SCALE * sampleHeight);
 	const float densityOzo = sampleHeight < ABSORPTION_DENSITY0_LAYER_WIDTH ?
-		saturate(ABSORPTION_DENSITY0_LINEAR_TERM * sampleHeight + ABSORPTION_DENSITY0_CONSTANT_TERM) :
+		saturate(ABSORPTION_DENSITY0_LINEAR_TERM * sampleHeight + ABSORPTION_DENSITY0_CONSTANT_TERM) : // We use saturate to allow the user to create plateau, and it is free on GCN.
 		saturate(ABSORPTION_DENSITY1_LINEAR_TERM * sampleHeight + ABSORPTION_DENSITY1_CONSTANT_TERM);
 
 	const float3 mieScattering = MIE_SCATTERING * MIE_SCATTERING_SCALE;
@@ -253,7 +253,7 @@ struct SamplingSetup
 SingleScatteringResult IntegrateSingleScatteredLuminance(
 	in float3 worldPos, in float3 worldDir,
 	in bool ground, in SamplingSetup sampling, in bool mieRayPhase,
-	in float3 light0dir, in float3 light0Illuminance, in bool useMultiScattering)
+	in float3 light0dir, in float3 light0Illuminance, in bool multipleScatteringApproxSamplingEnabled)
 {
 	SingleScatteringResult result;
 	result.L = 0;
@@ -272,19 +272,26 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	float2 solB = RayIntersectSphere(worldPos, worldDir, float4(planetO, BottomRadiusKm));
 	float2 solT = RayIntersectSphere(worldPos, worldDir, float4(planetO, TopRadiusKm));
 
+	// •‰‚Ì‰ð‚ÍƒŒƒC‚Ì‹t•ûŒü‚Å‚Ì‰ðA‚ ‚é‚¢‚ÍŒð·‚È‚µ‚Å‰ð‚È‚µ‚È‚Ì‚Å‰ð‚Æ‚µ‚È‚¢
 	const bool bNoBotIntersection = all(solB < 0.0f);
 	const bool bNoTopIntersection = all(solT < 0.0f);
 	if (bNoTopIntersection)
 	{
+		// No intersection with planet or its atmosphere.
 		tMax = 0.0f;
 		return result;
 	}
 	else if (bNoBotIntersection)
 	{
+		// No intersection with planet, so we trace up to the far end of the top atmosphere 
+		// (looking up from ground or edges when see from afar in space).
 		tMax = max(solT.x, solT.y);
 	}
 	else
 	{
+		// Interesection with planet and atmospehre: we simply trace up to the planet ground.
+		// We know there is at least one intersection thanks to bNoBotIntersection.
+		// If one of the solution is invalid=-1, that means we are inside the planet: we stop tracing by setting tBottom=0.
 		tBottom = max(0.0f, min(solB.x, solB.y));
 		tMax = tBottom;
 	}
@@ -308,7 +315,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	const float3 wi = light0dir;
 	const float3 wo = worldDir;
 	float cosTheta = dot(wi, wo);
-	float miePhaseValueLight0 = HenyeyGreensteinPhase(MIE_ANISOTOROPY, -cosTheta);
+	float miePhaseValueLight0 = HenyeyGreensteinPhase(MIE_ANISOTOROPY, -cosTheta); // negate cosTheta because due to WorldDir being a "in" direction. 
 	float rayleighPhaseValueLight0 = RayleighPhase(cosTheta);
 
 	// Ray march the atmosphere to integrate optical depth
@@ -384,7 +391,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		
 		// Multiple scattering approximation
 		float3 multiScatteredLuminance0 = 0.0f;
-		if (useMultiScattering)
+		if (multipleScatteringApproxSamplingEnabled)
 		{
 			multiScatteredLuminance0 = GetMultipleScattering(p, light0ZenithCosAngle);
 		}

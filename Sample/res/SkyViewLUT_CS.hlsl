@@ -148,13 +148,13 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 	const bool ground = false;
 	const bool mieRayPhase = true;
-	const bool useMultiScattering = false;
+	const bool multipleScatteringApproxSamplingEnabled = true;
 
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
 		worldPos, worldDir,
 		ground, sampling, mieRayPhase,
 		atmosphereLightDirection, AtmosphereLightIlluminanceOuterSpace, 
-		useMultiScattering);
+		multipleScatteringApproxSamplingEnabled);
 
 	OutResult[int2(pixPos)] = ss.L;
 }

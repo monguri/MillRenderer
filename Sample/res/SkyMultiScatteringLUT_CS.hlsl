@@ -47,7 +47,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 	const bool ground = true;
 	const bool mieRayPhase = false;
-	const bool useMultiScattering = false;
+	const bool multipleScatteringApproxSamplingEnabled = false;
 
 	const float sphereSolidAngle = 4.0f * F_PI;
 	const float isotropicPhase = 1.0f / sphereSolidAngle;
@@ -55,11 +55,11 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	SingleScatteringResult r0 = IntegrateSingleScatteredLuminance(
 		worldPos, worldDir,
 		ground, sampling, mieRayPhase,
-		lightDir, oneLightIlluminance, useMultiScattering);
+		lightDir, oneLightIlluminance, multipleScatteringApproxSamplingEnabled);
 	SingleScatteringResult r1 = IntegrateSingleScatteredLuminance(
 		worldPos, -worldDir,
 		ground, sampling, mieRayPhase,
-		lightDir, oneLightIlluminance, useMultiScattering);
+		lightDir, oneLightIlluminance, multipleScatteringApproxSamplingEnabled);
 
 	float3 integratedIlluminance = (sphereSolidAngle / 2.0f) * (r0.L + r1.L);
 	float3 multiScatAs1 = (1.0f / 2.0f) * (r0.multiScatAs1 + r1.multiScatAs1);
