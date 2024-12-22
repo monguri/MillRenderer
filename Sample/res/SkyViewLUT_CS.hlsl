@@ -40,7 +40,6 @@ static const float FAST_SKY_DISTANCE_TO_SAMPLE_COUNT_MAX_INV = 1.0f / 150;
 void UvToSkyViewLutParams(out float3 viewDir, in float viewHeight, in float2 uv)
 {
 	// Constrain uvs to valid sub texel range (avoid zenith derivative issue making LUT usage visible)
-
 	float2 size = float2(ViewLUT_Width, ViewLUT_Height);
 	uv = FromSubUvsToUnit(uv, size, 1 / size);
 

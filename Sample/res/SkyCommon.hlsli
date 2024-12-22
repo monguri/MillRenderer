@@ -408,7 +408,10 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		float tPlanet0 = RaySphereIntersectNearest(p, light0dir, planetO + PLANET_RADIUS_OFFSET * upVector, BottomRadiusKm);
 		float planetShadow0 = tPlanet0 >= 0.0f ? 0.0f : 1.0f;
 		
-		// TODO:impl L and throughput calculation
+		// When using the power serie to accumulate all sattering order, serie r must be <1 for a serie to converge. 
+		// Under extreme coefficient, MultiScatAs1 can grow larger and thus results in broken visuals. 
+		// The way to fix that is to use a proper analytical integration as porposed in slide 28 of http://www.frostbite.com/2015/08/physically-based-unified-volumetric-rendering-in-frostbite/ 
+		// However, it is possible to disable as it can also work using simple power serie sum unroll up to 5th order. The rest of the orders has a really low contribution. 
 		// 1 is the integration of luminance over the 4pi of a sphere, and assuming an isotropic phase function of 1.0/(4*PI) 
 		result.multiScatAs1 += throughput * medium.scattering * 1.0f * dt;
 

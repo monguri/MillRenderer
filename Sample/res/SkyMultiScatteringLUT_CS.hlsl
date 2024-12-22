@@ -33,7 +33,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 	float cosLightZenithAngle = uv.x * 2.0f - 1.0f;
 	float3 lightDir = float3(sqrt(1.0f - cosLightZenithAngle * cosLightZenithAngle), cosLightZenithAngle, 0.0f);
-	const float3 oneLightIlluminance = float3(1.0f, 1.0f, 1.0f);
+	const float3 oneLightIlluminance = float3(1.0f, 1.0f, 1.0f); // Assume a pure white light illuminance for the LUT to act as a transfer (be independent of the light, only dependent on the earth)
 	float viewHeight = BottomRadiusKm + uv.y * (TopRadiusKm - BottomRadiusKm);
 
 	float3 worldPos = float3(0.0f, viewHeight, 0.0f);
@@ -53,6 +53,9 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	const float sphereSolidAngle = 4.0f * F_PI;
 	const float isotropicPhase = 1.0f / sphereSolidAngle;
 
+	// Cheap and good enough approximation (but lose energy) 
+	// 本当はMultiScatteringには球面の全方向への積分が必要だが、
+	// ピクセル方向とその反対方向の2方向の平均で近似している
 	SingleScatteringResult r0 = IntegrateSingleScatteredLuminance(
 		worldPos, worldDir,
 		ground, sampling, mieRayPhase,
@@ -68,7 +71,13 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	float3 multiScatAs1 = (1.0f / 2.0f) * (r0.multiScatAs1 + r1.multiScatAs1);
 	float3 inscatteredLuminance = integratedIlluminance * isotropicPhase;
 
+	// MultiScatAs1 represents the amount of luminance scattered as if the integral of scattered luminance over the sphere would be 1.
+	//  - 1st order of scattering: one can ray-march a straight path as usual over the sphere. That is InScatteredLuminance.
+	//  - 2nd order of scattering: the inscattered luminance is InScatteredLuminance at each of samples of fist order integration. Assuming a uniform phase function that is represented by MultiScatAs1,
+	//  - 3nd order of scattering: the inscattered luminance is (InScatteredLuminance * MultiScatAs1 * MultiScatAs1)
+	//  - etc.
 	float3 multiScatAs1SQR = multiScatAs1 * multiScatAs1;
+	// 無限級数計算をするのでなく4乗までの和で留めている
 	float3 L = inscatteredLuminance * (1.0f + multiScatAs1 + multiScatAs1SQR + multiScatAs1 * multiScatAs1SQR * multiScatAs1SQR * multiScatAs1SQR);
 
 	OutResult[int2(pixPos)] = L;
