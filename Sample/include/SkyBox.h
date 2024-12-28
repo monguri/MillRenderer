@@ -33,16 +33,25 @@ public:
 		DXGI_FORMAT depthFormat
 	);
 
-	void Term();
-
-	void Draw
+	void DrawSkyAtmosphere
 	(
 		ID3D12GraphicsCommandList* pCmd,
-		D3D12_GPU_DESCRIPTOR_HANDLE texHandle,
+		const class ColorTarget& inputTex,
 		const struct DirectX::SimpleMath::Matrix& viewMatrix,
 		const struct DirectX::SimpleMath::Matrix& projMatrix,
 		float boxSize
 	);
+
+	void DrawEnvironmentCubeMap
+	(
+		ID3D12GraphicsCommandList* pCmd,
+		D3D12_GPU_DESCRIPTOR_HANDLE cubeMapHandle,
+		const struct DirectX::SimpleMath::Matrix& viewMatrix,
+		const struct DirectX::SimpleMath::Matrix& projMatrix,
+		float boxSize
+	);
+
+	void Term();
 
 private:
 	class DescriptorPool* m_pPoolRes;
@@ -61,5 +70,14 @@ private:
 		DXGI_FORMAT depthFormat,
 		const wchar_t* vsFileName,
 		const wchar_t* psFileName
+	);
+
+	void Draw
+	(
+		ID3D12GraphicsCommandList* pCmd,
+		D3D12_GPU_DESCRIPTOR_HANDLE texHandle,
+		const struct DirectX::SimpleMath::Matrix& viewMatrix,
+		const struct DirectX::SimpleMath::Matrix& projMatrix,
+		float boxSize
 	);
 };

@@ -5199,9 +5199,13 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	}
 	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 
-	if (!RENDER_SPONZA)
+	if (RENDER_SPONZA)
 	{
-		m_SkyBox.Draw(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
+		m_SkyBox.DrawSkyAtmosphere(pCmdList, m_SkyViewLUT_Target, view, proj, SKY_BOX_HALF_EXTENT);
+	}
+	else
+	{
+		m_SkyBox.DrawEnvironmentCubeMap(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

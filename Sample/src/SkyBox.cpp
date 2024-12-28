@@ -2,7 +2,8 @@
 #include "Logger.h"
 #include "DescriptorPool.h"
 #include "FileUtil.h"
-#include "d3dcompiler.h"
+#include "ColorTarget.h"
+#include <d3dcompiler.h>
 #include <CommonStates.h>
 
 using namespace DirectX::SimpleMath;
@@ -14,6 +15,9 @@ namespace
 		Matrix World;
 		Matrix View;
 		Matrix Proj;
+		int TexWidth;
+		int TexHeight;
+		float Padding[2];
 	};
 }
 
@@ -282,16 +286,6 @@ void SkyBox::Draw
 	float boxSize
 )
 {
-	// 定数バッファの更新
-	{
-		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
-		const Matrix& invViewMat = viewMatrix.Invert();
-		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
-		ptr->World = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos);
-		ptr->View = viewMatrix;
-		ptr->Proj = projMatrix;
-	}
-
 	const D3D12_VERTEX_BUFFER_VIEW& vbv = m_VB.GetView();
 	pCmd->SetGraphicsRootSignature(m_pRootSig.GetPtr());
 	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandleGPU());
@@ -303,5 +297,66 @@ void SkyBox::Draw
 	pCmd->DrawInstanced(36, 1, 0, 0); // TODO:36がマジックナンバー
 
 	m_Index = (m_Index + 1) % 2;
+}
+
+void SkyBox::DrawSkyAtmosphere
+(
+	ID3D12GraphicsCommandList* pCmd,
+	const class ColorTarget& inputTex,
+	const struct DirectX::SimpleMath::Matrix& viewMatrix,
+	const struct DirectX::SimpleMath::Matrix& projMatrix,
+	float boxSize
+)
+{
+	// 定数バッファの更新
+	{
+		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
+		const Matrix& invViewMat = viewMatrix.Invert();
+		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
+		ptr->World = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos);
+		ptr->View = viewMatrix;
+		ptr->Proj = projMatrix;
+		ptr->TexWidth = static_cast<int>(inputTex.GetDesc().Width);
+		ptr->TexHeight = inputTex.GetDesc().Height;
+	}
+
+	Draw(
+		pCmd,
+		inputTex.GetHandleSRV()->HandleGPU,
+		viewMatrix,
+		projMatrix,
+		boxSize
+	);
+}
+
+void SkyBox::DrawEnvironmentCubeMap
+(
+	ID3D12GraphicsCommandList* pCmd,
+	D3D12_GPU_DESCRIPTOR_HANDLE cubeMapHandle,
+	const struct DirectX::SimpleMath::Matrix& viewMatrix,
+	const struct DirectX::SimpleMath::Matrix& projMatrix,
+	float boxSize
+)
+{
+	// 定数バッファの更新
+	{
+		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
+		const Matrix& invViewMat = viewMatrix.Invert();
+		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
+		ptr->World = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos);
+		ptr->View = viewMatrix;
+		ptr->Proj = projMatrix;
+		// 使わないので適当な値を入れておく
+		ptr->TexWidth = -1;
+		ptr->TexHeight = -1;
+	}
+
+	Draw(
+		pCmd,
+		cubeMapHandle,
+		viewMatrix,
+		projMatrix,
+		boxSize
+	);
 }
 
