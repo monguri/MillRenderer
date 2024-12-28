@@ -5,6 +5,7 @@
 #include "ComPtr.h"
 #include "ConstantBuffer.h"
 #include "VertexBuffer.h"
+#include "RootSignature.h"
 
 class SkyBox
 {
@@ -33,7 +34,7 @@ public:
 
 private:
 	class DescriptorPool* m_pPoolRes;
-	ComPtr<ID3D12RootSignature> m_pRootSig;
+	RootSignature m_pRootSig;
 	ComPtr<ID3D12PipelineState> m_pPSO;
 	ConstantBuffer m_CB[2];
 	VertexBuffer m_VB;

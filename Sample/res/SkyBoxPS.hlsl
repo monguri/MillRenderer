@@ -1,3 +1,26 @@
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+")"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
+", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_MIN_MAG_MIP_LINEAR"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+
 struct VSOutput
 {
 	float4 Position : SV_POSITION;
@@ -14,6 +37,7 @@ struct PSOutput
 TextureCube CubeMap : register(t0);
 SamplerState CubeSmp : register(s0);
 
+[RootSignature(ROOT_SIGNATURE)]
 PSOutput main(const VSOutput input)
 {
 	PSOutput output;
