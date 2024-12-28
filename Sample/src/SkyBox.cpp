@@ -33,6 +33,8 @@ bool SkyBox::Init
 	ID3D12Device* pDevice,
 	class DescriptorPool* pPoolRes,
 	DXGI_FORMAT colorFormat,
+	DXGI_FORMAT normalFormat,
+	DXGI_FORMAT metallicRoughnessFormat,
 	DXGI_FORMAT depthFormat
 )
 {
@@ -108,8 +110,10 @@ bool SkyBox::Init
 		desc.InputLayout.pInputElementDescs = elements;
 		desc.InputLayout.NumElements = 1;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
+		desc.NumRenderTargets = 3;
 		desc.RTVFormats[0] = colorFormat;
+		desc.RTVFormats[1] = normalFormat;
+		desc.RTVFormats[2] = metallicRoughnessFormat;
 		desc.DSVFormat = depthFormat;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;

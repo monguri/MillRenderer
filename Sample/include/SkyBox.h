@@ -18,6 +18,8 @@ public:
 		ID3D12Device* pDevice,
 		class DescriptorPool* pPoolRes,
 		DXGI_FORMAT colorFormat,
+		DXGI_FORMAT normalFormat,
+		DXGI_FORMAT metallicRoughnessFormat,
 		DXGI_FORMAT depthFormat
 	);
 

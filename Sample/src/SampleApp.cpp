@@ -4350,8 +4350,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RES],
-				DXGI_FORMAT_R10G10B10A2_UNORM,
-				DXGI_FORMAT_D32_FLOAT
+				m_SceneColorTarget.GetRTVDesc().Format,
+				m_SceneNormalTarget.GetRTVDesc().Format,
+				m_SceneMetallicRoughnessTarget.GetRTVDesc().Format,
+				m_SceneDepthTarget.GetDSVDesc().Format
 			))
 			{
 				ELOG("Error : SkyBox::Init() Failed.");
