@@ -9,13 +9,11 @@ struct VSOutput
 	float3 TexCoord : TEXCOORD;
 };
 
-cbuffer CbSkyBox : register(b0)
+cbuffer CbEnvironmentCubeMap : register(b0)
 {
 	float4x4 World : packoffset(c0);
 	float4x4 View : packoffset(c4);
 	float4x4 Proj : packoffset(c8);
-	int TexWidth :  packoffset(c12);
-	int TexHeight :  packoffset(c12.y);
 }
 
 VSOutput main(VSInput input)

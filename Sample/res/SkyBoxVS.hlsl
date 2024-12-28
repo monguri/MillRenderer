@@ -9,14 +9,17 @@ struct VSOutput
 	float3 TexCoord : TEXCOORD;
 };
 
-cbuffer CbSkyBox : register(b0)
+cbuffer CbSkyAtmosphere
 {
 	float4x4 World : packoffset(c0);
 	float4x4 View : packoffset(c4);
 	float4x4 Proj : packoffset(c8);
-	int TexWidth :  packoffset(c12);
-	int TexHeight :  packoffset(c12.y);
-}
+	float4x4 SkyViewLutReferential : packoffset(c12);
+	float3 CameraVector : packoffset(c16);
+	int SkyViewLutWidth : packoffset(c16.w);
+	int SkyViewLutHeight : packoffset(c17);
+	float BottomRadiusKm : packoffset(c17.y);
+};
 
 VSOutput main(VSInput input)
 {

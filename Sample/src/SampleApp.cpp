@@ -4260,7 +4260,10 @@ bool SampleApp::OnInit(HWND hWnd)
 				m_SceneColorTarget.GetRTVDesc().Format,
 				m_SceneNormalTarget.GetRTVDesc().Format,
 				m_SceneMetallicRoughnessTarget.GetRTVDesc().Format,
-				m_SceneDepthTarget.GetDSVDesc().Format
+				m_SceneDepthTarget.GetDSVDesc().Format,
+				SKY_VIEW_LUT_WIDTH,
+				SKY_VIEW_LUT_HEIGHT,
+				PLANET_BOTTOM_RADIUS_KM 
 			))
 			{
 				ELOG("Error : SkyBox::Init() Failed.");
@@ -4695,6 +4698,44 @@ void SampleApp::OnRender()
 		lightForward.Normalize();
 	}
 
+	// 空描画のLUTの座標系への変換行列
+	Matrix skyViewLutReferential;
+	{
+		// 惑星の中心は(0, -PLANET_BOTTOM_RADIUS_KM, 0)とする
+		const Vector3& planetCenterWS = Vector3(0, -PLANET_BOTTOM_RADIUS_KM, 0) * KM_TO_CM ;
+
+		Vector3 yAxis = m_Camera.GetPosition() - planetCenterWS;
+		yAxis.Normalize();
+
+		Vector3 zAxis = m_Camera.GetView().Backward();
+		Vector3 xAxis;
+
+		if (fabsf(yAxis.Dot(zAxis)) > 0.999f)
+		{
+			// [ Duff et al. 2017, "Building an Orthonormal Basis, Revisited" ]
+			// Duffの論文ではN、t、bで考えられているが、それをyAxis、zAxis、xAxisに
+			// 読み替えて実装している
+			const float sign = yAxis.y >= 0.0 ? 1.0f : -1.0f;
+			const float a = -1.0f / (sign + yAxis.y);
+			const float b = yAxis.z * yAxis.x * a;
+			zAxis = Vector3(sign * b, -sign * yAxis.z, 1 + sign * a * yAxis.z * yAxis.z);
+			xAxis = Vector3(sign + a * yAxis.x * yAxis.x, -zAxis.x, b);
+		}
+		else
+		{
+			xAxis = yAxis.Cross(zAxis);
+			xAxis.Normalize();
+
+			zAxis = xAxis.Cross(yAxis);
+		}
+
+		skyViewLutReferential.Right(xAxis);
+		skyViewLutReferential.Up(yAxis);
+		skyViewLutReferential.Backward(zAxis);
+		// 逆行列を計算
+		skyViewLutReferential.Transpose();
+	}
+
 	//TODO: MovableなメッシュをVelocityのテストのためサインカーブで動かす
 	const Matrix& worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
 
@@ -4728,15 +4769,15 @@ void SampleApp::OnRender()
 
 	DrawSkyTransmittanceLUT(pCmd);
 	DrawSkyMultiScatteringLUT(pCmd);
-	DrawSkyViewLUT(pCmd, lightForward);
+	DrawSkyViewLUT(pCmd, skyViewLutReferential, lightForward);
 
 	if (m_enableTemporalAA)
 	{
-		DrawScene(pCmd, lightForward, viewProjWithJitter, view, projWithJitter);
+		DrawScene(pCmd, lightForward, viewProjWithJitter, view, projWithJitter, skyViewLutReferential);
 	}
 	else
 	{
-		DrawScene(pCmd, lightForward, viewProjNoJitter, view, projNoJitter);
+		DrawScene(pCmd, lightForward, viewProjNoJitter, view, projNoJitter, skyViewLutReferential);
 	}
 
 	DrawHCB(pCmd);
@@ -4976,50 +5017,13 @@ void SampleApp::DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Vector3& dirLightDir)
+void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Matrix& skyViewLutReferential, const Vector3& dirLightDir)
 {
 	ScopedTimer scopedTimer(pCmdList, L"SkyViewLUT");
 
-	{
-		// 惑星の中心は(0, -PLANET_BOTTOM_RADIUS_KM, 0)とする
-		const Vector3& planetCenterWS = Vector3(0, -PLANET_BOTTOM_RADIUS_KM, 0) * KM_TO_CM ;
-
-		Vector3 yAxis = m_Camera.GetPosition() - planetCenterWS;
-		yAxis.Normalize();
-
-		Vector3 zAxis = m_Camera.GetView().Backward();
-		Vector3 xAxis;
-
-		if (fabsf(yAxis.Dot(zAxis)) > 0.999f)
-		{
-			// [ Duff et al. 2017, "Building an Orthonormal Basis, Revisited" ]
-			// Duffの論文ではN、t、bで考えられているが、それをyAxis、zAxis、xAxisに
-			// 読み替えて実装している
-			const float sign = yAxis.y >= 0.0 ? 1.0f : -1.0f;
-			const float a = -1.0f / (sign + yAxis.y);
-			const float b = yAxis.z * yAxis.x * a;
-			zAxis = Vector3(sign * b, -sign * yAxis.z, 1 + sign * a * yAxis.z * yAxis.z);
-			xAxis = Vector3(sign + a * yAxis.x * yAxis.x, -zAxis.x, b);
-		}
-		else
-		{
-			xAxis = yAxis.Cross(zAxis);
-			xAxis.Normalize();
-
-			zAxis = xAxis.Cross(yAxis);
-		}
-
-		Matrix SkyViewLutReferential;
-		SkyViewLutReferential.Right(xAxis);
-		SkyViewLutReferential.Up(yAxis);
-		SkyViewLutReferential.Backward(zAxis);
-		// 逆行列を計算
-		SkyViewLutReferential.Transpose();
-
-		CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[m_FrameIndex].GetPtr<CbSkyAtmosphere>();
-		ptr->SkyViewLutReferential = SkyViewLutReferential;
-		ptr->AtmosphereLightDirection = -dirLightDir;
-	}
+	CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[m_FrameIndex].GetPtr<CbSkyAtmosphere>();
+	ptr->SkyViewLutReferential = skyViewLutReferential;
+	ptr->AtmosphereLightDirection = -dirLightDir;
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -5046,7 +5050,7 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Vector
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const Matrix& view, const Matrix& proj)
+void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
 {
 	ScopedTimer scopedTimer(pCmdList, L"BasePass");
 
@@ -5201,7 +5205,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	if (RENDER_SPONZA)
 	{
-		m_SkyBox.DrawSkyAtmosphere(pCmdList, m_SkyViewLUT_Target, view, proj, SKY_BOX_HALF_EXTENT);
+		m_SkyBox.DrawSkyAtmosphere(pCmdList, m_SkyViewLUT_Target, view, proj, SKY_BOX_HALF_EXTENT, skyViewLutReferential, PLANET_BOTTOM_RADIUS_KM);
 	}
 	else
 	{

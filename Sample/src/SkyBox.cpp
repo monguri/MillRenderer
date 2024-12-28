@@ -10,13 +10,23 @@ using namespace DirectX::SimpleMath;
 
 namespace
 {
-	struct alignas(256) CbSkyBox
+	struct alignas(256) CbEnvironmentCubeMap
 	{
 		Matrix World;
 		Matrix View;
 		Matrix Proj;
-		int TexWidth;
-		int TexHeight;
+	};
+
+	struct alignas(256) CbSkyAtmosphere
+	{
+		Matrix World;
+		Matrix View;
+		Matrix Proj;
+		Matrix SkyViewLutReferential;
+		Vector3 CameraVector;
+		int SkyViewLutWidth;
+		int SkyViewLutHeight;
+		float BottomRadiusKm;
 		float Padding[2];
 	};
 }
@@ -197,18 +207,6 @@ bool SkyBox::Init(
 		}
 	}
 
-	// 定数バッファの生成
-	{
-		for (size_t i = 0; i < 2; i++)
-		{
-			if (!m_CB[i].Init(pDevice, pPoolRes, sizeof(CbSkyBox)))
-			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
-				return false;
-			}
-		}
-	}
-
 	m_Index = 0;
 
 	return true;
@@ -221,9 +219,29 @@ bool SkyBox::InitSkyAtmosphere
 	DXGI_FORMAT colorFormat,
 	DXGI_FORMAT normalFormat,
 	DXGI_FORMAT metallicRoughnessFormat,
-	DXGI_FORMAT depthFormat
+	DXGI_FORMAT depthFormat,
+	uint32_t skyViewLutWidth,
+	uint32_t skyViewLutHeight,
+	float planetBottomRadiusKm
 )
 {
+	// 定数バッファの生成
+	{
+		for (size_t i = 0; i < 2; i++)
+		{
+			if (!m_CB[i].Init(pDevice, pPoolRes, sizeof(CbSkyAtmosphere)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+
+			CbSkyAtmosphere* ptr = m_CB[i].GetPtr<CbSkyAtmosphere>();
+			ptr->SkyViewLutWidth = skyViewLutWidth;
+			ptr->SkyViewLutHeight = skyViewLutHeight;
+			ptr->BottomRadiusKm = planetBottomRadiusKm;
+		}
+	}
+
 	return Init(
 		pDevice,
 		pPoolRes,
@@ -246,6 +264,18 @@ bool SkyBox::InitEnvironmentCubeMap
 	DXGI_FORMAT depthFormat
 )
 {
+	// 定数バッファの生成
+	{
+		for (size_t i = 0; i < 2; i++)
+		{
+			if (!m_CB[i].Init(pDevice, pPoolRes, sizeof(CbEnvironmentCubeMap)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+		}
+	}
+
 	return Init(
 		pDevice,
 		pPoolRes,
@@ -281,8 +311,8 @@ void SkyBox::Draw
 (
 	ID3D12GraphicsCommandList* pCmd,
 	D3D12_GPU_DESCRIPTOR_HANDLE texHandle,
-	const struct DirectX::SimpleMath::Matrix& viewMatrix,
-	const struct DirectX::SimpleMath::Matrix& projMatrix,
+	const struct Matrix& viewMatrix,
+	const struct Matrix& projMatrix,
 	float boxSize
 )
 {
@@ -303,21 +333,23 @@ void SkyBox::DrawSkyAtmosphere
 (
 	ID3D12GraphicsCommandList* pCmd,
 	const class ColorTarget& inputTex,
-	const struct DirectX::SimpleMath::Matrix& viewMatrix,
-	const struct DirectX::SimpleMath::Matrix& projMatrix,
-	float boxSize
+	const Matrix& viewMatrix,
+	const Matrix& projMatrix,
+	float boxSize,
+	const Matrix& skyViewLutReferential,
+	float planetBottomRadiusKm
 )
 {
 	// 定数バッファの更新
 	{
-		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
+		CbSkyAtmosphere* ptr = m_CB[m_Index].GetPtr<CbSkyAtmosphere>();
 		const Matrix& invViewMat = viewMatrix.Invert();
 		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
 		ptr->World = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos);
 		ptr->View = viewMatrix;
 		ptr->Proj = projMatrix;
-		ptr->TexWidth = static_cast<int>(inputTex.GetDesc().Width);
-		ptr->TexHeight = inputTex.GetDesc().Height;
+		ptr->SkyViewLutReferential = skyViewLutReferential;
+		ptr->BottomRadiusKm = planetBottomRadiusKm;
 	}
 
 	Draw(
@@ -333,22 +365,19 @@ void SkyBox::DrawEnvironmentCubeMap
 (
 	ID3D12GraphicsCommandList* pCmd,
 	D3D12_GPU_DESCRIPTOR_HANDLE cubeMapHandle,
-	const struct DirectX::SimpleMath::Matrix& viewMatrix,
-	const struct DirectX::SimpleMath::Matrix& projMatrix,
+	const struct Matrix& viewMatrix,
+	const struct Matrix& projMatrix,
 	float boxSize
 )
 {
 	// 定数バッファの更新
 	{
-		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
+		CbEnvironmentCubeMap* ptr = m_CB[m_Index].GetPtr<CbEnvironmentCubeMap>();
 		const Matrix& invViewMat = viewMatrix.Invert();
 		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
 		ptr->World = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos);
 		ptr->View = viewMatrix;
 		ptr->Proj = projMatrix;
-		// 使わないので適当な値を入れておく
-		ptr->TexWidth = -1;
-		ptr->TexHeight = -1;
 	}
 
 	Draw(

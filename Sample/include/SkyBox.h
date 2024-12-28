@@ -20,7 +20,10 @@ public:
 		DXGI_FORMAT colorFormat,
 		DXGI_FORMAT normalFormat,
 		DXGI_FORMAT metallicRoughnessFormat,
-		DXGI_FORMAT depthFormat
+		DXGI_FORMAT depthFormat,
+		uint32_t skyViewLutWidth,
+		uint32_t skyViewLutHeight,
+		float planetBottomRadiusKm
 	);
 
 	bool InitEnvironmentCubeMap
@@ -39,7 +42,9 @@ public:
 		const class ColorTarget& inputTex,
 		const struct DirectX::SimpleMath::Matrix& viewMatrix,
 		const struct DirectX::SimpleMath::Matrix& projMatrix,
-		float boxSize
+		float boxSize,
+		const struct DirectX::SimpleMath::Matrix& skyViewLutReferential,
+		float planetBottomRadiusKm
 	);
 
 	void DrawEnvironmentCubeMap
