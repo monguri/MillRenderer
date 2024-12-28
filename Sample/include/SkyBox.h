@@ -13,7 +13,17 @@ public:
 	SkyBox();
 	~SkyBox();
 
-	bool Init
+	bool InitSkyAtmosphere
+	(
+		ID3D12Device* pDevice,
+		class DescriptorPool* pPoolRes,
+		DXGI_FORMAT colorFormat,
+		DXGI_FORMAT normalFormat,
+		DXGI_FORMAT metallicRoughnessFormat,
+		DXGI_FORMAT depthFormat
+	);
+
+	bool InitEnvironmentCubeMap
 	(
 		ID3D12Device* pDevice,
 		class DescriptorPool* pPoolRes,
@@ -28,7 +38,7 @@ public:
 	void Draw
 	(
 		ID3D12GraphicsCommandList* pCmd,
-		D3D12_GPU_DESCRIPTOR_HANDLE handleCubeMap,
+		D3D12_GPU_DESCRIPTOR_HANDLE texHandle,
 		const struct DirectX::SimpleMath::Matrix& viewMatrix,
 		const struct DirectX::SimpleMath::Matrix& projMatrix,
 		float boxSize
@@ -41,4 +51,15 @@ private:
 	ConstantBuffer m_CB[2];
 	VertexBuffer m_VB;
 	int m_Index;
+
+	bool Init(
+		ID3D12Device* pDevice,
+		class DescriptorPool* pPoolRes,
+		DXGI_FORMAT colorFormat,
+		DXGI_FORMAT normalFormat,
+		DXGI_FORMAT metallicRoughnessFormat,
+		DXGI_FORMAT depthFormat,
+		const wchar_t* vsFileName,
+		const wchar_t* psFileName
+	);
 };

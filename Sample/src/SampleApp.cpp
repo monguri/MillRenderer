@@ -4250,6 +4250,23 @@ bool SampleApp::OnInit(HWND hWnd)
 			// Wait command queue finishing.
 			m_Fence.Wait(m_pQueue.Get(), INFINITE);
 		}
+
+		// スカイボックス初期化
+		{
+			if (!m_SkyBox.InitSkyAtmosphere
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES],
+				m_SceneColorTarget.GetRTVDesc().Format,
+				m_SceneNormalTarget.GetRTVDesc().Format,
+				m_SceneMetallicRoughnessTarget.GetRTVDesc().Format,
+				m_SceneDepthTarget.GetDSVDesc().Format
+			))
+			{
+				ELOG("Error : SkyBox::Init() Failed.");
+				return false;
+			}
+		}
 	}
 	else
 	{
@@ -4346,7 +4363,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// スカイボックス初期化
 		{
-			if (!m_SkyBox.Init
+			if (!m_SkyBox.InitEnvironmentCubeMap
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RES],

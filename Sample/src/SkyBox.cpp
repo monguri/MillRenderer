@@ -28,14 +28,16 @@ SkyBox::~SkyBox()
 	Term();
 }
 
-bool SkyBox::Init
-(
+
+bool SkyBox::Init(
 	ID3D12Device* pDevice,
 	class DescriptorPool* pPoolRes,
 	DXGI_FORMAT colorFormat,
 	DXGI_FORMAT normalFormat,
 	DXGI_FORMAT metallicRoughnessFormat,
-	DXGI_FORMAT depthFormat
+	DXGI_FORMAT depthFormat,
+	const wchar_t* vsFileName,
+	const wchar_t* psFileName
 )
 {
 	if (pDevice == nullptr || pPoolRes == nullptr)
@@ -50,7 +52,7 @@ bool SkyBox::Init
 	// パイプラインステートの生成
 	{
 		std::wstring vsPath;
-		if (!SearchFilePath(L"SkyBoxVS.cso", vsPath))
+		if (!SearchFilePath(vsFileName, vsPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;
@@ -65,7 +67,7 @@ bool SkyBox::Init
 		}
 
 		std::wstring psPath;
-		if (!SearchFilePath(L"SkyBoxPS.cso", psPath))
+		if (!SearchFilePath(psFileName, psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -208,6 +210,50 @@ bool SkyBox::Init
 	return true;
 }
 
+bool SkyBox::InitSkyAtmosphere
+(
+	ID3D12Device* pDevice,
+	class DescriptorPool* pPoolRes,
+	DXGI_FORMAT colorFormat,
+	DXGI_FORMAT normalFormat,
+	DXGI_FORMAT metallicRoughnessFormat,
+	DXGI_FORMAT depthFormat
+)
+{
+	return Init(
+		pDevice,
+		pPoolRes,
+		colorFormat,
+		normalFormat,
+		metallicRoughnessFormat,
+		depthFormat,
+		L"SkyBoxVS.cso",
+		L"SkyBoxPS.cso"
+	);
+}
+
+bool SkyBox::InitEnvironmentCubeMap
+(
+	ID3D12Device* pDevice,
+	class DescriptorPool* pPoolRes,
+	DXGI_FORMAT colorFormat,
+	DXGI_FORMAT normalFormat,
+	DXGI_FORMAT metallicRoughnessFormat,
+	DXGI_FORMAT depthFormat
+)
+{
+	return Init(
+		pDevice,
+		pPoolRes,
+		colorFormat,
+		normalFormat,
+		metallicRoughnessFormat,
+		depthFormat,
+		L"EnvironmentCubeMapVS.cso",
+		L"EnvironmentCubeMapPS.cso"
+	);
+}
+
 void SkyBox::Term()
 {
 	for (size_t i = 0; i < 2; i++)
@@ -230,9 +276,9 @@ void SkyBox::Term()
 void SkyBox::Draw
 (
 	ID3D12GraphicsCommandList* pCmd,
-	D3D12_GPU_DESCRIPTOR_HANDLE handleCubeMap,
-	const DirectX::SimpleMath::Matrix& viewMatrix,
-	const DirectX::SimpleMath::Matrix& projMatrix,
+	D3D12_GPU_DESCRIPTOR_HANDLE texHandle,
+	const struct DirectX::SimpleMath::Matrix& viewMatrix,
+	const struct DirectX::SimpleMath::Matrix& projMatrix,
 	float boxSize
 )
 {
@@ -249,7 +295,7 @@ void SkyBox::Draw
 	const D3D12_VERTEX_BUFFER_VIEW& vbv = m_VB.GetView();
 	pCmd->SetGraphicsRootSignature(m_pRootSig.GetPtr());
 	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandleGPU());
-	pCmd->SetGraphicsRootDescriptorTable(1, handleCubeMap);
+	pCmd->SetGraphicsRootDescriptorTable(1, texHandle);
 	pCmd->SetPipelineState(m_pPSO.Get());
 	pCmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pCmd->IASetIndexBuffer(nullptr);
