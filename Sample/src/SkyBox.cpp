@@ -260,7 +260,7 @@ void SkyBox::Term()
 	}
 }
 
-void SkyBox::Draw
+void SkyBox::DrawCubeMap
 (
 	ID3D12GraphicsCommandList* pCmd,
 	D3D12_GPU_DESCRIPTOR_HANDLE handleCubeMap,

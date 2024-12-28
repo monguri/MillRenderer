@@ -5182,7 +5182,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	if (!RENDER_SPONZA)
 	{
-		m_SkyBox.Draw(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
+		m_SkyBox.DrawCubeMap(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
