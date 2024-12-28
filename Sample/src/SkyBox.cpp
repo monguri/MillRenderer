@@ -1,15 +1,14 @@
 #include "SkyBox.h"
 #include "Logger.h"
 #include "DescriptorPool.h"
+#include "FileUtil.h"
+#include "d3dcompiler.h"
 #include <CommonStates.h>
 
 using namespace DirectX::SimpleMath;
 
 namespace
 {
-#include "../res/Compiled/SkyBoxVS.inc"
-#include "../res/Compiled/SkyBoxPS.inc"
-
 	struct alignas(256) CbSkyBox
 	{
 		Matrix World;
@@ -128,16 +127,46 @@ bool SkyBox::Init
 
 	// パイプラインステートの生成
 	{
+		std::wstring vsPath;
+		if (!SearchFilePath(L"SkyBoxVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		std::wstring psPath;
+		if (!SearchFilePath(L"SkyBoxPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
 		const D3D12_INPUT_ELEMENT_DESC elements[] = {
 			{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		};
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.pRootSignature = m_pRootSig.Get();
-		desc.VS.pShaderBytecode = SkyBoxVS;
-		desc.VS.BytecodeLength = sizeof(SkyBoxVS);
-		desc.PS.pShaderBytecode = SkyBoxPS;
-		desc.PS.BytecodeLength = sizeof(SkyBoxPS);
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullNone;
@@ -152,7 +181,7 @@ bool SkyBox::Init
 		desc.SampleDesc.Quality = 0;
 		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
-		HRESULT hr = pDevice->CreateGraphicsPipelineState(
+		hr = pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pPSO.GetAddressOf())
 		);
@@ -260,7 +289,7 @@ void SkyBox::Term()
 	}
 }
 
-void SkyBox::DrawCubeMap
+void SkyBox::Draw
 (
 	ID3D12GraphicsCommandList* pCmd,
 	D3D12_GPU_DESCRIPTOR_HANDLE handleCubeMap,
@@ -291,3 +320,4 @@ void SkyBox::DrawCubeMap
 
 	m_Index = (m_Index + 1) % 2;
 }
+

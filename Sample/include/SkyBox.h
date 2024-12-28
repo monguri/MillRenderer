@@ -22,7 +22,7 @@ public:
 
 	void Term();
 
-	void DrawCubeMap
+	void Draw
 	(
 		ID3D12GraphicsCommandList* pCmd,
 		D3D12_GPU_DESCRIPTOR_HANDLE handleCubeMap,
