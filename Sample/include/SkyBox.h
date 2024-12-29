@@ -42,6 +42,7 @@ public:
 		const class ColorTarget& inputTex,
 		const struct DirectX::SimpleMath::Matrix& viewMatrix,
 		const struct DirectX::SimpleMath::Matrix& projMatrix,
+		const struct DirectX::SimpleMath::Matrix& viewRotProjMatrix,
 		float boxSize,
 		const struct DirectX::SimpleMath::Matrix& skyViewLutReferential,
 		float planetBottomRadiusKm
@@ -77,12 +78,5 @@ private:
 		const wchar_t* psFileName
 	);
 
-	void Draw
-	(
-		ID3D12GraphicsCommandList* pCmd,
-		D3D12_GPU_DESCRIPTOR_HANDLE texHandle,
-		const struct DirectX::SimpleMath::Matrix& viewMatrix,
-		const struct DirectX::SimpleMath::Matrix& projMatrix,
-		float boxSize
-	);
+	void Draw(ID3D12GraphicsCommandList* pCmd, D3D12_GPU_DESCRIPTOR_HANDLE texHandle);
 };

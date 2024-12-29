@@ -4773,11 +4773,11 @@ void SampleApp::OnRender()
 
 	if (m_enableTemporalAA)
 	{
-		DrawScene(pCmd, lightForward, viewProjWithJitter, view, projWithJitter, skyViewLutReferential);
+		DrawScene(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
 	}
 	else
 	{
-		DrawScene(pCmd, lightForward, viewProjNoJitter, view, projNoJitter, skyViewLutReferential);
+		DrawScene(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential);
 	}
 
 	DrawHCB(pCmd);
@@ -5050,7 +5050,7 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Matrix
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
+void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
 {
 	ScopedTimer scopedTimer(pCmdList, L"BasePass");
 
@@ -5205,7 +5205,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	if (RENDER_SPONZA)
 	{
-		m_SkyBox.DrawSkyAtmosphere(pCmdList, m_SkyViewLUT_Target, view, proj, SKY_BOX_HALF_EXTENT, skyViewLutReferential, PLANET_BOTTOM_RADIUS_KM);
+		m_SkyBox.DrawSkyAtmosphere(pCmdList, m_SkyViewLUT_Target, view, proj, viewRotProj, SKY_BOX_HALF_EXTENT, skyViewLutReferential, PLANET_BOTTOM_RADIUS_KM);
 	}
 	else
 	{

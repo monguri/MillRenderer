@@ -36,11 +36,11 @@ cbuffer CbSkyBox : register(b0)
 {
 	float4x4 WVP : packoffset(c0);
 	float4x4 SkyViewLutReferential : packoffset(c4);
-	float3 CameraVector : packoffset(c8);
-	float ViewHeight : packoffset(c8.w);
-	int SkyViewLutWidth : packoffset(c9);
-	int SkyViewLutHeight : packoffset(c9.y);
-	float BottomRadiusKm : packoffset(c9.z);
+	float4x4 InvVRotP : packoffset(c8);
+	float ViewHeight : packoffset(c12);
+	int SkyViewLutWidth : packoffset(c12.y);
+	int SkyViewLutHeight : packoffset(c12.z);
+	float BottomRadiusKm : packoffset(c12.w);
 };
 
 Texture2D SkyViewLut : register(t0);
@@ -86,7 +86,7 @@ void skyViewLutParamsToUv(in bool intersectGround, in float viewZenithCosAngle, 
 }
 
 [RootSignature(ROOT_SIGNATURE)]
-PSOutput main()
+PSOutput main(float4 clipPos : SV_POSITION)
 {
 	PSOutput output;
 
@@ -97,7 +97,10 @@ PSOutput main()
 	// Compute inputs in this referential
 	float3 worldPosLocal = float3(0, viewHeight, 0);
 	float3 upVectorLocal = float3(0, 1, 0);
-	float3 worldDirLocal = mul(localReferencial, CameraVector);
+
+	float3 cameraOriginWorldPos = mul(InvVRotP, clipPos).xyz;
+	float3 cameraVector = -normalize(cameraOriginWorldPos);
+	float3 worldDirLocal = mul(localReferencial, -cameraVector);
 	float viewZenithCosAngle = dot(worldDirLocal, upVectorLocal);
 
 	float2 sol = RayIntersectSphere(worldPosLocal, worldDirLocal, float4(0, 0, 0, BottomRadiusKm));

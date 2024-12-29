@@ -15,13 +15,12 @@ namespace
 	struct alignas(256) CbSkyBox
 	{
 		Matrix WVP;
+		Matrix InvVRotP;
 		Matrix SkyViewLutReferential;
-		Vector3 CameraVector;
 		float ViewHeight;
 		int SkyViewLutWidth;
 		int SkyViewLutHeight;
 		float BottomRadiusKm;
-		float Padding[1];
 	};
 
 	struct alignas(256) CbEnvironmentCubeMap
@@ -308,14 +307,7 @@ void SkyBox::Term()
 	}
 }
 
-void SkyBox::Draw
-(
-	ID3D12GraphicsCommandList* pCmd,
-	D3D12_GPU_DESCRIPTOR_HANDLE texHandle,
-	const struct Matrix& viewMatrix,
-	const struct Matrix& projMatrix,
-	float boxSize
-)
+void SkyBox::Draw(ID3D12GraphicsCommandList* pCmd, D3D12_GPU_DESCRIPTOR_HANDLE texHandle)
 {
 	const D3D12_VERTEX_BUFFER_VIEW& vbv = m_VB.GetView();
 	pCmd->SetGraphicsRootSignature(m_pRootSig.GetPtr());
@@ -336,6 +328,7 @@ void SkyBox::DrawSkyAtmosphere
 	const class ColorTarget& inputTex,
 	const Matrix& viewMatrix,
 	const Matrix& projMatrix,
+	const Matrix& viewRotProjMatrix,
 	float boxSize,
 	const Matrix& skyViewLutReferential,
 	float planetBottomRadiusKm
@@ -346,24 +339,17 @@ void SkyBox::DrawSkyAtmosphere
 		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
 		const Matrix& invViewMat = viewMatrix.Invert();
 		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
-		const Vector3& cameraVector = -Vector3(invViewMat._31, invViewMat._32, invViewMat._33);
 		const Vector3& planetCenter = Vector3(0.0f, -planetBottomRadiusKm * KM_TO_M, 0.0f);
 		float viewHeight = Vector3::Distance(cameraWorldPos, planetCenter);
 
 		ptr->WVP = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos) * viewMatrix * projMatrix;
+		ptr->InvVRotP = viewRotProjMatrix.Invert();
 		ptr->SkyViewLutReferential = skyViewLutReferential;
-		ptr->CameraVector = cameraVector;
 		ptr->ViewHeight = viewHeight;
 		ptr->BottomRadiusKm = planetBottomRadiusKm;
 	}
 
-	Draw(
-		pCmd,
-		inputTex.GetHandleSRV()->HandleGPU,
-		viewMatrix,
-		projMatrix,
-		boxSize
-	);
+	Draw(pCmd, inputTex.GetHandleSRV()->HandleGPU);
 }
 
 void SkyBox::DrawEnvironmentCubeMap
@@ -385,12 +371,6 @@ void SkyBox::DrawEnvironmentCubeMap
 		ptr->Proj = projMatrix;
 	}
 
-	Draw(
-		pCmd,
-		cubeMapHandle,
-		viewMatrix,
-		projMatrix,
-		boxSize
-	);
+	Draw(pCmd, cubeMapHandle);
 }
 
