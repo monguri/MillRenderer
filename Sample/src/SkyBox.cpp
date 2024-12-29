@@ -123,7 +123,7 @@ bool SkyBox::Init(
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullNone;
-		desc.DepthStencilState = DirectX::CommonStates::DepthRead;
+		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
 		desc.InputLayout.pInputElementDescs = elements;
 		desc.InputLayout.NumElements = 1;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -346,7 +346,7 @@ void SkyBox::DrawSkyAtmosphere
 		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
 		const Matrix& invViewMat = viewMatrix.Invert();
 		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
-		const Vector3& cameraVector = Vector3(invViewMat._31, invViewMat._32, invViewMat._33);
+		const Vector3& cameraVector = -Vector3(invViewMat._31, invViewMat._32, invViewMat._33);
 		const Vector3& planetCenter = Vector3(0.0f, -planetBottomRadiusKm * KM_TO_M, 0.0f);
 		float viewHeight = Vector3::Distance(cameraWorldPos, planetCenter);
 
