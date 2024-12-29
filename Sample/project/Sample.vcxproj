@@ -390,6 +390,7 @@
   <ItemGroup>
     <None Include="..\res\BakeUtil.hlsli" />
     <None Include="..\res\BasePassPS.hlsli" />
+    <None Include="..\res\Common.hlsli" />
     <None Include="..\res\ShadowMap.hlsli" />
     <None Include="..\res\SkyCommon.hlsli" />
     <None Include="..\res\SponzaPS.hlsli" />

@@ -44,7 +44,7 @@ namespace
 	static constexpr uint32_t SKY_VIEW_LUT_HEIGHT = 104; // UEを参考にした
 	static constexpr float PLANET_BOTTOM_RADIUS_KM = 6360.0f;
 	static constexpr float PLANET_TOP_RADIUS_KM = 6420.0f;
-	static constexpr float KM_TO_CM = 100000.0f;
+	static constexpr float KM_TO_M = 1000.0f;
 
 	static constexpr uint32_t HCB_MAX_NUM_OUTPUT_MIP = 5; // UEを参考にした
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
@@ -4702,7 +4702,7 @@ void SampleApp::OnRender()
 	Matrix skyViewLutReferential;
 	{
 		// 惑星の中心は(0, -PLANET_BOTTOM_RADIUS_KM, 0)とする
-		const Vector3& planetCenterWS = Vector3(0, -PLANET_BOTTOM_RADIUS_KM, 0) * KM_TO_CM ;
+		const Vector3& planetCenterWS = Vector3(0, -PLANET_BOTTOM_RADIUS_KM, 0) * KM_TO_M;
 
 		Vector3 yAxis = m_Camera.GetPosition() - planetCenterWS;
 		yAxis.Normalize();

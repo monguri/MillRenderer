@@ -34,6 +34,12 @@ static const float FAST_SKY_SAMPLE_COUNT_MIN = 4;
 static const float FAST_SKY_SAMPLE_COUNT_MAX = 32;
 static const float FAST_SKY_DISTANCE_TO_SAMPLE_COUNT_MAX_INV = 1.0f / 150;
 
+float2 FromSubUvsToUnit(float2 uv, float2 size, float2 invSize)
+{
+	// [0.5, size - 1 + 0.5] / size‚¾‚Á‚½UV‚ð[0,1]‚É•ª•z‚³‚¹‚é
+	return (uv - 0.5f * invSize) * size / (size - 1.0f);
+}
+
 // SkyViewLut is a new texture used for fast sky rendering.
 // It is low resolution of the sky rendering around the camera,
 // basically a lat/long parameterisation with more texel close to the horizon for more accuracy during sun set.

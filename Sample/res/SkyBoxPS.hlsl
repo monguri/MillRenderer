@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
 "("\
@@ -6,7 +8,7 @@
 " | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
 " | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
 ")"\
-", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", StaticSampler"\
 "("\
@@ -21,11 +23,7 @@
 ", visibility = SHADER_VISIBILITY_PIXEL"\
 ")"\
 
-struct VSOutput
-{
-	float4 Position : SV_POSITION;
-	float3 TexCoord : TEXCOORD;
-};
+static const float M_TO_KM = 0.001f;
 
 struct PSOutput
 {
@@ -34,15 +32,82 @@ struct PSOutput
 	float2 MetallicRoughness : SV_TARGET2;
 };
 
-TextureCube CubeMap : register(t0);
-SamplerState CubeSmp : register(s0);
+cbuffer CbSkyBox : register(b0)
+{
+	float4x4 WVP : packoffset(c0);
+	float4x4 SkyViewLutReferential : packoffset(c4);
+	float3 CameraVector : packoffset(c8);
+	float ViewHeight : packoffset(c8.w);
+	int SkyViewLutWidth : packoffset(c9);
+	int SkyViewLutHeight : packoffset(c9.y);
+	float BottomRadiusKm : packoffset(c9.z);
+};
+
+Texture2D SkyViewLut : register(t0);
+SamplerState LinearWrapSampler : register(s0);
+
+float2 FromUnitToSubUvs(float2 uv, float2 size, float2 invSize)
+{
+	// UVÇÃ[0,1]Ç[0.5, size + 0.5f] / (size + 1)Ç…ï™ïzÇ≥ÇπÇÈ
+	return (uv + 0.5f * invSize) * size / (size + 1.0f);
+}
+
+void skyViewLutParamsToUv(in bool intersectGround, in float viewZenithCosAngle, in float3 viewDir, in float viewHeight, in float bottomRadius, out float2 uv)
+{
+	float vHorizon = sqrt(viewHeight * viewHeight - BottomRadiusKm * BottomRadiusKm);
+	float cosBeta = vHorizon / viewHeight; // GroundToHorizonCos
+
+	float beta = acos(cosBeta);
+	float zenithHorizonAngle = F_PI - beta;
+	float viewZenithAngle = acos(viewZenithCosAngle);
+
+	if (intersectGround)
+	{
+		float coord = (viewZenithAngle - zenithHorizonAngle) / beta;
+		coord = sqrt(coord);
+		uv.y = coord * 0.5f + 0.5f;
+	}
+	else
+	{
+		float coord = viewZenithAngle / zenithHorizonAngle;
+		coord = 1.0f - coord;
+		coord = sqrt(coord);
+		coord = 1.0f - coord;
+		uv.y = coord * 0.5f + 0.5f;
+	}
+
+	{
+		uv.x = atan2(viewDir.x, -viewDir.z) / (2 * F_PI);
+	}
+
+	// Constrain uvs to valid sub texel range (avoid zenith derivative issue making LUT usage visible)
+	float2 size = float2(SkyViewLutWidth, SkyViewLutHeight);
+	uv = FromUnitToSubUvs(uv, size, 1 / size);
+}
 
 [RootSignature(ROOT_SIGNATURE)]
-PSOutput main(const VSOutput input)
+PSOutput main()
 {
 	PSOutput output;
 
-	output.Color = CubeMap.SampleLevel(CubeSmp, input.TexCoord, 0);
+	const float viewHeight = ViewHeight * M_TO_KM;
+
+	// The referencial used to build the Sky View lut
+	float3x3 localReferencial = (float3x3)SkyViewLutReferential;
+	// Compute inputs in this referential
+	float3 worldPosLocal = float3(0, viewHeight, 0);
+	float3 upVectorLocal = float3(0, 1, 0);
+	float3 worldDirLocal = mul(localReferencial, CameraVector);
+	float viewZenithCosAngle = dot(worldDirLocal, upVectorLocal);
+
+	float2 sol = RayIntersectSphere(worldPosLocal, worldDirLocal, float4(0, 0, 0, BottomRadiusKm));
+	const bool intersectGround = any(sol > 0);
+
+	float2 skyViewLutUv;
+	skyViewLutParamsToUv(intersectGround, viewZenithCosAngle, worldDirLocal, viewHeight, BottomRadiusKm, skyViewLutUv);
+
+	output.Color.xyz = SkyViewLut.SampleLevel(LinearWrapSampler, skyViewLutUv, 0).xyz;
+	output.Color.a = 1;
 
 	// ñ@ê¸ÇÕ(0, 0, 0)àµÇ¢
 	output.Normal.xyz = 0.5f;

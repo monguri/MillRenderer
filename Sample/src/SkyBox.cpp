@@ -10,24 +10,25 @@ using namespace DirectX::SimpleMath;
 
 namespace
 {
+	static constexpr float KM_TO_M = 1000.0f;
+
+	struct alignas(256) CbSkyBox
+	{
+		Matrix WVP;
+		Matrix SkyViewLutReferential;
+		Vector3 CameraVector;
+		float ViewHeight;
+		int SkyViewLutWidth;
+		int SkyViewLutHeight;
+		float BottomRadiusKm;
+		float Padding[1];
+	};
+
 	struct alignas(256) CbEnvironmentCubeMap
 	{
 		Matrix World;
 		Matrix View;
 		Matrix Proj;
-	};
-
-	struct alignas(256) CbSkyAtmosphere
-	{
-		Matrix World;
-		Matrix View;
-		Matrix Proj;
-		Matrix SkyViewLutReferential;
-		Vector3 CameraVector;
-		int SkyViewLutWidth;
-		int SkyViewLutHeight;
-		float BottomRadiusKm;
-		float Padding[2];
 	};
 }
 
@@ -229,13 +230,13 @@ bool SkyBox::InitSkyAtmosphere
 	{
 		for (size_t i = 0; i < 2; i++)
 		{
-			if (!m_CB[i].Init(pDevice, pPoolRes, sizeof(CbSkyAtmosphere)))
+			if (!m_CB[i].Init(pDevice, pPoolRes, sizeof(CbSkyBox)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
 
-			CbSkyAtmosphere* ptr = m_CB[i].GetPtr<CbSkyAtmosphere>();
+			CbSkyBox* ptr = m_CB[i].GetPtr<CbSkyBox>();
 			ptr->SkyViewLutWidth = skyViewLutWidth;
 			ptr->SkyViewLutHeight = skyViewLutHeight;
 			ptr->BottomRadiusKm = planetBottomRadiusKm;
@@ -342,13 +343,17 @@ void SkyBox::DrawSkyAtmosphere
 {
 	// 定数バッファの更新
 	{
-		CbSkyAtmosphere* ptr = m_CB[m_Index].GetPtr<CbSkyAtmosphere>();
+		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
 		const Matrix& invViewMat = viewMatrix.Invert();
 		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
-		ptr->World = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos);
-		ptr->View = viewMatrix;
-		ptr->Proj = projMatrix;
+		const Vector3& cameraVector = Vector3(invViewMat._31, invViewMat._32, invViewMat._33);
+		const Vector3& planetCenter = Vector3(0.0f, -planetBottomRadiusKm * KM_TO_M, 0.0f);
+		float viewHeight = Vector3::Distance(cameraWorldPos, planetCenter);
+
+		ptr->WVP = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos) * viewMatrix * projMatrix;
 		ptr->SkyViewLutReferential = skyViewLutReferential;
+		ptr->CameraVector = cameraVector;
+		ptr->ViewHeight = viewHeight;
 		ptr->BottomRadiusKm = planetBottomRadiusKm;
 	}
 
