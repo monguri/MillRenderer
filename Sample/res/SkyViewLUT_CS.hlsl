@@ -62,7 +62,7 @@ void UvToSkyViewLutParams(out float3 viewDir, in float viewHeight, in float2 uv)
 	{
 		float coord = 2 * uv.y - 1;
 		coord *= coord;
-		viewZenithAngle = zenithHorizonAngle * beta * coord;
+		viewZenithAngle = zenithHorizonAngle + beta * coord;
 	}
 
 	float cosViewZenithAngle = cos(viewZenithAngle);
