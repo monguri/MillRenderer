@@ -73,7 +73,7 @@ void skyViewLutParamsToUv(in bool intersectGround, in float viewZenithCosAngle, 
 		coord = 1.0f - coord;
 		coord = sqrt(coord);
 		coord = 1.0f - coord;
-		uv.y = coord * 0.5f + 0.5f;
+		uv.y = coord * 0.5f;
 	}
 
 	{
