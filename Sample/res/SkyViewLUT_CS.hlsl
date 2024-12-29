@@ -77,7 +77,7 @@ void UvToSkyViewLutParams(out float3 viewDir, in float viewHeight, in float2 uv)
 	viewDir = float3(
 		sinViewZenithAngle * sinLongitudeViewCosAngle,
 		cosViewZenithAngle,
-		sinViewZenithAngle * cosLongitudeViewCosAngle
+		-sinViewZenithAngle * cosLongitudeViewCosAngle
 	);
 }
 
