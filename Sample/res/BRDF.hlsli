@@ -1,9 +1,6 @@
-#ifndef BRDF_HLSLI
-#define BRDF_HLSLI
+#pragma once
 
-#ifndef F_PI
-#define F_PI 3.14159265358979323f
-#endif //F_PI
+#include "Common.hlsli"
 
 // Tokuyoshi, Y., and Kaplanyan, A. S. 2021. Stable Geometric Specular Antialiasing with Projected-Space NDF Filtering. JCGT, 10, 2, 31-58.
 // https://cedil.cesa.or.jp/cedil_sessions/view/2395
@@ -100,4 +97,3 @@ float3 ComputeBRDF
 	return NdotL * lerp(diffuseTerm, specularTerm, F);
 }
 
-#endif // BRDF_HLSLI

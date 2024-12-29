@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 #define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 #define SINGLE_SAMPLE_SHADOW_MAP
 #include "ShadowMap.hlsli"
@@ -38,10 +40,6 @@
 ", comparisonFunc = COMPARISON_LESS_EQUAL"\
 ", borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE"\
 ")"\
-
-#ifndef F_PI
-#define F_PI 3.14159265358979323f
-#endif //F_PI
 
 #ifndef MIN_DIST
 #define MIN_DIST (0.01)

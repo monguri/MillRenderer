@@ -1,4 +1,3 @@
-#include "BRDF.hlsli"
 #include "BakeUtil.hlsli"
 
 struct VSOutput

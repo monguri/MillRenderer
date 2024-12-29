@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 #define ROOT_SIGNATURE ""\
 "DescriptorTable(CBV(b0))"\
 ", DescriptorTable(SRV(t0))"\
@@ -35,10 +37,6 @@ Texture2D NormalMap : register(t2);
 SamplerState PointClampSmp : register(s0);
 
 RWTexture2D<float4> OutResult : register(u0);
-
-#ifndef F_PI
-#define F_PI 3.14159265358979323f
-#endif //F_PI
 
  // Referenced UE's value. QUALITY == 3
 static const uint CONFIG_RAY_STEPS = 8;

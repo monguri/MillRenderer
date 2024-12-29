@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
 "("\
@@ -21,8 +23,6 @@
 ", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
 ", visibility = SHADER_VISIBILITY_PIXEL"\
 ")"\
-
-static const float F_PI = 3.141596535f;
 
 static const int COLOR_SPACE_BT709 = 0;
 static const int COLOR_SPACE_BT2100_PQ = 1;

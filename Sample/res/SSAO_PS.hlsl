@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
 "("\
@@ -36,10 +38,6 @@
 ", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
 ", visibility = SHADER_VISIBILITY_PIXEL"\
 ")"\
-
-#ifndef F_PI
-#define F_PI 3.14159265358979323f
-#endif //F_PI
 
 #define SAMPLESET_ARRAY_SIZE_HALF_RES 6
 static const float2 OcclusionSamplesOffsetsHalfRes[SAMPLESET_ARRAY_SIZE_HALF_RES ]=
