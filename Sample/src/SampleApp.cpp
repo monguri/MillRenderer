@@ -4733,7 +4733,7 @@ void SampleApp::OnRender()
 		skyViewLutReferential.Up(yAxis);
 		skyViewLutReferential.Backward(zAxis);
 		// 逆行列を計算
-		skyViewLutReferential.Transpose();
+		skyViewLutReferential = skyViewLutReferential.Transpose();
 	}
 
 	//TODO: MovableなメッシュをVelocityのテストのためサインカーブで動かす
