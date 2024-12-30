@@ -6,7 +6,7 @@ struct VSInput
 struct VSOutput
 {
 	float4 Position : SV_POSITION;
-	float3 TexCoord : TEXCOORD;
+	float4 ClipPosition : CLIP_POSITION;
 };
 
 cbuffer CbSkyBox : register(b0)
@@ -25,6 +25,7 @@ VSOutput main(VSInput input)
 	VSOutput output = (VSOutput)0;
 
 	output.Position = mul(WVP, float4(input.Position, 1.0f));
+	output.ClipPosition = output.Position;
 
 	return output;
 }

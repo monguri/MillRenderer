@@ -25,6 +25,12 @@
 
 static const float M_TO_KM = 0.001f;
 
+struct VSOutput
+{
+	float4 Position : SV_POSITION;
+	float4 ClipPosition : CLIP_POSITION;
+};
+
 struct PSOutput
 {
 	float4 Color : SV_TARGET0;
@@ -86,7 +92,7 @@ void skyViewLutParamsToUv(in bool intersectGround, in float viewZenithCosAngle, 
 }
 
 [RootSignature(ROOT_SIGNATURE)]
-PSOutput main(float4 clipPos : SV_POSITION)
+PSOutput main(VSOutput input)
 {
 	PSOutput output;
 
@@ -98,7 +104,7 @@ PSOutput main(float4 clipPos : SV_POSITION)
 	float3 worldPosLocal = float3(0, viewHeight, 0);
 	float3 upVectorLocal = float3(0, 1, 0);
 
-	float3 cameraOriginWorldPos = mul(InvVRotP, clipPos).xyz;
+	float3 cameraOriginWorldPos = mul(InvVRotP, input.ClipPosition).xyz;
 	float3 cameraVector = -normalize(cameraOriginWorldPos);
 	float3 worldDirLocal = mul(localReferencial, -cameraVector);
 	float viewZenithCosAngle = dot(worldDirLocal, upVectorLocal);
