@@ -35,8 +35,8 @@ struct PSOutput
 cbuffer CbSkyBox : register(b0)
 {
 	float4x4 WVP : packoffset(c0);
-	float4x4 SkyViewLutReferential : packoffset(c4);
-	float4x4 InvVRotP : packoffset(c8);
+	float4x4 InvVRotP : packoffset(c4);
+	float4x4 SkyViewLutReferential : packoffset(c8);
 	float ViewHeight : packoffset(c12);
 	int SkyViewLutWidth : packoffset(c12.y);
 	int SkyViewLutHeight : packoffset(c12.z);
