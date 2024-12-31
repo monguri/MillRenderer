@@ -245,8 +245,8 @@ void TransformManipulator::ComputeTarget()
 
 void TransformManipulator::ComputeAngle()
 {
-	// TODO:本のサンプルのとおり正規化してないが大丈夫か？
 	m_Current.Forward = m_Current.Target - m_Current.Position;
+	m_Current.Forward.Normalize();
 	ToAngle(m_Current.Forward, &m_Current.Angle.x, &m_Current.Angle.y, &m_Current.Distance);
 	ToVector(m_Current.Angle.x, m_Current.Angle.y, nullptr, &m_Current.Upward);
 }
