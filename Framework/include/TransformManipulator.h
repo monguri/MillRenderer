@@ -28,7 +28,7 @@ public:
 
 	void UpdateByEvent(const Event& value);
 	void Update();
-	void Reset();
+	void Reset(const DirectX::SimpleMath::Vector3& position, const DirectX::SimpleMath::Vector3& target);
 
 	const DirectX::SimpleMath::Vector3& GetPosition() const;
 	const DirectX::SimpleMath::Matrix& GetView() const;

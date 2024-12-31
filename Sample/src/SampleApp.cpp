@@ -33,6 +33,9 @@ namespace
 	static constexpr float CAMERA_NEAR = 0.1f;
 	static constexpr float CAMERA_FAR = 100.0f;
 
+	static constexpr Vector3 CAMERA_START_POSITION = Vector3(5.0f, 1.0f, 0.0f);
+	static constexpr Vector3 CAMERA_START_TARGET = Vector3(0.0f, 1.0f, 0.0f);
+
 	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 
@@ -565,7 +568,7 @@ SampleApp::~SampleApp()
 
 bool SampleApp::OnInit(HWND hWnd)
 {
-	m_Camera.Reset();
+	m_Camera.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
 
 	// imgui初期化
 	{
@@ -6665,7 +6668,7 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 					ChangeDisplayMode(false);
 					break;
 				case 'C':
-					m_Camera.Reset();
+					m_Camera.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
 					break;
 				default:
 					break;

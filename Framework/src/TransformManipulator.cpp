@@ -108,6 +108,7 @@ namespace
 
 TransformManipulator::TransformManipulator()
 {
+#if 0
 	m_Current.Position = Vector3(5.0f, 1.0f, 0.0f);
 	m_Current.Target = Vector3(0.0f, 1.0f, 0.0f);
 	m_Current.Upward = Vector3::UnitY;
@@ -118,6 +119,7 @@ TransformManipulator::TransformManipulator()
 	m_DirtyFlag = DirtyPosition;
 
 	m_Preserve = m_Current;
+#endif
 }
 
 TransformManipulator::~TransformManipulator()
@@ -166,11 +168,17 @@ void TransformManipulator::Update()
 	m_DirtyFlag = DirtyNone;
 }
 
-void TransformManipulator::Reset()
+void TransformManipulator::Reset(const Vector3& position, const Vector3& target)
 {
-	m_Current = m_Preserve;
+	m_Current.Position = position;
+	m_Current.Target = target;
+	// m_Current‚Ì‘¼‚Ì’l‚ğŒvZ‚·‚é
+	ComputeAngle();
+
 	m_DirtyFlag = DirtyMatrix;
 	Update();
+
+	m_Preserve = m_Current;
 }
 
 const Vector3& TransformManipulator::GetPosition() const
@@ -246,7 +254,8 @@ void TransformManipulator::ComputeTarget()
 void TransformManipulator::ComputeAngle()
 {
 	m_Current.Forward = m_Current.Target - m_Current.Position;
-	m_Current.Forward.Normalize();
+	// m_Current.Forward‚ğ³‹K‰»‚µ‚Ä‚È‚¢‚Ì‚Å’·‚³‚ªm_Current.Distance‚Æ‚È‚é
 	ToAngle(m_Current.Forward, &m_Current.Angle.x, &m_Current.Angle.y, &m_Current.Distance);
-	ToVector(m_Current.Angle.x, m_Current.Angle.y, nullptr, &m_Current.Upward);
+	// m_Current.Forward‚Í‚±‚±‚Å³‹K‰»‚³‚ê‚é
+	ToVector(m_Current.Angle.x, m_Current.Angle.y, &m_Current.Forward, &m_Current.Upward);
 }
