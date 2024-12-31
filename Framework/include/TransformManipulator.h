@@ -23,9 +23,6 @@ public:
 		float MoveZ = 0.0f;
 	};
 
-	TransformManipulator();
-	~TransformManipulator();
-
 	void UpdateByEvent(const Event& value);
 	void Update();
 	void Reset(const DirectX::SimpleMath::Vector3& position, const DirectX::SimpleMath::Vector3& target);

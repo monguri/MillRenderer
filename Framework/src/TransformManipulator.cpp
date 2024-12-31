@@ -106,26 +106,6 @@ namespace
 	}
 }
 
-TransformManipulator::TransformManipulator()
-{
-#if 0
-	m_Current.Position = Vector3(5.0f, 1.0f, 0.0f);
-	m_Current.Target = Vector3(0.0f, 1.0f, 0.0f);
-	m_Current.Upward = Vector3::UnitY;
-	m_Current.Forward = -Vector3::UnitX;
-	m_Current.Angle = DirectX::XMFLOAT2(0.0f, 0.0f);
-	m_Current.Distance = 1.0f;
-
-	m_DirtyFlag = DirtyPosition;
-
-	m_Preserve = m_Current;
-#endif
-}
-
-TransformManipulator::~TransformManipulator()
-{
-}
-
 void TransformManipulator::UpdateByEvent(const Event& value)
 {
 	if (value.Type & EventRotate)
