@@ -568,7 +568,7 @@ SampleApp::~SampleApp()
 
 bool SampleApp::OnInit(HWND hWnd)
 {
-	m_Camera.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
+	m_CameraManipulator.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
 
 	// imgui初期化
 	{
@@ -4195,7 +4195,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
-			const Matrix& view = m_Camera.GetView();
+			const Matrix& view = m_CameraManipulator.GetView();
 			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
 			CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
@@ -4651,7 +4651,7 @@ void SampleApp::OnRender()
 	float temporalJitetrPixelsY;
 	CalculateTemporalJitterPixels(m_TemporalAASampleIndex, temporalJitetrPixelsX, temporalJitetrPixelsY);
 
-	const Matrix& view = m_Camera.GetView();
+	const Matrix& view = m_CameraManipulator.GetView();
 	Matrix viewProjNoJitter;
 	Matrix viewProjWithJitter;
 	Matrix viewRotProjNoJitter;
@@ -4707,10 +4707,10 @@ void SampleApp::OnRender()
 		// 惑星の中心は(0, -PLANET_BOTTOM_RADIUS_KM, 0)とする
 		const Vector3& planetCenterWS = Vector3(0, -PLANET_BOTTOM_RADIUS_KM, 0) * KM_TO_M;
 
-		Vector3 yAxis = m_Camera.GetPosition() - planetCenterWS;
+		Vector3 yAxis = m_CameraManipulator.GetPosition() - planetCenterWS;
 		yAxis.Normalize();
 
-		Vector3 zAxis = m_Camera.GetView().Backward();
+		Vector3 zAxis = m_CameraManipulator.GetView().Backward();
 		Vector3 xAxis;
 
 		if (fabsf(yAxis.Dot(zAxis)) > 0.999f)
@@ -5086,7 +5086,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	// カメラバッファの更新
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		ptr->CameraPosition = m_Camera.GetPosition();
+		ptr->CameraPosition = m_CameraManipulator.GetPosition();
 	}
 
 	// ライトバッファの更新
@@ -5542,7 +5542,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 			CbSSAO* ptr = m_SSAO_HalfResCB[m_FrameIndex].GetPtr<CbSSAO>();
 			// UE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 			ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
-			ptr->ViewMatrix = m_Camera.GetView();
+			ptr->ViewMatrix = m_CameraManipulator.GetView();
 			ptr->InvProjMatrix = proj.Invert();
 			ptr->bHalfRes = 1;
 			ptr->Contrast = m_SSAO_Contrast;
@@ -5590,7 +5590,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 			CbSSAO* ptr = m_SSAO_FullResCB[m_FrameIndex].GetPtr<CbSSAO>();
 			// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 			ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
-			ptr->ViewMatrix = m_Camera.GetView();
+			ptr->ViewMatrix = m_CameraManipulator.GetView();
 			ptr->InvProjMatrix = proj.Invert();
 			ptr->bHalfRes = 0;
 			ptr->Contrast = m_SSAO_Contrast;
@@ -6668,7 +6668,7 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 					ChangeDisplayMode(false);
 					break;
 				case 'C':
-					m_Camera.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
+					m_CameraManipulator.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
 					break;
 				default:
 					break;
@@ -6723,13 +6723,13 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 			args.Type = TransformManipulator::EventRotate;
 			args.RotateH = DirectX::XMConvertToRadians(-0.5f * (x - m_PrevCursorX));
 			args.RotateV = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
-			m_Camera.UpdateByEvent(args);
+			m_CameraManipulator.UpdateByEvent(args);
 		}
 		else if (right)
 		{
 			args.Type = TransformManipulator::EventDolly;
 			args.Dolly = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
-			m_Camera.UpdateByEvent(args);
+			m_CameraManipulator.UpdateByEvent(args);
 		}
 		else if (middle)
 		{
@@ -6744,7 +6744,7 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 				args.MoveX = DirectX::XMConvertToRadians(0.5f * (x - m_PrevCursorX));
 				args.MoveY = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
 			}
-			m_Camera.UpdateByEvent(args);
+			m_CameraManipulator.UpdateByEvent(args);
 		}
 
 		m_PrevCursorX = x;

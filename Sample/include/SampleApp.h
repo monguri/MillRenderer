@@ -162,7 +162,7 @@ private:
 	int m_ColorSpace;
 	float m_BaseLuminance;
 	float m_MaxLuminance;
-	TransformManipulator m_Camera;
+	TransformManipulator m_CameraManipulator;
 	int m_PrevCursorX;
 	int m_PrevCursorY;
 	D3D12_VIEWPORT m_DirLightShadowMapViewport;
