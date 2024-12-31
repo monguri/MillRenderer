@@ -13,7 +13,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\App.cpp" />
     <ClCompile Include="..\src\ByteAddressBuffer.cpp" />
-    <ClCompile Include="..\src\Camera.cpp" />
+    <ClCompile Include="..\src\TransformManipulator.cpp" />
     <ClCompile Include="..\src\ColorTarget.cpp" />
     <ClCompile Include="..\src\CommandList.cpp" />
     <ClCompile Include="..\src\ConstantBuffer.cpp" />
@@ -35,7 +35,7 @@
   <ItemGroup>
     <ClInclude Include="..\include\App.h" />
     <ClInclude Include="..\include\ByteAddressBuffer.h" />
-    <ClInclude Include="..\include\Camera.h" />
+    <ClInclude Include="..\include\TransformManipulator.h" />
     <ClInclude Include="..\include\ColorTarget.h" />
     <ClInclude Include="..\include\CommandList.h" />
     <ClInclude Include="..\include\ComPtr.h" />
