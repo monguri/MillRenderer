@@ -6713,24 +6713,24 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 		bool right = ((state & MK_RBUTTON) != 0);
 		bool middle = ((state & MK_MBUTTON) != 0);
 
-		Camera::Event args = {};
+		TransformManipulator::Event args = {};
 
 		if (left)
 		{
-			args.Type = Camera::EventRotate;
+			args.Type = TransformManipulator::EventRotate;
 			args.RotateH = DirectX::XMConvertToRadians(-0.5f * (x - m_PrevCursorX));
 			args.RotateV = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
 			m_Camera.UpdateByEvent(args);
 		}
 		else if (right)
 		{
-			args.Type = Camera::EventDolly;
+			args.Type = TransformManipulator::EventDolly;
 			args.Dolly = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
 			m_Camera.UpdateByEvent(args);
 		}
 		else if (middle)
 		{
-			args.Type = Camera::EventMove;
+			args.Type = TransformManipulator::EventMove;
 			if (GetAsyncKeyState(VK_MENU) != 0)
 			{
 				args.MoveX = DirectX::XMConvertToRadians(0.5f * (x - m_PrevCursorX));

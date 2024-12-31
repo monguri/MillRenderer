@@ -2,7 +2,7 @@
 #include <d3d12.h>
 #include <SimpleMath.h>
 
-class Camera
+class TransformManipulator
 {
 public:
 	enum EventType
@@ -23,8 +23,8 @@ public:
 		float MoveZ = 0.0f;
 	};
 
-	Camera();
-	~Camera();
+	TransformManipulator();
+	~TransformManipulator();
 
 	void UpdateByEvent(const Event& value);
 	void Update();

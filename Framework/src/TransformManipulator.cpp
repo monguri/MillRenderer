@@ -106,7 +106,7 @@ namespace
 	}
 }
 
-Camera::Camera()
+TransformManipulator::TransformManipulator()
 {
 	m_Current.Position = Vector3(5.0f, 1.0f, 0.0f);
 	m_Current.Target = Vector3(0.0f, 1.0f, 0.0f);
@@ -120,11 +120,11 @@ Camera::Camera()
 	m_Preserve = m_Current;
 }
 
-Camera::~Camera()
+TransformManipulator::~TransformManipulator()
 {
 }
 
-void Camera::UpdateByEvent(const Event& value)
+void TransformManipulator::UpdateByEvent(const Event& value)
 {
 	if (value.Type & EventRotate)
 	{
@@ -144,7 +144,7 @@ void Camera::UpdateByEvent(const Event& value)
 	Update();
 }
 
-void Camera::Update()
+void TransformManipulator::Update()
 {
 	if (m_DirtyFlag == DirtyNone)
 	{
@@ -166,24 +166,24 @@ void Camera::Update()
 	m_DirtyFlag = DirtyNone;
 }
 
-void Camera::Reset()
+void TransformManipulator::Reset()
 {
 	m_Current = m_Preserve;
 	m_DirtyFlag = DirtyMatrix;
 	Update();
 }
 
-const Vector3& Camera::GetPosition() const
+const Vector3& TransformManipulator::GetPosition() const
 {
 	return m_Current.Position;
 }
 
-const Matrix& Camera::GetView() const
+const Matrix& TransformManipulator::GetView() const
 {
 	return m_View;
 }
 
-void Camera::Rotate(float angleH, float angleV)
+void TransformManipulator::Rotate(float angleH, float angleV)
 {
 	ComputeAngle();
 	ComputeTarget();
@@ -207,7 +207,7 @@ void Camera::Rotate(float angleH, float angleV)
 	m_DirtyFlag |= DirtyPosition;
 }
 
-void Camera::Move(float moveX, float moveY, float moveZ)
+void TransformManipulator::Move(float moveX, float moveY, float moveZ)
 {
 	const Vector3& translate = m_View.Right() * moveX + m_View.Up() * moveY	+ m_View.Forward() * moveZ;
 
@@ -217,7 +217,7 @@ void Camera::Move(float moveX, float moveY, float moveZ)
 	m_DirtyFlag |= DirtyMatrix;
 }
 
-void Camera::Dolly(float value)
+void TransformManipulator::Dolly(float value)
 {
 	ComputeAngle();
 	ComputeTarget();
@@ -231,19 +231,19 @@ void Camera::Dolly(float value)
 	m_DirtyFlag |= DirtyPosition;
 }
 
-void Camera::ComputePosition()
+void TransformManipulator::ComputePosition()
 {
 	ToVector(m_Current.Angle.x, m_Current.Angle.y, &m_Current.Forward, &m_Current.Upward);
 	m_Current.Position = m_Current.Target - m_Current.Distance * m_Current.Forward;
 }
 
-void Camera::ComputeTarget()
+void TransformManipulator::ComputeTarget()
 {
 	ToVector(m_Current.Angle.x, m_Current.Angle.y, &m_Current.Forward, &m_Current.Upward);
 	m_Current.Target = m_Current.Position + m_Current.Distance * m_Current.Forward;
 }
 
-void Camera::ComputeAngle()
+void TransformManipulator::ComputeAngle()
 {
 	// TODO:本のサンプルのとおり正規化してないが大丈夫か？
 	m_Current.Forward = m_Current.Target - m_Current.Position;
