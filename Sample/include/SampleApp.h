@@ -194,6 +194,7 @@ private:
 	bool m_enableFXAA;
 	bool m_enableFXAA_HighQuality;
 	int m_debugViewRenderTarget;
+	bool m_isLightManipulateMode;
 
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;

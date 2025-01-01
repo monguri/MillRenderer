@@ -563,6 +563,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_enableFXAA(false)
 , m_enableFXAA_HighQuality(true)
 , m_debugViewRenderTarget(DEBUG_VIEW_NONE)
+, m_isLightManipulateMode(false)
 {
 }
 
@@ -6650,7 +6651,8 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 		DWORD mask = (1 << 29);
 
 		bool isKeyDown = ((msg == WM_KEYDOWN) || (msg == WM_SYSKEYDOWN));
-		bool isAltDown = ((lp & mask) != 0);
+		bool isKeyUp = ((msg == WM_KEYUP) || (msg == WM_SYSKEYUP));
+		//bool isAltDown = ((lp & mask) != 0);
 		uint32_t keyCode = uint32_t(wp);
 
 		if (isKeyDown)
@@ -6669,6 +6671,21 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 				case 'C':
 					m_CameraManipulator.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
 					m_DirLightManipulator.Reset(DIRECTIONAL_LIGHT_START_POSITION, DIRECTIONAL_LIGHT_START_TARGET);
+					break;
+				case 'L':
+					m_isLightManipulateMode = true;
+					break;
+				default:
+					break;
+			}
+		}
+
+		if (isKeyUp)
+		{
+			switch (keyCode)
+			{
+				case 'L':
+					m_isLightManipulateMode = false;
 					break;
 				default:
 					break;
@@ -6723,15 +6740,22 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 			args.Type = TransformManipulator::EventRotate;
 			args.RotateH = DirectX::XMConvertToRadians(-0.5f * (x - m_PrevCursorX));
 			args.RotateV = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
-			m_CameraManipulator.UpdateByEvent(args);
+			if (m_isLightManipulateMode)
+			{
+				m_DirLightManipulator.UpdateByEvent(args);
+			}
+			else
+			{
+				m_CameraManipulator.UpdateByEvent(args);
+			}
 		}
-		else if (right)
+		else if (right && !m_isLightManipulateMode)
 		{
 			args.Type = TransformManipulator::EventDolly;
 			args.Dolly = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
 			m_CameraManipulator.UpdateByEvent(args);
 		}
-		else if (middle)
+		else if (middle && !m_isLightManipulateMode)
 		{
 			args.Type = TransformManipulator::EventMove;
 			if (GetAsyncKeyState(VK_MENU) != 0)
