@@ -11,13 +11,14 @@
 ")"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", StaticSampler"\
 "("\
 "s0"\
-", filter = FILTER_MIN_MAG_MIP_LINEAR"\
-", addressU = TEXTURE_ADDRESS_WRAP"\
-", addressV = TEXTURE_ADDRESS_WRAP"\
-", addressW = TEXTURE_ADDRESS_WRAP"\
+", filter = FILTER_MIN_MAG_LINEAR_MIP_POINT"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
 ", maxAnisotropy = 1"\
 ", comparisonFunc = COMPARISON_NEVER"\
 ", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
@@ -55,7 +56,8 @@ cbuffer CbSkyBox : register(b0)
 };
 
 Texture2D SkyViewLut : register(t0);
-SamplerState LinearWrapSampler : register(s0);
+Texture2D TransmittanceLut : register(t0);
+SamplerState LinearClampSampler : register(s0);
 
 float2 FromUnitToSubUvs(float2 uv, float2 size, float2 invSize)
 {
@@ -96,23 +98,51 @@ void skyViewLutParamsToUv(in bool intersectGround, in float viewZenithCosAngle, 
 	uv = FromUnitToSubUvs(uv, size, 1 / size);
 }
 
-float3 GetAtmosphereTransmiattance(float3 planetCenterToWorldPos, float3 worldDir)
+float3 GetAtmosphereTransmiattance(
+	bool intersectGround,
+	float viewHeight,
+	float viewZenithCosAngle
+)
 {
 	// For each view height entry, transmittance is only stored from zenith to horizon. Earth shadow is not accounted for.
 	// It does not contain earth shadow in order to avoid texel linear interpolation artefact when LUT is low resolution.
 	// As such, at the most shadowed point of the LUT when close to horizon, pure black with earth shadow is never hit.
 	// That is why we analytically compute the virtual planet shadow here.
-	return float3(1, 1, 1);
+	if (intersectGround)
+	{
+		return 0.0f;
+	}
+
+	float2 transmittanceLutUv;
+	LutTransmittanceParamsToUV(viewHeight, viewZenithCosAngle, BottomRadiusKm, TopRadiusKm, transmittanceLutUv);
+
+	const float3 transmittanceToLight = TransmittanceLut.SampleLevel(LinearClampSampler, transmittanceLutUv, 0).rgb;
+	return transmittanceToLight;
 }
 
 float3 GetLightDiskLuminance(
 	float3 planetCenterToWorldPos, float3 worldDir,
 	float3 atmosphereLightDirection,
 	float atmosphereLightDiscCosHalfApexAngle,
-	float3 atmosphereLightDiscLuminance
+	float3 atmosphereLightDiscLuminance,
+	bool intersectGround,
+	float viewHeight,
+	float viewZenithCosAngle
 )
 {
-	return float3(0, 0, 0);
+	const float viewDotLight = dot(worldDir, atmosphereLightDirection);
+	const float cosHalfApex = atmosphereLightDiscCosHalfApexAngle;
+	if (viewDotLight > cosHalfApex)
+	{
+		const float3 transmittanceToLight = GetAtmosphereTransmiattance(planetCenterToWorldPos, worldDir, intersectGround);
+
+		// Soften out the sun disk to avoid bloom flickering at edge. The soften is applied on the outer part of the disk.
+		const float softEdge = saturate(2.0f * (viewDotLight - cosHalfApex) / (1.0f - cosHalfApex));
+
+		return transmittanceToLight * atmosphereLightDiscLuminance * softEdge;
+	}
+
+	return 0.0f;
 }
 
 [RootSignature(ROOT_SIGNATURE)]
@@ -139,10 +169,10 @@ PSOutput main(VSOutput input)
 	float2 skyViewLutUv;
 	skyViewLutParamsToUv(intersectGround, viewZenithCosAngle, worldDirLocal, viewHeight, BottomRadiusKm, skyViewLutUv);
 
-	float3 skyViewLutColor = SkyViewLut.SampleLevel(LinearWrapSampler, skyViewLutUv, 0).xyz;
+	float3 skyViewLutColor = SkyViewLut.SampleLevel(LinearClampSampler, skyViewLutUv, 0).xyz;
 
 	float3 atmosphereLightDirLocal = mul(localReferencial, AtmosphereLightDirection);
-	float3 lightDiskLuminance = GetLightDiskLuminance(worldPosLocal, worldDirLocal, atmosphereLightDirLocal, SUN_LIGHT_HALF_APEX_ANGLE_RADIAN, AtmosphereLightLuminance);
+	float3 lightDiskLuminance = GetLightDiskLuminance(worldPosLocal, worldDirLocal, atmosphereLightDirLocal, SUN_LIGHT_HALF_APEX_ANGLE_RADIAN, AtmosphereLightLuminance, intersectGround );
 
 	output.Color.xyz = skyViewLutColor;
 	output.Color.a = 1;

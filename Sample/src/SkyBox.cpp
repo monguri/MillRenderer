@@ -319,6 +319,7 @@ void SkyBox::Draw(ID3D12GraphicsCommandList* pCmd, D3D12_GPU_DESCRIPTOR_HANDLE t
 	pCmd->SetGraphicsRootSignature(m_pRootSig.GetPtr());
 	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandleGPU());
 	pCmd->SetGraphicsRootDescriptorTable(1, texHandle);
+	pCmd->SetGraphicsRootDescriptorTable(2, texHandle);
 	pCmd->SetPipelineState(m_pPSO.Get());
 	pCmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pCmd->IASetIndexBuffer(nullptr);
@@ -331,7 +332,8 @@ void SkyBox::Draw(ID3D12GraphicsCommandList* pCmd, D3D12_GPU_DESCRIPTOR_HANDLE t
 void SkyBox::DrawSkyAtmosphere
 (
 	ID3D12GraphicsCommandList* pCmd,
-	const class ColorTarget& inputTex,
+	const class ColorTarget& SkyViewLUT_Target,
+	const class ColorTarget& SkyTransmittanceLUT_Target,
 	const Matrix& viewMatrix,
 	const Matrix& projMatrix,
 	const Matrix& viewRotProjMatrix,
