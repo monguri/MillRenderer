@@ -393,6 +393,7 @@
     <None Include="..\res\Common.hlsli" />
     <None Include="..\res\ShadowMap.hlsli" />
     <None Include="..\res\SkyCommon.hlsli" />
+    <None Include="..\res\SkyLutCommon.hlsli" />
     <None Include="..\res\SponzaPS.hlsli" />
     <None Include="..\res\BRDF.hlsli" />
     <None Include="packages.config" />

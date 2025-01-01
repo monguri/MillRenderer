@@ -1,4 +1,5 @@
 #include "Common.hlsli"
+#include "SkyLutCommon.hlsli"
 
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
@@ -91,6 +92,24 @@ void skyViewLutParamsToUv(in bool intersectGround, in float viewZenithCosAngle, 
 	// Constrain uvs to valid sub texel range (avoid zenith derivative issue making LUT usage visible)
 	float2 size = float2(SkyViewLutWidth, SkyViewLutHeight);
 	uv = FromUnitToSubUvs(uv, size, 1 / size);
+}
+
+float3 GetAtmosphereTransmiattance(float3 planetCenterToWorldPos, float3 worldDir)
+{
+	// For each view height entry, transmittance is only stored from zenith to horizon. Earth shadow is not accounted for.
+	// It does not contain earth shadow in order to avoid texel linear interpolation artefact when LUT is low resolution.
+	// As such, at the most shadowed point of the LUT when close to horizon, pure black with earth shadow is never hit.
+	// That is why we analytically compute the virtual planet shadow here.
+	return float3(1, 1, 1);
+}
+
+float3 GetLightDiskLuminance(
+	float3 planetCenterToWorldPos, float3 worldDir,
+	float atmosphereLightDiscCosHalfApexAngle,
+	float3 atmosphereLightDiscLuminance
+)
+{
+	return float3(1, 1, 1);
 }
 
 [RootSignature(ROOT_SIGNATURE)]

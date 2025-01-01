@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common.hlsli"
+#include "SkyLutCommon.hlsli"
 
 static const float3 GROUND_ALBEDO_LINEAR = 0.401978f; // referenced UE.
 
@@ -91,48 +92,6 @@ float RaySphereIntersectNearest(float3 rayOrigin, float3 rayDir, float3 sphereCe
 		return max(0.0f, sol0);
 	}
 	return max(0.0f, min(sol0, sol1));
-}
-
-////////////////////////////////////////////////////////////
-// LUT functions
-////////////////////////////////////////////////////////////
-
-// Transmittance LUT function parameterisation from Bruneton 2017 https://github.com/ebruneton/precomputed_atmospheric_scattering
-// uv in [0,1]
-// ViewZenithCosAngle in [-1,1]
-// ViewHeight in [bottomRAdius, topRadius]
-
-void UVtoLUTTransmittanceParams(out float viewHeight, out float viewZenithCosAngle, in float bottomRadius, in float topRadius, in float2 uv)
-{
-	float xmu = uv.x;
-	float xr = uv.y;
-
-	float h = sqrt(topRadius * topRadius - bottomRadius * bottomRadius);
-	float rho = h * xr;
-	viewHeight = sqrt(rho * rho + bottomRadius * bottomRadius);
-
-	float dmin = topRadius - viewHeight;
-	float dmax = rho + h;
-	float d = dmin + xmu * (dmax - dmin); // lerp(dmin, dmax, xmu)
-	// law of cosines. viewHeight-angle-d triangle.
-	viewZenithCosAngle = d == 0.0f ? 1.0f : (h * h - rho * rho - d * d) / (2.0f * viewHeight * d);
-	viewZenithCosAngle = clamp(viewZenithCosAngle, -1.0f, 1.0f);
-}
-
-void LutTransmittanceParamsToUV(in float viewHeight, in float viewZenithCosAngle, in float bottomRadius, in float topRadius, out float2 uv)
-{
-	float h = sqrt(max(0.0f, topRadius * topRadius - bottomRadius * bottomRadius));
-	float rho = sqrt(max(0.0f, viewHeight * viewHeight - bottomRadius * bottomRadius));
-
-	float discriminant = viewHeight * viewHeight * (viewZenithCosAngle * viewZenithCosAngle - 1.0f) + topRadius * topRadius;
-	float d = max(0.0f, (-viewHeight * viewZenithCosAngle + sqrt(discriminant))); // Distance to atmosphere boundary
-
-	float dmin = topRadius - viewHeight;
-	float dmax = rho + h;
-	float xmu = (d - dmin) / (dmax - dmin);
-	float xr = rho / h;
-
-	uv = float2(xmu, xr);
 }
 
 struct MediumSampleRGB
