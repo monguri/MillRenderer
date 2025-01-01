@@ -36,6 +36,10 @@ namespace
 	static constexpr Vector3 CAMERA_START_POSITION = Vector3(5.0f, 1.0f, 0.0f);
 	static constexpr Vector3 CAMERA_START_TARGET = Vector3(0.0f, 1.0f, 0.0f);
 
+	// Directional Lightには位置はないが、この2つの位置から方向を指定する
+	static constexpr Vector3 DIRECTIONAL_LIGHT_START_POSITION = Vector3(1.0f, 10.0f, 1.0f);
+	static constexpr Vector3 DIRECTIONAL_LIGHT_START_TARGET = Vector3(0.0f, 0.0f, 0.0f);
+
 	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 
@@ -569,6 +573,7 @@ SampleApp::~SampleApp()
 bool SampleApp::OnInit(HWND hWnd)
 {
 	m_CameraManipulator.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
+	m_DirLightManipulator.Reset(DIRECTIONAL_LIGHT_START_POSITION, DIRECTIONAL_LIGHT_START_TARGET);
 
 	// imgui初期化
 	{
@@ -4693,13 +4698,7 @@ void SampleApp::OnRender()
 	}
 
 	// ディレクショナルライト方向の更新
-	Vector3 lightForward;
-	{
-		//const Matrix& matrix = Matrix::CreateRotationY(m_RotateAngle);
-		const Matrix& matrix = Matrix::Identity;
-		lightForward = Vector3::TransformNormal(Vector3(-1.0f, -10.0f, -1.0f), matrix);
-		lightForward.Normalize();
-	}
+	Vector3 lightForward = m_DirLightManipulator.GetForward();
 
 	// 空描画のLUTの座標系への変換行列
 	Matrix skyViewLutReferential;
@@ -6669,6 +6668,7 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 					break;
 				case 'C':
 					m_CameraManipulator.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
+					m_DirLightManipulator.Reset(DIRECTIONAL_LIGHT_START_POSITION, DIRECTIONAL_LIGHT_START_TARGET);
 					break;
 				default:
 					break;

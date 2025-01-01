@@ -166,6 +166,11 @@ const Vector3& TransformManipulator::GetPosition() const
 	return m_Current.Position;
 }
 
+const Vector3& TransformManipulator::GetForward() const
+{
+	return m_Current.Forward;
+}
+
 const Matrix& TransformManipulator::GetView() const
 {
 	return m_View;
