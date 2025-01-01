@@ -4272,7 +4272,8 @@ bool SampleApp::OnInit(HWND hWnd)
 				m_SceneDepthTarget.GetDSVDesc().Format,
 				SKY_VIEW_LUT_WIDTH,
 				SKY_VIEW_LUT_HEIGHT,
-				PLANET_BOTTOM_RADIUS_KM 
+				PLANET_BOTTOM_RADIUS_KM,
+				PLANET_TOP_RADIUS_KM
 			))
 			{
 				ELOG("Error : SkyBox::Init() Failed.");

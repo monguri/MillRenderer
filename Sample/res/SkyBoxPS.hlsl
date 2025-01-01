@@ -25,6 +25,7 @@
 ")"\
 
 static const float M_TO_KM = 0.001f;
+static const float SUN_LIGHT_HALF_APEX_ANGLE_RADIAN = 0.5f * 0.5357f * F_PI / 180.0f; // 0.5357 degree
 
 struct VSOutput
 {
@@ -50,6 +51,7 @@ cbuffer CbSkyBox : register(b0)
 	int SkyViewLutWidth : packoffset(c13.w);
 	int SkyViewLutHeight : packoffset(c14);
 	float BottomRadiusKm : packoffset(c14.y);
+	float TopRadiusKm : packoffset(c14.z);
 };
 
 Texture2D SkyViewLut : register(t0);
@@ -105,11 +107,12 @@ float3 GetAtmosphereTransmiattance(float3 planetCenterToWorldPos, float3 worldDi
 
 float3 GetLightDiskLuminance(
 	float3 planetCenterToWorldPos, float3 worldDir,
+	float3 atmosphereLightDirection,
 	float atmosphereLightDiscCosHalfApexAngle,
 	float3 atmosphereLightDiscLuminance
 )
 {
-	return float3(1, 1, 1);
+	return float3(0, 0, 0);
 }
 
 [RootSignature(ROOT_SIGNATURE)]
@@ -136,7 +139,12 @@ PSOutput main(VSOutput input)
 	float2 skyViewLutUv;
 	skyViewLutParamsToUv(intersectGround, viewZenithCosAngle, worldDirLocal, viewHeight, BottomRadiusKm, skyViewLutUv);
 
-	output.Color.xyz = SkyViewLut.SampleLevel(LinearWrapSampler, skyViewLutUv, 0).xyz;
+	float3 skyViewLutColor = SkyViewLut.SampleLevel(LinearWrapSampler, skyViewLutUv, 0).xyz;
+
+	float3 atmosphereLightDirLocal = mul(localReferencial, AtmosphereLightDirection);
+	float3 lightDiskLuminance = GetLightDiskLuminance(worldPosLocal, worldDirLocal, atmosphereLightDirLocal, SUN_LIGHT_HALF_APEX_ANGLE_RADIAN, AtmosphereLightLuminance);
+
+	output.Color.xyz = skyViewLutColor;
 	output.Color.a = 1;
 
 	// ñ@ê¸ÇÕ(0, 0, 0)àµÇ¢

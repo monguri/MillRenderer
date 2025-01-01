@@ -23,7 +23,8 @@ public:
 		DXGI_FORMAT depthFormat,
 		uint32_t skyViewLutWidth,
 		uint32_t skyViewLutHeight,
-		float planetBottomRadiusKm
+		float planetBottomRadiusKm,
+		float planetTopRadiusKm
 	);
 
 	bool InitEnvironmentCubeMap

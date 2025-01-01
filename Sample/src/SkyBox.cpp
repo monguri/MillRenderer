@@ -23,7 +23,8 @@ namespace
 		int SkyViewLutWidth;
 		int SkyViewLutHeight;
 		float BottomRadiusKm;
-		float Padding[2];
+		float TopRadiusKm;
+		float Padding[1];
 	};
 
 	struct alignas(256) CbEnvironmentCubeMap
@@ -225,7 +226,8 @@ bool SkyBox::InitSkyAtmosphere
 	DXGI_FORMAT depthFormat,
 	uint32_t skyViewLutWidth,
 	uint32_t skyViewLutHeight,
-	float planetBottomRadiusKm
+	float planetBottomRadiusKm,
+	float planetTopRadiusKm
 )
 {
 	// 定数バッファの生成
@@ -242,6 +244,7 @@ bool SkyBox::InitSkyAtmosphere
 			ptr->SkyViewLutWidth = skyViewLutWidth;
 			ptr->SkyViewLutHeight = skyViewLutHeight;
 			ptr->BottomRadiusKm = planetBottomRadiusKm;
+			ptr->TopRadiusKm = planetTopRadiusKm;
 		}
 	}
 
@@ -349,11 +352,10 @@ void SkyBox::DrawSkyAtmosphere
 
 		ptr->WVP = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos) * viewMatrix * projMatrix;
 		ptr->InvVRotP = viewRotProjMatrix.Invert();
-		ptr->AtmosphereLightDirection = atmosphereLightDirection;
 		ptr->SkyViewLutReferential = skyViewLutReferential;
-		ptr->AtmosphereLightLuminance = atmosphereLightLuminance;
+		ptr->AtmosphereLightDirection = atmosphereLightDirection;
 		ptr->ViewHeight = viewHeight;
-		ptr->BottomRadiusKm = planetBottomRadiusKm;
+		ptr->AtmosphereLightLuminance = atmosphereLightLuminance;
 	}
 
 	Draw(pCmd, inputTex.GetHandleSRV()->HandleGPU);
