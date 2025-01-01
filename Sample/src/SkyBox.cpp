@@ -17,10 +17,13 @@ namespace
 		Matrix WVP;
 		Matrix InvVRotP;
 		Matrix SkyViewLutReferential;
+		Vector3 AtmosphereLightDirection;
 		float ViewHeight;
+		Vector3 AtmosphereLightLuminance;
 		int SkyViewLutWidth;
 		int SkyViewLutHeight;
 		float BottomRadiusKm;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbEnvironmentCubeMap
@@ -331,7 +334,9 @@ void SkyBox::DrawSkyAtmosphere
 	const Matrix& viewRotProjMatrix,
 	float boxSize,
 	const Matrix& skyViewLutReferential,
-	float planetBottomRadiusKm
+	float planetBottomRadiusKm,
+	const Vector3& atmosphereLightDirection,
+	const Vector3& atmosphereLightLuminance
 )
 {
 	// 定数バッファの更新
@@ -344,7 +349,9 @@ void SkyBox::DrawSkyAtmosphere
 
 		ptr->WVP = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos) * viewMatrix * projMatrix;
 		ptr->InvVRotP = viewRotProjMatrix.Invert();
+		ptr->AtmosphereLightDirection = atmosphereLightDirection;
 		ptr->SkyViewLutReferential = skyViewLutReferential;
+		ptr->AtmosphereLightLuminance = atmosphereLightLuminance;
 		ptr->ViewHeight = viewHeight;
 		ptr->BottomRadiusKm = planetBottomRadiusKm;
 	}

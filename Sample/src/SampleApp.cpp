@@ -5208,7 +5208,18 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	if (RENDER_SPONZA)
 	{
-		m_SkyBox.DrawSkyAtmosphere(pCmdList, m_SkyViewLUT_Target, view, proj, viewRotProj, SKY_BOX_HALF_EXTENT, skyViewLutReferential, PLANET_BOTTOM_RADIUS_KM);
+		m_SkyBox.DrawSkyAtmosphere(
+			pCmdList,
+			m_SkyViewLUT_Target,
+			view,
+			proj,
+			viewRotProj,
+			SKY_BOX_HALF_EXTENT,
+			skyViewLutReferential,
+			PLANET_BOTTOM_RADIUS_KM,
+			lightForward,
+			Vector3::One * m_directionalLightIntensity // 白色光 TODO:DirLightの方向で色を変える。時間帯表現
+		);
 	}
 	else
 	{

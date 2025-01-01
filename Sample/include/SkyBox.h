@@ -45,7 +45,9 @@ public:
 		const struct DirectX::SimpleMath::Matrix& viewRotProjMatrix,
 		float boxSize,
 		const struct DirectX::SimpleMath::Matrix& skyViewLutReferential,
-		float planetBottomRadiusKm
+		float planetBottomRadiusKm,
+		const DirectX::SimpleMath::Vector3& atmosphereLightDirection,
+		const DirectX::SimpleMath::Vector3& atmosphereLightLuminance
 	);
 
 	void DrawEnvironmentCubeMap
