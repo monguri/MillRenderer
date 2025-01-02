@@ -39,6 +39,9 @@ namespace
 	// Directional Lightには位置はないが、この2つの位置から方向を指定する
 	static constexpr Vector3 DIRECTIONAL_LIGHT_START_POSITION = Vector3(1.0f, 10.0f, 1.0f);
 	static constexpr Vector3 DIRECTIONAL_LIGHT_START_TARGET = Vector3(0.0f, 0.0f, 0.0f);
+	
+	//0.5357 degreeが太陽の直径角度。これを半分にしてcosを取る。
+	const float SUN_LIGHT_DISC_COS_HALF_APEX_ANGLE = cos(0.5f * 0.5357f * DirectX::XM_PI / 180.0f);
 
 	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
@@ -526,6 +529,14 @@ namespace
 		}
 
 		return sampleCount;
+	}
+
+	float GetSunLightDiscLuminance()
+	{
+		// https://en.wikipedia.org/wiki/Solid_angle
+		float sunSolidAngle = 2.0f * DirectX::XM_PI * (1.0f - SUN_LIGHT_DISC_COS_HALF_APEX_ANGLE);
+		// TODO:なぜ逆数でOKなのか不明
+		return 1 / sunSolidAngle;
 	}
 }
 
@@ -5220,7 +5231,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 			skyViewLutReferential,
 			PLANET_BOTTOM_RADIUS_KM,
 			-lightForward, // これはDirectionalLightの方向でなく、カメラから見た太陽の方向なので符号を逆にする
-			Vector3::One * m_directionalLightIntensity // 白色光 TODO:DirLightの方向で色を変える。時間帯表現
+			Vector3::One * GetSunLightDiscLuminance() // TODO:DirLightの方向で色を変える。時間帯表現
 		);
 	}
 	else
