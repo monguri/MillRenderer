@@ -5219,7 +5219,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 			SKY_BOX_HALF_EXTENT,
 			skyViewLutReferential,
 			PLANET_BOTTOM_RADIUS_KM,
-			lightForward,
+			-lightForward, // これはDirectionalLightの方向でなく、カメラから見た太陽の方向なので符号を逆にする
 			Vector3::One * m_directionalLightIntensity // 白色光 TODO:DirLightの方向で色を変える。時間帯表現
 		);
 	}
