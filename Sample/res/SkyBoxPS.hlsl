@@ -27,6 +27,7 @@
 
 static const float M_TO_KM = 0.001f;
 static const float SUN_LIGHT_HALF_APEX_ANGLE_RADIAN = 0.5f * 0.5357f * F_PI / 180.0f; // 0.5357 degree
+static const float ATMOSPHERE_LIGHT_DISC_COS_HALF_APEX_ANGLE = cos(SUN_LIGHT_HALF_APEX_ANGLE_RADIAN);
 
 struct VSOutput
 {
@@ -56,7 +57,7 @@ cbuffer CbSkyBox : register(b0)
 };
 
 Texture2D SkyViewLut : register(t0);
-Texture2D TransmittanceLut : register(t0);
+Texture2D TransmittanceLut : register(t1);
 SamplerState LinearClampSampler : register(s0);
 
 float2 FromUnitToSubUvs(float2 uv, float2 size, float2 invSize)
@@ -121,7 +122,7 @@ float3 GetAtmosphereTransmiattance(
 }
 
 float3 GetLightDiskLuminance(
-	float3 planetCenterToWorldPos, float3 worldDir,
+	float3 worldDir,
 	float3 atmosphereLightDirection,
 	float atmosphereLightDiscCosHalfApexAngle,
 	float3 atmosphereLightDiscLuminance,
@@ -134,7 +135,7 @@ float3 GetLightDiskLuminance(
 	const float cosHalfApex = atmosphereLightDiscCosHalfApexAngle;
 	if (viewDotLight > cosHalfApex)
 	{
-		const float3 transmittanceToLight = GetAtmosphereTransmiattance(planetCenterToWorldPos, worldDir, intersectGround);
+		const float3 transmittanceToLight = GetAtmosphereTransmiattance(intersectGround, viewHeight, viewZenithCosAngle);
 
 		// Soften out the sun disk to avoid bloom flickering at edge. The soften is applied on the outer part of the disk.
 		const float softEdge = saturate(2.0f * (viewDotLight - cosHalfApex) / (1.0f - cosHalfApex));
@@ -172,9 +173,10 @@ PSOutput main(VSOutput input)
 	float3 skyViewLutColor = SkyViewLut.SampleLevel(LinearClampSampler, skyViewLutUv, 0).xyz;
 
 	float3 atmosphereLightDirLocal = mul(localReferencial, AtmosphereLightDirection);
-	float3 lightDiskLuminance = GetLightDiskLuminance(worldPosLocal, worldDirLocal, atmosphereLightDirLocal, SUN_LIGHT_HALF_APEX_ANGLE_RADIAN, AtmosphereLightLuminance, intersectGround );
+	float3 lightDiskLuminance = GetLightDiskLuminance(worldDirLocal, atmosphereLightDirLocal, ATMOSPHERE_LIGHT_DISC_COS_HALF_APEX_ANGLE, AtmosphereLightLuminance, intersectGround, viewHeight, viewZenithCosAngle);
 
-	output.Color.xyz = skyViewLutColor;
+	output.Color.xyz = skyViewLutColor + lightDiskLuminance;
+	//output.Color.xyz = skyViewLutColor;
 	output.Color.a = 1;
 
 	// ñ@ê¸ÇÕ(0, 0, 0)àµÇ¢

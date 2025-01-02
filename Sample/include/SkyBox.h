@@ -40,7 +40,8 @@ public:
 	void DrawSkyAtmosphere
 	(
 		ID3D12GraphicsCommandList* pCmd,
-		const class ColorTarget& inputTex,
+		const class ColorTarget& skyViewLUT_Target,
+		const class ColorTarget& skyTransmittanceLUT_Target,
 		const struct DirectX::SimpleMath::Matrix& viewMatrix,
 		const struct DirectX::SimpleMath::Matrix& projMatrix,
 		const struct DirectX::SimpleMath::Matrix& viewRotProjMatrix,
@@ -81,5 +82,5 @@ private:
 		const wchar_t* psFileName
 	);
 
-	void Draw(ID3D12GraphicsCommandList* pCmd, D3D12_GPU_DESCRIPTOR_HANDLE texHandle);
+	void DrawBox(ID3D12GraphicsCommandList* pCmd);
 };

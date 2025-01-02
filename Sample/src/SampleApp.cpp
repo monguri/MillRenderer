@@ -5212,6 +5212,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		m_SkyBox.DrawSkyAtmosphere(
 			pCmdList,
 			m_SkyViewLUT_Target,
+			m_SkyTransmittanceLUT_Target,
 			view,
 			proj,
 			viewRotProj,

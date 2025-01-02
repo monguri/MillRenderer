@@ -313,16 +313,12 @@ void SkyBox::Term()
 	}
 }
 
-void SkyBox::Draw(ID3D12GraphicsCommandList* pCmd, D3D12_GPU_DESCRIPTOR_HANDLE texHandle)
+void SkyBox::DrawBox(ID3D12GraphicsCommandList* pCmd)
 {
-	const D3D12_VERTEX_BUFFER_VIEW& vbv = m_VB.GetView();
-	pCmd->SetGraphicsRootSignature(m_pRootSig.GetPtr());
-	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandleGPU());
-	pCmd->SetGraphicsRootDescriptorTable(1, texHandle);
-	pCmd->SetGraphicsRootDescriptorTable(2, texHandle);
 	pCmd->SetPipelineState(m_pPSO.Get());
 	pCmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pCmd->IASetIndexBuffer(nullptr);
+	const D3D12_VERTEX_BUFFER_VIEW& vbv = m_VB.GetView();
 	pCmd->IASetVertexBuffers(0, 1, &vbv);
 	pCmd->DrawInstanced(36, 1, 0, 0); // TODO:36がマジックナンバー
 
@@ -332,8 +328,8 @@ void SkyBox::Draw(ID3D12GraphicsCommandList* pCmd, D3D12_GPU_DESCRIPTOR_HANDLE t
 void SkyBox::DrawSkyAtmosphere
 (
 	ID3D12GraphicsCommandList* pCmd,
-	const class ColorTarget& SkyViewLUT_Target,
-	const class ColorTarget& SkyTransmittanceLUT_Target,
+	const class ColorTarget& skyViewLUT_Target,
+	const class ColorTarget& skyTransmittanceLUT_Target,
 	const Matrix& viewMatrix,
 	const Matrix& projMatrix,
 	const Matrix& viewRotProjMatrix,
@@ -360,7 +356,12 @@ void SkyBox::DrawSkyAtmosphere
 		ptr->AtmosphereLightLuminance = atmosphereLightLuminance;
 	}
 
-	Draw(pCmd, inputTex.GetHandleSRV()->HandleGPU);
+	pCmd->SetGraphicsRootSignature(m_pRootSig.GetPtr());
+	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandleGPU());
+	pCmd->SetGraphicsRootDescriptorTable(1, skyViewLUT_Target.GetHandleSRV()->HandleGPU);
+	pCmd->SetGraphicsRootDescriptorTable(2, skyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
+
+	DrawBox(pCmd);
 }
 
 void SkyBox::DrawEnvironmentCubeMap
@@ -382,6 +383,10 @@ void SkyBox::DrawEnvironmentCubeMap
 		ptr->Proj = projMatrix;
 	}
 
-	Draw(pCmd, cubeMapHandle);
+	pCmd->SetGraphicsRootSignature(m_pRootSig.GetPtr());
+	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandleGPU());
+	pCmd->SetGraphicsRootDescriptorTable(1, cubeMapHandle);
+
+	DrawBox(pCmd);
 }
 
