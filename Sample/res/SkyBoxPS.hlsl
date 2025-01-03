@@ -91,7 +91,7 @@ void skyViewLutParamsToUv(in bool intersectGround, in float viewZenithCosAngle, 
 	}
 
 	{
-		uv.x = (atan2(viewDir.x, -viewDir.z) + F_PI) / (2 * F_PI);
+		uv.x = (atan2(-viewDir.x, -viewDir.z) + F_PI) / (2 * F_PI);
 	}
 
 	// Constrain uvs to valid sub texel range (avoid zenith derivative issue making LUT usage visible)
