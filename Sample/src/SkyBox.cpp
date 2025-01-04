@@ -345,8 +345,8 @@ void SkyBox::DrawSkyAtmosphere
 		CbSkyBox* ptr = m_CB[m_Index].GetPtr<CbSkyBox>();
 		const Matrix& invViewMat = viewMatrix.Invert();
 		const Vector3& cameraWorldPos = Vector3(invViewMat._41, invViewMat._42, invViewMat._43);
-		const Vector3& planetCenter = Vector3(0.0f, -planetBottomRadiusKm * KM_TO_M, 0.0f);
-		float viewHeight = Vector3::Distance(cameraWorldPos, planetCenter);
+		// …•½‚È•ûŒü‚ªí‚É˜f¯‚ÌÚ•½–Ê‚Æ•½s‚É‚È‚é‹ßŽ—‚ð“ü‚ê‚Äy•ûŒü‚ªí‚É˜f¯‚Ìã•ûŒü‚Æ‚·‚é
+		float viewHeight = cameraWorldPos.y + planetBottomRadiusKm * KM_TO_M;
 
 		ptr->WVP = Matrix::CreateScale(boxSize) * Matrix::CreateTranslation(cameraWorldPos) * viewMatrix * projMatrix;
 		ptr->InvVRotP = viewRotProjMatrix.Invert();

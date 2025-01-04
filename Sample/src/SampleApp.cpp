@@ -4824,12 +4824,8 @@ void SampleApp::OnRender()
 	// 空描画のLUTの座標系への変換行列
 	Matrix skyViewLutReferential;
 	{
-		// 惑星の中心は(0, -PLANET_BOTTOM_RADIUS_KM, 0)とする
-		const Vector3& planetCenterWS = Vector3(0, -PLANET_BOTTOM_RADIUS_KM, 0) * KM_TO_M;
-
-		Vector3 yAxis = m_CameraManipulator.GetPosition() - planetCenterWS;
-		yAxis.Normalize();
-
+		// 水平な方向が常に惑星の接平面と平行になる近似を入れてy方向が常に惑星の上方向とする
+		Vector3 yAxis = Vector3::UnitY;
 		Vector3 zAxis = m_CameraManipulator.GetView().Backward();
 		Vector3 xAxis;
 

@@ -115,8 +115,6 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	float2 pixPos = DTid + 0.5f;
 	float2 uv = pixPos / float2(ViewLUT_Width, ViewLUT_Height);
 
-	float3 worldPos = CameraPosition * M_TO_KM - float3(0, -BottomRadiusKm, 0);
-
 	// For the sky view lut to work, and not be distorted, we need to transform the view and light directions 
 	// into a referential with UP being perpendicular to the ground. And with origin at the planet center.
 	
@@ -124,8 +122,8 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	float3x3 localReferencial = (float3x3)SkyViewLutReferential;
 
 	// This is the LUT camera height and position in the local referential
-	float viewHeight = length(worldPos);
-	worldPos = float3(0, viewHeight, 0);
+	float viewHeight = CameraPosition.y * M_TO_KM + BottomRadiusKm;
+	float3 worldPos = float3(0, viewHeight, 0);
 
 	// Get the view direction in this local referential
 	float3 worldDir;
