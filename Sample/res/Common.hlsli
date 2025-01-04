@@ -19,7 +19,7 @@ float2 RayIntersectSphere(float3 rayOrigin, float3 rayDirection, float4 sphere)
 	quadraticCoef.z = localPositionSqr - sphere.w * sphere.w;
 
 	float discriminant = quadraticCoef.y * quadraticCoef.y - 4 * quadraticCoef.x * quadraticCoef.z;
-	// TODO:初期値が-1で問題ない？
+	// 初期値が-1というのは問題がある気がするが、使う側で気を付ける
 	float2 intersections = -1;
 
 	// Only continue if the ray intersects the sphere

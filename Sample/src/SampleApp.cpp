@@ -540,15 +540,112 @@ namespace
 		return color * intensity / sunSolidAngle; // approximation
 	}
 
-#if 0
 	// UEのSkyAtmosphereRendering.cppのGetTransmittanceAtGroundLevel()を参考にした
 	Vector3 GetTransmittanceAtGroundLevel()
 	{
 		// The following code is from SkyXxxx.hlsl and has been converted to lambda functions. 
 		// It compute transmittance from the origin towards a sun direction. 
-		Vector2 RayIntersectSphere = [&]()
+
+		const auto& RayIntersectSphere = [&](const Vector3& rayOrigin, const Vector3& rayDirection, const Vector3& sphereOrigin, float sphereRadius)
+		{
+			const Vector3& localPosition = rayOrigin - sphereOrigin;
+			float localPositionSqr = localPosition.Dot(localPosition);
+
+			Vector3 quadraticCoef;
+			quadraticCoef.x = rayDirection.Dot(rayDirection);
+			quadraticCoef.y = 2 * rayDirection.Dot(localPosition);
+			quadraticCoef.z = localPositionSqr - sphereRadius * sphereRadius;
+
+			float discriminant = quadraticCoef.y * quadraticCoef.y - 4 * quadraticCoef.x * quadraticCoef.z;
+			// 初期値が-1というのは問題がある気がするが、使う側で気を付ける
+			Vector2 intersections = Vector2(-1, -1);
+
+			// Only continue if the ray intersects the sphere
+			if (discriminant >= 0)
+			{
+				float sqrtDiscriminant = sqrt(discriminant);
+				intersections = (Vector2(-quadraticCoef.y) + Vector2(-1, 1) * sqrtDiscriminant) / (2 * quadraticCoef.x);
+			}
+
+			return intersections;
+		};
+
+		const auto& RaySphereIntersectNearest = [&](const Vector3& rayOrigin, const Vector3& rayDir, const Vector3& sphereCenter, float sphereRadius)
+		{
+			Vector2 sol = RayIntersectSphere(rayOrigin, rayDir, sphereCenter, sphereRadius);
+			float sol0 = sol.x;
+			float sol1 = sol.y;
+			if (sol0 < 0.0f && sol1 < 0.0f)
+			{
+				return -1.0f;
+			}
+			if (sol0 < 0.0f)
+			{
+				return DirectX::XMMax(0.0f, sol1);
+			}
+			else if (sol1 < 0.0f)
+			{
+				return DirectX::XMMax(0.0f, sol0);
+			}
+			return DirectX::XMMax(0.0f, DirectX::XMMin(sol0, sol1));
+		};
+
+		// SkyCommon.hlsliで同じ定義をしているのに注意
+		static const float EARTH_RAYLEIGH_SCALE_HEIGHT = 8.0f; // referenced UE.
+		static const float EARTH_MIE_SCALE_HEIGHT = 1.2f; // referenced UE.
+		static const float RAYLEIGH_DENSITY_EXP_SCALE = -1.0f / EARTH_RAYLEIGH_SCALE_HEIGHT; // referenced UE.
+		static const float MIE_DENSITY_EXP_SCALE = -1.0f / EARTH_MIE_SCALE_HEIGHT; // referenced UE.
+
+		static const Vector3& MIE_SCATTERING = Vector3::One; // TODO:sRGB
+		static const float MIE_SCATTERING_SCALE = 0.003996f;
+		static const Vector3& MIE_ABSORPTION = Vector3::One; // TODO:sRGB
+		static const float MIE_ABSORPTION_SCALE = 0.000444f;
+		static const Vector3& MIE_EXTINCTION = MIE_SCATTERING * MIE_SCATTERING_SCALE + MIE_ABSORPTION * MIE_ABSORPTION_SCALE;
+
+		// Float to a u8 rgb + float length can lose some precision but it is better UI wise.
+		static const Vector3& RAYLEIGH_SCATTERING = Vector3(0.005802f, 0.013558f, 0.033100f); // TODO:sRGB
+
+		static const Vector3& OZON_ABSORPTION = Vector3(0.000650f, 0.001881f, 0.000085f); // TODO:sRGB
+		static const float OZON_TIP_ALTITUDE = 25.0f;
+		static const float OZON_TIP_VALUE = 1.0f;
+		static const float OZON_WIDTH = 15.0f;
+		static const float ABSORPTION_DENSITY0_LAYER_WIDTH = OZON_TIP_ALTITUDE;
+		static const float ABSORPTION_DENSITY0_LINEAR_TERM = OZON_TIP_VALUE / OZON_WIDTH;
+		static const float ABSORPTION_DENSITY0_CONSTANT_TERM = OZON_TIP_VALUE - OZON_TIP_ALTITUDE * ABSORPTION_DENSITY0_LINEAR_TERM;
+		static const float ABSORPTION_DENSITY1_LINEAR_TERM = -ABSORPTION_DENSITY0_LINEAR_TERM;
+		static const float ABSORPTION_DENSITY1_CONSTANT_TERM = OZON_TIP_VALUE - OZON_TIP_ALTITUDE * ABSORPTION_DENSITY1_LINEAR_TERM;
+
+		const auto& OpticalDepth = [&](const Vector3& rayOrigin, const Vector3& rayDirection)
+		{
+			float tMax = RaySphereIntersectNearest(rayOrigin, rayDirection, Vector3::Zero, PLANET_TOP_RADIUS_KM);
+
+			Vector3 opticalDepthRGB = Vector3::Zero;
+			if (tMax > 0)
+			{
+				const float sampleCount = 15;
+				const float sampleStep = 1 / sampleCount;
+				const float sampleLength = sampleStep * tMax;
+
+				for (float sampleT = 0; sampleT < 1; sampleT += sampleStep)
+				{
+					const Vector3& pos = rayOrigin + rayDirection * (tMax * sampleT);
+					const float viewHeight = pos.Length() - PLANET_BOTTOM_RADIUS_KM;
+
+					const float densityMie = DirectX::XMMax(0.0f, expf(MIE_DENSITY_EXP_SCALE * viewHeight));
+					const float densityRay = DirectX::XMMax(0.0f, expf(RAYLEIGH_DENSITY_EXP_SCALE * viewHeight));
+					const float densityOzo = DirectX::XMMax(DirectX::XMMin(viewHeight < ABSORPTION_DENSITY0_LAYER_WIDTH ? ABSORPTION_DENSITY0_LINEAR_TERM * viewHeight + ABSORPTION_DENSITY0_CONSTANT_TERM : ABSORPTION_DENSITY1_LINEAR_TERM * viewHeight + ABSORPTION_DENSITY1_CONSTANT_TERM, 1.0f), 0.0f);
+
+					const Vector3& sampleExtinction = densityMie * MIE_EXTINCTION + densityRay * RAYLEIGH_SCATTERING + densityOzo * OZON_ABSORPTION;
+					opticalDepthRGB += sampleLength * sampleExtinction;
+				}
+			}
+
+			return opticalDepthRGB;
+		};
+
+		// TODO:実装
+		return Vector3::Zero;
 	}
-#endif
 }
 
 SampleApp::SampleApp(uint32_t width, uint32_t height)
