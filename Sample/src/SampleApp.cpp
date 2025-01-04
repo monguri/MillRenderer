@@ -54,7 +54,7 @@ namespace
 	static constexpr uint32_t SKY_VIEW_LUT_HEIGHT = 104; // UEを参考にした
 	static constexpr float PLANET_BOTTOM_RADIUS_KM = 6360.0f;
 	static constexpr float PLANET_TOP_RADIUS_KM = 6420.0f;
-	static constexpr float KM_TO_M = 1000.0f;
+	static constexpr float M_TO_KM = 0.001f;
 
 	static constexpr uint32_t HCB_MAX_NUM_OUTPUT_MIP = 5; // UEを参考にした
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
@@ -123,12 +123,12 @@ namespace
 
 	struct alignas(256) CbDirectionalLight
 	{
-		Vector3 LightColor;
-		float LightIntensity;
+		Vector3 LightColor; // Intensityも含む
+		float Padding1[1];
 		Vector3 LightForward;
-		float Padding[1];
+		float Padding2[1];
 		Vector2 ShadowMapSize; // x is pixel size, y is texel size on UV.
-		float Padding2[2];
+		float Padding3[2];
 	};
 
 	struct alignas(256) CbPointLight
@@ -531,17 +531,23 @@ namespace
 		return sampleCount;
 	}
 
+	// UEのSkyAtmosphereRendering.cppのGetOuterSpaceIlluminance()を参考にした
+	Vector3 GetSunLightOuterSpaceIlluminance(const float intensity, const Vector3& color)
+	{
+		return intensity * color;
+	}
+
 	// UEのSkyAtmosphereRendering.cppのGetSunLightDiscLuminance()を参考にした
 	Vector3 GetSunLightDiscLuminance(const float intensity, const Vector3& color)
 	{
 		// Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
 		float sunSolidAngle = 2.0f * DirectX::XM_PI * (1.0f - SUN_LIGHT_DISC_COS_HALF_APEX_ANGLE);
 		// TODO:なぜ逆数でOKなのか不明
-		return color * intensity / sunSolidAngle; // approximation
+		return GetSunLightOuterSpaceIlluminance(intensity, color) / sunSolidAngle; // approximation
 	}
 
 	// UEのSkyAtmosphereRendering.cppのGetTransmittanceAtGroundLevel()を参考にした
-	Vector3 GetTransmittanceAtGroundLevel()
+	Vector3 GetTransmittanceAtGroundLevel(const Vector3& cameraPos, const Vector3& sunDirection)
 	{
 		// The following code is from SkyXxxx.hlsl and has been converted to lambda functions. 
 		// It compute transmittance from the origin towards a sun direction. 
@@ -643,8 +649,10 @@ namespace
 			return opticalDepthRGB;
 		};
 
-		// TODO:実装
-		return Vector3::Zero;
+		const Vector3& worldPos = Vector3(0, cameraPos.y * M_TO_KM + PLANET_BOTTOM_RADIUS_KM, 0);
+		const Vector3& worldDir = sunDirection; // 太陽の光線方向でなくカメラから太陽の方向
+		const Vector3& opticalepthRGB = OpticalDepth(worldPos, worldDir);
+		return Vector3(expf(-opticalepthRGB.x), expf(-opticalepthRGB.y), expf(-opticalepthRGB.z));
 	}
 }
 
@@ -5209,10 +5217,11 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	if (RENDER_SPONZA)
 	{
 		{
+			const Vector3& transmittanceTowardSun = GetTransmittanceAtGroundLevel(m_CameraManipulator.GetPosition(), -m_DirLightManipulator.GetForward());
+
 			CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
-			ptr->LightColor = Vector3(1.0f, 1.0f, 1.0f); // 白色光
+			ptr->LightColor = transmittanceTowardSun * GetSunLightOuterSpaceIlluminance(m_directionalLightIntensity, Vector3::One); // 白色光源
 			ptr->LightForward = lightForward;
-			ptr->LightIntensity = m_directionalLightIntensity;
 			ptr->ShadowMapSize = Vector2((float)DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE, 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE);
 		}
 
@@ -5324,7 +5333,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	if (RENDER_SPONZA)
 	{
-		// TODO:DirLightの方向で色を変える。時間帯表現。DirLightは別クラスにした方がいいかも
+		// UEのDirectionalLightComponent::GetOuterSpaceLuminance()を参考にしている
 		const Vector3& discLuminance = GetSunLightDiscLuminance(m_directionalLightIntensity, Vector3::One);
 		m_SkyBox.DrawSkyAtmosphere(
 			pCmdList,

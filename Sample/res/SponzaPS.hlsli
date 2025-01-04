@@ -221,7 +221,6 @@ cbuffer CbMaterial : register(b1)
 cbuffer CbDirectionalLight : register(b2)
 {
 	float3 DirLightColor: packoffset(c0);
-	float DirLightIntensity: packoffset(c0.w);
 	float3 DirLightForward : packoffset(c1);
 	float2 DirLightShadowMapSize : packoffset(c2); // x is pixel size, y is texel size on UV.
 };
@@ -561,7 +560,7 @@ PSOutput main(VSOutput input)
 
 	float transitionScale = DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS, 1, dirLightNL);
 	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, ShadowSmp, DirLightShadowMapSize, input.DirLightShadowCoord, transitionScale);
-	float3 dirLightReflection = dirLightBRDF * DirLightColor * DirLightIntensity * dirLightShadowMult;
+	float3 dirLightReflection = dirLightBRDF * DirLightColor * dirLightShadowMult;
 
 	// 4 point light
 	float3 pointLight1Reflection = EvaluatePointLightReflection

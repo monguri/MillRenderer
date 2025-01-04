@@ -67,7 +67,6 @@ cbuffer CbVolumetricFog : register(b0)
 cbuffer CbDirectionalLight : register(b1)
 {
 	float3 DirLightColor : packoffset(c0);
-	float DirLightIntensity: packoffset(c0.w);
 	float3 DirLightForward : packoffset(c1);
 	float2 DirLightShadowMapSize : packoffset(c2); // x is pixel size, y is texel size on UV.
 };
@@ -279,7 +278,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float3 dirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
 	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, ShadowSmp, DirLightShadowMapSize, dirLightShadowCoord, 0);
 
-	lightScattering += DirLightColor * DirLightIntensity * dirLightShadowMult * DirectionalLightScatteringIntensity * HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-DirLightForward, -cameraVector));
+	lightScattering += DirLightColor * dirLightShadowMult * DirectionalLightScatteringIntensity * HenyeyGreensteinPhase(SCATTERING_DISTRIBUTION, dot(-DirLightForward, -cameraVector));
 
 	float3 cameraOriginNextCellWorldPos = ComputeCellCameraOriginWorldPosition(gridCoordinate + 1, FrameJitterOffsetValue);
 	float cellRadius = length(cameraOriginNextCellWorldPos - cameraOriginWorldPos);
