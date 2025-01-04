@@ -531,13 +531,24 @@ namespace
 		return sampleCount;
 	}
 
-	float GetSunLightDiscLuminance()
+	// UEのSkyAtmosphereRendering.cppのGetSunLightDiscLuminance()を参考にした
+	Vector3 GetSunLightDiscLuminance(const float intensity, const Vector3& color)
 	{
-		// https://en.wikipedia.org/wiki/Solid_angle
+		// Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
 		float sunSolidAngle = 2.0f * DirectX::XM_PI * (1.0f - SUN_LIGHT_DISC_COS_HALF_APEX_ANGLE);
 		// TODO:なぜ逆数でOKなのか不明
-		return 1 / sunSolidAngle;
+		return color * intensity / sunSolidAngle; // approximation
 	}
+
+#if 0
+	// UEのSkyAtmosphereRendering.cppのGetTransmittanceAtGroundLevel()を参考にした
+	Vector3 GetTransmittanceAtGroundLevel()
+	{
+		// The following code is from SkyXxxx.hlsl and has been converted to lambda functions. 
+		// It compute transmittance from the origin towards a sun direction. 
+		Vector2 RayIntersectSphere = [&]()
+	}
+#endif
 }
 
 SampleApp::SampleApp(uint32_t width, uint32_t height)
@@ -5220,6 +5231,8 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	if (RENDER_SPONZA)
 	{
+		// TODO:DirLightの方向で色を変える。時間帯表現。DirLightは別クラスにした方がいいかも
+		const Vector3& discLuminance = GetSunLightDiscLuminance(m_directionalLightIntensity, Vector3::One);
 		m_SkyBox.DrawSkyAtmosphere(
 			pCmdList,
 			m_SkyViewLUT_Target,
@@ -5231,7 +5244,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 			skyViewLutReferential,
 			PLANET_BOTTOM_RADIUS_KM,
 			-lightForward, // これはDirectionalLightの方向でなく、カメラから見た太陽の方向なので符号を逆にする
-			Vector3::One * GetSunLightDiscLuminance() // TODO:DirLightの方向で色を変える。時間帯表現
+			discLuminance
 		);
 	}
 	else
