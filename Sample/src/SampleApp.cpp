@@ -173,6 +173,13 @@ namespace
 		float Padding2[1];
 	};
 
+	struct alignas(256) CbVolumetricCloud
+	{
+		int Width;
+		int Height;
+		float Padding[2];
+	};
+
 	struct alignas(256) CbCamera
 	{
 		Vector3 CameraPosition;
@@ -1131,6 +1138,19 @@ bool SampleApp::OnInit(HWND hWnd)
 			ptr->AtmosphereLightDirection = Vector3(0, -1, 0); // TODO: 後から制御可能にする
 			ptr->AtmosphereLightIlluminanceOuterSpace = m_directionalLightIntensity * Vector3(1, 1, 1);
 		}
+	}
+
+	// 雲のレイマーチング用のバッファの設定
+	{
+		if (!m_VolumetricCloudCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbVolumetricCloud)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbVolumetricCloud* ptr = m_VolumetricCloudCB.GetPtr<CbVolumetricCloud>();
+		ptr->Width = m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR;
+		ptr->Height = m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR;
 	}
 
 	// カメラバッファの設定
@@ -4609,6 +4629,8 @@ void SampleApp::OnTerm()
 		m_TonemapCB[i].Term();
 		m_SkyAtmosphereCB[i].Term();
 	}
+
+	m_VolumetricCloudCB.Term();
 
 	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 	{
