@@ -56,6 +56,10 @@ namespace
 	static constexpr float PLANET_TOP_RADIUS_KM = 6420.0f;
 	static constexpr float M_TO_KM = 0.001f;
 
+	static constexpr uint32_t CLOUD_MAIN_DOWN_SAMPLE_FACTOR = 2; // UEを参考にした
+	static constexpr uint32_t CLOUD_TRACE_DOWN_SAMPLE_FACTOR = 2; // UEを参考にした
+	static constexpr float HALF_MAX = 65504; // halfの表現できる最大値
+
 	static constexpr uint32_t HCB_MAX_NUM_OUTPUT_MIP = 5; // UEを参考にした
 	static constexpr uint32_t HZB_MAX_NUM_OUTPUT_MIP = 4; // UEを参考にした
 
@@ -1285,6 +1289,61 @@ bool SampleApp::OnInit(HWND hWnd)
 			SKY_VIEW_LUT_HEIGHT,
 			DXGI_FORMAT_R11G11B10_FLOAT,
 			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+			return false;
+		}
+	}
+
+	// 雲のレイマーチ用のカラーターゲット3枚の作成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_CloudTracingTarget.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+			m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+			return false;
+		}
+
+		if (!m_CloudSecondaryTracingTarget.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+			m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+			return false;
+		}
+
+		float clearDepth[4] = {HALF_MAX, HALF_MAX, HALF_MAX, HALF_MAX};
+
+		if (!m_CloudTracingDepthTarget.InitUnorderedAccessTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr, // RTVは作らない。クリアする必要がないので
+			m_pPool[POOL_TYPE_RES],
+			m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+			m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			clearDepth
 		))
 		{
 			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
@@ -4626,6 +4685,10 @@ void SampleApp::OnTerm()
 	m_SkyTransmittanceLUT_Target.Term();
 	m_SkyMultiScatteringLUT_Target.Term();
 	m_SkyViewLUT_Target.Term();
+
+	m_CloudTracingTarget.Term();
+	m_CloudSecondaryTracingTarget.Term();
+	m_CloudTracingDepthTarget.Term();
 
 	m_SceneColorTarget.Term();
 	m_SceneNormalTarget.Term();

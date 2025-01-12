@@ -93,6 +93,9 @@ private:
 	ColorTarget m_SkyTransmittanceLUT_Target;
 	ColorTarget m_SkyMultiScatteringLUT_Target;
 	ColorTarget m_SkyViewLUT_Target;
+	ColorTarget m_CloudTracingTarget;
+	ColorTarget m_CloudSecondaryTracingTarget;
+	ColorTarget m_CloudTracingDepthTarget;
 	ColorTarget m_SceneColorTarget;
 	ColorTarget m_SceneNormalTarget;
 	ColorTarget m_SceneMetallicRoughnessTarget;
