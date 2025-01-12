@@ -34,6 +34,8 @@ private:
 	RootSignature m_SkyMultiScatteringLUT_RootSig;
 	ComPtr<ID3D12PipelineState> m_pSkyViewLUT_PSO;
 	RootSignature m_SkyViewLUT_RootSig;
+	ComPtr<ID3D12PipelineState> m_pVolumetricCloudPSO;
+	RootSignature m_VolumetricCloud_RootSig;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaOpaquePSO;
