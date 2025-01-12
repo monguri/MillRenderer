@@ -2228,14 +2228,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!m_VolumetricCloud_RootSig.Init(m_pDevice.Get(), pRSBlob))
+		if (!m_VolumetricCloudRootSig.Init(m_pDevice.Get(), pRSBlob))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
 		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_VolumetricCloud_RootSig.GetPtr();
+		desc.pRootSignature = m_VolumetricCloudRootSig.GetPtr();
 		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
 		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
 		desc.NodeMask = 0;
@@ -4830,7 +4830,7 @@ void SampleApp::OnTerm()
 	m_pSkyViewLUT_PSO.Reset();
 	m_SkyViewLUT_RootSig.Term();
 	m_pVolumetricCloudPSO.Reset();
-	m_VolumetricCloud_RootSig.Term();
+	m_VolumetricCloudRootSig.Term();
 
 	m_pSponzaOpaquePSO.Reset();
 	m_pSponzaMaskPSO.Reset();
@@ -5037,6 +5037,8 @@ void SampleApp::OnRender()
 	DrawSkyTransmittanceLUT(pCmd);
 	DrawSkyMultiScatteringLUT(pCmd);
 	DrawSkyViewLUT(pCmd, skyViewLutReferential, lightForward);
+
+	DrawVolumetricCloud(pCmd);
 
 	if (m_enableTemporalAA)
 	{
@@ -5315,6 +5317,41 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Matrix
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"VolumetricCloud");
+
+	DirectX::TransitionResource(pCmdList, m_CloudTracingTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_CloudSecondaryTracingTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_CloudTracingDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	pCmdList->SetComputeRootSignature(m_VolumetricCloudRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pVolumetricCloudPSO.Get());
+	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricCloudCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_CloudTracingTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_CloudSecondaryTracingTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_CloudTracingDepthTarget.GetHandleUAVs()[0]->HandleGPU);
+
+	// シェーダ側と合わせている
+	const size_t GROUP_SIZE_X = 8;
+	const size_t GROUP_SIZE_Y = 8;
+
+	assert(m_CloudTracingTarget.GetDesc().Width == m_CloudSecondaryTracingTarget.GetDesc().Width);
+	assert(m_CloudTracingTarget.GetDesc().Height == m_CloudSecondaryTracingTarget.GetDesc().Height);
+	assert(m_CloudTracingTarget.GetDesc().Width == m_CloudTracingDepthTarget.GetDesc().Width);
+	assert(m_CloudTracingTarget.GetDesc().Height == m_CloudTracingDepthTarget.GetDesc().Height);
+
+	// グループ数は切り上げ
+	UINT NumGroupX = DivideAndRoundUp((uint32_t)m_CloudTracingTarget.GetDesc().Width, GROUP_SIZE_X);
+	UINT NumGroupY = DivideAndRoundUp(m_CloudTracingTarget.GetDesc().Height, GROUP_SIZE_Y);
+	UINT NumGroupZ = 1;
+	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
+
+	DirectX::TransitionResource(pCmdList, m_CloudTracingTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_CloudSecondaryTracingTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_CloudTracingDepthTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)

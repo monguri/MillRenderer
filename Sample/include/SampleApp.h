@@ -35,7 +35,7 @@ private:
 	ComPtr<ID3D12PipelineState> m_pSkyViewLUT_PSO;
 	RootSignature m_SkyViewLUT_RootSig;
 	ComPtr<ID3D12PipelineState> m_pVolumetricCloudPSO;
-	RootSignature m_VolumetricCloud_RootSig;
+	RootSignature m_VolumetricCloudRootSig;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaOpaquePSO;
@@ -212,6 +212,7 @@ private:
 	void DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const DirectX::SimpleMath::Vector3& dirLightDir);
+	void DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList);
 	void DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode);
 	void DrawHCB(ID3D12GraphicsCommandList* pCmdList);
