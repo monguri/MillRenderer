@@ -5329,10 +5329,11 @@ void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_VolumetricCloudRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricCloudPSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricCloudCB.GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_CloudTracingTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_CloudSecondaryTracingTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_CloudTracingDepthTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricCloudCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(2, m_CloudTracingTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_CloudSecondaryTracingTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_CloudTracingDepthTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 8;
