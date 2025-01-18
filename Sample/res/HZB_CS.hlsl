@@ -36,7 +36,8 @@ RWTexture2D<float> OutHZB_Mip1 : register(u1);
 RWTexture2D<float> OutHZB_Mip2 : register(u2);
 RWTexture2D<float> OutHZB_Mip3 : register(u3);
 
-groupshared float SharedMaxDeviceZ[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
+// Most minimum deviceZ is furthest because we use reverse z for scene depth.
+groupshared float SharedMinDeviceZ[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
@@ -44,10 +45,10 @@ void main(uint2 GroupId : SV_GroupID, uint2 DTid : SV_DispatchThreadID, uint gro
 {
 	float2 uv = (DTid + 0.5f) * float2(1, HeightScale) / float2(DstMip0Width, DstMip0Height);
 	float4 deviceZ = ParentTextureMip.GatherRed(PointClampSmp, uv, 0);
-	float maxDeviceZ = max(deviceZ.x, max(deviceZ.y, max(deviceZ.z, deviceZ.w)));
-	OutHZB_Mip0[DTid] = maxDeviceZ;
+	float minDeviceZ = min(deviceZ.x, min(deviceZ.y, min(deviceZ.z, deviceZ.w)));
+	OutHZB_Mip0[DTid] = minDeviceZ;
 
-	SharedMaxDeviceZ[groupThreadIndex] = maxDeviceZ;
+	SharedMinDeviceZ[groupThreadIndex] = minDeviceZ;
 
 	// the number of output textures need to match HZB_MAX_MIP_BATCH_SIZE of cpp.
 	for (uint mipLevel = 1; mipLevel < (uint)NumOutputMip; mipLevel++)
@@ -61,29 +62,29 @@ void main(uint2 GroupId : SV_GroupID, uint2 DTid : SV_DispatchThreadID, uint gro
 
 		if (groupThreadIndex < reduceBankSize)
 		{
-			float4 parentMaxDeviceZ;
-			parentMaxDeviceZ.x = SharedMaxDeviceZ[groupThreadIndex * 2];
-			parentMaxDeviceZ.y = SharedMaxDeviceZ[groupThreadIndex * 2 + 1];
-			parentMaxDeviceZ.z = SharedMaxDeviceZ[groupThreadIndex * 2 + parentTileSize];
-			parentMaxDeviceZ.w = SharedMaxDeviceZ[groupThreadIndex * 2 + parentTileSize + 1];
+			float4 parentMinDeviceZ;
+			parentMinDeviceZ.x = SharedMinDeviceZ[groupThreadIndex * 2];
+			parentMinDeviceZ.y = SharedMinDeviceZ[groupThreadIndex * 2 + 1];
+			parentMinDeviceZ.z = SharedMinDeviceZ[groupThreadIndex * 2 + parentTileSize];
+			parentMinDeviceZ.w = SharedMinDeviceZ[groupThreadIndex * 2 + parentTileSize + 1];
 
-			float tileMaxDeviceZ = max(parentMaxDeviceZ.x, max(parentMaxDeviceZ.y, max(parentMaxDeviceZ.z, parentMaxDeviceZ.w)));
+			float tileMinDeviceZ = min(parentMinDeviceZ.x, min(parentMinDeviceZ.y, min(parentMinDeviceZ.z, parentMinDeviceZ.w)));
 			uint2 OutputPixelPos = GroupId * tileSize + uint2(groupThreadIndex % tileSize, groupThreadIndex / tileSize);
 
 			if (mipLevel == 1)
 			{
-				OutHZB_Mip1[OutputPixelPos] = tileMaxDeviceZ;
+				OutHZB_Mip1[OutputPixelPos] = tileMinDeviceZ;
 			}
 			else if (mipLevel == 2)
 			{
-				OutHZB_Mip2[OutputPixelPos] = tileMaxDeviceZ;
+				OutHZB_Mip2[OutputPixelPos] = tileMinDeviceZ;
 			}
 			else if (mipLevel == 3)
 			{
-				OutHZB_Mip3[OutputPixelPos] = tileMaxDeviceZ;
+				OutHZB_Mip3[OutputPixelPos] = tileMinDeviceZ;
 			}
 
-			SharedMaxDeviceZ[groupThreadIndex] = tileMaxDeviceZ;
+			SharedMinDeviceZ[groupThreadIndex] = tileMinDeviceZ;
 		}
 	}
 }
