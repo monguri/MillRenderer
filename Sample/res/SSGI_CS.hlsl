@@ -244,7 +244,7 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 	float4 rayDepthClipPos = rayStartClipPos + mul(ProjMatrix, float4(0, 0, -depth, 0));
 	float3 rayDepthNDC = rayDepthClipPos.xyz / rayDepthClipPos.w;
 
-	float compareTolerance = max(abs(rayStepUVz.z), (rayDepthNDC.z - rayStartUVz.z) * SLOPE_COMPARE_TOLERANCE_SCALE * step);
+	float compareTolerance = max(abs(rayStepUVz.z), (rayStartUVz.z - rayDepthNDC.z) * SLOPE_COMPARE_TOLERANCE_SCALE * step);
 	uint stepCount;
 	bool bHit = false;
 	float sampleDepthDiff;
@@ -258,7 +258,7 @@ bool RayCast(float3 rayStartUVz, float3 cameraOriginRayStart, float3 rayDir, flo
 		// Refered UE. SSR become as blurrier as high roughness.
 		mipLevel += 4.0f / numSteps * roughness;
 
-		sampleDepthDiff = sampleDepth - sampleUVz.z;
+		sampleDepthDiff = sampleUVz.z - sampleDepth;
 		bHit = (abs(sampleDepthDiff + compareTolerance) < compareTolerance);
 		if (bHit)
 		{
