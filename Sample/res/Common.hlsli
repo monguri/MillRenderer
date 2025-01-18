@@ -4,6 +4,7 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
+// float‚Ì¸“x“I‚É–â‘è‚Ì‚È‚¢”ÍˆÍ‚Å¬‚³‚¢’l
 #ifndef SMALL_VALUE
 #define SMALL_VALUE 1e-6f
 #endif //SMALL_VALUE

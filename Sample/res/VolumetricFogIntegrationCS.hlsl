@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 #define ROOT_SIGNATURE ""\
 "DescriptorTable(CBV(b0))"\
 ", DescriptorTable(SRV(t0))"\
@@ -82,7 +84,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 		float transmittance = exp(-preExposedScatteringAndExtinction.w * stepLength);
 		float fadeInLerpValue = 1;
 
-		float3 scatteingIntegratedOverSlice = fadeInLerpValue * (preExposedScatteringAndExtinction.rgb - preExposedScatteringAndExtinction.rgb * transmittance) / max(preExposedScatteringAndExtinction.w, 0.00001f);
+		float3 scatteingIntegratedOverSlice = fadeInLerpValue * (preExposedScatteringAndExtinction.rgb - preExposedScatteringAndExtinction.rgb * transmittance) / max(preExposedScatteringAndExtinction.w, SMALL_VALUE);
 
 		accmulateLighting += scatteingIntegratedOverSlice * accmulateTransmittance;
 
