@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
 "("\
@@ -62,10 +64,8 @@ SamplerState LinearClampSmp : register(s1);
 //TODO: common functions with SSAO.
 float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
-	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// deviceZ = ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ
-	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
-	return (Far * Near) / (deviceZ * (Far - Near) - Far);
+	// https://shikihuiku.github.io/post/projection_matrix/
+	return -Near / max(deviceZ, SMALL_VALUE);
 }
 
 [RootSignature(ROOT_SIGNATURE)]
