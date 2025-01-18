@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
 "("\
@@ -37,12 +39,11 @@ cbuffer CbSSR : register(b0)
 	float4x4 VRotPMatrix : packoffset(c4);
 	float4x4 InvVRotPMatrix : packoffset(c8);
 	float Near : packoffset(c12);
-	float Far : packoffset(c12.y);
-	int Width : packoffset(c12.z);
-	int Height : packoffset(c12.w);
-	int FrameSampleIndex : packoffset(c13);
-	float Intensity : packoffset(c13.y);
-	int bDebugViewSSR : packoffset(c13.z);
+	int Width : packoffset(c12.y);
+	int Height : packoffset(c12.z);
+	int FrameSampleIndex : packoffset(c12.w);
+	float Intensity : packoffset(c13);
+	int bDebugViewSSR : packoffset(c13.y);
 }
 
 static const float ROUGHNESS_MASK_MUL = -6.66667f; // Referenced UE's value.
@@ -77,10 +78,8 @@ float InterleavedGradientNoise(float2 pixelPos, float frameId)
 
 float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
-	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// deviceZ = ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ
-	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
-	return (Far * Near) / (deviceZ * (Far - Near) - Far);
+	// https://shikihuiku.github.io/post/projection_matrix/
+	return -Near / max(deviceZ, SMALL_VALUE);
 }
 
 float3 ConverFromNDCToCameraOriginWS(float4 ndcPos)

@@ -85,11 +85,10 @@ cbuffer CbSSAO : register(b0)
 	float2 RandomationSize : packoffset(c8.z);
 	float2 TemporalOffset : packoffset(c9);
 	float Near : packoffset(c9.z);
-	float Far : packoffset(c9.w);
-	float InvTanHalfFov : packoffset(c10);
-	int bHalfRes : packoffset(c10.y);
-	float Contrast  : packoffset(c10.z);
-	float Intensity  : packoffset(c10.w);
+	float InvTanHalfFov : packoffset(c9.w);
+	int bHalfRes : packoffset(c10);
+	float Contrast  : packoffset(c10.y);
+	float Intensity  : packoffset(c10.z);
 }
 
 Texture2D DepthMap : register(t0);
@@ -105,18 +104,14 @@ Texture2D NormalMap : register(t4);
 
 float ConvertViewZtoDeviceZ(float viewZ)
 {
-	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// deviceZ = ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ
-	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
-	return ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ;
+	// https://shikihuiku.github.io/post/projection_matrix/
+	return -Near / min(viewZ, -SMALL_VALUE);
 }
 
 float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
-	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// deviceZ = ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ
-	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
-	return (Far * Near) / (deviceZ * (Far - Near) - Far);
+	// https://shikihuiku.github.io/post/projection_matrix/
+	return -Near / max(deviceZ, SMALL_VALUE);
 }
 
 float3 ConverFromNDCToVS(float4 ndcPos)
@@ -205,8 +200,6 @@ float ComputeUpsampleContribution(float sceneDepth, float2 inUV, float3 centerWo
 	uv[6] = inUV + float2(-1, 1) * SSAO_DownsampledAOInverseSize;
 	uv[7] = inUV + float2(0, 1) * SSAO_DownsampledAOInverseSize;
 	uv[8] = inUV + float2(1, 1) * SSAO_DownsampledAOInverseSize;
-
-	const float SMALL_VALUE = 0.0001f;
 
 	// to avoid division by 0
 	float weightSum = SMALL_VALUE;

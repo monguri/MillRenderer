@@ -31,7 +31,7 @@ namespace
 {
 	static constexpr float CAMERA_FOV_Y_DEGREE = 37.5f;
 	static constexpr float CAMERA_NEAR = 0.1f;
-	static constexpr float CAMERA_FAR = 100.0f;
+	// SceneDepthにReverseZを使っているのでカメラFarは決める必要がない
 
 	static constexpr Vector3 CAMERA_START_POSITION = Vector3(5.0f, 1.0f, 0.0f);
 	static constexpr Vector3 CAMERA_START_TARGET = Vector3(0.0f, 1.0f, 0.0f);
@@ -65,6 +65,8 @@ namespace
 
 	static constexpr uint32_t VOLUMETRIC_FOG_GRID_PIXEL_SIZE = 8; // UEを参考にした
 	static constexpr uint32_t VOLUMETRIC_FOG_GRID_SIZE_Z = 128; // UEを参考にした
+	static constexpr float VOLUMETRIC_FOG_FROXEL_NEAR = CAMERA_NEAR; // とりあえずCameraのNearと同じ値に
+	static constexpr float VOLUMETRIC_FOG_FROXEL_FAR = 100.0f;
 
 	static constexpr uint32_t TEMPORAL_AA_SAMPLES = 8; // UEを参考にした
 	static constexpr uint32_t TEMPORAL_AA_NUM_PLUS_SAMPLE = 5; // UEを参考にした
@@ -225,7 +227,7 @@ namespace
 		int Width;
 		int Height;
 		float Near;
-		float Far;
+		float Padding[1];
 	};
 
 	struct alignas(256) CbSSAO
@@ -237,11 +239,11 @@ namespace
 		Vector2 RandomationSize;
 		Vector2 TemporalOffset;
 		float Near;
-		float Far;
 		float InvTanHalfFov;
 		int bHalfRes;
 		float Contrast;
 		float Intensity;
+		float Padding[1];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -251,12 +253,11 @@ namespace
 		Matrix VRotPMatrix;
 		Matrix InvVRotPMatrix;
 		float Near;
-		float Far;
 		int Width;
 		int Height;
 		int FrameSampleIndex;
 		float Intensity;
-		float Padding[2];
+		float Padding[3];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -273,13 +274,12 @@ namespace
 		Matrix VRotPMatrix;
 		Matrix InvVRotPMatrix;
 		float Near;
-		float Far;
 		int Width;
 		int Height;
 		int FrameSampleIndex;
 		float Intensity;
 		int bDebugViewSSR;
-		float Padding;
+		float Padding[2];
 	};
 
 	struct alignas(256) CbVolumetricFog
@@ -374,6 +374,46 @@ namespace
 	UINT16 inline GetChromaticityCoord(double value)
 	{
 		return UINT16(value * 50000);
+	}
+
+	// https://shikihuiku.github.io/post/projection_matrix/
+	// Matrix::CreatePerspectiveFieldOfView()を参考にしている
+	Matrix CreatePerspectiveFieldOfViewInfinityFarReverseZ(float fovAngleY, float aspectRatio, float nearZ)
+	{
+		assert(nearZ > 0.f);
+		assert(!DirectX::XMScalarNearEqual(fovAngleY, 0.0f, 0.00001f * 2.0f));
+		assert(!DirectX::XMScalarNearEqual(aspectRatio, 0.0f, 0.00001f));
+
+		// TODO:Matrix::CreatePerspectiveFieldOfView()と違いIntrinsics未対応
+		float    SinFov;
+		float    CosFov;
+		DirectX::XMScalarSinCos(&SinFov, &CosFov, 0.5f * fovAngleY);
+
+		float Height = CosFov / SinFov;
+		float Width = Height / aspectRatio;
+
+		Matrix mat;
+		mat.m[0][0] = Width;
+		mat.m[0][1] = 0.0f;
+		mat.m[0][2] = 0.0f;
+		mat.m[0][3] = 0.0f;
+
+		mat.m[1][0] = 0.0f;
+		mat.m[1][1] = Height;
+		mat.m[1][2] = 0.0f;
+		mat.m[1][3] = 0.0f;
+
+		mat.m[2][0] = 0.0f;
+		mat.m[2][1] = 0.0f;
+		mat.m[2][2] = 0.0f;
+		mat.m[2][3] = -1.0f;
+
+		mat.m[3][0] = 0.0f;
+		mat.m[3][1] = 0.0f;
+		mat.m[3][2] = nearZ;
+		mat.m[3][3] = 0.0f;
+
+		return mat;
 	}
 
 	CbPointLight ComputePointLight(const Vector3& pos, float radius, const Vector3& color, float intensity)
@@ -1441,7 +1481,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_D32_FLOAT,
-			1.0f,
+			0.0f, // SceneDepthはReverseZ
 			0
 		))
 		{
@@ -2365,6 +2405,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		// AlphaModeがOpaqueのマテリアル用
+		// SceneDepthはReverseZ
+		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.NumRenderTargets = 3;
 		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
@@ -2523,6 +2565,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		// AlphaModeがOpaqueのマテリアル用
+		// SceneDepthはReverseZ
+		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.NumRenderTargets = 3;
 		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
@@ -2728,7 +2772,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.InputLayout = MeshVertex::InputLayout;
 		desc.pRootSignature = m_ObjectVelocityRootSig.GetPtr();
 		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		// SceneDepthはReverseZ
+		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -4109,7 +4154,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->Near = CAMERA_NEAR;
-		ptr->Far = CAMERA_FAR;
 	}
 
 	// SSAO半解像度用定数バッファの作成
@@ -4130,7 +4174,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->Near = CAMERA_NEAR;
-		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
 		ptr->Contrast = m_SSAO_Contrast;
 		ptr->Intensity = m_SSAO_Intensity;
@@ -4154,7 +4197,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		// UE5は%8しているが0-10までループするのでそのままで扱っている。またUE5はRandomationSize.Widthだけで割ってるがy側はHeightで割るのが自然なのでそうしている
 		ptr->TemporalOffset = (float)m_TemporalAASampleIndex * Vector2(2.48f, 7.52f) / ptr->RandomationSize;
 		ptr->Near = CAMERA_NEAR;
-		ptr->Far = CAMERA_FAR;
 		ptr->InvTanHalfFov = 1.0f / tanf(DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE));
 		ptr->Contrast = m_SSAO_Contrast;
 		ptr->Intensity = m_SSAO_Intensity;
@@ -4173,7 +4215,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->VRotPMatrix = Matrix::Identity;
 		ptr->InvVRotPMatrix = Matrix::Identity;
 		ptr->Near = CAMERA_NEAR;
-		ptr->Far = CAMERA_FAR;
 		ptr->Width = (int)m_SSGI_Target.GetDesc().Width;
 		ptr->Height = m_SSGI_Target.GetDesc().Height;
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
@@ -4206,7 +4247,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->VRotPMatrix = Matrix::Identity;
 		ptr->InvVRotPMatrix = Matrix::Identity;
 		ptr->Near = CAMERA_NEAR;
-		ptr->Far = CAMERA_FAR;
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->FrameSampleIndex = m_TemporalAASampleIndex;
@@ -4228,8 +4268,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->GridSizeX = (int)m_VolumetricFogScatteringTarget[m_FrameIndex].GetDesc().Width;
 		ptr->GridSizeY = m_VolumetricFogScatteringTarget[m_FrameIndex].GetDesc().Height;
 		ptr->GridSizeZ = m_VolumetricFogScatteringTarget[m_FrameIndex].GetDesc().DepthOrArraySize;
-		ptr->Near = CAMERA_NEAR;
-		ptr->Far = CAMERA_FAR;
+		ptr->Near = VOLUMETRIC_FOG_FROXEL_NEAR;
+		ptr->Far = VOLUMETRIC_FOG_FROXEL_FAR;
 		ptr->FrameJitterOffsetValue = VolumetricFogTemporalRandom(m_FrameNumber);
 		ptr->DirectionalLightScatteringIntensity = m_directionalLightVolumetricFogScatteringIntensity;
 		ptr->SpotLightScatteringIntensity = m_spotLightVolumetricFogScatteringIntensity;
@@ -4461,7 +4501,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 			const Matrix& view = m_CameraManipulator.GetView();
-			const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+			const Matrix& proj = CreatePerspectiveFieldOfViewInfinityFarReverseZ(fovY, aspect, CAMERA_NEAR);
 			CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
@@ -4953,7 +4993,7 @@ void SampleApp::OnRender()
 		Matrix viewRot = view;
 		viewRot.m[3][0] = viewRot.m[3][1] = viewRot.m[3][2] = 0;
 
-		projNoJitter = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
+		projNoJitter = CreatePerspectiveFieldOfViewInfinityFarReverseZ(fovY, aspect, CAMERA_NEAR);
 		viewProjNoJitter = view * projNoJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		viewRotProjNoJitter = viewRot * projNoJitter;
 

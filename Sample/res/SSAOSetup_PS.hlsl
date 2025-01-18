@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
 "("\
@@ -36,7 +38,6 @@ cbuffer CbSSAOSetup : register(b0)
 	int Width : packoffset(c0);
 	int Height : packoffset(c0.y);
 	float Near : packoffset(c0.z);
-	float Far : packoffset(c0.w);
 }
 
 Texture2D DepthMap : register(t0);
@@ -46,10 +47,8 @@ SamplerState PointClampSmp : register(s0);
 // TODO: share it with SSAO_PS.hlsl
 float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
-	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// deviceZ = ((Far * viewZ) / (Far - Near) - Far * Near / (Far - Near)) / viewZ
-	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
-	return (Far * Near) / (deviceZ * (Far - Near) - Far);
+	// https://shikihuiku.github.io/post/projection_matrix/
+	return -Near / max(deviceZ, SMALL_VALUE);
 }
 
 // 0: not similar .. 1:very similar

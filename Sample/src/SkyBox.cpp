@@ -126,7 +126,7 @@ bool SkyBox::Init(
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullNone;
-		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 		desc.InputLayout.pInputElementDescs = elements;
 		desc.InputLayout.NumElements = 1;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;

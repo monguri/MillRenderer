@@ -4,6 +4,10 @@
 #define F_PI 3.14159265358979323f
 #endif //F_PI
 
+#ifndef SMALL_VALUE
+#define SMALL_VALUE 0.000001f
+#endif //F_PI
+
 /**
  * Returns near intersection in x, far intersection in y, or both -1 if no intersection.
  * RayDirection does not need to be unit length.
