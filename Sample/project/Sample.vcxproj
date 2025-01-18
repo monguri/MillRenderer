@@ -66,6 +66,7 @@
     </Link>
     <FxCompile>
       <ShaderModel>6.6</ShaderModel>
+      <AdditionalOptions>-Qembed_debug</AdditionalOptions>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
