@@ -105,13 +105,13 @@ Texture2D NormalMap : register(t4);
 float ConvertViewZtoDeviceZ(float viewZ)
 {
 	// https://shikihuiku.github.io/post/projection_matrix/
-	return -Near / min(viewZ, -SMALL_VALUE);
+	return -Near / viewZ;
 }
 
 float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
 	// https://shikihuiku.github.io/post/projection_matrix/
-	return -Near / max(deviceZ, SMALL_VALUE);
+	return -Near / max(deviceZ, DEVICE_Z_MIN_VALUE);
 }
 
 float3 ConverFromNDCToVS(float4 ndcPos)

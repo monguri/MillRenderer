@@ -67,7 +67,7 @@ float GetHZBDeviceZ(float2 uv, float mipLevel)
 float ConvertFromDeviceZtoViewZ(float deviceZ)
 {
 	// https://shikihuiku.github.io/post/projection_matrix/
-	return -Near / max(deviceZ, SMALL_VALUE);
+	return -Near / max(deviceZ, DEVICE_Z_MIN_VALUE);
 
 }
 

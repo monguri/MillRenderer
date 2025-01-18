@@ -5,8 +5,15 @@
 #endif //F_PI
 
 #ifndef SMALL_VALUE
-#define SMALL_VALUE 0.000001f
-#endif //F_PI
+#define SMALL_VALUE 1e-6f
+#endif //SMALL_VALUE
+
+// https://shikihuiku.github.io/post/projection_matrix/
+// deviceZ = -Near / viewZ
+// Near‚Í0.1m‚­‚ç‚¢‚É‚·‚é‚Ì‚ÅAviewZ‚ğ100km‚Ü‚Å‘Î‰‚µ‚Ä‚àˆÀ‘S‚È’l‚É‚µ‚½
+#ifndef DEVICE_Z_MIN_VALUE
+#define DEVICE_Z_MIN_VALUE 1e-7f
+#endif //DEVICE_Z_FURTHEST
 
 /**
  * Returns near intersection in x, far intersection in y, or both -1 if no intersection.
