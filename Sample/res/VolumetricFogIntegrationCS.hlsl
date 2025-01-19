@@ -25,21 +25,14 @@ Texture3D LightScattering : register(t0);
 RWTexture3D<float4> OutResult : register(u0);
 
 // TODO: same code for VolumetricFogScatteringCS.hlsl
-float ConvertViewZtoDeviceZ(float viewZ)
+float ConvertViewZtoVolumetricFogDeviceZ(float viewZ)
 {
-	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// deviceZ = ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ
-	// viewZ = -linearDepth because view space is right-handed and clip space is left-handed.
+	// https://shikihuiku.github.io/post/projection_matrix/
 	return ((Far * viewZ) / (Far - Near) + Far * Near / (Far - Near)) / viewZ;
 }
 
 float3 ConverFromNDCToCameraOriginWS(float4 ndcPos, float viewPosZ)
 {
-	// referenced.
-	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
-	// That is left-handed projection matrix.
-	// Matrix::CreatePerspectiveFieldOfView() transform right-handed viewspace to left-handed clip space.
-	// So, referenced that code.
 	float clipPosW = -viewPosZ;
 	float4 clipPos = ndcPos * clipPosW;
 	float4 cameraOriginWorldPos = mul(InvVRotPMatrix, clipPos);
@@ -53,7 +46,7 @@ float3 ComputeCellCameraOriginWorldPosition(float3 gridCoordinate, float3 cellOf
 	// TODO: exp slice
 	float linearDepth = lerp(Near, Far, (gridCoordinate.z + cellOffset.z) / float(GridSize.z));
 	float viewPosZ = -linearDepth;
-	float deviceZ = ConvertViewZtoDeviceZ(viewPosZ);
+	float deviceZ = ConvertViewZtoVolumetricFogDeviceZ(viewPosZ);
 	// [-1,1]x[-1,1]
 	float2 screenPos = uv * float2(2, -2) + float2(-1, 1);
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
