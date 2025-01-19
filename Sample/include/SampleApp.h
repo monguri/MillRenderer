@@ -180,6 +180,7 @@ private:
 	uint32_t m_TemporalAASampleIndex;
 	DirectX::SimpleMath::Matrix m_PrevWorldForMovable;
 	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitter;
+	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitterForVolumetricFog;
 
 	float m_directionalLightIntensity;
 	float m_pointLightIntensity;

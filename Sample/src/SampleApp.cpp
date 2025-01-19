@@ -722,6 +722,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_TemporalAASampleIndex(0)
 , m_PrevWorldForMovable(Matrix::Identity)
 , m_PrevViewProjNoJitter(Matrix::Identity)
+, m_PrevViewProjNoJitterForVolumetricFog(Matrix::Identity)
 , m_directionalLightIntensity(10.0f)
 , m_pointLightIntensity(100.0f)
 , m_spotLightIntensity(1000.0f)
@@ -4965,7 +4966,13 @@ void SampleApp::OnRender()
 	float temporalJitetrPixelsY;
 	CalculateTemporalJitterPixels(m_TemporalAASampleIndex, temporalJitetrPixelsX, temporalJitetrPixelsY);
 
+	constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
+	float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
+
 	const Matrix& view = m_CameraManipulator.GetView();
+	Matrix viewRot = view;
+	viewRot.m[3][0] = viewRot.m[3][1] = viewRot.m[3][2] = 0;
+
 	Matrix viewProjNoJitter;
 	Matrix viewProjWithJitter;
 	Matrix viewRotProjNoJitter;
@@ -4986,12 +4993,6 @@ void SampleApp::OnRender()
 		{
 			m_TemporalAASampleIndex = 0;
 		}
-
-		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
-		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
-
-		Matrix viewRot = view;
-		viewRot.m[3][0] = viewRot.m[3][1] = viewRot.m[3][2] = 0;
 
 		projNoJitter = CreatePerspectiveFieldOfViewInfinityFarReverseZ(fovY, aspect, CAMERA_NEAR);
 		viewProjNoJitter = view * projNoJitter; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
@@ -5150,9 +5151,23 @@ void SampleApp::OnRender()
 
 	if (RENDER_SPONZA)
 	{
-		DrawVolumetricFogScattering(pCmd, viewRotProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter, volumetricFogScatteringPrevTarget, volumetricFogScatteringCurTarget);
+		Matrix projNoJitterForVolumetricFog = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, VOLUMETRIC_FOG_FROXEL_NEAR, VOLUMETRIC_FOG_FROXEL_FAR);
+		Matrix viewProjNoJitterForVolumetricFog = view * projNoJitterForVolumetricFog; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		Matrix viewRotProjNoJitterForVolumetricFog = viewRot * projNoJitterForVolumetricFog;
+
+		DrawVolumetricFogScattering
+		(
+			pCmd,
+			viewRotProjNoJitterForVolumetricFog,
+			viewProjNoJitterForVolumetricFog,
+			m_PrevViewProjNoJitterForVolumetricFog,
+			volumetricFogScatteringPrevTarget,
+			volumetricFogScatteringCurTarget
+		);
 		DrawVolumetricFogIntegration(pCmd, volumetricFogScatteringCurTarget);
 		DrawVolumetricFogComposition(pCmd);
+
+		m_PrevViewProjNoJitterForVolumetricFog = viewProjNoJitterForVolumetricFog;
 	}
 
 	const ColorTarget& temporalAA_PrevTarget = m_TemporalAA_Target[m_FrameIndex];
