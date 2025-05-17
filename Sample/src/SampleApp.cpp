@@ -23,7 +23,7 @@
 #include "ScopedTimer.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA true
+#define RENDER_SPONZA false
 
 using namespace DirectX::SimpleMath;
 
@@ -817,7 +817,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		else
 		{
 			//if (!SearchFilePath(L"res/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf", path))
-			if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
+			//if (!SearchFilePath(L"res/DamagedHelmet/glTF/DamagedHelmet.gltf", path))
+			if (!SearchFilePath(L"../../RTXMG/assets/barbarian/barbarian.0000.obj", path))
 			{
 				ELOG("Error : File Not Found.");
 				return false;
@@ -854,7 +855,9 @@ bool SampleApp::OnInit(HWND hWnd)
 			for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
 			{
 				CbMesh* ptr = mesh->GetBufferPtr<CbMesh>(frameIndex);
-				ptr->World = Matrix::Identity;
+				//ptr->World = Matrix::Identity;
+				const Matrix& worldMat = Matrix::CreateScale(0.01f);
+				ptr->World = worldMat;
 			}
 
 			pMeshes.push_back(mesh);
@@ -914,7 +917,11 @@ bool SampleApp::OnInit(HWND hWnd)
 			Material* pMaterial = pMaterials[i];
 			const ResMaterial& resMat = resMaterial[i];
 
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.BaseColorMap, batch);
+			pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.DiffuseMap, batch);
+			if (resMat.BaseColorMap.size() > 0)
+			{
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.BaseColorMap, batch);
+			}
 			pMaterial->SetTexture(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMat.MetallicRoughnessMap, batch);
 			pMaterial->SetTexture(Material::TEXTURE_USAGE_NORMAL, dir + resMat.NormalMap, batch);
 			pMaterial->SetTexture(Material::TEXTURE_USAGE_EMISSIVE, dir + resMat.EmissiveMap, batch);
