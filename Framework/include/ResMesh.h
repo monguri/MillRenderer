@@ -52,6 +52,7 @@ struct ResMaterial
 	std::wstring SpecularMap;
 	std::wstring ShininessMap;
 	std::wstring NormalMap;
+	std::wstring HeightMap;
 	DirectX::XMFLOAT3 BaseColor;
 	std::wstring BaseColorMap;
 	float MetallicFactor;

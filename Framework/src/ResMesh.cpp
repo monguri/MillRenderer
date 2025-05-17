@@ -240,17 +240,22 @@ namespace
 			}
 			else
 			{
-				if (pSrcMaterial->Get(AI_MATKEY_TEXTURE_HEIGHT(0), path) == AI_SUCCESS)
-				{
-					dstMaterial.NormalMap = Convert(path);
-				}
-				else
-				{
-					dstMaterial.NormalMap.clear();
-				}
+				dstMaterial.NormalMap.clear();
 			}
 		}
 
+		{
+			aiString path;
+
+			if (pSrcMaterial->Get(AI_MATKEY_TEXTURE_HEIGHT(0), path) == AI_SUCCESS)
+			{
+				dstMaterial.HeightMap = Convert(path);
+			}
+			else
+			{
+				dstMaterial.HeightMap.clear();
+			}
+		}
 
 		{
 			aiColor3D color(1.0f, 1.0f, 1.0f);
