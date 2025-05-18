@@ -25,6 +25,9 @@ namespace
 	static constexpr float CAMERA_NEAR = 0.1f;
 	static constexpr float CAMERA_FAR = 100.0f;
 
+	static constexpr Vector3 CAMERA_START_POSITION = Vector3(5.0f, 1.0f, 0.0f);
+	static constexpr Vector3 CAMERA_START_TARGET = Vector3(0.0f, 1.0f, 0.0f);
+
 	static constexpr uint32_t MAX_NUM_PARTICLES = 1024 * 1024;
 	// シェーダ側と合わせている
 	static const size_t NUM_THREAD_X = 64;
@@ -74,7 +77,7 @@ ParticleSampleApp::~ParticleSampleApp()
 
 bool ParticleSampleApp::OnInit(HWND hWnd)
 {
-	m_Camera.Reset();
+	m_CameraManipulator.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
 
 	// imgui初期化
 	{
@@ -542,7 +545,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 		float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
-		const Matrix& view = m_Camera.GetView();
+		const Matrix& view = m_CameraManipulator.GetView();
 		const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
@@ -694,7 +697,7 @@ void ParticleSampleApp::OnRender()
 	const milliseconds& deltaTimeMS = duration_cast<milliseconds>(currTime - m_PrevTime);
 	m_PrevTime = currTime;
 
-	const Matrix& view = m_Camera.GetView();
+	const Matrix& view = m_CameraManipulator.GetView();
 	constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
 	float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 	const Matrix& proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, CAMERA_NEAR, CAMERA_FAR);
@@ -770,7 +773,7 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 					PostQuitMessage(0);
 					break;
 				case 'C':
-					m_Camera.Reset();
+					m_CameraManipulator.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
 					break;
 				default:
 					break;
@@ -818,24 +821,24 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 		bool right = ((state & MK_RBUTTON) != 0);
 		bool middle = ((state & MK_MBUTTON) != 0);
 
-		Camera::Event args = {};
+		TransformManipulator::Event args = {};
 
 		if (left)
 		{
-			args.Type = Camera::EventRotate;
+			args.Type = TransformManipulator::EventRotate;
 			args.RotateH = DirectX::XMConvertToRadians(-0.5f * (x - m_PrevCursorX));
 			args.RotateV = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
-			m_Camera.UpdateByEvent(args);
+			m_CameraManipulator.UpdateByEvent(args);
 		}
 		else if (right)
 		{
-			args.Type = Camera::EventDolly;
+			args.Type = TransformManipulator::EventDolly;
 			args.Dolly = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
-			m_Camera.UpdateByEvent(args);
+			m_CameraManipulator.UpdateByEvent(args);
 		}
 		else if (middle)
 		{
-			args.Type = Camera::EventMove;
+			args.Type = TransformManipulator::EventMove;
 			if (GetAsyncKeyState(VK_MENU) != 0)
 			{
 				args.MoveX = DirectX::XMConvertToRadians(0.5f * (x - m_PrevCursorX));
@@ -846,7 +849,7 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 				args.MoveX = DirectX::XMConvertToRadians(0.5f * (x - m_PrevCursorX));
 				args.MoveY = DirectX::XMConvertToRadians(0.5f * (y - m_PrevCursorY));
 			}
-			m_Camera.UpdateByEvent(args);
+			m_CameraManipulator.UpdateByEvent(args);
 		}
 
 		m_PrevCursorX = x;

@@ -11,7 +11,7 @@
 #include "DepthTarget.h"
 #include "RootSignature.h"
 #include "Texture.h"
-#include "Camera.h"
+#include "TransformManipulator.h"
 
 class SubdSampleApp : public App
 {

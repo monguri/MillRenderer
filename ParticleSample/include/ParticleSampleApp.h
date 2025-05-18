@@ -11,7 +11,7 @@
 #include "DepthTarget.h"
 #include "RootSignature.h"
 #include "Texture.h"
-#include "Camera.h"
+#include "TransformManipulator.h"
 
 class ParticleSampleApp : public App
 {
@@ -20,7 +20,7 @@ public:
 	virtual ~ParticleSampleApp();
 
 private:
-	Camera m_Camera;
+	TransformManipulator m_CameraManipulator;
 	int m_PrevCursorX = 0;
 	int m_PrevCursorY = 0;
 
