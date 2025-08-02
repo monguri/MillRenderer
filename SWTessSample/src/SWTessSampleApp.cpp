@@ -314,13 +314,13 @@ bool SWTessSampleApp::OnInit(HWND hWnd)
 		std::wstring vsPath;
 		std::wstring psPath;
 
-		if (!SearchFilePath(L"DrawParticlesVS.cso", vsPath))
+		if (!SearchFilePath(L"ViewProjVS.cso", vsPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;
 		}
 
-		if (!SearchFilePath(L"DrawParticlesPS.cso", psPath))
+		if (!SearchFilePath(L"WireframePS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
