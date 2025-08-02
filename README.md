@@ -33,6 +33,9 @@ At default setting, it renders Sponza.
 Assets are from https://github.com/monguri/glTF-Sample-Viewer-Release.
 About their licenses, look that repositry. 
 
+tessellator.cpp and tessellator.hpp belong to Microsoft.
+About their licenses, confirm the Microsoft's license description. 
+
 ## How to execute and operate
 - "Download zip"
 - Execute Sample\project\x64\\[Debug, Release]\Sample.exe
