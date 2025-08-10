@@ -272,6 +272,7 @@ bool SWTessSampleApp::OnInit(HWND hWnd)
 void SWTessSampleApp::OnTerm()
 {
 	// imgui終了処理
+	if (ImGui::GetCurrentContext() != nullptr)
 	{
 		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
 		ImGui_ImplDX12_Shutdown();
@@ -334,11 +335,14 @@ void SWTessSampleApp::OnRender()
 
 bool SWTessSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-	// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
-	extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp))
+	if (ImGui::GetCurrentContext() != nullptr)
 	{
-		return false;
+		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+		extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+		if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp))
+		{
+			return false;
+		}
 	}
 
 	// imguiウィンドウ内でマウスイベントを扱っているときは他のウィンドウでマウスイベントは扱わない

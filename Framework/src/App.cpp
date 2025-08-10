@@ -189,7 +189,7 @@ bool App::InitD3D()
 	{
 		return false;
 	}
-	if (features5.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+	if (features5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
 	{
 		return false;
 	}
