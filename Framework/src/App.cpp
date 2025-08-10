@@ -171,10 +171,25 @@ bool App::InitD3D()
 	// Create device.
 	HRESULT hr = D3D12CreateDevice(
 		nullptr,
-		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_12_0,
 		IID_PPV_ARGS(m_pDevice.GetAddressOf())
 	);
 	if (FAILED(hr))
+	{
+		return false;
+	}
+
+	D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5;
+	hr = m_pDevice->CheckFeatureSupport(
+		D3D12_FEATURE_D3D12_OPTIONS5,
+		&features5,
+		sizeof(features5)
+	);
+	if (FAILED(hr))
+	{
+		return false;
+	}
+	if (features5.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
 	{
 		return false;
 	}
