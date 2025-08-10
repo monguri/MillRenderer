@@ -105,137 +105,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-	// Software TessellationによるVB/IB作成用ルートシグニチャとパイプラインステートの生成
-	{
-		std::wstring csPath;
-
-		if (!SearchFilePath(L"UpdateParticlesCS.cso", csPath))
-		{
-			ELOG("Error : Compute Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pCSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
-			return false;
-		}
-
-		if (!m_UpdateParticlesRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_UpdateParticlesRootSig.GetPtr();
-		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
-		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
-		desc.NodeMask = 0;
-		desc.CachedPSO.pCachedBlob = nullptr;
-		desc.CachedPSO.CachedBlobSizeInBytes = 0;
-		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-
-		hr = m_pDevice->CreateComputePipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pUpdateParticlesPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
-
-    // バックバッファ描画用ルートシグニチャとパイプラインステートの生成
-	{
-		std::wstring vsPath;
-		std::wstring psPath;
-
-		if (!SearchFilePath(L"ViewProjVS.cso", vsPath))
-		{
-			ELOG("Error : Vertex Shader Not Found");
-			return false;
-		}
-
-		if (!SearchFilePath(L"WireframePS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pVSBlob;
-		ComPtr<ID3DBlob> pPSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-			return false;
-		}
-
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		if (!m_BackBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout.NumElements = 0;
-		desc.InputLayout.pInputElementDescs = nullptr;
-		desc.pRootSignature = m_BackBufferRootSig.GetPtr();
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
-		desc.SampleMask = UINT_MAX;
-		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
-		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
-		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-
-		hr = m_pDevice->CreateGraphicsPipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pBackBufferPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
-
 	// カメラの定数バッファの作成
 	{
 		constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
@@ -279,21 +148,12 @@ void RTSampleApp::OnTerm()
 		ImGui::DestroyContext();
 	}
 
-	m_RTResultIB.Term();
-	m_RTResultIB.Term();
-
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
 		m_CameraCB[i].Term();
 	}
 
 	m_SceneDepthTarget.Term();
-
-	m_pUpdateParticlesPSO.Reset();
-	m_UpdateParticlesRootSig.Term();
-
-	m_pBackBufferPSO.Reset();
-	m_BackBufferRootSig.Term();
 }
 
 void RTSampleApp::OnRender()
@@ -317,10 +177,6 @@ void RTSampleApp::OnRender()
 	};
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
-
-	TessellateQuad(pCmd);
-
-	DrawBackBuffer(pCmd);
 
 	DrawImGui(pCmd);
 
@@ -451,67 +307,6 @@ bool RTSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	}
 
 	return true;
-}
-
-void RTSampleApp::TessellateQuad(ID3D12GraphicsCommandList* pCmdList)
-{
-	ScopedTimer scopedTimer(pCmdList, L"Update Particles");
-
-	// 定数バッファの更新
-	{
-	}
-}
-
-void RTSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
-{
-	ScopedTimer scopedTimer(pCmdList, L"Draw BackBuffer");
-
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
-	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
-	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, &handleDSV->HandleCPU);
-
-	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
-	m_SceneDepthTarget.ClearView(pCmdList);
-
-	pCmdList->SetGraphicsRootSignature(m_BackBufferRootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pBackBufferPSO.Get());
-
-	// BackBufferのサイズはウィンドウサイズになっているのでアスペクト比を維持する
-	DXGI_SWAP_CHAIN_DESC desc;
-	m_pSwapChain->GetDesc(&desc);
-
-	D3D12_VIEWPORT viewport = m_Viewport;
-	if ((float)desc.BufferDesc.Width / desc.BufferDesc.Height < (float)m_Width / m_Height)
-	{
-		viewport.Width = (float)desc.BufferDesc.Width;
-		viewport.Height = desc.BufferDesc.Width * ((float)m_Height / m_Width);
-		viewport.TopLeftX = 0.0f;
-		viewport.TopLeftY = desc.BufferDesc.Height * 0.5f - viewport.Height * 0.5f;
-	}
-	else
-	{
-		viewport.Height = (float)desc.BufferDesc.Height;
-		viewport.Width = desc.BufferDesc.Height * ((float)m_Width / m_Height);
-		viewport.TopLeftX = desc.BufferDesc.Width * 0.5f - viewport.Width * 0.5f;
-		viewport.TopLeftY = 0.0f;
-	}
-
-	pCmdList->RSSetViewports(1, &viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
-	
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_RTResultVB.GetView();
-	pCmdList->IASetVertexBuffers(0, 1, &VBV);
-	const D3D12_INDEX_BUFFER_VIEW& IBV = m_RTResultIB.GetView();
-	pCmdList->IASetIndexBuffer(&IBV);
-
-	pCmdList->DrawIndexedInstanced(m_RTResultIB.GetCount(), 1, 0, 0, 0);
-
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void RTSampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)

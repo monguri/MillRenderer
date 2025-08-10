@@ -21,12 +21,6 @@ private:
 	int m_PrevCursorX = 0;
 	int m_PrevCursorY = 0;
 
-	ComPtr<ID3D12PipelineState> m_pUpdateParticlesPSO;
-	RootSignature m_UpdateParticlesRootSig;
-	ComPtr<ID3D12PipelineState> m_pBackBufferPSO;
-	RootSignature m_BackBufferRootSig;
-	VertexBuffer m_RTResultVB;
-	IndexBuffer m_RTResultIB;
 	DepthTarget m_SceneDepthTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 
@@ -35,7 +29,5 @@ private:
 	virtual void OnRender() override;
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 
-	void TessellateQuad(ID3D12GraphicsCommandList* pCmdList);
-	void DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
 };
