@@ -127,6 +127,17 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// テスト用VBの作成
+	{
+		const Vector3 triangleVertices[3] = {
+			Vector3(0, 1, 0),
+			Vector3(0.866f, -0.5f, 0),
+			Vector3(-0.866f, -0.5f, 0),
+		};
+
+		m_TriangleVB.Init<Vector3>(m_pDevice.Get(), 3, triangleVertices);
+	}
+
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 	pCmd->Close();
@@ -141,6 +152,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 void RTSampleApp::OnTerm()
 {
 	// imgui終了処理
+	if (ImGui::GetCurrentContext() != nullptr)
 	{
 		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
 		ImGui_ImplDX12_Shutdown();
@@ -190,11 +202,14 @@ void RTSampleApp::OnRender()
 
 bool RTSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-	// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
-	extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp))
+	if (ImGui::GetCurrentContext() != nullptr)
 	{
-		return false;
+		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
+		extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+		if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp))
+		{
+			return false;
+		}
 	}
 
 	// imguiウィンドウ内でマウスイベントを扱っているときは他のウィンドウでマウスイベントは扱わない
