@@ -138,7 +138,81 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		m_TriangleVB.Init<Vector3>(m_pDevice.Get(), 3, triangleVertices);
 	}
 
-	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+	ID3D12GraphicsCommandList4* pCmd = m_CommandList.Reset();
+
+	// BLASの作成
+	{
+		D3D12_RAYTRACING_GEOMETRY_DESC geomDesc;
+		geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+
+		geomDesc.Triangles.VertexBuffer.StartAddress = m_TriangleVB.GetView().BufferLocation;
+		geomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vector3);
+		geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+		geomDesc.Triangles.VertexCount = 3;
+		// Transform3x4、IBの指定はオプション
+		geomDesc.Triangles.Transform3x4 = 0;
+		geomDesc.Triangles.IndexBuffer = 0;
+		geomDesc.Triangles.IndexCount = 0;
+		geomDesc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
+		geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
+		inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+		inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+		inputs.NumDescs = 1;
+		inputs.pGeometryDescs = &geomDesc;
+		inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildInfo;
+		m_pDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildInfo);
+
+		// StructuredBufferである必要は無いが必要な処理が揃っていたので要素1個のバッファとして
+		// StructuredBufferを使う
+		if (!m_BlasScratchSB.Init(
+			m_pDevice.Get(),
+			nullptr,
+			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES],
+			1,
+			preBuildInfo.ScratchDataSizeInBytes,
+			true,
+			nullptr
+		))
+		{
+			ELOG("Error : StructuredBuffer::Init() Failed.");
+			return false;
+		}
+		DirectX::TransitionResource(pCmd, m_BlasScratchSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_BlasResultSB.Init(
+			m_pDevice.Get(),
+			nullptr,
+			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES],
+			1,
+			preBuildInfo.ScratchDataSizeInBytes,
+			true,
+			nullptr
+		))
+		{
+			ELOG("Error : StructuredBuffer::Init() Failed.");
+			return false;
+		}
+		DirectX::TransitionResource(pCmd, m_BlasResultSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
+		asDesc.Inputs = inputs;
+		asDesc.DestAccelerationStructureData = m_BlasResultSB.GetResource()->GetGPUVirtualAddress();
+		asDesc.ScratchAccelerationStructureData = m_BlasScratchSB.GetResource()->GetGPUVirtualAddress();
+
+		pCmd->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
+
+		D3D12_RESOURCE_BARRIER uavBarrier;
+		uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		uavBarrier.UAV.pResource = m_BlasResultSB.GetResource();
+		pCmd->ResourceBarrier(1, &uavBarrier);
+	}
 
 	pCmd->Close();
 	ID3D12CommandList* pLists[] = {pCmd};
@@ -166,6 +240,10 @@ void RTSampleApp::OnTerm()
 	}
 
 	m_SceneDepthTarget.Term();
+
+	m_TriangleVB.Term();
+	m_BlasScratchSB.Term();
+	m_BlasResultSB.Term();
 }
 
 void RTSampleApp::OnRender()

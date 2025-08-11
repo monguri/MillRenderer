@@ -20,10 +20,10 @@ public:
 
 	void Term();
 
-	ID3D12GraphicsCommandList* Reset();
+	ID3D12GraphicsCommandList4* Reset();
 
 private:
-	ComPtr<ID3D12GraphicsCommandList> m_pCmdList;
+	ComPtr<ID3D12GraphicsCommandList4> m_pCmdList;
 	std::vector<ComPtr<ID3D12CommandAllocator>> m_pAllocators;
 	// allocator index
 	uint32_t m_Index;

@@ -9,6 +9,7 @@
 #include "DepthTarget.h"
 #include "RootSignature.h"
 #include "TransformManipulator.h"
+#include "StructuredBuffer.h"
 
 class RTSampleApp : public App
 {
@@ -25,6 +26,8 @@ private:
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 
 	VertexBuffer m_TriangleVB;
+	StructuredBuffer m_BlasScratchSB;
+	StructuredBuffer m_BlasResultSB;
 
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
