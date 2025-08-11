@@ -24,6 +24,8 @@ private:
 	DepthTarget m_SceneDepthTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 
+	VertexBuffer m_TriangleVB;
+
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
 	virtual void OnRender() override;
