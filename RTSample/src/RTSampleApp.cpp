@@ -166,8 +166,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildInfo;
 		m_pDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildInfo);
 
-		// StructuredBufferである必要は無いが必要な処理が揃っていたので要素1個のバッファとして
-		// StructuredBufferを使う
+		// ByteAddressBufferである必要は無いが必要な処理が揃っていたので
 		if (!m_BlasScratchBB.Init(
 			m_pDevice.Get(),
 			nullptr,
@@ -214,6 +213,91 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		pCmd->ResourceBarrier(1, &uavBarrier);
 	}
 
+	// TLASの作成
+	{
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
+		inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+		inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+		// あとでInstanceDescsを設定するので
+		inputs.NumDescs = 1;
+		inputs.pGeometryDescs = nullptr;
+		inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildInfo;
+		m_pDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildInfo);
+
+		// ByteAddressBufferである必要は無いが必要な処理が揃っていたので
+		if (!m_TlasScratchBB.Init(
+			m_pDevice.Get(),
+			nullptr,
+			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES],
+			preBuildInfo.ScratchDataSizeInBytes,
+			true,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr
+		))
+		{
+			ELOG("Error : StructuredBuffer::Init() Failed.");
+			return false;
+		}
+		DirectX::TransitionResource(pCmd, m_TlasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_TlasResultBB.Init(
+			m_pDevice.Get(),
+			nullptr,
+			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES],
+			preBuildInfo.ResultDataMaxSizeInBytes,
+			true,
+			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+			nullptr
+		))
+		{
+			ELOG("Error : StructuredBuffer::Init() Failed.");
+			return false;
+		}
+
+		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc;
+		const Matrix& identityMat = Matrix::Identity;
+		memcpy(instanceDesc.Transform, &identityMat, sizeof(instanceDesc.Transform));
+		instanceDesc.InstanceID = 0;
+		instanceDesc.InstanceMask = 0xFF;
+		instanceDesc.InstanceContributionToHitGroupIndex = 0;
+		instanceDesc.AccelerationStructure = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
+		instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+
+		if (!m_TlasInstanceDescBB.Init(
+			m_pDevice.Get(),
+			pCmd,
+			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES],
+			sizeof(instanceDesc),
+			true,
+			D3D12_RESOURCE_STATE_COMMON,
+			&instanceDesc
+		))
+		{
+			ELOG("Error : StructuredBuffer::Init() Failed.");
+			return false;
+		}
+
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
+		asDesc.Inputs = inputs;
+		asDesc.Inputs.InstanceDescs = m_TlasInstanceDescBB.GetResource()->GetGPUVirtualAddress();
+		asDesc.DestAccelerationStructureData = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
+		asDesc.ScratchAccelerationStructureData = m_TlasScratchBB.GetResource()->GetGPUVirtualAddress();
+		asDesc.SourceAccelerationStructureData = 0;
+
+		pCmd->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
+
+		D3D12_RESOURCE_BARRIER uavBarrier;
+		uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		uavBarrier.UAV.pResource = m_TlasResultBB.GetResource();
+		pCmd->ResourceBarrier(1, &uavBarrier);
+	}
+
 	pCmd->Close();
 	ID3D12CommandList* pLists[] = {pCmd};
 	m_pQueue->ExecuteCommandLists(1, pLists);
@@ -244,6 +328,9 @@ void RTSampleApp::OnTerm()
 	m_TriangleVB.Term();
 	m_BlasScratchBB.Term();
 	m_BlasResultBB.Term();
+	m_TlasScratchBB.Term();
+	m_TlasResultBB.Term();
+	m_TlasInstanceDescBB.Term();
 }
 
 void RTSampleApp::OnRender()

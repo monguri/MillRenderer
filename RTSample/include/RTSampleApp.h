@@ -28,6 +28,9 @@ private:
 	VertexBuffer m_TriangleVB;
 	ByteAddressBuffer m_BlasScratchBB;
 	ByteAddressBuffer m_BlasResultBB;
+	ByteAddressBuffer m_TlasScratchBB;
+	ByteAddressBuffer m_TlasResultBB;
+	ByteAddressBuffer m_TlasInstanceDescBB;
 
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
