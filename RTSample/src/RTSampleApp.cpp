@@ -355,6 +355,7 @@ void RTSampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 
+	DrawBackBuffer(pCmd);
 	DrawImGui(pCmd);
 
 	pCmd->Close();
@@ -487,6 +488,17 @@ bool RTSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	}
 
 	return true;
+}
+
+void RTSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"Draw BackBuffer");
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
+
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void RTSampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
