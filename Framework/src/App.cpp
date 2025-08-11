@@ -438,6 +438,61 @@ void App::MainLoop()
 	}
 }
 
+ComPtr<IDXGIAdapter1> App::SelectAdapter()
+{
+	// Select an adapter which is HW and supports ray tracing.
+	ComPtr<IDXGIAdapter1> pAdapter;
+
+	bool foundAdapter = false;
+	for (uint32_t i = 0; !foundAdapter && m_pFactory->EnumAdapters1(i, pAdapter.GetAddressOf()) != DXGI_ERROR_NOT_FOUND; i++)
+	{
+		DXGI_ADAPTER_DESC1 desc;
+		pAdapter->GetDesc1(&desc);
+		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+		{
+			continue;
+		}
+
+		// Create device. 12.0 is needed for ray tracing.
+		HRESULT hr = D3D12CreateDevice(
+			pAdapter.Get(),
+			D3D_FEATURE_LEVEL_12_0,
+			IID_PPV_ARGS(m_pDevice.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		// Check feature support. D3D12_OPTIONS5 is needed for ray tracing.
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5;
+		hr = m_pDevice->CheckFeatureSupport(
+			D3D12_FEATURE_D3D12_OPTIONS5,
+			&features5,
+			sizeof(features5)
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (features5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+		{
+			continue;
+		}
+
+		foundAdapter = true;
+	}
+
+	if (foundAdapter)
+	{
+		return pAdapter;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 void App::Present(uint32_t interval)
 {
 	m_pSwapChain->Present(interval, 0);
@@ -483,52 +538,6 @@ void App::CheckSupportHDR()
 		}
 	}
 
-	// Select an adapter which is HW and supports ray tracing.
-	ComPtr<IDXGIAdapter1> pAdapter;
-	bool foundAdapter = false;
-	for (uint32_t i = 0; !foundAdapter && m_pFactory->EnumAdapters1(i, pAdapter.GetAddressOf()) != DXGI_ERROR_NOT_FOUND; i++)
-	{
-		DXGI_ADAPTER_DESC1 desc;
-		pAdapter->GetDesc1(&desc);
-		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-		{
-			continue;
-		}
-
-		// Create device. 12.0 is needed for ray tracing.
-		HRESULT hr = D3D12CreateDevice(
-			pAdapter.Get(),
-			D3D_FEATURE_LEVEL_12_0,
-			IID_PPV_ARGS(m_pDevice.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-
-		// Check feature support. D3D12_OPTIONS5 is needed for ray tracing.
-		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5;
-		hr = m_pDevice->CheckFeatureSupport(
-			D3D12_FEATURE_D3D12_OPTIONS5,
-			&features5,
-			sizeof(features5)
-		);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-		if (features5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
-		{
-			continue;
-		}
-
-		foundAdapter = true;
-	}
-
-	if (!foundAdapter)
-	{
-		return;
-	}
 
 	RECT rect;
 	GetWindowRect(m_hWnd, &rect);
@@ -537,6 +546,12 @@ void App::CheckSupportHDR()
 	ComPtr<IDXGIOutput> currentOutput;
 	ComPtr<IDXGIOutput> bestOutput;
 	int bestIntersectArea = -1;
+
+	ComPtr<IDXGIAdapter1> pAdapter = SelectAdapter();
+	if (pAdapter == nullptr)
+	{
+		return;
+	}
 
 	// Find best intersected display to this application window.
 	for (UINT i = 0; pAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND; i++)

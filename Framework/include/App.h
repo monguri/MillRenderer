@@ -61,6 +61,7 @@ protected:
 	D3D12_RECT m_Scissor;
 	DXGI_FORMAT m_BackBufferFormat;
 
+	ComPtr<IDXGIAdapter1> SelectAdapter();
 	void Present(uint32_t interval);
 	bool IsSupportHDR() const;
 	float GetMaxLuminance() const;
