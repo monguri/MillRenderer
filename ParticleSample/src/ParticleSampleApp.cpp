@@ -571,7 +571,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		args.ThreadGroupCountY = 1;
 		args.ThreadGroupCountZ = 1;
 
-		if (!m_DispatchIndirectArgsBB.Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), true, &args))
+		if (!m_DispatchIndirectArgsBB.Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), true, D3D12_RESOURCE_STATE_COMMON, &args))
 		{
 			ELOG("Error : ByteAddressBuffer::Init() Failed.");
 			return false;
@@ -601,7 +601,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0; i < FRAME_COUNT; i++)
 		{
-			if (!m_DrawParticlesIndirectArgsBB[i].Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), true, &args))
+			if (!m_DrawParticlesIndirectArgsBB[i].Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), true, D3D12_RESOURCE_STATE_COMMON, &args))
 			{
 				ELOG("Error : ByteAddressBuffer::Init() Failed.");
 				return false;
