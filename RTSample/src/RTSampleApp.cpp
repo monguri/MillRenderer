@@ -168,12 +168,11 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		// StructuredBufferである必要は無いが必要な処理が揃っていたので要素1個のバッファとして
 		// StructuredBufferを使う
-		if (!m_BlasScratchSB.Init(
+		if (!m_BlasScratchBB.Init(
 			m_pDevice.Get(),
 			nullptr,
 			m_pPool[POOL_TYPE_RES],
 			m_pPool[POOL_TYPE_RES],
-			1,
 			preBuildInfo.ScratchDataSizeInBytes,
 			true,
 			nullptr
@@ -182,15 +181,14 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			ELOG("Error : StructuredBuffer::Init() Failed.");
 			return false;
 		}
-		DirectX::TransitionResource(pCmd, m_BlasScratchSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmd, m_BlasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-		if (!m_BlasResultSB.Init(
+		if (!m_BlasResultBB.Init(
 			m_pDevice.Get(),
 			nullptr,
 			m_pPool[POOL_TYPE_RES],
 			m_pPool[POOL_TYPE_RES],
-			1,
-			preBuildInfo.ScratchDataSizeInBytes,
+			preBuildInfo.ResultDataMaxSizeInBytes,
 			true,
 			nullptr
 		))
@@ -198,19 +196,20 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			ELOG("Error : StructuredBuffer::Init() Failed.");
 			return false;
 		}
-		DirectX::TransitionResource(pCmd, m_BlasResultSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+		DirectX::TransitionResource(pCmd, m_BlasResultBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
 		asDesc.Inputs = inputs;
-		asDesc.DestAccelerationStructureData = m_BlasResultSB.GetResource()->GetGPUVirtualAddress();
-		asDesc.ScratchAccelerationStructureData = m_BlasScratchSB.GetResource()->GetGPUVirtualAddress();
+		asDesc.DestAccelerationStructureData = m_BlasResultBB.GetResource()->GetGPUVirtualAddress();
+		asDesc.ScratchAccelerationStructureData = m_BlasScratchBB.GetResource()->GetGPUVirtualAddress();
+		asDesc.SourceAccelerationStructureData = 0;
 
 		pCmd->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
 
 		D3D12_RESOURCE_BARRIER uavBarrier;
 		uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
 		uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		uavBarrier.UAV.pResource = m_BlasResultSB.GetResource();
+		uavBarrier.UAV.pResource = m_BlasResultBB.GetResource();
 		pCmd->ResourceBarrier(1, &uavBarrier);
 	}
 
@@ -242,8 +241,8 @@ void RTSampleApp::OnTerm()
 	m_SceneDepthTarget.Term();
 
 	m_TriangleVB.Term();
-	m_BlasScratchSB.Term();
-	m_BlasResultSB.Term();
+	m_BlasScratchBB.Term();
+	m_BlasResultBB.Term();
 }
 
 void RTSampleApp::OnRender()
