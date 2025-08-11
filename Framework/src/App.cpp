@@ -152,44 +152,73 @@ bool App::InitD3D()
 	// To debug d3d.
 #if defined(DEBUG) || defined(_DEBUG)
 	{
-		ComPtr<ID3D12Debug> pDebug;
-		ComPtr<ID3D12Debug1> pDebug1;
+		ComPtr<ID3D12Debug1> pDebug;
 		HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(pDebug.GetAddressOf()));
 		if (SUCCEEDED(hr))
 		{
 			pDebug->EnableDebugLayer();
 
-			hr = pDebug->QueryInterface(IID_PPV_ARGS(pDebug1.GetAddressOf()));
+			hr = pDebug->QueryInterface(IID_PPV_ARGS(pDebug.GetAddressOf()));
 			if (SUCCEEDED(hr))
 			{
-				pDebug1->SetEnableGPUBasedValidation(true);
+				pDebug->SetEnableGPUBasedValidation(true);
 			}
 		}
 	}
 #endif
 
-	// Create device.
-	HRESULT hr = D3D12CreateDevice(
-		nullptr,
-		D3D_FEATURE_LEVEL_12_0,
-		IID_PPV_ARGS(m_pDevice.GetAddressOf())
-	);
-	if (FAILED(hr))
+	// Create dxgi factory.
 	{
-		return false;
+		HRESULT hr = CreateDXGIFactory2(0, IID_PPV_ARGS(m_pFactory.GetAddressOf()));
+		if (FAILED(hr))
+		{
+			return false;
+		}
 	}
 
-	D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5;
-	hr = m_pDevice->CheckFeatureSupport(
-		D3D12_FEATURE_D3D12_OPTIONS5,
-		&features5,
-		sizeof(features5)
-	);
-	if (FAILED(hr))
+	// Select an adapter which is HW and supports ray tracing.
+	ComPtr<IDXGIAdapter1> pAdapter;
+	bool foundAdapter = false;
+	for (uint32_t i = 0; !foundAdapter && m_pFactory->EnumAdapters1(i, pAdapter.GetAddressOf()) != DXGI_ERROR_NOT_FOUND; i++)
 	{
-		return false;
+		DXGI_ADAPTER_DESC1 desc;
+		pAdapter->GetDesc1(&desc);
+		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+		{
+			continue;
+		}
+
+		// Create device. 12.0 is needed for ray tracing.
+		HRESULT hr = D3D12CreateDevice(
+			pAdapter.Get(),
+			D3D_FEATURE_LEVEL_12_0,
+			IID_PPV_ARGS(m_pDevice.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		// Check feature support. D3D12_OPTIONS5 is needed for ray tracing.
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5;
+		hr = m_pDevice->CheckFeatureSupport(
+			D3D12_FEATURE_D3D12_OPTIONS5,
+			&features5,
+			sizeof(features5)
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (features5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+		{
+			continue;
+		}
+
+		foundAdapter = true;
 	}
-	if (features5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+
+	if (!foundAdapter)
 	{
 		return false;
 	}
@@ -221,7 +250,7 @@ bool App::InitD3D()
 		desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 		desc.NodeMask = 0;
 
-		hr = m_pDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(m_pQueue.GetAddressOf()));
+		HRESULT hr = m_pDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(m_pQueue.GetAddressOf()));
 		if (FAILED(hr))
 		{
 			return false;
@@ -230,12 +259,6 @@ bool App::InitD3D()
 
 	// Create swap chain.
 	{
-		hr = CreateDXGIFactory2(0, IID_PPV_ARGS(m_pFactory.GetAddressOf()));
-		if (FAILED(hr))
-		{
-			return false;
-		}
-
 		DXGI_SWAP_CHAIN_DESC desc = {};
 		desc.BufferDesc.Width = m_Width;
 		desc.BufferDesc.Height = m_Height;
@@ -254,7 +277,7 @@ bool App::InitD3D()
 		desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 		ComPtr<IDXGISwapChain> pSwapChain = nullptr;
-		hr = m_pFactory->CreateSwapChain(m_pQueue.Get(), &desc, pSwapChain.GetAddressOf());
+		HRESULT hr = m_pFactory->CreateSwapChain(m_pQueue.Get(), &desc, pSwapChain.GetAddressOf());
 		if (FAILED(hr))
 		{
 			return false;
@@ -356,7 +379,7 @@ bool App::InitD3D()
 	}
 
 	// Initialize COM to use WIC.
-	hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 	if (FAILED(hr))
 	{
 		return false;
@@ -460,9 +483,49 @@ void App::CheckSupportHDR()
 		}
 	}
 
+	// Select an adapter which is HW and supports ray tracing.
 	ComPtr<IDXGIAdapter1> pAdapter;
-	hr = m_pFactory->EnumAdapters1(0, pAdapter.GetAddressOf());
-	if (FAILED(hr))
+	bool foundAdapter = false;
+	for (uint32_t i = 0; !foundAdapter && m_pFactory->EnumAdapters1(i, pAdapter.GetAddressOf()) != DXGI_ERROR_NOT_FOUND; i++)
+	{
+		DXGI_ADAPTER_DESC1 desc;
+		pAdapter->GetDesc1(&desc);
+		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+		{
+			continue;
+		}
+
+		// Create device. 12.0 is needed for ray tracing.
+		HRESULT hr = D3D12CreateDevice(
+			pAdapter.Get(),
+			D3D_FEATURE_LEVEL_12_0,
+			IID_PPV_ARGS(m_pDevice.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		// Check feature support. D3D12_OPTIONS5 is needed for ray tracing.
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5;
+		hr = m_pDevice->CheckFeatureSupport(
+			D3D12_FEATURE_D3D12_OPTIONS5,
+			&features5,
+			sizeof(features5)
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (features5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+		{
+			continue;
+		}
+
+		foundAdapter = true;
+	}
+
+	if (!foundAdapter)
 	{
 		return;
 	}
