@@ -175,6 +175,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES],
 			preBuildInfo.ScratchDataSizeInBytes,
 			true,
+			D3D12_RESOURCE_STATE_COMMON,
 			nullptr
 		))
 		{
@@ -190,13 +191,13 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES],
 			preBuildInfo.ResultDataMaxSizeInBytes,
 			true,
+			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 			nullptr
 		))
 		{
 			ELOG("Error : StructuredBuffer::Init() Failed.");
 			return false;
 		}
-		DirectX::TransitionResource(pCmd, m_BlasResultBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
 		asDesc.Inputs = inputs;

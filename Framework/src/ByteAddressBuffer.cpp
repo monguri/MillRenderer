@@ -25,6 +25,7 @@ bool ByteAddressBuffer::Init
 	DescriptorPool* pPoolUAV,
 	size_t count,
 	bool useUAV,
+	D3D12_RESOURCE_STATES initState,
 	const void* pInitData
 )
 {
@@ -92,7 +93,7 @@ bool ByteAddressBuffer::Init
 		&prop,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_COMMON,
+		initState,
 		nullptr,
 		IID_PPV_ARGS(m_pBuffer.GetAddressOf())
 	);
@@ -106,7 +107,7 @@ bool ByteAddressBuffer::Init
 	{
 		assert(pCmdList != nullptr);
 
-		DirectX::TransitionResource(pCmdList, m_pBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+		DirectX::TransitionResource(pCmdList, m_pBuffer.Get(), initState, D3D12_RESOURCE_STATE_COPY_DEST);
 
 		D3D12_HEAP_PROPERTIES prop = {};
 		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -155,7 +156,7 @@ bool ByteAddressBuffer::Init
 
 		pCmdList->CopyBufferRegion(m_pBuffer.Get(), 0, m_pUploadBuffer.Get(), 0, dataSize);
 
-		DirectX::TransitionResource(pCmdList, m_pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+		DirectX::TransitionResource(pCmdList, m_pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, initState);
 	}
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};

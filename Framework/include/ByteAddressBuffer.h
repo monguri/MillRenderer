@@ -20,7 +20,8 @@ public:
 		DescriptorPool* pPoolUAV,
 		size_t count,
 		bool useUAV,
-		const void* pInitData = nullptr
+		D3D12_RESOURCE_STATES initState,
+		const void* pInitData
 	);
 
 	void Term();
