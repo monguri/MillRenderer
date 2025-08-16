@@ -298,6 +298,46 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		pCmd->ResourceBarrier(1, &uavBarrier);
 	}
 
+	// DXIL LibraryのSubObjectを作成
+	D3D12_STATE_SUBOBJECT subObjDxilLib;
+	{
+		std::wstring lsPath;
+
+		if (!SearchFilePath(L"SimpleRT.cso", lsPath))
+		{
+			ELOG("Error : Compute Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pLSBlob;
+		HRESULT hr = D3DReadFileToBlob(lsPath.c_str(), pLSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", lsPath.c_str());
+			return false;
+		}
+
+		D3D12_EXPORT_DESC exportDescs[3];
+		exportDescs[0].Name = L"rayGeneration";
+		exportDescs[0].ExportToRename = nullptr;
+		exportDescs[0].Flags = D3D12_EXPORT_FLAG_NONE;
+		exportDescs[1].Name = L"miss";
+		exportDescs[1].ExportToRename = nullptr;
+		exportDescs[1].Flags = D3D12_EXPORT_FLAG_NONE;
+		exportDescs[2].Name = L"closestHit";
+		exportDescs[2].ExportToRename = nullptr;
+		exportDescs[2].Flags = D3D12_EXPORT_FLAG_NONE;
+
+		D3D12_DXIL_LIBRARY_DESC desc;
+		desc.DXILLibrary.pShaderBytecode = pLSBlob->GetBufferPointer();
+		desc.DXILLibrary.BytecodeLength = pLSBlob->GetBufferSize();
+		desc.NumExports = 3;
+		desc.pExports = exportDescs;
+
+		subObjDxilLib.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+		subObjDxilLib.pDesc = &desc;
+	}
+
 	pCmd->Close();
 	ID3D12CommandList* pLists[] = {pCmd};
 	m_pQueue->ExecuteCommandLists(1, pLists);
