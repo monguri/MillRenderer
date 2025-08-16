@@ -298,8 +298,10 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		pCmd->ResourceBarrier(1, &uavBarrier);
 	}
 
+	std::vector<D3D12_STATE_SUBOBJECT> subObjects;
+
 	// DXIL LibraryのSubObjectを作成
-	D3D12_STATE_SUBOBJECT subObjDxilLib;
+	D3D12_DXIL_LIBRARY_DESC libDesc;
 	{
 		std::wstring lsPath;
 
@@ -328,65 +330,20 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		exportDescs[2].ExportToRename = nullptr;
 		exportDescs[2].Flags = D3D12_EXPORT_FLAG_NONE;
 
-		D3D12_DXIL_LIBRARY_DESC desc;
-		desc.DXILLibrary.pShaderBytecode = pLSBlob->GetBufferPointer();
-		desc.DXILLibrary.BytecodeLength = pLSBlob->GetBufferSize();
-		desc.NumExports = 3;
-		desc.pExports = exportDescs;
+		libDesc.DXILLibrary.pShaderBytecode = pLSBlob->GetBufferPointer();
+		libDesc.DXILLibrary.BytecodeLength = pLSBlob->GetBufferSize();
+		libDesc.NumExports = 3;
+		libDesc.pExports = exportDescs;
 
+		D3D12_STATE_SUBOBJECT subObjDxilLib;
 		subObjDxilLib.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
-		subObjDxilLib.pDesc = &desc;
+		subObjDxilLib.pDesc = &libDesc;
+		subObjects.emplace_back(subObjDxilLib);
 	}
 
-	// Local Root SignatureのSubObjectを作成
-	D3D12_STATE_SUBOBJECT subObjLocalRootSig;
+	// RayGenシェーダのLocal Root SignatureのSubObjectを作成
+	RootSignature rayGenRootSig;
 	{
-#if 0
-		//TODO: まずRootSignatureクラスを使わず生で書いてみる
-		D3D12_DESCRIPTOR_RANGE ranges[2];
-		// gOutputTex
-		ranges[0].BaseShaderRegister = 0;
-		ranges[0].NumDescriptors = 1;
-		ranges[0].RegisterSpace = 0;
-		ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		ranges[0].OffsetInDescriptorsFromTableStart = 0;
-		// gRtAS
-		ranges[1].BaseShaderRegister = 0;
-		ranges[1].NumDescriptors = 1;
-		ranges[1].RegisterSpace = 0;
-		ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		ranges[1].OffsetInDescriptorsFromTableStart = 1;
-
-		D3D12_ROOT_PARAMETER rootParam;
-		rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParam.DescriptorTable.NumDescriptorRanges = 2;
-		rootParam.DescriptorTable.pDescriptorRanges = ranges;
-		rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-		D3D12_ROOT_SIGNATURE_DESC desc;
-		desc.NumParameters = 1;
-		desc.pParameters = &rootParam;
-		desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-		desc.NumStaticSamplers = 0;
-		desc.pStaticSamplers = nullptr;
-
-		ComPtr<ID3DBlob> pSigBlob;
-		ComPtr<ID3DBlob> pErrBlob;
-		HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, pSigBlob.GetAddressOf(), pErrBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3D12SerializeRootSignature Failed");
-			return false;
-		}
-
-		ComPtr<ID3D12RootSignature> pLocalRootSig;
-		hr = m_pDevice->CreateRootSignature(0, pSigBlob.Get()->GetBufferPointer(), pSigBlob.Get()->GetBufferSize(), IID_PPV_ARGS(pLocalRootSig.GetAddressOf()));
-		if (FAILED(hr))
-		{
-			ELOG("Error : CreateRootSignature Failed");
-			return false;
-		}
-#else
 		RootSignature::Desc desc;
 		desc.Begin()
 			.SetUAV(ShaderStage::ALL, 0, 0)
@@ -394,18 +351,55 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			.SetLocalRootSignature()
 			.End();
 
-		RootSignature localRootSig;
-		if (!localRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		if (!rayGenRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 		{
 			ELOG("Error : RootSignature::Init() Failed");
+			return false;
 		}
-#endif
+
+		D3D12_STATE_SUBOBJECT subObjLocalRootSig;
+		subObjLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+		// このタイプではID3D12RootSignature*を入れる
+		subObjLocalRootSig.pDesc = rayGenRootSig.GetPtr();
+		subObjects.emplace_back(subObjLocalRootSig);
 	}
 
 	// Global Root SignatureのSubObjectを作成
-	D3D12_STATE_SUBOBJECT subObjGlobalRootSig;
+	RootSignature globalRootSig;
 	{
+		RootSignature::Desc desc;
+		// GlobalRootSignatureの場合は何も設定しない
+		desc.Begin().End();
+
+		if (!globalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed");
+			return false;
+		}
+
+		D3D12_STATE_SUBOBJECT subObjGlobalRootSig;
+		subObjGlobalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
+		// このタイプではID3D12RootSignature*を入れる
+		subObjGlobalRootSig.pDesc = globalRootSig.GetPtr();
+		subObjects.emplace_back(subObjGlobalRootSig);
 	}
+
+#if 0
+	// RTPipelineのState Object作成
+	ComPtr<ID3D12StateObject> pStateObject;
+	{
+		D3D12_STATE_OBJECT_DESC desc;
+		desc.NumSubobjects = subObjects.size();
+		desc.pSubobjects = subObjects.data();
+		desc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
+		HRESULT hr = m_pDevice->CreateStateObject(&desc, IID_PPV_ARGS(pStateObject.GetAddressOf()));
+		if (FAILED(hr))
+		{
+			ELOG("Error : CreateStateObject() Failed");
+			return false;
+		}
+	}
+#endif
 
 	pCmd->Close();
 	ID3D12CommandList* pLists[] = {pCmd};
