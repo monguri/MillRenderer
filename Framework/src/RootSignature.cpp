@@ -1,6 +1,7 @@
 #include "RootSignature.h"
 #include "Logger.h"
 #include "d3dcompiler.h"
+#include <cassert>
 
 RootSignature::Desc::Desc()
 : m_Desc()
@@ -60,8 +61,9 @@ void RootSignature::Desc::SetParam(ShaderStage stage, int rootParamIdx, uint32_t
 	m_Ranges[rootParamIdx].RegisterSpace = 0;
 	m_Ranges[rootParamIdx].OffsetInDescriptorsFromTableStart = 0;
 
-	// CBV,SRV,UAV,Samplerの場合もD3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLEのタイプの書き方で書ける。
-	// ID3D12CommandList::SetGraphicsRootConstantBufferViewでなくID3D12CommandList::SetGraphicsRootDescriptorTableを使えば
+	// TODO: すべてのビューに対して要素1のディスクリプタテーブルを
+	// 作っているのが無駄。ShaderVisibilityごとにまとめられれば
+	// よいのだが。まあまとめて利点があるかはわからないが
 	m_Params[rootParamIdx].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	m_Params[rootParamIdx].DescriptorTable.NumDescriptorRanges = 1;
 	m_Params[rootParamIdx].ShaderVisibility = D3D12_SHADER_VISIBILITY(stage);
@@ -287,6 +289,27 @@ RootSignature::Desc& RootSignature::Desc::AllowIL()
 RootSignature::Desc& RootSignature::Desc::AllowSO()
 {
 	m_Flags |= D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT;
+	return *this;
+}
+
+RootSignature::Desc& RootSignature::Desc::SetLocalRootSignature()
+{
+	// RTシェーダ用
+	m_Flags |= D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+
+	// D3D12_ROOT_SIGNATURE_FLAG_DENY_XXX_SHADER_ROOT_ACCESSが立っていると
+	// D3D12SerializeRootSignature()でErr_InvalidArgが返るので
+	// フラグを立てないようにする
+	for (size_t i = 0; i < 5; i++)
+	{
+		// SetLocalRootSignature()後にm_DenyStage[]をfalseにするような
+		// SetXxx()が呼ばれるとD3D12_ROOT_SIGNATURE_FLAG_DENY_XXX_SHADER_ROOT_ACCESSが
+		// 立ってしまうので、SetLocalRootSignature()を後に呼ばないと
+		// アサートにかかるようにする。
+		assert(m_DenyStage[i]);
+		m_DenyStage[i] = false;
+	}
+
 	return *this;
 }
 

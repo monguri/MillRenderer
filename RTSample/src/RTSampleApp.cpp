@@ -341,6 +341,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	// Local Root SignatureのSubObjectを作成
 	D3D12_STATE_SUBOBJECT subObjLocalRootSig;
 	{
+#if 0
 		//TODO: まずRootSignatureクラスを使わず生で書いてみる
 		D3D12_DESCRIPTOR_RANGE ranges[2];
 		// gOutputTex
@@ -385,6 +386,20 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			ELOG("Error : CreateRootSignature Failed");
 			return false;
 		}
+#else
+		RootSignature::Desc desc;
+		desc.Begin()
+			.SetUAV(ShaderStage::ALL, 0, 0)
+			.SetSRV(ShaderStage::ALL, 1, 0)
+			.SetLocalRootSignature()
+			.End();
+
+		RootSignature localRootSig;
+		if (!localRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed");
+		}
+#endif
 	}
 
 	// Global Root SignatureのSubObjectを作成
