@@ -300,8 +300,12 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 	std::vector<D3D12_STATE_SUBOBJECT> subObjects;
 
+	static const WCHAR* RAY_GEN_SHADER_ENTRY_NAME = L"rayGeneration";
+	static const WCHAR* MISS_SHADER_ENTRY_NAME = L"miss";
+	static const WCHAR* CLOSEST_HIT_SHADER_ENTRY_NAME = L"closestHit";
+
 	// DXIL LibraryのSubObjectを作成
-	D3D12_DXIL_LIBRARY_DESC libDesc;
+	D3D12_DXIL_LIBRARY_DESC dxilLibDesc;
 	{
 		std::wstring lsPath;
 
@@ -320,25 +324,39 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		}
 
 		D3D12_EXPORT_DESC exportDescs[3];
-		exportDescs[0].Name = L"rayGeneration";
+		exportDescs[0].Name = RAY_GEN_SHADER_ENTRY_NAME;
 		exportDescs[0].ExportToRename = nullptr;
 		exportDescs[0].Flags = D3D12_EXPORT_FLAG_NONE;
-		exportDescs[1].Name = L"miss";
+		exportDescs[1].Name = MISS_SHADER_ENTRY_NAME;
 		exportDescs[1].ExportToRename = nullptr;
 		exportDescs[1].Flags = D3D12_EXPORT_FLAG_NONE;
-		exportDescs[2].Name = L"closestHit";
+		exportDescs[2].Name = CLOSEST_HIT_SHADER_ENTRY_NAME;
 		exportDescs[2].ExportToRename = nullptr;
 		exportDescs[2].Flags = D3D12_EXPORT_FLAG_NONE;
 
-		libDesc.DXILLibrary.pShaderBytecode = pLSBlob->GetBufferPointer();
-		libDesc.DXILLibrary.BytecodeLength = pLSBlob->GetBufferSize();
-		libDesc.NumExports = 3;
-		libDesc.pExports = exportDescs;
+		dxilLibDesc.DXILLibrary.pShaderBytecode = pLSBlob->GetBufferPointer();
+		dxilLibDesc.DXILLibrary.BytecodeLength = pLSBlob->GetBufferSize();
+		dxilLibDesc.NumExports = 3;
+		dxilLibDesc.pExports = exportDescs;
 
 		D3D12_STATE_SUBOBJECT subObjDxilLib;
 		subObjDxilLib.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
-		subObjDxilLib.pDesc = &libDesc;
+		subObjDxilLib.pDesc = &dxilLibDesc;
 		subObjects.emplace_back(subObjDxilLib);
+	}
+
+	// HitGroupのSubObjectを作成
+	D3D12_HIT_GROUP_DESC hitGroupDesc;
+	{
+		hitGroupDesc.HitGroupExport = L"HitGroup";
+		hitGroupDesc.AnyHitShaderImport = nullptr;
+		hitGroupDesc.ClosestHitShaderImport = L"closestHit";
+		hitGroupDesc.IntersectionShaderImport = nullptr;
+
+		D3D12_STATE_SUBOBJECT subObjHitGroup;
+		subObjHitGroup.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
+		subObjHitGroup.pDesc = &hitGroupDesc;
+		subObjects.emplace_back(subObjHitGroup);
 	}
 
 	// RayGenシェーダのLocal Root SignatureのSubObjectを作成
@@ -362,6 +380,19 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		// このタイプではID3D12RootSignature*を入れる
 		subObjLocalRootSig.pDesc = rayGenRootSig.GetPtr();
 		subObjects.emplace_back(subObjLocalRootSig);
+	}
+	
+	// RayGenシェーダのExport AssociationのSubObjectを作成
+	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION exportsAssociation;
+	{
+		exportsAssociation.pSubobjectToAssociate = &subObjects.back();
+		exportsAssociation.NumExports = 1;
+		exportsAssociation.pExports = &RAY_GEN_SHADER_ENTRY_NAME;
+
+		D3D12_STATE_SUBOBJECT subObjExportAssociation;
+		subObjExportAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+		subObjExportAssociation.pDesc = &exportsAssociation;
+		subObjects.emplace_back(subObjExportAssociation);
 	}
 
 	// Global Root SignatureのSubObjectを作成
