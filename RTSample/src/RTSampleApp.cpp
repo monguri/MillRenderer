@@ -383,15 +383,53 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	}
 	
 	// RayGenシェーダのExport AssociationのSubObjectを作成
-	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION exportsAssociation;
+	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION rayGenExportsAssociation;
 	{
-		exportsAssociation.pSubobjectToAssociate = &subObjects.back();
-		exportsAssociation.NumExports = 1;
-		exportsAssociation.pExports = &RAY_GEN_SHADER_ENTRY_NAME;
+		rayGenExportsAssociation.pSubobjectToAssociate = &subObjects.back();
+		rayGenExportsAssociation.NumExports = 1;
+		rayGenExportsAssociation.pExports = &RAY_GEN_SHADER_ENTRY_NAME;
 
 		D3D12_STATE_SUBOBJECT subObjExportAssociation;
 		subObjExportAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-		subObjExportAssociation.pDesc = &exportsAssociation;
+		subObjExportAssociation.pDesc = &rayGenExportsAssociation;
+		subObjects.emplace_back(subObjExportAssociation);
+	}
+
+	// MissシェーダとClosestHitシェーダのLocal Root SignatureのSubObjectを作成
+	RootSignature missClosestHitGenRootSig;
+	{
+		RootSignature::Desc desc;
+		desc.Begin()
+			.SetLocalRootSignature()
+			.End();
+
+		if (!missClosestHitGenRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+		{
+			ELOG("Error : RootSignature::Init() Failed");
+			return false;
+		}
+
+		D3D12_STATE_SUBOBJECT subObjLocalRootSig;
+		subObjLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+		// このタイプではID3D12RootSignature*を入れる
+		subObjLocalRootSig.pDesc = missClosestHitGenRootSig.GetPtr();
+		subObjects.emplace_back(subObjLocalRootSig);
+	}
+	
+	// MissシェーダとClosestHitシェーダのExport AssociationのSubObjectを作成
+	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION missClosestHitExportsAssociation;
+	const WCHAR* missClosestHitExportNames[] = {
+		MISS_SHADER_ENTRY_NAME,
+		CLOSEST_HIT_SHADER_ENTRY_NAME,
+	};
+	{
+		missClosestHitExportsAssociation.pSubobjectToAssociate = &subObjects.back();
+		missClosestHitExportsAssociation.NumExports = 2;
+		missClosestHitExportsAssociation.pExports = missClosestHitExportNames;
+
+		D3D12_STATE_SUBOBJECT subObjExportAssociation;
+		subObjExportAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+		subObjExportAssociation.pDesc = &missClosestHitExportsAssociation;
 		subObjects.emplace_back(subObjExportAssociation);
 	}
 
