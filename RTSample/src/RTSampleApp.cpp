@@ -396,6 +396,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	}
 
 	// MissシェーダとClosestHitシェーダのLocal Root SignatureのSubObjectを作成
+	// ルートシグネチャがひとつにまとめられるのでまとめている
 	RootSignature missClosestHitGenRootSig;
 	{
 		RootSignature::Desc desc;
@@ -417,6 +418,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	}
 	
 	// MissシェーダとClosestHitシェーダのExport AssociationのSubObjectを作成
+	// ルートシグネチャがひとつにまとめられるのでまとめている
 	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION missClosestHitExportsAssociation;
 	const WCHAR* missClosestHitExportNames[] = {
 		MISS_SHADER_ENTRY_NAME,
@@ -431,6 +433,28 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		subObjExportAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
 		subObjExportAssociation.pDesc = &missClosestHitExportsAssociation;
 		subObjects.emplace_back(subObjExportAssociation);
+	}
+
+	// Shader ConfigのSubObjectを作成
+	D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
+	{
+		// struct Payload
+		// {
+		//		bool hit;
+		// };
+		// boolも1バイト
+		shaderConfig.MaxPayloadSizeInBytes = sizeof(bool);
+
+		// struct BuiltInTriangleIntersectionAttributes
+		// {
+		//		float2 barycentrics;
+		// };
+		shaderConfig.MaxAttributeSizeInBytes = sizeof(float) * 2;
+
+		D3D12_STATE_SUBOBJECT subObjShaderConfig;
+		subObjShaderConfig.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
+		subObjShaderConfig.pDesc = &shaderConfig;
+		subObjects.emplace_back(subObjShaderConfig);
 	}
 
 	// Global Root SignatureのSubObjectを作成
