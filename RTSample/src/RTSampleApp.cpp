@@ -507,7 +507,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		subObjects.emplace_back(subObjGlobalRootSig);
 	}
 
-#if 0
 	// RTPipelineのState Object作成
 	ComPtr<ID3D12StateObject> pStateObject;
 	{
@@ -522,7 +521,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 	}
-#endif
 
 	pCmd->Close();
 	ID3D12CommandList* pLists[] = {pCmd};
