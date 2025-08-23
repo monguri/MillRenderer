@@ -300,12 +300,24 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 	std::vector<D3D12_STATE_SUBOBJECT> subObjects;
 
+	static const WCHAR* HIT_GROUP_NAME = L"HitGroup";
 	static const WCHAR* RAY_GEN_SHADER_ENTRY_NAME = L"rayGeneration";
 	static const WCHAR* MISS_SHADER_ENTRY_NAME = L"miss";
 	static const WCHAR* CLOSEST_HIT_SHADER_ENTRY_NAME = L"closestHit";
 
 	// DXIL LibraryのSubObjectを作成
 	D3D12_DXIL_LIBRARY_DESC dxilLibDesc;
+	D3D12_EXPORT_DESC exportDescs[3];
+	exportDescs[0].Name = RAY_GEN_SHADER_ENTRY_NAME;
+	exportDescs[0].ExportToRename = nullptr;
+	exportDescs[0].Flags = D3D12_EXPORT_FLAG_NONE;
+	exportDescs[1].Name = MISS_SHADER_ENTRY_NAME;
+	exportDescs[1].ExportToRename = nullptr;
+	exportDescs[1].Flags = D3D12_EXPORT_FLAG_NONE;
+	exportDescs[2].Name = CLOSEST_HIT_SHADER_ENTRY_NAME;
+	exportDescs[2].ExportToRename = nullptr;
+	exportDescs[2].Flags = D3D12_EXPORT_FLAG_NONE;
+	ComPtr<ID3DBlob> pLSBlob;
 	{
 		std::wstring lsPath;
 
@@ -315,24 +327,12 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		ComPtr<ID3DBlob> pLSBlob;
 		HRESULT hr = D3DReadFileToBlob(lsPath.c_str(), pLSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", lsPath.c_str());
 			return false;
 		}
-
-		D3D12_EXPORT_DESC exportDescs[3];
-		exportDescs[0].Name = RAY_GEN_SHADER_ENTRY_NAME;
-		exportDescs[0].ExportToRename = nullptr;
-		exportDescs[0].Flags = D3D12_EXPORT_FLAG_NONE;
-		exportDescs[1].Name = MISS_SHADER_ENTRY_NAME;
-		exportDescs[1].ExportToRename = nullptr;
-		exportDescs[1].Flags = D3D12_EXPORT_FLAG_NONE;
-		exportDescs[2].Name = CLOSEST_HIT_SHADER_ENTRY_NAME;
-		exportDescs[2].ExportToRename = nullptr;
-		exportDescs[2].Flags = D3D12_EXPORT_FLAG_NONE;
 
 		dxilLibDesc.DXILLibrary.pShaderBytecode = pLSBlob->GetBufferPointer();
 		dxilLibDesc.DXILLibrary.BytecodeLength = pLSBlob->GetBufferSize();
@@ -348,9 +348,10 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	// HitGroupのSubObjectを作成
 	D3D12_HIT_GROUP_DESC hitGroupDesc;
 	{
-		hitGroupDesc.HitGroupExport = L"HitGroup";
+		hitGroupDesc.HitGroupExport = HIT_GROUP_NAME;
+		hitGroupDesc.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES;
 		hitGroupDesc.AnyHitShaderImport = nullptr;
-		hitGroupDesc.ClosestHitShaderImport = L"closestHit";
+		hitGroupDesc.ClosestHitShaderImport = CLOSEST_HIT_SHADER_ENTRY_NAME;
 		hitGroupDesc.IntersectionShaderImport = nullptr;
 
 		D3D12_STATE_SUBOBJECT subObjHitGroup;
@@ -377,8 +378,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		D3D12_STATE_SUBOBJECT subObjLocalRootSig;
 		subObjLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-		// このタイプではID3D12RootSignature*を入れる
-		subObjLocalRootSig.pDesc = rayGenRootSig.GetPtr();
+		ID3D12RootSignature* pRootSig = rayGenRootSig.GetPtr();
+		subObjLocalRootSig.pDesc = &pRootSig;
 		subObjects.emplace_back(subObjLocalRootSig);
 	}
 	
@@ -412,8 +413,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		D3D12_STATE_SUBOBJECT subObjLocalRootSig;
 		subObjLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-		// このタイプではID3D12RootSignature*を入れる
-		subObjLocalRootSig.pDesc = missClosestHitGenRootSig.GetPtr();
+		ID3D12RootSignature* pRootSig = missClosestHitGenRootSig.GetPtr();
+		subObjLocalRootSig.pDesc = &pRootSig;
 		subObjects.emplace_back(subObjLocalRootSig);
 	}
 	
