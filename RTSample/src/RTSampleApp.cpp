@@ -15,6 +15,8 @@
 #include "Logger.h"
 #include "ScopedTimer.h"
 
+#include <array>
+
 //#define DYNAMIC_RESOURCES
 
 using namespace DirectX::SimpleMath;
@@ -298,7 +300,11 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		pCmd->ResourceBarrier(1, &uavBarrier);
 	}
 
-	std::vector<D3D12_STATE_SUBOBJECT> subObjects;
+	static constexpr size_t SUB_OBJECT_COUNT = 10;
+	// std::vectorだとExportAssociationでRootSigのSubObjectのポインタを取り出すのに
+	// data()からのポインタオフセットが必要になり読みにくいので
+	std::array<D3D12_STATE_SUBOBJECT, SUB_OBJECT_COUNT> subObjects;
+	size_t subObjIdx = 0;
 
 	static const WCHAR* HIT_GROUP_NAME = L"HitGroup";
 	static const WCHAR* RAY_GEN_SHADER_ENTRY_NAME = L"rayGeneration";
@@ -342,7 +348,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		D3D12_STATE_SUBOBJECT subObjDxilLib;
 		subObjDxilLib.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
 		subObjDxilLib.pDesc = &dxilLibDesc;
-		subObjects.emplace_back(subObjDxilLib);
+		subObjects[subObjIdx++] = subObjDxilLib;
 	}
 
 	// HitGroupのSubObjectを作成
@@ -357,7 +363,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		D3D12_STATE_SUBOBJECT subObjHitGroup;
 		subObjHitGroup.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
 		subObjHitGroup.pDesc = &hitGroupDesc;
-		subObjects.emplace_back(subObjHitGroup);
+		subObjects[subObjIdx++] = subObjHitGroup;
 	}
 
 	// RayGenシェーダのLocal Root SignatureのSubObjectを作成
@@ -365,8 +371,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	{
 		RootSignature::Desc desc;
 		desc.Begin()
-			.SetUAV(ShaderStage::ALL, 0, 0)
-			.SetSRV(ShaderStage::ALL, 1, 0)
+			.SetSRV(ShaderStage::ALL, 0, 0)
+			.SetUAV(ShaderStage::ALL, 1, 0)
 			.SetLocalRootSignature()
 			.End();
 
@@ -380,20 +386,20 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		subObjLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
 		ID3D12RootSignature* pRootSig = rayGenRootSig.GetPtr();
 		subObjLocalRootSig.pDesc = &pRootSig;
-		subObjects.emplace_back(subObjLocalRootSig);
+		subObjects[subObjIdx++] = subObjLocalRootSig;
 	}
 	
 	// RayGenシェーダのExport AssociationのSubObjectを作成
 	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION rayGenExportsAssociation;
 	{
-		rayGenExportsAssociation.pSubobjectToAssociate = &subObjects.back();
+		rayGenExportsAssociation.pSubobjectToAssociate = &(subObjects[subObjIdx - 1]);
 		rayGenExportsAssociation.NumExports = 1;
 		rayGenExportsAssociation.pExports = &RAY_GEN_SHADER_ENTRY_NAME;
 
 		D3D12_STATE_SUBOBJECT subObjExportAssociation;
 		subObjExportAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
 		subObjExportAssociation.pDesc = &rayGenExportsAssociation;
-		subObjects.emplace_back(subObjExportAssociation);
+		subObjects[subObjIdx++] = subObjExportAssociation;
 	}
 
 	// MissシェーダとClosestHitシェーダのLocal Root SignatureのSubObjectを作成
@@ -415,7 +421,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		subObjLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
 		ID3D12RootSignature* pRootSig = missClosestHitGenRootSig.GetPtr();
 		subObjLocalRootSig.pDesc = &pRootSig;
-		subObjects.emplace_back(subObjLocalRootSig);
+		subObjects[subObjIdx++] = subObjLocalRootSig;
 	}
 	
 	// MissシェーダとClosestHitシェーダのExport AssociationのSubObjectを作成
@@ -426,14 +432,14 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		CLOSEST_HIT_SHADER_ENTRY_NAME,
 	};
 	{
-		missClosestHitExportsAssociation.pSubobjectToAssociate = &subObjects.back();
+		missClosestHitExportsAssociation.pSubobjectToAssociate = &(subObjects[subObjIdx - 1]);
 		missClosestHitExportsAssociation.NumExports = 2;
 		missClosestHitExportsAssociation.pExports = missClosestHitExportNames;
 
 		D3D12_STATE_SUBOBJECT subObjExportAssociation;
 		subObjExportAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
 		subObjExportAssociation.pDesc = &missClosestHitExportsAssociation;
-		subObjects.emplace_back(subObjExportAssociation);
+		subObjects[subObjIdx++] = subObjExportAssociation;
 	}
 
 	// Shader Config（シェーダ間で受け渡すデータの上限サイズ情報）のSubObjectを作成
@@ -455,7 +461,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		D3D12_STATE_SUBOBJECT subObjShaderConfig;
 		subObjShaderConfig.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
 		subObjShaderConfig.pDesc = &shaderConfig;
-		subObjects.emplace_back(subObjShaderConfig);
+		subObjects[subObjIdx++] = subObjShaderConfig;
 	}
 
 	// ShaderConfigのExportAssociationのSubObjectを作成
@@ -466,14 +472,14 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		RAY_GEN_SHADER_ENTRY_NAME,
 	};
 	{
-		shaderConfigExportsAssociation.pSubobjectToAssociate = &subObjects.back();
+		shaderConfigExportsAssociation.pSubobjectToAssociate = &(subObjects[subObjIdx - 1]);
 		shaderConfigExportsAssociation.NumExports = 3;
 		shaderConfigExportsAssociation.pExports = shaderConfigExportNames;
 
 		D3D12_STATE_SUBOBJECT subObjExportAssociation;
 		subObjExportAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
 		subObjExportAssociation.pDesc = &shaderConfigExportsAssociation;
-		subObjects.emplace_back(subObjExportAssociation);
+		subObjects[subObjIdx++] = subObjExportAssociation;
 	}
 
 	// Pipeline ConfigのSubObjectを作成
@@ -485,7 +491,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		D3D12_STATE_SUBOBJECT subObjPipelineConfig;
 		subObjPipelineConfig.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
 		subObjPipelineConfig.pDesc = &pipelineConfig;
-		subObjects.emplace_back(subObjPipelineConfig);
+		subObjects[subObjIdx++] = subObjPipelineConfig;
 	}
 
 	// Global Root SignatureのSubObjectを作成
@@ -505,8 +511,10 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		subObjGlobalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
 		ID3D12RootSignature* pRootSig = globalRootSig.GetPtr();
 		subObjGlobalRootSig.pDesc = &pRootSig;
-		subObjects.emplace_back(subObjGlobalRootSig);
+		subObjects[subObjIdx++] = subObjGlobalRootSig;
 	}
+
+	assert(subObjIdx == SUB_OBJECT_COUNT);
 
 	// RTPipelineのState Object作成
 	ComPtr<ID3D12StateObject> pStateObject;
