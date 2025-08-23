@@ -435,7 +435,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		subObjects.emplace_back(subObjExportAssociation);
 	}
 
-	// Shader ConfigのSubObjectを作成
+	// Shader Config（シェーダ間で受け渡すデータの上限サイズ情報）のSubObjectを作成
 	D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
 	{
 		// struct Payload
@@ -455,6 +455,24 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		subObjShaderConfig.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
 		subObjShaderConfig.pDesc = &shaderConfig;
 		subObjects.emplace_back(subObjShaderConfig);
+	}
+
+	// ShaderConfigのExportAssociationのSubObjectを作成
+	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderConfigExportsAssociation;
+	const WCHAR* shaderConfigExportNames[] = {
+		MISS_SHADER_ENTRY_NAME,
+		CLOSEST_HIT_SHADER_ENTRY_NAME,
+		RAY_GEN_SHADER_ENTRY_NAME,
+	};
+	{
+		shaderConfigExportsAssociation.pSubobjectToAssociate = &subObjects.back();
+		shaderConfigExportsAssociation.NumExports = 3;
+		shaderConfigExportsAssociation.pExports = shaderConfigExportNames;
+
+		D3D12_STATE_SUBOBJECT subObjExportAssociation;
+		subObjExportAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+		subObjExportAssociation.pDesc = &shaderConfigExportsAssociation;
+		subObjects.emplace_back(subObjExportAssociation);
 	}
 
 	// Global Root SignatureのSubObjectを作成
