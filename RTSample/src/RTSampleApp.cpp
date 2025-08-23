@@ -439,12 +439,12 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	// Shader Config（シェーダ間で受け渡すデータの上限サイズ情報）のSubObjectを作成
 	D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
 	{
-		// struct Payload
-		// {
+		//struct Payload
+		//{
 		//		bool hit;
-		// };
-		// boolも1バイト
-		shaderConfig.MaxPayloadSizeInBytes = sizeof(bool);
+		//};
+		//TODO: boolは1バイトだが4バイト必要というエラーが出る。おそらくアライメントだろう
+		shaderConfig.MaxPayloadSizeInBytes = sizeof(float);
 
 		// struct BuiltInTriangleIntersectionAttributes
 		// {
@@ -503,8 +503,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		D3D12_STATE_SUBOBJECT subObjGlobalRootSig;
 		subObjGlobalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-		// このタイプではID3D12RootSignature*を入れる
-		subObjGlobalRootSig.pDesc = globalRootSig.GetPtr();
+		ID3D12RootSignature* pRootSig = globalRootSig.GetPtr();
+		subObjGlobalRootSig.pDesc = &pRootSig;
 		subObjects.emplace_back(subObjGlobalRootSig);
 	}
 
@@ -512,7 +512,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	ComPtr<ID3D12StateObject> pStateObject;
 	{
 		D3D12_STATE_OBJECT_DESC desc;
-		desc.NumSubobjects = subObjects.size();
+		desc.NumSubobjects = static_cast<UINT>(subObjects.size());
 		desc.pSubobjects = subObjects.data();
 		desc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
 		HRESULT hr = m_pDevice->CreateStateObject(&desc, IID_PPV_ARGS(pStateObject.GetAddressOf()));
