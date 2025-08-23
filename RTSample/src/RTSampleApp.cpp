@@ -303,6 +303,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	static constexpr size_t SUB_OBJECT_COUNT = 10;
 	// std::vectorだとExportAssociationでRootSigのSubObjectのポインタを取り出すのに
 	// data()からのポインタオフセットが必要になり読みにくいので
+	// TODO:std::vector.data()は試してない。&back()や&subObjects[subObjects.size() - 1]では
+	// 不正アドレスアクセスでエラーになったがarrayと何が違うか把握できてない
 	std::array<D3D12_STATE_SUBOBJECT, SUB_OBJECT_COUNT> subObjects;
 	size_t subObjIdx = 0;
 
