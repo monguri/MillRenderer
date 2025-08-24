@@ -306,7 +306,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	static const WCHAR* CLOSEST_HIT_SHADER_ENTRY_NAME = L"closestHit";
 
 	// State Objectの作成
-	ComPtr<ID3D12StateObject> pStateObject;
 	{
 		static constexpr size_t SUB_OBJECT_COUNT = 10;
 		// std::vectorだとExportAssociationでRootSigのSubObjectのポインタを取り出すのに
@@ -528,7 +527,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			desc.NumSubobjects = static_cast<UINT>(subObjects.size());
 			desc.pSubobjects = subObjects.data();
 			desc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
-			HRESULT hr = m_pDevice->CreateStateObject(&desc, IID_PPV_ARGS(pStateObject.GetAddressOf()));
+			HRESULT hr = m_pDevice->CreateStateObject(&desc, IID_PPV_ARGS(m_pStateObject.GetAddressOf()));
 			if (FAILED(hr))
 			{
 				ELOG("Error : CreateStateObject() Failed");
@@ -538,16 +537,20 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	}
 	// State Objectの作成
 
+	// RT書き出し用テクスチャの作成
+	{
+	}
+
 	// Shader Tableの作成
 	{
 		// 全シェーダ、最大サイズになるray-genシェーダに合わせる
-		size_t shaderTblEntrySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+		m_ShaderTableEntrySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 		// デスクリプタテーブル2個の分
-		shaderTblEntrySize += 8 * 2;
-		shaderTblEntrySize = (shaderTblEntrySize + D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
+		m_ShaderTableEntrySize += 8 * 2;
+		m_ShaderTableEntrySize = (m_ShaderTableEntrySize + D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
 
 		ComPtr<ID3D12StateObjectProperties> pStateObjProps;
-		HRESULT hr = pStateObject->QueryInterface(IID_PPV_ARGS(pStateObjProps.GetAddressOf()));
+		HRESULT hr = m_pStateObject->QueryInterface(IID_PPV_ARGS(pStateObjProps.GetAddressOf()));
 		if (FAILED(hr))
 		{
 			ELOG("Error : ID3D12StateObjectProperties::QueryInterface() Failed");
@@ -557,14 +560,13 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
 		// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
 		std::vector<uint8_t> shaderTblData;
-		shaderTblData.resize(shaderTblEntrySize * 3);
+		shaderTblData.resize(m_ShaderTableEntrySize * 3);
 		memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-		memcpy(shaderTblData.data() + shaderTblEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-		memcpy(shaderTblData.data() + shaderTblEntrySize * 2, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		memcpy(shaderTblData.data() + m_ShaderTableEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		memcpy(shaderTblData.data() + m_ShaderTableEntrySize * 2, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
 		// TODO:アサートがあるのでとりまSRVだけ作っておくが本来はShaderTableにビューは全く不要
-		ByteAddressBuffer shaderTableBB;
-		if (!shaderTableBB.Init
+		if (!m_ShaderTableBB.Init
 		(
 			m_pDevice.Get(),
 			pCmd,
@@ -614,6 +616,7 @@ void RTSampleApp::OnTerm()
 	m_TlasScratchBB.Term();
 	m_TlasResultBB.Term();
 	m_TlasInstanceDescBB.Term();
+	m_ShaderTableBB.Term();
 }
 
 void RTSampleApp::OnRender()
@@ -780,6 +783,8 @@ void RTSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
+
+	//TODO: RTで描画したものをm_ColorTargetにコピーする
 
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }

@@ -31,6 +31,10 @@ private:
 	ByteAddressBuffer m_TlasScratchBB;
 	ByteAddressBuffer m_TlasResultBB;
 	ByteAddressBuffer m_TlasInstanceDescBB;
+	ComPtr<ID3D12StateObject> m_pStateObject;
+	ByteAddressBuffer m_ShaderTableBB;
+
+	size_t m_ShaderTableEntrySize = 0;
 
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
