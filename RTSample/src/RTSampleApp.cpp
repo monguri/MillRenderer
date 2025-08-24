@@ -539,6 +539,21 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 	// RT書き出し用テクスチャの作成
 	{
+		float clearColor[] = { 0, 0, 0, 0 };
+		if (!m_RTTarget.InitUnorderedAccessTarget(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
+			nullptr,
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			clearColor
+		))
+		{
+			ELOG("Error : Texture::InitUnorderedAccessTarget() Failed");
+			return false;
+		}
 	}
 
 	// Shader Tableの作成

@@ -32,6 +32,7 @@ private:
 	ByteAddressBuffer m_TlasResultBB;
 	ByteAddressBuffer m_TlasInstanceDescBB;
 	ComPtr<ID3D12StateObject> m_pStateObject;
+	ColorTarget m_RTTarget;
 	ByteAddressBuffer m_ShaderTableBB;
 
 	size_t m_ShaderTableEntrySize = 0;
