@@ -300,7 +300,13 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		pCmd->ResourceBarrier(1, &uavBarrier);
 	}
 
+	static const WCHAR* HIT_GROUP_NAME = L"HitGroup";
+	static const WCHAR* RAY_GEN_SHADER_ENTRY_NAME = L"rayGeneration";
+	static const WCHAR* MISS_SHADER_ENTRY_NAME = L"miss";
+	static const WCHAR* CLOSEST_HIT_SHADER_ENTRY_NAME = L"closestHit";
+
 	// State Objectの作成
+	ComPtr<ID3D12StateObject> pStateObject;
 	{
 		static constexpr size_t SUB_OBJECT_COUNT = 10;
 		// std::vectorだとExportAssociationでRootSigのSubObjectのポインタを取り出すのに
@@ -310,10 +316,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		std::array<D3D12_STATE_SUBOBJECT, SUB_OBJECT_COUNT> subObjects;
 		size_t subObjIdx = 0;
 
-		static const WCHAR* HIT_GROUP_NAME = L"HitGroup";
-		static const WCHAR* RAY_GEN_SHADER_ENTRY_NAME = L"rayGeneration";
-		static const WCHAR* MISS_SHADER_ENTRY_NAME = L"miss";
-		static const WCHAR* CLOSEST_HIT_SHADER_ENTRY_NAME = L"closestHit";
 
 		// DXIL LibraryのSubObjectを作成
 		D3D12_DXIL_LIBRARY_DESC dxilLibDesc;
@@ -521,7 +523,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		assert(subObjIdx == SUB_OBJECT_COUNT);
 
 		// RTPipelineのState Object作成
-		ComPtr<ID3D12StateObject> pStateObject;
 		{
 			D3D12_STATE_OBJECT_DESC desc;
 			desc.NumSubobjects = static_cast<UINT>(subObjects.size());
@@ -545,7 +546,23 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		shaderTblEntrySize += 8 * 2;
 		shaderTblEntrySize = (shaderTblEntrySize + D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
 
-		// TODO:とりまSRVだけ作っておく
+		ComPtr<ID3D12StateObjectProperties> pStateObjProps;
+		HRESULT hr = pStateObject->QueryInterface(IID_PPV_ARGS(pStateObjProps.GetAddressOf()));
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12StateObjectProperties::QueryInterface() Failed");
+			return false;
+		}
+
+		// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
+		// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
+		std::vector<uint8_t> shaderTblData;
+		shaderTblData.resize(shaderTblEntrySize * 3);
+		memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		memcpy(shaderTblData.data() + shaderTblEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		memcpy(shaderTblData.data() + shaderTblEntrySize * 2, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+		// TODO:アサートがあるのでとりまSRVだけ作っておくが本来はShaderTableにビューは全く不要
 		ByteAddressBuffer shaderTableBB;
 		if (!shaderTableBB.Init
 		(
@@ -553,10 +570,10 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			pCmd,
 			m_pPool[POOL_TYPE_RES],
 			nullptr,
-			shaderTblEntrySize * 3,
+			shaderTblData.size(),
 			false,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr
+			shaderTblData.data()
 		))
 		{
 			ELOG("Error : ByteAddressBuffer::Init() Failed");
