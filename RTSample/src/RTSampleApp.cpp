@@ -260,19 +260,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.RaytracingAccelerationStructure.Location = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
-		m_pTlasResultSrvHandle = m_pPool[POOL_TYPE_RES]->AllocHandle();
-		if (m_pTlasResultSrvHandle == nullptr)
-		{
-			ELOG("Error : DescriptorPool::AllocHandle() Failed.");
-			return false;
-		}
-		m_pDevice.Get()->CreateShaderResourceView(nullptr, &srvDesc, m_pTlasResultSrvHandle->HandleCPU);
-
 		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc;
 		const Matrix& identityMat = Matrix::Identity;
 		memcpy(instanceDesc.Transform, &identityMat, sizeof(instanceDesc.Transform));
@@ -549,14 +536,32 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	}
 	// State Objectの作成
 
+	// RayGenシェーダに用いるTLASのSRVの作成
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.RaytracingAccelerationStructure.Location = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
+		m_pTlasResultSrvHandle = m_pPool[POOL_TYPE_RES]->AllocHandle();
+		if (m_pTlasResultSrvHandle == nullptr)
+		{
+			ELOG("Error : DescriptorPool::AllocHandle() Failed.");
+			return false;
+		}
+		m_pDevice.Get()->CreateShaderResourceView(nullptr, &srvDesc, m_pTlasResultSrvHandle->HandleCPU);
+	}
+
 	// RT書き出し用テクスチャの作成
+	// ここで作ったUAVがPOOL_TYPE_RESのディスクリプタプールでTLASのSRVの次に作るディスクリプタである必要がある
+	// m_pTlasResultSrvHandleをRayGenのシェーダテーブルに設定するので
 	{
 		float clearColor[] = { 0, 0, 0, 0 };
 		if (!m_RTTarget.InitUnorderedAccessTarget(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RES],
 			nullptr,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			m_Width,
 			m_Height,
 			// CopyResrouce()でバックバッファにコピーするのでフォーマットは同じでないと警告が出る
@@ -575,8 +580,9 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	{
 		// 全シェーダ、最大サイズになるray-genシェーダに合わせる
 		m_ShaderTableEntrySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-		// デスクリプタテーブル2個の分
-		m_ShaderTableEntrySize += 8 * 2;
+		// デスクリプタテーブルの分
+		// TODO:デスクリプタテーブルが2個になってない？
+		m_ShaderTableEntrySize += 8;
 		m_ShaderTableEntrySize = (m_ShaderTableEntrySize + D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
 
 		ComPtr<ID3D12StateObjectProperties> pStateObjProps;
@@ -592,6 +598,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		std::vector<uint8_t> shaderTblData;
 		shaderTblData.resize(m_ShaderTableEntrySize * 3);
 		memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) = m_pTlasResultSrvHandle->HandleGPU.ptr;
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize * 2, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
