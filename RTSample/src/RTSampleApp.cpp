@@ -828,6 +828,10 @@ void RTSampleApp::RayTrace(ID3D12GraphicsCommandList4* pCmdList)
 	dispatchDesc.HitGroupTable.StrideInBytes = m_ShaderTableEntrySize;
 	dispatchDesc.HitGroupTable.SizeInBytes = m_ShaderTableEntrySize;
 
+	dispatchDesc.CallableShaderTable.StartAddress = 0;
+	dispatchDesc.CallableShaderTable.StrideInBytes = 0;
+	dispatchDesc.CallableShaderTable.SizeInBytes = 0;
+
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
 	pCmdList->DispatchRays(&dispatchDesc);
