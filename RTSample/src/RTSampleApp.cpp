@@ -388,6 +388,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		// RayGenシェーダのLocal Root SignatureのSubObjectを作成
 		RootSignature rayGenRootSig;
+		ID3D12RootSignature* pRayGenRootSig = nullptr;
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
@@ -404,8 +405,9 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 			D3D12_STATE_SUBOBJECT subObjLocalRootSig;
 			subObjLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-			ID3D12RootSignature* pRootSig = rayGenRootSig.GetPtr();
-			subObjLocalRootSig.pDesc = &pRootSig;
+			// なぜかID3D12RootSignature*の変数を
+			pRayGenRootSig = rayGenRootSig.GetPtr();
+			subObjLocalRootSig.pDesc = &pRayGenRootSig;
 			subObjects[subObjIdx++] = subObjLocalRootSig;
 		}
 		
@@ -424,14 +426,15 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		// MissシェーダとClosestHitシェーダのLocal Root SignatureのSubObjectを作成
 		// ルートシグネチャがひとつにまとめられるのでまとめている
-		RootSignature missClosestHitGenRootSig;
+		RootSignature missClosestHitRootSig;
+		ID3D12RootSignature* pMissClosestHitRootSig = nullptr;
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
 				.SetLocalRootSignature()
 				.End();
 
-			if (!missClosestHitGenRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+			if (!missClosestHitRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 			{
 				ELOG("Error : RootSignature::Init() Failed");
 				return false;
@@ -439,8 +442,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 			D3D12_STATE_SUBOBJECT subObjLocalRootSig;
 			subObjLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-			ID3D12RootSignature* pRootSig = missClosestHitGenRootSig.GetPtr();
-			subObjLocalRootSig.pDesc = &pRootSig;
+			pMissClosestHitRootSig = missClosestHitRootSig.GetPtr();
+			subObjLocalRootSig.pDesc = &pMissClosestHitRootSig;
 			subObjects[subObjIdx++] = subObjLocalRootSig;
 		}
 		
@@ -515,6 +518,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		}
 
 		// Global Root SignatureのSubObjectを作成
+		ID3D12RootSignature* pGlobalRootSig = nullptr;
 		{
 			RootSignature::Desc desc;
 			// GlobalRootSignatureの場合は何も設定しない
@@ -528,8 +532,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 			D3D12_STATE_SUBOBJECT subObjGlobalRootSig;
 			subObjGlobalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-			ID3D12RootSignature* pRootSig = m_GlobalRootSig.GetPtr();
-			subObjGlobalRootSig.pDesc = &pRootSig;
+			pGlobalRootSig = m_GlobalRootSig.GetPtr();
+			subObjGlobalRootSig.pDesc = &pGlobalRootSig;
 			subObjects[subObjIdx++] = subObjGlobalRootSig;
 		}
 

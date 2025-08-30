@@ -33,6 +33,7 @@ private:
 	DescriptorHandle* m_pTlasResultSrvHandle = nullptr;
 	ByteAddressBuffer m_TlasInstanceDescBB;
 	RootSignature m_GlobalRootSig;
+
 	ComPtr<ID3D12StateObject> m_pStateObject;
 	ColorTarget m_RTTarget;
 	ByteAddressBuffer m_ShaderTableBB;
