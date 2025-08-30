@@ -30,6 +30,7 @@ private:
 	ByteAddressBuffer m_BlasResultBB;
 	ByteAddressBuffer m_TlasScratchBB;
 	ByteAddressBuffer m_TlasResultBB;
+	DescriptorHandle* m_pTlasResultSrvHandle = nullptr;
 	ByteAddressBuffer m_TlasInstanceDescBB;
 	ComPtr<ID3D12StateObject> m_pStateObject;
 	ColorTarget m_RTTarget;
