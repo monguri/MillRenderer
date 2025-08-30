@@ -559,7 +559,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES],
 			m_Width,
 			m_Height,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
+			// CopyResrouce()でバックバッファにコピーするのでフォーマットは同じでないと警告が出る
+			m_BackBufferFormat,
 			clearColor
 		))
 		{
@@ -843,13 +844,11 @@ void RTSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw BackBuffer");
 
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
 
-	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
+	pCmdList->CopyResource(m_ColorTarget[m_FrameIndex].GetResource(), m_RTTarget.GetResource());
 
-	//TODO: RTで描画したものをm_ColorTargetにコピーする
-
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void RTSampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
