@@ -470,10 +470,9 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		{
 			//struct Payload
 			//{
-			//		bool hit;
+			//		float3 color;
 			//};
-			//TODO: boolは1バイトだが4バイト必要というエラーが出る。おそらくアライメントだろう
-			shaderConfig.MaxPayloadSizeInBytes = sizeof(float);
+			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 3;
 
 			// struct BuiltInTriangleIntersectionAttributes
 			// {
@@ -623,6 +622,21 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 	}
+
+	//
+	//
+	//
+	// TODO: そろそろ、各バッファは専用クラスをもつんでなく、ID3D12Resourceを内包する
+	// Resoruceクラスを作って、InitBB、InitSBとかでBB、SB、CBなど作るやり方に
+	// しないと無駄にいろんなクラスが乱立して実装が冗長になる
+	// そもそもそれはD3D12の設計に合わない
+	// テクスチャとバッファも別クラスにしなくていい
+	//
+	//
+	//
+
+
+
 
 	pCmd->Close();
 	ID3D12CommandList* pLists[] = {pCmd};

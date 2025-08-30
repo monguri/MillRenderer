@@ -12,27 +12,53 @@ float3 linearToSrgb(float3 color)
 	return srgb;
 }
 
+struct Payload
+{
+	float3 color;
+};
+
 [shader("raygeneration")]
 void rayGeneration()
 {
-	uint3 rayIndex = DispatchRaysIndex();
-	float3 color = linearToSrgb(float3(0.4, 0.6, 0.2));
+	// (Width, Height, 1)のレイ本数をそのままスクリーンのピクセルに割り当てる
+	uint2 rayIndex = DispatchRaysIndex().xy;
+	uint2 screenDim = DispatchRaysDimensions().xy;
+
+	float2 normalXY = float2(rayIndex) / float2(screenDim) * 2 - 1;
+	float aspectRatio = screenDim.y / screenDim.x;
+
+	RayDesc rayDesc;
+	// Triangleをちょうどいいカメラ位置で表示する
+	rayDesc.Origin = float3(0, 0, -2);
+	rayDesc.Direction = normalize(float3(normalXY.x, normalXY.y * aspectRatio, 1));
+
+	rayDesc.TMin = 0;
+	rayDesc.TMax = 100000;
+
+	Payload payload;
+	uint rayFlags = 0;
+	uint instanceInclusionsMask = 0xFF;
+	uint rayContributionToHitGroupIndex = 0;
+	uint multiplierForGeometryContributionToHitGroupIndex = 0;
+	uint missShaderIndex = 0;
+	TraceRay(gRtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
+
+	float3 color = linearToSrgb(payload.color);
 	gOutputTex[rayIndex.xy] = float4(color, 1);
 }
-
-struct Payload
-{
-	bool hit;
-};
 
 [shader("miss")]
 void miss(inout Payload payload)
 {
-	payload.hit = false;
+	// light green
+	payload.color = float3(0.4, 0.6, 0.2);
 }
 
 [shader("closesthit")]
 void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attrs)
 {
-	payload.hit = true;
+	payload.color =
+		float3(1, 0, 0) * (1 - attrs.barycentrics.x - attrs.barycentrics.y)
+		+ float3(0, 1, 0) * attrs.barycentrics.x
+		+ float3(0, 0, 1) * attrs.barycentrics.y;
 }
