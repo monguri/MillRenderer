@@ -551,10 +551,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	}
 	// State Objectの作成
 
-	// RayGenシェーダに用いるTLASのSRVの作成
-	{
-	}
-
 	// RT書き出し用テクスチャの作成
 	// ここで作ったUAVがPOOL_TYPE_RESのディスクリプタプールでTLASのSRVの次に作るディスクリプタである必要がある
 	// m_pTlasResultSrvHandleをRayGenのシェーダテーブルに設定するので
