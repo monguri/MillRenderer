@@ -248,7 +248,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		if (!m_TlasResultBB.Init(
 			m_pDevice.Get(),
 			nullptr,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			m_pPool[POOL_TYPE_RES],
 			preBuildInfo.ResultDataMaxSizeInBytes,
 			true,
@@ -256,9 +256,24 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			nullptr
 		))
 		{
-			ELOG("Error : StructuredBuffer::Init() Failed.");
+			ELOG("Error : ByteAddressBuffer::Init() Failed.");
 			return false;
 		}
+
+		// TODO:ByteAddressBuffer::Init()でASのSRVに対応してないので一旦別途作る
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.RaytracingAccelerationStructure.Location = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
+		m_pTlasResultSrvHandle = m_pPool[POOL_TYPE_RES]->AllocHandle();
+		if (m_pTlasResultSrvHandle == nullptr)
+		{
+			ELOG("Error : DescriptorPool::AllocHandle() Failed.");
+			return false;
+		}
+
+		m_pDevice.Get()->CreateShaderResourceView(nullptr, &srvDesc, m_pTlasResultSrvHandle->HandleCPU);
 
 		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc;
 		const Matrix& identityMat = Matrix::Identity;
@@ -538,18 +553,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 	// RayGenシェーダに用いるTLASのSRVの作成
 	{
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.RaytracingAccelerationStructure.Location = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
-		m_pTlasResultSrvHandle = m_pPool[POOL_TYPE_RES]->AllocHandle();
-		if (m_pTlasResultSrvHandle == nullptr)
-		{
-			ELOG("Error : DescriptorPool::AllocHandle() Failed.");
-			return false;
-		}
-		m_pDevice.Get()->CreateShaderResourceView(nullptr, &srvDesc, m_pTlasResultSrvHandle->HandleCPU);
 	}
 
 	// RT書き出し用テクスチャの作成
@@ -581,8 +584,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		// 全シェーダ、最大サイズになるray-genシェーダに合わせる
 		m_ShaderTableEntrySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 		// デスクリプタテーブルの分
-		// TODO:デスクリプタテーブルが2個になってない？
-		m_ShaderTableEntrySize += 8;
+		m_ShaderTableEntrySize += 8 * 2;
 		m_ShaderTableEntrySize = (m_ShaderTableEntrySize + D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
 
 		ComPtr<ID3D12StateObjectProperties> pStateObjProps;
@@ -598,16 +600,18 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		std::vector<uint8_t> shaderTblData;
 		shaderTblData.resize(m_ShaderTableEntrySize * 3);
 		memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		// RTではディスクリプタテーブルの設定をSetComputeRootDescriptorTable()ではなく
+		// ShaderTableに設定する形で行う
 		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) = m_pTlasResultSrvHandle->HandleGPU.ptr;
+		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8) = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize * 2, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
-		// TODO:アサートがあるのでとりまSRVだけ作っておくが本来はShaderTableにビューは全く不要
 		if (!m_ShaderTableBB.Init
 		(
 			m_pDevice.Get(),
 			pCmd,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			nullptr,
 			shaderTblData.size(),
 			false,

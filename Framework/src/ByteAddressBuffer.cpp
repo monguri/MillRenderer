@@ -29,7 +29,7 @@ bool ByteAddressBuffer::Init
 	const void* pInitData
 )
 {
-	if (pDevice == nullptr || pPoolSRV == nullptr || (useUAV && pPoolUAV == nullptr) || count == 0)
+	if (pDevice == nullptr || (useUAV && pPoolUAV == nullptr) || count == 0)
 	{
 		return false;
 	}
@@ -44,13 +44,16 @@ bool ByteAddressBuffer::Init
 	assert(m_pPoolSRV == nullptr);
 	assert(m_pHandleSRV == nullptr);
 
-	m_pPoolSRV = pPoolSRV;
-	m_pPoolSRV->AddRef();
-
-	m_pHandleSRV = pPoolSRV->AllocHandle();
-	if (m_pHandleSRV == nullptr)
+	if (m_pPoolSRV != nullptr)
 	{
-		return false;
+		m_pPoolSRV = pPoolSRV;
+		m_pPoolSRV->AddRef();
+
+		m_pHandleSRV = pPoolSRV->AllocHandle();
+		if (m_pHandleSRV == nullptr)
+		{
+			return false;
+		}
 	}
 
 	assert(m_pPoolUAV == nullptr);
@@ -168,11 +171,14 @@ bool ByteAddressBuffer::Init
 	srvDesc.Buffer.StructureByteStride = (UINT)sizeof(uint32_t);
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-	pDevice->CreateShaderResourceView(
-		m_pBuffer.Get(),
-		&srvDesc,
-		m_pHandleSRV->HandleCPU
-	);
+	if (m_pHandleSRV != nullptr)
+	{
+		pDevice->CreateShaderResourceView(
+			m_pBuffer.Get(),
+			&srvDesc,
+			m_pHandleSRV->HandleCPU
+		);
+	}
 
 	if (useUAV)
 	{
