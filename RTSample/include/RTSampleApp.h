@@ -32,6 +32,7 @@ private:
 	ByteAddressBuffer m_TlasResultBB;
 	DescriptorHandle* m_pTlasResultSrvHandle = nullptr;
 	ByteAddressBuffer m_TlasInstanceDescBB;
+	RootSignature m_GlobalRootSig;
 	ComPtr<ID3D12StateObject> m_pStateObject;
 	ColorTarget m_RTTarget;
 	ByteAddressBuffer m_ShaderTableBB;
@@ -43,6 +44,7 @@ private:
 	virtual void OnRender() override;
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 
+	void RayTrace(ID3D12GraphicsCommandList4* pCmdList);
 	void DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
 };

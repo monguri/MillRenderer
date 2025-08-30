@@ -513,13 +513,12 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		}
 
 		// Global Root SignatureのSubObjectを作成
-		RootSignature globalRootSig;
 		{
 			RootSignature::Desc desc;
 			// GlobalRootSignatureの場合は何も設定しない
 			desc.Begin().End();
 
-			if (!globalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+			if (!m_GlobalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 			{
 				ELOG("Error : RootSignature::Init() Failed");
 				return false;
@@ -527,7 +526,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 			D3D12_STATE_SUBOBJECT subObjGlobalRootSig;
 			subObjGlobalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-			ID3D12RootSignature* pRootSig = globalRootSig.GetPtr();
+			ID3D12RootSignature* pRootSig = m_GlobalRootSig.GetPtr();
 			subObjGlobalRootSig.pDesc = &pRootSig;
 			subObjects[subObjIdx++] = subObjGlobalRootSig;
 		}
@@ -567,6 +566,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			ELOG("Error : Texture::InitUnorderedAccessTarget() Failed");
 			return false;
 		}
+
+		DirectX::TransitionResource(pCmd, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	}
 
 	// Shader Tableの作成
@@ -661,7 +662,7 @@ void RTSampleApp::OnRender()
 		ptr->Proj = proj;
 	}
 
-	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+	ID3D12GraphicsCommandList4* pCmd = m_CommandList.Reset();
 
 	ID3D12DescriptorHeap* const pHeaps[] = {
 		m_pPool[POOL_TYPE_RES]->GetHeap()
@@ -669,6 +670,7 @@ void RTSampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 
+	RayTrace(pCmd);
 	DrawBackBuffer(pCmd);
 	DrawImGui(pCmd);
 
@@ -802,6 +804,35 @@ bool RTSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	}
 
 	return true;
+}
+
+void RTSampleApp::RayTrace(ID3D12GraphicsCommandList4* pCmdList)
+{
+	ScopedTimer scopedTimer(pCmdList, L"Ray Trace");
+
+	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	D3D12_DISPATCH_RAYS_DESC dispatchDesc;
+	dispatchDesc.Width = m_Width;
+	dispatchDesc.Height = m_Height;
+	dispatchDesc.Depth = 1;
+
+	dispatchDesc.RayGenerationShaderRecord.StartAddress = m_ShaderTableBB.GetResource()->GetGPUVirtualAddress() + 0 * m_ShaderTableEntrySize;
+	dispatchDesc.RayGenerationShaderRecord.SizeInBytes = m_ShaderTableEntrySize;
+
+	dispatchDesc.MissShaderTable.StartAddress = m_ShaderTableBB.GetResource()->GetGPUVirtualAddress() + 1 * m_ShaderTableEntrySize;
+	dispatchDesc.MissShaderTable.StrideInBytes = m_ShaderTableEntrySize;
+	dispatchDesc.MissShaderTable.SizeInBytes = m_ShaderTableEntrySize;
+
+	dispatchDesc.HitGroupTable.StartAddress = m_ShaderTableBB.GetResource()->GetGPUVirtualAddress() + 2 * m_ShaderTableEntrySize;
+	dispatchDesc.HitGroupTable.StrideInBytes = m_ShaderTableEntrySize;
+	dispatchDesc.HitGroupTable.SizeInBytes = m_ShaderTableEntrySize;
+
+	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
+	pCmdList->SetPipelineState1(m_pStateObject.Get());
+	pCmdList->DispatchRays(&dispatchDesc);
+
+	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 }
 
 void RTSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
