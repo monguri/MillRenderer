@@ -26,12 +26,9 @@ private:
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 
 	VertexBuffer m_TriangleVB;
-	ByteAddressBuffer m_BlasScratchBB;
 	ByteAddressBuffer m_BlasResultBB;
-	ByteAddressBuffer m_TlasScratchBB;
 	ByteAddressBuffer m_TlasResultBB;
 	DescriptorHandle* m_pTlasResultSrvHandle = nullptr;
-	ByteAddressBuffer m_TlasInstanceDescBB;
 	RootSignature m_GlobalRootSig;
 
 	ComPtr<ID3D12StateObject> m_pStateObject;
