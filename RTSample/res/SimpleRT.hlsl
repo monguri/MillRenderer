@@ -25,7 +25,7 @@ void rayGeneration()
 	uint2 screenDim = DispatchRaysDimensions().xy;
 
 	float2 normalXY = float2(rayIndex) / float2(screenDim) * 2 - 1;
-	float aspectRatio = screenDim.y / screenDim.x;
+	float aspectRatio = float(screenDim.y) / float(screenDim.x);
 
 	RayDesc rayDesc;
 	// Triangle‚ğ‚¿‚å‚¤‚Ç‚¢‚¢ƒJƒƒ‰ˆÊ’u‚Å•\¦‚·‚é
