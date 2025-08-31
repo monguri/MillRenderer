@@ -173,7 +173,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		if (!blasScratchBB.Init(
 			m_pDevice.Get(),
 			nullptr,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			m_pPool[POOL_TYPE_RES],
 			preBuildInfo.ScratchDataSizeInBytes,
 			true,
@@ -189,7 +189,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		if (!m_BlasResultBB.Init(
 			m_pDevice.Get(),
 			nullptr,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			m_pPool[POOL_TYPE_RES],
 			preBuildInfo.ResultDataMaxSizeInBytes,
 			true,
@@ -235,7 +235,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		if (!tlasScratchBB.Init(
 			m_pDevice.Get(),
 			nullptr,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			m_pPool[POOL_TYPE_RES],
 			preBuildInfo.ScratchDataSizeInBytes,
 			true,
