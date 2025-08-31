@@ -44,7 +44,7 @@ bool ByteAddressBuffer::Init
 	assert(m_pPoolSRV == nullptr);
 	assert(m_pHandleSRV == nullptr);
 
-	if (m_pPoolSRV != nullptr)
+	if (pPoolSRV != nullptr)
 	{
 		m_pPoolSRV = pPoolSRV;
 		m_pPoolSRV->AddRef();
