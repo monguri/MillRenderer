@@ -24,12 +24,12 @@ bool ByteAddressBuffer::Init
 	DescriptorPool* pPoolSRV,
 	DescriptorPool* pPoolUAV,
 	size_t count,
-	bool useUAV,
+	D3D12_RESOURCE_FLAGS flags,
 	D3D12_RESOURCE_STATES initState,
 	const void* pInitData
 )
 {
-	if (pDevice == nullptr || (useUAV && pPoolUAV == nullptr) || count == 0)
+	if (pDevice == nullptr || count == 0)
 	{
 		return false;
 	}
@@ -59,7 +59,7 @@ bool ByteAddressBuffer::Init
 	assert(m_pPoolUAV == nullptr);
 	assert(m_pHandleUAV == nullptr);
 
-	if (useUAV)
+	if (pPoolUAV != nullptr)
 	{
 		m_pPoolUAV = pPoolUAV;
 		m_pPoolUAV->AddRef();
@@ -89,7 +89,7 @@ bool ByteAddressBuffer::Init
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	desc.Flags = useUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+	desc.Flags = flags;
 
 	HRESULT hr = pDevice->CreateCommittedResource
 	(
@@ -180,7 +180,7 @@ bool ByteAddressBuffer::Init
 		);
 	}
 
-	if (useUAV)
+	if (m_pHandleUAV != nullptr)
 	{
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;

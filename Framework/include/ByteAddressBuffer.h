@@ -19,7 +19,7 @@ public:
 		DescriptorPool* pPoolSRV,
 		DescriptorPool* pPoolUAV,
 		size_t count,
-		bool useUAV,
+		D3D12_RESOURCE_FLAGS flags,
 		D3D12_RESOURCE_STATES initState,
 		const void* pInitData
 	);

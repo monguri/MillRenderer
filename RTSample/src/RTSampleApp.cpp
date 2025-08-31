@@ -174,25 +174,24 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			m_pDevice.Get(),
 			nullptr,
 			nullptr,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			preBuildInfo.ScratchDataSizeInBytes,
-			true,
-			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			nullptr
 		))
 		{
 			ELOG("Error : StructuredBuffer::Init() Failed.");
 			return false;
 		}
-		DirectX::TransitionResource(pCmd, blasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		if (!m_BlasResultBB.Init(
 			m_pDevice.Get(),
 			nullptr,
 			nullptr,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			preBuildInfo.ResultDataMaxSizeInBytes,
-			true,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 			nullptr
 		))
@@ -236,10 +235,10 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			m_pDevice.Get(),
 			nullptr,
 			nullptr,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			preBuildInfo.ScratchDataSizeInBytes,
-			true,
-			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			nullptr
 		))
 		{
@@ -252,9 +251,9 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			m_pDevice.Get(),
 			nullptr,
 			nullptr,
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
 			preBuildInfo.ResultDataMaxSizeInBytes,
-			true,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 			nullptr
 		))
@@ -290,11 +289,11 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		if (!tlasInstanceDescBB.Init(
 			m_pDevice.Get(),
 			pCmd,
-			m_pPool[POOL_TYPE_RES],
-			m_pPool[POOL_TYPE_RES],
+			nullptr,
+			nullptr,
 			sizeof(instanceDesc),
-			true,
-			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
 			&instanceDesc
 		))
 		{
@@ -616,7 +615,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			nullptr,
 			nullptr,
 			shaderTblData.size(),
-			false,
+			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			shaderTblData.data()
 		))
