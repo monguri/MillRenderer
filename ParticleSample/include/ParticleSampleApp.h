@@ -6,6 +6,7 @@
 #include "VertexBuffer.h"
 #include "ConstantBuffer.h"
 #include "StructuredBuffer.h"
+#include "Resource.h"
 #include "ByteAddressBuffer.h"
 #include "ColorTarget.h"
 #include "DepthTarget.h"
@@ -43,7 +44,11 @@ private:
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_DrawParticlesTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
+#if 1
 	ByteAddressBuffer m_DispatchIndirectArgsBB;
+#else
+	Resource m_DispatchIndirectArgsBB;
+#endif
 	StructuredBuffer m_ParticlesSB[FRAME_COUNT];
 	ByteAddressBuffer m_DrawParticlesIndirectArgsBB[FRAME_COUNT];
 	ConstantBuffer m_SimulationCB;

@@ -571,11 +571,37 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		args.ThreadGroupCountY = 1;
 		args.ThreadGroupCountZ = 1;
 
+#if 1
 		if (!m_DispatchIndirectArgsBB.Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON, &args))
 		{
-			ELOG("Error : ByteAddressBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
 			return false;
 		}
+#else
+		if (!m_DispatchIndirectArgsBB.InitAsByteAddressBuffer(
+			m_pDevice.Get(), 
+			sizeof(args),
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_COMMON,
+			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES]
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_DispatchIndirectArgsBB.UploadBufferData(
+			m_pDevice.Get(),
+			pCmd,
+			sizeof(args),
+			&args
+		))
+		{
+			ELOG("Error : Resource::UploadBufferData() Failed.");
+			return false;
+		}
+#endif
 	}
 
 	// パーティクル用のStructuredBufferの作成
