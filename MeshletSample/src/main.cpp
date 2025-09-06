@@ -3,7 +3,7 @@
 #include <crtdbg.h>
 #endif
 
-#include "ParticleSampleApp.h"
+#include "MeshletSampleApp.h"
 
 int wmain(int argc, wchar_t** argv, wchar_t** evnp)
 {
@@ -11,7 +11,7 @@ int wmain(int argc, wchar_t** argv, wchar_t** evnp)
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
-    ParticleSampleApp app(1920, 1080);
+    MeshletSampleApp app(1920, 1080);
     app.Run();
     return 0;
 }

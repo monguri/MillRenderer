@@ -1,4 +1,4 @@
-﻿#include "ParticleSampleApp.h"
+﻿#include "MeshletSampleApp.h"
 
 // imgui
 #include "imgui.h"
@@ -66,16 +66,16 @@ namespace
 	}
 }
 
-ParticleSampleApp::ParticleSampleApp(uint32_t width, uint32_t height)
+MeshletSampleApp::MeshletSampleApp(uint32_t width, uint32_t height)
 : App(width, height, DXGI_FORMAT_R10G10B10A2_UNORM)
 {
 }
 
-ParticleSampleApp::~ParticleSampleApp()
+MeshletSampleApp::~MeshletSampleApp()
 {
 }
 
-bool ParticleSampleApp::OnInit(HWND hWnd)
+bool MeshletSampleApp::OnInit(HWND hWnd)
 {
 	m_CameraManipulator.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
 
@@ -684,7 +684,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 	return true;
 }
 
-void ParticleSampleApp::OnTerm()
+void MeshletSampleApp::OnTerm()
 {
 	// imgui終了処理
 	if (ImGui::GetCurrentContext() != nullptr)
@@ -727,7 +727,7 @@ void ParticleSampleApp::OnTerm()
 	m_BackBufferRootSig.Term();
 }
 
-void ParticleSampleApp::OnRender()
+void MeshletSampleApp::OnRender()
 {
 	using namespace std::chrono;
 	const high_resolution_clock::time_point& currTime = high_resolution_clock::now();
@@ -775,7 +775,7 @@ void ParticleSampleApp::OnRender()
 	Present(1);
 }
 
-bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
+bool MeshletSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	if (ImGui::GetCurrentContext() != nullptr)
 	{
@@ -899,7 +899,7 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	return true;
 }
 
-void ParticleSampleApp::ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB)
+void MeshletSampleApp::ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Reset Num Particles");
 
@@ -913,7 +913,7 @@ void ParticleSampleApp::ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, c
 	pCmdList->Dispatch(1, 1, 1);
 }
 
-void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB, const std::chrono::milliseconds& deltaTimeMS)
+void MeshletSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB, const std::chrono::milliseconds& deltaTimeMS)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Update Particles");
 
@@ -943,7 +943,7 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, con
 	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
-void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const Resource& currDrawParticlesArgsBB)
+void MeshletSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const Resource& currDrawParticlesArgsBB)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
 
@@ -977,7 +977,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 	DirectX::TransitionResource(pCmdList, currParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
-void ParticleSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
+void MeshletSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw BackBuffer");
 
@@ -1033,7 +1033,7 @@ void ParticleSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
-void ParticleSampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
+void MeshletSampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 {
 	ScopedTimer scopedTimer(pCmdList, L"ImGui");
 

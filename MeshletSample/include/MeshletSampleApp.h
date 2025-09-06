@@ -13,11 +13,11 @@
 #include "Texture.h"
 #include "TransformManipulator.h"
 
-class ParticleSampleApp : public App
+class MeshletSampleApp : public App
 {
 public:
-	ParticleSampleApp(uint32_t width, uint32_t height);
-	virtual ~ParticleSampleApp();
+	MeshletSampleApp(uint32_t width, uint32_t height);
+	virtual ~MeshletSampleApp();
 
 private:
 	TransformManipulator m_CameraManipulator;
