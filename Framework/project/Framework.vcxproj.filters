@@ -75,7 +75,7 @@
     <ClCompile Include="..\src\ByteAddressBuffer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="Resource.cpp">
+    <ClCompile Include="..\src\Resource.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -152,7 +152,7 @@
     <ClInclude Include="..\include\ByteAddressBuffer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Resource.h">
+    <ClInclude Include="..\include\Resource.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

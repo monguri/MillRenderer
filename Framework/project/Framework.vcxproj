@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\App.cpp" />
     <ClCompile Include="..\src\ByteAddressBuffer.cpp" />
+    <ClCompile Include="..\src\Resource.cpp" />
     <ClCompile Include="..\src\TransformManipulator.cpp" />
     <ClCompile Include="..\src\ColorTarget.cpp" />
     <ClCompile Include="..\src\CommandList.cpp" />
@@ -31,11 +32,11 @@
     <ClCompile Include="..\src\StructuredBuffer.cpp" />
     <ClCompile Include="..\src\Texture.cpp" />
     <ClCompile Include="..\src\VertexBuffer.cpp" />
-    <ClCompile Include="Resource.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\App.h" />
     <ClInclude Include="..\include\ByteAddressBuffer.h" />
+    <ClInclude Include="..\include\Resource.h" />
     <ClInclude Include="..\include\TransformManipulator.h" />
     <ClInclude Include="..\include\ColorTarget.h" />
     <ClInclude Include="..\include\CommandList.h" />
@@ -58,7 +59,6 @@
     <ClInclude Include="..\include\StructuredBuffer.h" />
     <ClInclude Include="..\include\Texture.h" />
     <ClInclude Include="..\include\VertexBuffer.h" />
-    <ClInclude Include="Resource.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
