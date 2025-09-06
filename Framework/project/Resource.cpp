@@ -87,6 +87,25 @@ bool Resource::Init
 		return false;
 	}
 
+	if (m_pHandleSRV != nullptr)
+	{
+		pDevice->CreateShaderResourceView(
+			m_pResource.Get(),
+			&srvDesc,
+			m_pHandleSRV->HandleCPU
+		);
+	}
+
+	if (m_pHandleUAV != nullptr)
+	{
+		pDevice->CreateUnorderedAccessView(
+			m_pResource.Get(),
+			nullptr,
+			&uavDesc,
+			m_pHandleUAV->HandleCPU
+		);
+	}
+
 	return true;
 }
 
@@ -122,17 +141,34 @@ void Resource::Term()
 	m_pHandleUAV = nullptr;
 }
 
+void* Resource::Map() const
+{
+	void* ptr;
+	HRESULT hr = m_pResource->Map(0, nullptr, &ptr);
+	if (FAILED(hr))
+	{
+		return nullptr;
+	}
+
+	return ptr;
+}
+
+void Resource::Unmap() const
+{
+	m_pResource->Unmap(0, nullptr);
+}
+
 DescriptorHandle* Resource::GetHandleSRV() const
 {
-	return nullptr;
+	return m_pHandleSRV;
 }
 
 DescriptorHandle* Resource::GetHandleUAV() const
 {
-	return nullptr;
+	return m_pHandleUAV;
 }
 
 ID3D12Resource* Resource::GetResource() const
 {
-	return nullptr;
+	return m_pResource.Get();
 }

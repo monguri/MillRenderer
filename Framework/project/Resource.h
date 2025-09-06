@@ -29,6 +29,15 @@ public:
 
 	void Term();
 
+	void* Map() const;
+	void Unmap() const;
+
+	template<typename T>
+	T* Map() const
+	{
+		return reinterpret_cast<T*>(Map());
+	}
+
 	DescriptorHandle* GetHandleSRV() const;
 	DescriptorHandle* GetHandleUAV() const;
 	ID3D12Resource* GetResource() const;
