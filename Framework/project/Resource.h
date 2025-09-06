@@ -18,16 +18,22 @@ public:
 		size_t size,
 		D3D12_RESOURCE_DESC desc,
 		D3D12_RESOURCE_FLAGS flags,
-		D3D12_RESOURCE_STATES initState,
+		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc,
 		DescriptorPool* pPoolUAV,
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc,
-		ID3D12GraphicsCommandList* pCmdList,
-		const void* pInitData
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc
 	);
 
 	void Term();
+
+	bool UploadBufferData
+	(
+		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
+		size_t size,
+		const void* pData
+	);
 
 	void* Map() const;
 	void Unmap() const;
@@ -43,6 +49,7 @@ public:
 	ID3D12Resource* GetResource() const;
 
 private:
+	D3D12_RESOURCE_STATES m_state;
 	ComPtr<ID3D12Resource> m_pResource;
 	ComPtr<ID3D12Resource> m_pUploadBuffer;
 	DescriptorHandle* m_pHandleSRV = nullptr;
