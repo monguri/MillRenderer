@@ -31,6 +31,7 @@
     <ClCompile Include="..\src\StructuredBuffer.cpp" />
     <ClCompile Include="..\src\Texture.cpp" />
     <ClCompile Include="..\src\VertexBuffer.cpp" />
+    <ClCompile Include="Resource.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\App.h" />
@@ -57,6 +58,7 @@
     <ClInclude Include="..\include\StructuredBuffer.h" />
     <ClInclude Include="..\include\Texture.h" />
     <ClInclude Include="..\include\VertexBuffer.h" />
+    <ClInclude Include="Resource.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
