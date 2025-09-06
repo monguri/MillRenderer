@@ -2,10 +2,6 @@
 #include "DescriptorPool.h"
 #include <DirectXHelpers.h>
 
-Resource::Resource()
-{
-}
-
 Resource::~Resource()
 {
 	Term();

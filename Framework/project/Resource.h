@@ -9,7 +9,6 @@ class DescriptorHandle;
 class Resource
 {
 public:
-	Resource();
 	virtual ~Resource();
 
 	bool Init
