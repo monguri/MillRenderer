@@ -104,6 +104,60 @@ bool Resource::Init
 	return true;
 }
 
+bool Resource::InitAsByteAddressBuffer
+(
+	ID3D12Device* pDevice,
+	size_t size,
+	D3D12_RESOURCE_FLAGS flags,
+	D3D12_RESOURCE_STATES state,
+	DescriptorPool* pPoolSRV,
+	DescriptorPool* pPoolUAV
+)
+{
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Alignment = 0;
+	desc.Width = static_cast<UINT64>(size);
+	desc.Height = 1;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.Flags = flags;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
+	srvDesc.Buffer.StructureByteStride = 4;
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
+	uavDesc.Buffer.StructureByteStride = 4;
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+	return Init(
+		pDevice,
+		size,
+		desc,
+		flags,
+		state,
+		pPoolSRV,
+		srvDesc,
+		pPoolUAV,
+		uavDesc
+	);
+}
+
 void Resource::Term()
 {
 	m_pResource.Reset();

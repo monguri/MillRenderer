@@ -25,6 +25,16 @@ public:
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc
 	);
 
+	bool InitAsByteAddressBuffer
+	(
+		ID3D12Device* pDevice,
+		size_t size,
+		D3D12_RESOURCE_FLAGS flags,
+		D3D12_RESOURCE_STATES state,
+		DescriptorPool* pPoolSRV,
+		DescriptorPool* pPoolUAV
+	);
+
 	void Term();
 
 	bool UploadBufferData
@@ -49,7 +59,7 @@ public:
 	ID3D12Resource* GetResource() const;
 
 private:
-	D3D12_RESOURCE_STATES m_state;
+	D3D12_RESOURCE_STATES m_state = D3D12_RESOURCE_STATE_COMMON;
 	ComPtr<ID3D12Resource> m_pResource;
 	ComPtr<ID3D12Resource> m_pUploadBuffer;
 	DescriptorHandle* m_pHandleSRV = nullptr;
