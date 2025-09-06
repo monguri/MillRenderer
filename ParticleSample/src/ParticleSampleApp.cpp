@@ -571,13 +571,6 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		args.ThreadGroupCountY = 1;
 		args.ThreadGroupCountZ = 1;
 
-#if 1
-		if (!m_DispatchIndirectArgsBB.Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON, &args))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-			return false;
-		}
-#else
 		if (!m_DispatchIndirectArgsBB.InitAsByteAddressBuffer(
 			m_pDevice.Get(), 
 			sizeof(args),
@@ -587,7 +580,7 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES]
 		))
 		{
-			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			ELOG("Error : Resource::InitAsResource() Failed.");
 			return false;
 		}
 
@@ -601,7 +594,6 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 			ELOG("Error : Resource::UploadBufferData() Failed.");
 			return false;
 		}
-#endif
 	}
 
 	// パーティクル用のStructuredBufferの作成
@@ -627,9 +619,27 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0; i < FRAME_COUNT; i++)
 		{
-			if (!m_DrawParticlesIndirectArgsBB[i].Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], sizeof(args) / sizeof(uint32_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON, &args))
+			if (!m_DrawParticlesIndirectArgsBB[i].InitAsByteAddressBuffer(
+				m_pDevice.Get(), 
+				sizeof(args),
+				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+				D3D12_RESOURCE_STATE_COMMON,
+				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES]
+			))
 			{
-				ELOG("Error : ByteAddressBuffer::Init() Failed.");
+				ELOG("Error : Resource::InitAsResource() Failed.");
+				return false;
+			}
+
+			if (!m_DrawParticlesIndirectArgsBB[i].UploadBufferData(
+				m_pDevice.Get(),
+				pCmd,
+				sizeof(args),
+				&args
+			))
+			{
+				ELOG("Error : Resource::UploadBufferData() Failed.");
 				return false;
 			}
 		}
@@ -746,8 +756,8 @@ void ParticleSampleApp::OnRender()
 
 	const StructuredBuffer& prevParticlesSB = m_ParticlesSB[m_FrameIndex];
 	const StructuredBuffer& currParticlesSB = m_ParticlesSB[(m_FrameIndex + 1) % 2];
-	const ByteAddressBuffer& prevDrawParticlesArgsBB = m_DrawParticlesIndirectArgsBB[m_FrameIndex];
-	const ByteAddressBuffer& currDrawParticlesArgsBB = m_DrawParticlesIndirectArgsBB[(m_FrameIndex + 1) % 2];
+	const Resource& prevDrawParticlesArgsBB = m_DrawParticlesIndirectArgsBB[m_FrameIndex];
+	const Resource& currDrawParticlesArgsBB = m_DrawParticlesIndirectArgsBB[(m_FrameIndex + 1) % 2];
 
 	ResetNumParticles(pCmd, prevDrawParticlesArgsBB, currDrawParticlesArgsBB);
 	UpdateParticles(pCmd, prevParticlesSB, currParticlesSB, prevDrawParticlesArgsBB, currDrawParticlesArgsBB, deltaTimeMS);
@@ -889,7 +899,7 @@ bool ParticleSampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	return true;
 }
 
-void ParticleSampleApp::ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB)
+void ParticleSampleApp::ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Reset Num Particles");
 
@@ -903,7 +913,7 @@ void ParticleSampleApp::ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, c
 	pCmdList->Dispatch(1, 1, 1);
 }
 
-void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& prevDrawParticlesArgsBB, const ByteAddressBuffer& currDrawParticlesArgsBB, const std::chrono::milliseconds& deltaTimeMS)
+void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB, const std::chrono::milliseconds& deltaTimeMS)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Update Particles");
 
@@ -933,7 +943,7 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, con
 	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
-void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const ByteAddressBuffer& currDrawParticlesArgsBB)
+void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const Resource& currDrawParticlesArgsBB)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
 
