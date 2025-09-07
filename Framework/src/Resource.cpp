@@ -15,8 +15,8 @@ bool Resource::Init
 (
 	ID3D12Device* pDevice,
 	size_t size,
+	D3D12_HEAP_PROPERTIES heapProp,
 	D3D12_RESOURCE_DESC desc,
-	D3D12_RESOURCE_FLAGS flags,
 	D3D12_RESOURCE_STATES state,
 	DescriptorPool* pPoolSRV,
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc,
@@ -59,18 +59,11 @@ bool Resource::Init
 		}
 	}
 
-	D3D12_HEAP_PROPERTIES prop = {};
-	prop.Type = D3D12_HEAP_TYPE_DEFAULT;
-	prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	prop.CreationNodeMask = 1;
-	prop.VisibleNodeMask = 1;
-
 	m_state = state;
 
 	HRESULT hr = pDevice->CreateCommittedResource
 	(
-		&prop,
+		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
 		state,
@@ -104,6 +97,64 @@ bool Resource::Init
 	return true;
 }
 
+bool Resource::InitAsVertexBuffer(ID3D12Device* pDevice, size_t stride, size_t size, const void* pInitData)
+{
+	if (pDevice == nullptr || size == 0 || stride == 0 || pInitData == nullptr)
+	{
+		return false;
+	}
+
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProp.CreationNodeMask = 1;
+	heapProp.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Alignment = 0;
+	desc.Width = UINT64(size);
+	desc.Height = 1;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	HRESULT hr = pDevice->CreateCommittedResource
+	(
+		&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_pResource.GetAddressOf())
+	);
+	if (FAILED(hr))
+	{
+		return false;
+	}
+
+	m_VBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
+	m_VBV.StrideInBytes = static_cast<UINT>(stride);
+	m_VBV.SizeInBytes = static_cast<UINT>(size);
+
+	void* ptr = Map();
+	if (ptr == nullptr)
+	{
+		return false;
+	}
+
+	memcpy(ptr, pInitData, size);
+
+	Unmap();
+
+	return true;
+}
+
 bool Resource::InitAsStructuredBuffer
 (
 	ID3D12Device* pDevice,
@@ -116,6 +167,13 @@ bool Resource::InitAsStructuredBuffer
 )
 {
 	size_t size = count * structureSize;
+
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProp.CreationNodeMask = 1;
+	heapProp.VisibleNodeMask = 1;
 
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -151,8 +209,8 @@ bool Resource::InitAsStructuredBuffer
 	return Init(
 		pDevice,
 		size,
+		heapProp,
 		desc,
-		flags,
 		state,
 		pPoolSRV,
 		srvDesc,
@@ -171,6 +229,13 @@ bool Resource::InitAsByteAddressBuffer
 	DescriptorPool* pPoolUAV
 )
 {
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProp.CreationNodeMask = 1;
+	heapProp.VisibleNodeMask = 1;
+
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Alignment = 0;
@@ -205,8 +270,8 @@ bool Resource::InitAsByteAddressBuffer
 	return Init(
 		pDevice,
 		size,
+		heapProp,
 		desc,
-		flags,
 		state,
 		pPoolSRV,
 		srvDesc,
@@ -329,6 +394,11 @@ void* Resource::Map() const
 void Resource::Unmap() const
 {
 	m_pResource->Unmap(0, nullptr);
+}
+
+D3D12_VERTEX_BUFFER_VIEW Resource::GetVBV() const
+{
+	return m_VBV;
 }
 
 DescriptorHandle* Resource::GetHandleSRV() const
