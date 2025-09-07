@@ -200,7 +200,7 @@ bool App::InitD3D()
 		}
 
 		// Check feature support. D3D12_OPTIONS5 is needed for ray tracing.
-		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5;
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5 = {};
 		hr = m_pDevice->CheckFeatureSupport(
 			D3D12_FEATURE_D3D12_OPTIONS5,
 			&features5,
@@ -211,6 +211,39 @@ bool App::InitD3D()
 			continue;
 		}
 		if (features5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+		{
+			continue;
+		}
+
+		// Check feature support. D3D12_OPTIONS7 is needed for mesh shader.
+		D3D12_FEATURE_DATA_D3D12_OPTIONS7 features7 = {};
+		hr = m_pDevice->CheckFeatureSupport(
+			D3D12_FEATURE_D3D12_OPTIONS7,
+			&features7,
+			sizeof(features7)
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (features7.MeshShaderTier == D3D12_MESH_SHADER_TIER_NOT_SUPPORTED)
+		{
+			continue;
+		}
+
+		// Check feature support. D3D_SHADER_MODEL_6_5 is needed for mesh shader.
+		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel;
+		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_5;
+		hr = m_pDevice->CheckFeatureSupport(
+			D3D12_FEATURE_SHADER_MODEL,
+			&shaderModel,
+			sizeof(shaderModel)
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_5)
 		{
 			continue;
 		}
