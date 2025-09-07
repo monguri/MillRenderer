@@ -25,6 +25,29 @@ public:
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc
 	);
 
+	template<typename T>
+	bool InitAsStructuredBuffer
+	(
+		ID3D12Device* pDevice,
+		size_t count,
+		D3D12_RESOURCE_FLAGS flags,
+		D3D12_RESOURCE_STATES state,
+		DescriptorPool* pPoolSRV,
+		DescriptorPool* pPoolUAV
+	)
+	{
+		return InitAsStructuredBuffer
+		(
+			pDevice,
+			count,
+			sizeof(T),
+			flags,
+			state,
+			pPoolSRV,
+			pPoolUAV
+		);
+	}
+
 	bool InitAsByteAddressBuffer
 	(
 		ID3D12Device* pDevice,
@@ -67,7 +90,17 @@ private:
 	DescriptorPool* m_pPoolSRV = nullptr;
 	DescriptorPool* m_pPoolUAV = nullptr;
 
+	bool InitAsStructuredBuffer
+	(
+		ID3D12Device* pDevice,
+		size_t count,
+		size_t structureSize,
+		D3D12_RESOURCE_FLAGS flags,
+		D3D12_RESOURCE_STATES state,
+		DescriptorPool* pPoolSRV,
+		DescriptorPool* pPoolUAV
+	);
+
 	Resource(const Resource&) = delete;
 	void operator=(const Resource&) = delete;
 };
-

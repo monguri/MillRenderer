@@ -596,15 +596,25 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-	// パーティクル用のStructuredBufferの作成
+	// パーティクル用のResourceの作成
 	{
 		for (uint32_t i = 0; i < FRAME_COUNT; i++)
 		{
-			if (!m_ParticlesSB[i].Init<ParticleData>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RES], MAX_NUM_PARTICLES, true, nullptr))
+			if (!m_ParticlesSB[i].InitAsStructuredBuffer<ParticleData>
+				(
+					m_pDevice.Get(),
+					MAX_NUM_PARTICLES,
+					D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+					D3D12_RESOURCE_STATE_COMMON,
+					m_pPool[POOL_TYPE_RES],
+					m_pPool[POOL_TYPE_RES]
+				)
+			)
 			{
-				ELOG("Error : StructuredBuffer::Init() Failed.");
+				ELOG("Error : Resource::InitAsResource() Failed.");
 				return false;
 			}
+
 			DirectX::TransitionResource(pCmd, m_ParticlesSB[i].GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 	}
@@ -754,8 +764,8 @@ void ParticleSampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 
-	const StructuredBuffer& prevParticlesSB = m_ParticlesSB[m_FrameIndex];
-	const StructuredBuffer& currParticlesSB = m_ParticlesSB[(m_FrameIndex + 1) % 2];
+	const Resource& prevParticlesSB = m_ParticlesSB[m_FrameIndex];
+	const Resource& currParticlesSB = m_ParticlesSB[(m_FrameIndex + 1) % 2];
 	const Resource& prevDrawParticlesArgsBB = m_DrawParticlesIndirectArgsBB[m_FrameIndex];
 	const Resource& currDrawParticlesArgsBB = m_DrawParticlesIndirectArgsBB[(m_FrameIndex + 1) % 2];
 
@@ -913,7 +923,7 @@ void ParticleSampleApp::ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, c
 	pCmdList->Dispatch(1, 1, 1);
 }
 
-void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB, const std::chrono::milliseconds& deltaTimeMS)
+void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const Resource& prevParticlesSB, const Resource& currParticlesSB, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB, const std::chrono::milliseconds& deltaTimeMS)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Update Particles");
 
@@ -943,7 +953,7 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, con
 	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
-void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const Resource& currDrawParticlesArgsBB)
+void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const Resource& currParticlesSB, const Resource& currDrawParticlesArgsBB)
 {
 	ScopedTimer scopedTimer(pCmdList, L"Draw Particles");
 
