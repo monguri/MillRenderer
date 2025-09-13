@@ -516,6 +516,8 @@ bool MeshletSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
 	// スクリーンスペースパス用頂点バッファの生成
 	{
 		struct Vertex
@@ -526,18 +528,28 @@ bool MeshletSampleApp::OnInit(HWND hWnd)
 			float ty;
 		};
 
+		if (!m_QuadVB.InitAsVertexBuffer<Vertex>(
+			m_pDevice.Get(),
+			3
+		))
+		{
+			ELOG("Error : Resource::InitAsVertexBuffer Failed.");
+			return false;
+		}
+
 		Vertex verts[3];
 		verts[0].px = -1.0f; verts[0].py = 1.0f; verts[0].tx = 0.0f; verts[0].ty = 0.0f;
 		verts[1].px = 3.0f; verts[1].py = 1.0f; verts[1].tx = 2.0f; verts[1].ty = 0.0f;
 		verts[2].px = -1.0f; verts[2].py = -3.0f; verts[2].tx = 0.0f; verts[2].ty = 2.0f;
 
-		if (!m_QuadVB.InitAsVertexBuffer<Vertex>(
+		if (!m_QuadVB.UploadBufferTypeData<Vertex>(
 			m_pDevice.Get(),
+			pCmd,
 			3,
 			verts
 		))
 		{
-			ELOG("Error : Resource::InitAsVertexBuffer Failed.");
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
 	}
@@ -563,8 +575,6 @@ bool MeshletSampleApp::OnInit(HWND hWnd)
 			ptr->Proj = proj;
 		}
 	}
-
-	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 	// パーティクル更新用のDispatchIndirectArgsBufferの作成
 	{

@@ -25,11 +25,11 @@ public:
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc
 	);
 
+#if 0
 	template<typename T>
-	bool InitAsVertexBuffer
+	bool InitAsConstantBuffer
 	(
 		ID3D12Device* pDevice,
-		size_t count,
 		const T* pInitData
 	)
 	{
@@ -37,8 +37,23 @@ public:
 		(
 			pDevice,
 			sizeof(T),
-			count * sizeof(T),
 			pInitData
+		);
+	}
+#endif
+
+	template<typename T>
+	bool InitAsVertexBuffer
+	(
+		ID3D12Device* pDevice,
+		size_t count
+	)
+	{
+		return InitAsVertexBuffer
+		(
+			pDevice,
+			sizeof(T),
+			count * sizeof(T)
 		);
 	}
 
@@ -77,6 +92,24 @@ public:
 
 	void Term();
 
+	template<typename T>
+	bool UploadBufferTypeData
+	(
+		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
+		size_t count,
+		const T* pData
+	)
+	{
+		return UploadBufferData
+		(
+			pDevice,
+			pCmdList,
+			sizeof(T) * count,
+			pData
+		);
+	}
+
 	bool UploadBufferData
 	(
 		ID3D12Device* pDevice,
@@ -109,12 +142,20 @@ private:
 	DescriptorPool* m_pPoolSRV = nullptr;
 	DescriptorPool* m_pPoolUAV = nullptr;
 
+#if 0
+	bool InitAsConstantBuffer
+	(
+		ID3D12Device* pDevice,
+		size_t size,
+		const void* pInitData
+	);
+#endif
+
 	bool InitAsVertexBuffer
 	(
 		ID3D12Device* pDevice,
 		size_t stride,
-		size_t size,
-		const void* pInitData
+		size_t size
 	);
 
 	bool InitAsStructuredBuffer

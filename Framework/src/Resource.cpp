@@ -97,15 +97,15 @@ bool Resource::Init
 	return true;
 }
 
-bool Resource::InitAsVertexBuffer(ID3D12Device* pDevice, size_t stride, size_t size, const void* pInitData)
+bool Resource::InitAsVertexBuffer(ID3D12Device* pDevice, size_t stride, size_t size)
 {
-	if (pDevice == nullptr || size == 0 || stride == 0 || pInitData == nullptr)
+	if (pDevice == nullptr || size == 0 || stride == 0)
 	{
 		return false;
 	}
 
 	D3D12_HEAP_PROPERTIES heapProp = {};
-	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
 	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 	heapProp.CreationNodeMask = 1;
@@ -141,16 +141,6 @@ bool Resource::InitAsVertexBuffer(ID3D12Device* pDevice, size_t stride, size_t s
 	m_VBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
 	m_VBV.StrideInBytes = static_cast<UINT>(stride);
 	m_VBV.SizeInBytes = static_cast<UINT>(size);
-
-	void* ptr = Map();
-	if (ptr == nullptr)
-	{
-		return false;
-	}
-
-	memcpy(ptr, pInitData, size);
-
-	Unmap();
 
 	return true;
 }
