@@ -42,6 +42,14 @@ public:
 		);
 	}
 
+	bool InitAsConstantBuffer
+	(
+		ID3D12Device* pDevice,
+		size_t size,
+		D3D12_HEAP_TYPE heapType,
+		DescriptorPool* pPoolCBV
+	);
+
 	template<typename T>
 	bool InitAsVertexBuffer
 	(
@@ -159,14 +167,6 @@ private:
 	DescriptorHandle* m_pHandleUAV = nullptr;
 	DescriptorPool* m_pPoolSRV = nullptr;
 	DescriptorPool* m_pPoolUAV = nullptr;
-
-	bool InitAsConstantBuffer
-	(
-		ID3D12Device* pDevice,
-		size_t size,
-		D3D12_HEAP_TYPE heapType,
-		DescriptorPool* pPoolCBV
-	);
 
 	bool InitAsVertexBuffer
 	(

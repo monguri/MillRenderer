@@ -855,8 +855,9 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
 			{
-				CbMesh* ptr = mesh->GetBufferPtr<CbMesh>(frameIndex);
+				CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
 				ptr->World = Matrix::Identity;
+				mesh->UnmapConstantBuffer(frameIndex);
 			}
 
 			pMeshes.push_back(mesh);
@@ -1003,8 +1004,9 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
 			{
-				CbMesh* ptr = mesh->GetBufferPtr<CbMesh>(frameIndex);
+				CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
 				ptr->World = worldMat;
+				mesh->UnmapConstantBuffer(frameIndex);
 			}
 
 			pMeshes.push_back(mesh);
@@ -5084,8 +5086,9 @@ void SampleApp::OnRender()
 				const Mesh* pMesh = model->GetMesh(meshIdx);
 				if (pMesh->GetMobility() == Mobility::Movable)
 				{
-					CbMesh* ptr = pMesh->GetBufferPtr<CbMesh>(m_FrameIndex);
+					CbMesh* ptr = pMesh->MapConstantBuffer<CbMesh>(m_FrameIndex);
 					ptr->World = worldForMovable;
+					pMesh->UnmapConstantBuffer(m_FrameIndex);
 				}
 			}
 		}

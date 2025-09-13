@@ -77,9 +77,14 @@ bool Mesh::Init
 
 	for (uint32_t i = 0; i < App::FRAME_COUNT; i++)
 	{
-		if (!m_CB[i].Init(pDevice, pPool, cbBufferSize))
+		if (!m_CB[i].InitAsConstantBuffer(
+			pDevice,
+			cbBufferSize,
+			D3D12_HEAP_TYPE_UPLOAD,
+			pPool
+		))
 		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
 			return false;
 		}
 	}
@@ -120,14 +125,14 @@ void Mesh::Draw(ID3D12GraphicsCommandList* pCmdList) const
 	pCmdList->DrawIndexedInstanced(m_IndexCount, 1, 0, 0, 0);
 }
 
-void* Mesh::GetBufferPtr(uint32_t frameIndex) const
+void Mesh::UnmapConstantBuffer(uint32_t frameIndex) const
 {
-	return m_CB[frameIndex].GetPtr();
+	m_CB[frameIndex].Unmap();
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetConstantBufferHandle(uint32_t frameIndex) const
 {
-	return m_CB[frameIndex].GetHandleGPU();
+	return m_CB[frameIndex].GetHandleCBV()->HandleGPU;
 }
 
 uint32_t Mesh::GetMaterialId() const

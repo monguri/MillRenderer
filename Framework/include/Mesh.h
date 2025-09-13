@@ -3,7 +3,6 @@
 #include "App.h"
 #include "ResMesh.h"
 #include "Resource.h"
-#include "ConstantBuffer.h"
 
 enum Mobility
 {
@@ -30,13 +29,13 @@ public:
 
 	void Draw(ID3D12GraphicsCommandList* pCmdList) const;
 
-	void* GetBufferPtr(uint32_t frameIndex) const;
-
 	template<typename T>
-	T* GetBufferPtr(uint32_t frameIndex) const
+	T* MapConstantBuffer(uint32_t frameIndex) const
 	{
-		return reinterpret_cast<T*>(GetBufferPtr(frameIndex));
+		return m_CB[frameIndex].Map<T>();
 	}
+
+	void UnmapConstantBuffer(uint32_t frameIndex) const;
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GetConstantBufferHandle(uint32_t frameIndex) const;
 
@@ -47,7 +46,7 @@ public:
 private:
 	Resource m_VB;
 	Resource m_IB;
-	ConstantBuffer m_CB[App::FRAME_COUNT];
+	Resource m_CB[App::FRAME_COUNT];
 	uint32_t m_MaterialId;
 	uint32_t m_IndexCount;
 	Mobility m_Mobility;
