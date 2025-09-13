@@ -18,6 +18,7 @@ Mesh::~Mesh()
 bool Mesh::Init
 (
 	ID3D12Device* pDevice,
+	ID3D12GraphicsCommandList* pCmdList,
 	class DescriptorPool* pPool,
 	const ResMesh& resource,
 	size_t cbBufferSize
@@ -35,8 +36,24 @@ bool Mesh::Init
 		return false;
 	}
 
-	if (!m_IB.Init(pDevice, resource.Indices.size(), resource.Indices.data()))
+	if (!m_IB.InitAsIndexBuffer<uint32_t>(
+		pDevice,
+		DXGI_FORMAT_R32_UINT,
+		resource.Indices.size()
+	))
 	{
+		ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_IB.UploadBufferTypeData<uint32_t>(
+		pDevice,
+		pCmdList,
+		resource.Indices.size(),
+		resource.Indices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 		return false;
 	}
 
@@ -81,7 +98,7 @@ void Mesh::Term()
 void Mesh::Draw(ID3D12GraphicsCommandList* pCmdList) const
 {
 	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_VB.GetView();
-	const D3D12_INDEX_BUFFER_VIEW& IBV = m_IB.GetView();
+	const D3D12_INDEX_BUFFER_VIEW& IBV = m_IB.GetIBV();
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 	pCmdList->IASetIndexBuffer(&IBV);

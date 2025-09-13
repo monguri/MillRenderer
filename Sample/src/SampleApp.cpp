@@ -23,7 +23,7 @@
 #include "ScopedTimer.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA false
+#define RENDER_SPONZA true
 
 using namespace DirectX::SimpleMath;
 
@@ -832,6 +832,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
 		std::vector<Mesh*> pMeshes;
 		pMeshes.reserve(resMesh.size());
 
@@ -844,7 +846,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], resMesh[i], sizeof(CbMesh)))
+			if (!mesh->Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i], sizeof(CbMesh)))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
@@ -861,6 +863,14 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		pMeshes.shrink_to_fit();
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+
+		// Wait command queue finishing.
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 
 		//TODO: Velocityのテストとして2番のメッシュをMovableとする
 		if (RENDER_SPONZA)
@@ -967,6 +977,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
 		std::vector<Mesh*> pMeshes;
 		pMeshes.reserve(resMesh.size());
 
@@ -979,7 +991,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], resMesh[i], sizeof(CbMesh)))
+			if (!mesh->Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i], sizeof(CbMesh)))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
@@ -999,6 +1011,14 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		pMeshes.shrink_to_fit();
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+
+		// Wait command queue finishing.
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 
 		Model* model = new (std::nothrow) Model();
 		if (model == nullptr)

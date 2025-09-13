@@ -58,6 +58,22 @@ public:
 	}
 
 	template<typename T>
+	bool InitAsIndexBuffer
+	(
+		ID3D12Device* pDevice,
+		DXGI_FORMAT format,
+		size_t count
+	)
+	{
+		return InitAsIndexBuffer
+		(
+			pDevice,
+			format,
+			count * sizeof(T)
+		);
+	}
+
+	template<typename T>
 	bool InitAsStructuredBuffer
 	(
 		ID3D12Device* pDevice,
@@ -127,6 +143,7 @@ public:
 	void Unmap() const;
 
 	D3D12_VERTEX_BUFFER_VIEW GetVBV() const;
+	D3D12_INDEX_BUFFER_VIEW GetIBV() const;
 	DescriptorHandle* GetHandleCBV() const;
 	DescriptorHandle* GetHandleSRV() const;
 	DescriptorHandle* GetHandleUAV() const;
@@ -137,6 +154,7 @@ private:
 	ComPtr<ID3D12Resource> m_pResource;
 	ComPtr<ID3D12Resource> m_pUploadBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_VBV;
+	D3D12_INDEX_BUFFER_VIEW m_IBV;
 	DescriptorHandle* m_pHandleSRV = nullptr;
 	DescriptorHandle* m_pHandleUAV = nullptr;
 	DescriptorPool* m_pPoolSRV = nullptr;
@@ -154,6 +172,13 @@ private:
 	(
 		ID3D12Device* pDevice,
 		size_t stride,
+		size_t size
+	);
+
+	bool InitAsIndexBuffer
+	(
+		ID3D12Device* pDevice,
+		DXGI_FORMAT format,
 		size_t size
 	);
 

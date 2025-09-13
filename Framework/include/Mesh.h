@@ -3,7 +3,7 @@
 #include "App.h"
 #include "ResMesh.h"
 #include "VertexBuffer.h"
-#include "IndexBuffer.h"
+#include "Resource.h"
 #include "ConstantBuffer.h"
 
 enum Mobility
@@ -21,6 +21,7 @@ public:
 	bool Init
 	(
 		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPool,
 		const ResMesh& resource,
 		size_t cbBufferSize
@@ -46,7 +47,7 @@ public:
 
 private:
 	VertexBuffer m_VB;
-	IndexBuffer m_IB;
+	Resource m_IB;
 	ConstantBuffer m_CB[App::FRAME_COUNT];
 	uint32_t m_MaterialId;
 	uint32_t m_IndexCount;
