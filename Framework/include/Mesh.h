@@ -2,7 +2,6 @@
 
 #include "App.h"
 #include "ResMesh.h"
-#include "VertexBuffer.h"
 #include "Resource.h"
 #include "ConstantBuffer.h"
 
@@ -46,7 +45,7 @@ public:
 	void SetMobility(Mobility mobility);
 
 private:
-	VertexBuffer m_VB;
+	Resource m_VB;
 	Resource m_IB;
 	ConstantBuffer m_CB[App::FRAME_COUNT];
 	uint32_t m_MaterialId;

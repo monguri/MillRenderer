@@ -31,8 +31,23 @@ bool Mesh::Init
 
 	assert(cbBufferSize > 0);
 
-	if (!m_VB.Init<MeshVertex>(pDevice, resource.Vertices.size(), resource.Vertices.data()))
+	if (!m_VB.InitAsVertexBuffer<MeshVertex>(
+		pDevice,
+		resource.Vertices.size()
+	))
 	{
+		ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_VB.UploadBufferTypeData<MeshVertex>(
+		pDevice,
+		pCmdList,
+		resource.Vertices.size(),
+		resource.Vertices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 		return false;
 	}
 
@@ -97,7 +112,7 @@ void Mesh::Term()
 
 void Mesh::Draw(ID3D12GraphicsCommandList* pCmdList) const
 {
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_VB.GetView();
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_VB.GetVBV();
 	const D3D12_INDEX_BUFFER_VIEW& IBV = m_IB.GetIBV();
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
