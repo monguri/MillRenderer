@@ -36,8 +36,8 @@ public:
 		return InitAsVertexBuffer
 		(
 			pDevice,
-			count * sizeof(T),
 			sizeof(T),
+			count * sizeof(T),
 			pInitData
 		);
 	}
