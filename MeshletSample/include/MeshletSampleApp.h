@@ -3,7 +3,6 @@
 #include <SimpleMath.h>
 #include <chrono>
 #include "App.h"
-#include "VertexBuffer.h"
 #include "ConstantBuffer.h"
 #include "StructuredBuffer.h"
 #include "Resource.h"
@@ -39,7 +38,7 @@ private:
 	ComPtr<ID3D12CommandSignature> m_pDrawParticlesCommandSig;
 	ComPtr<ID3D12PipelineState> m_pBackBufferPSO;
 	RootSignature m_BackBufferRootSig;
-	VertexBuffer m_QuadVB;
+	Resource m_QuadVB;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_DrawParticlesTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];

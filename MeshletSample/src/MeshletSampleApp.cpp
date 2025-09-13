@@ -526,18 +526,20 @@ bool MeshletSampleApp::OnInit(HWND hWnd)
 			float ty;
 		};
 
-		if (!m_QuadVB.Init<Vertex>(m_pDevice.Get(), 3 * sizeof(Vertex)))
+		Vertex verts[3];
+		verts[0].px = -1.0f; verts[0].py = 1.0f; verts[0].tx = 0.0f; verts[0].ty = 0.0f;
+		verts[1].px = 3.0f; verts[1].py = 1.0f; verts[1].tx = 2.0f; verts[1].ty = 0.0f;
+		verts[2].px = -1.0f; verts[2].py = -3.0f; verts[2].tx = 0.0f; verts[2].ty = 2.0f;
+
+		if (!m_QuadVB.InitAsVertexBuffer<Vertex>(
+			m_pDevice.Get(),
+			3,
+			verts
+		))
 		{
-			ELOG("Error : VertexBuffer::Init Failed.");
+			ELOG("Error : Resource::InitAsVertexBuffer Failed.");
 			return false;
 		}
-
-		Vertex* ptr = m_QuadVB.Map<Vertex>();
-		assert(ptr != nullptr);
-		ptr[0].px = -1.0f; ptr[0].py = 1.0f; ptr[0].tx = 0.0f; ptr[0].ty = 0.0f;
-		ptr[1].px = 3.0f; ptr[1].py = 1.0f; ptr[1].tx = 2.0f; ptr[1].ty = 0.0f;
-		ptr[2].px = -1.0f; ptr[2].py = -3.0f; ptr[2].tx = 0.0f; ptr[2].ty = 2.0f;
-		m_QuadVB.Unmap();
 	}
 
 	// カメラの定数バッファの作成
@@ -1025,7 +1027,7 @@ void MeshletSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetVBV();
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
