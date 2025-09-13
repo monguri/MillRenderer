@@ -564,15 +564,20 @@ bool MeshletSampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCamera)))
+			if (!m_CameraCB[i].InitAsConstantBuffer<CbCamera>(
+				m_pDevice.Get(),
+				D3D12_HEAP_TYPE_UPLOAD,
+				m_pPool[POOL_TYPE_RES]
+			))
 			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
+				ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
 				return false;
 			}
 
-			CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+			CbCamera* ptr = m_CameraCB[i].Map<CbCamera>();
 			ptr->View = view;
 			ptr->Proj = proj;
+			m_CameraCB[i].Unmap();
 		}
 	}
 
@@ -667,30 +672,40 @@ bool MeshletSampleApp::OnInit(HWND hWnd)
 
 	// 時間関係の定数バッファの作成
 	{
-		if (!m_SimulationCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSimulation)))
+		if (!m_SimulationCB.InitAsConstantBuffer<CbSimulation>(
+			m_pDevice.Get(),
+			D3D12_HEAP_TYPE_UPLOAD,
+			m_pPool[POOL_TYPE_RES]
+		))
 		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
 			return false;
 		}
 
-		CbSimulation* ptr = m_SimulationCB.GetPtr<CbSimulation>();
+		CbSimulation* ptr = m_SimulationCB.Map<CbSimulation>();
 		ptr->DeltaTime = 0.0f;
 		ptr->InitialVelocityScale = 1.0f;
+		m_SimulationCB.Unmap();
 	}
 
 	// バックバッファ描画用の定数バッファの作成
 	{
-		if (!m_BackBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
+		if (!m_BackBufferCB.InitAsConstantBuffer<CbSampleTexture>(
+			m_pDevice.Get(),
+			D3D12_HEAP_TYPE_UPLOAD,
+			m_pPool[POOL_TYPE_RES]
+		))
 		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
 			return false;
 		}
 
-		CbSampleTexture* ptr = m_BackBufferCB.GetPtr<CbSampleTexture>();
+		CbSampleTexture* ptr = m_BackBufferCB.Map<CbSampleTexture>();
 		ptr->bOnlyRedChannel = 0;
 		ptr->Contrast = 1.0f;
 		ptr->Scale = 1.0f;
 		ptr->Bias = 0.0f;
+		m_BackBufferCB.Unmap();
 	}
 
 	pCmd->Close();
@@ -761,9 +776,10 @@ void MeshletSampleApp::OnRender()
 
 	// 定数バッファの更新
 	{
-		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+		CbCamera* ptr = m_CameraCB[m_FrameIndex].Map<CbCamera>();
 		ptr->View = view;
 		ptr->Proj = proj;
+		m_CameraCB[m_FrameIndex].Unmap();
 	}
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
@@ -939,9 +955,10 @@ void MeshletSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, cons
 
 	// 定数バッファの更新
 	{
-		CbSimulation* ptr = m_SimulationCB.GetPtr<CbSimulation>();
+		CbSimulation* ptr = m_SimulationCB.Map<CbSimulation>();
 		ptr->DeltaTime = deltaTimeMS.count() / 1000.0f;
 		ptr->InitialVelocityScale = m_InitialVelocityScale;
+		m_SimulationCB.Unmap();
 	}
 
 	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -952,7 +969,7 @@ void MeshletSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, cons
 	uint32_t rootConstants[2] = {m_NumSpawnPerFrame, m_InitialLife};
 	pCmdList->SetComputeRoot32BitConstants(0, 2, rootConstants, 0);
 
-	pCmdList->SetComputeRootDescriptorTable(1, m_SimulationCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_SimulationCB.GetHandleCBV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, prevParticlesSB.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, currParticlesSB.GetHandleUAV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, prevDrawParticlesArgsBB.GetHandleSRV()->HandleGPU);
@@ -980,7 +997,7 @@ void MeshletSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const 
 
 	pCmdList->SetGraphicsRootSignature(m_DrawParticlesRootSig.GetPtr());
 #ifndef DYNAMIC_RESOURCES 
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleCBV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, currParticlesSB.GetHandleSRV()->HandleGPU);
 #endif
 	pCmdList->SetPipelineState(m_pDrawParticlesPSO.Get());
@@ -1018,7 +1035,7 @@ void MeshletSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_BackBufferRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pBackBufferPSO.Get());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_DrawParticlesTarget.GetHandleSRV()->HandleGPU);
 
 	// BackBufferのサイズはウィンドウサイズになっているのでアスペクト比を維持する

@@ -25,22 +25,22 @@ public:
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc
 	);
 
-#if 0
 	template<typename T>
 	bool InitAsConstantBuffer
 	(
 		ID3D12Device* pDevice,
-		const T* pInitData
+		D3D12_HEAP_TYPE heapType,
+		DescriptorPool* pPoolCBV
 	)
 	{
-		return InitAsVertexBuffer
+		return InitAsConstantBuffer
 		(
 			pDevice,
 			sizeof(T),
-			pInitData
+			heapType,
+			pPoolCBV
 		);
 	}
-#endif
 
 	template<typename T>
 	bool InitAsVertexBuffer
@@ -118,16 +118,16 @@ public:
 		const void* pData
 	);
 
-	void* Map() const;
-	void Unmap() const;
-
 	template<typename T>
 	T* Map() const
 	{
 		return reinterpret_cast<T*>(Map());
 	}
 
+	void Unmap() const;
+
 	D3D12_VERTEX_BUFFER_VIEW GetVBV() const;
+	DescriptorHandle* GetHandleCBV() const;
 	DescriptorHandle* GetHandleSRV() const;
 	DescriptorHandle* GetHandleUAV() const;
 	ID3D12Resource* GetResource() const;
@@ -142,14 +142,13 @@ private:
 	DescriptorPool* m_pPoolSRV = nullptr;
 	DescriptorPool* m_pPoolUAV = nullptr;
 
-#if 0
 	bool InitAsConstantBuffer
 	(
 		ID3D12Device* pDevice,
 		size_t size,
-		const void* pInitData
+		D3D12_HEAP_TYPE heapType,
+		DescriptorPool* pPoolCBV
 	);
-#endif
 
 	bool InitAsVertexBuffer
 	(
@@ -168,6 +167,8 @@ private:
 		DescriptorPool* pPoolSRV,
 		DescriptorPool* pPoolUAV
 	);
+
+	void* Map() const;
 
 	Resource(const Resource&) = delete;
 	void operator=(const Resource&) = delete;

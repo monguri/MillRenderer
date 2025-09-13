@@ -97,6 +97,78 @@ bool Resource::Init
 	return true;
 }
 
+bool Resource::InitAsConstantBuffer
+(
+	ID3D12Device* pDevice,
+	size_t size,
+	D3D12_HEAP_TYPE heapType,
+	DescriptorPool* pPoolCBV
+)
+{
+	if (pDevice == nullptr || pPoolCBV == nullptr)
+	{
+		return false;
+	}
+
+	// m_pPoolSRV, m_pHandleSRVをCBV用に使う。SRVとCBVを同人に使うことがないので。
+
+	assert(m_pPoolSRV == nullptr);
+	assert(m_pHandleSRV == nullptr);
+
+	m_pPoolSRV = pPoolCBV;
+	m_pPoolSRV->AddRef();
+
+	m_pHandleSRV = m_pPoolSRV->AllocHandle();
+	if (m_pHandleSRV == nullptr)
+	{
+		return false;
+	}
+
+	size_t align = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+	UINT64 sizeAligned = (size + (align - 1)) & ~(align - 1);
+
+	D3D12_HEAP_PROPERTIES prop = {};
+	prop.Type = heapType;
+	prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	prop.CreationNodeMask = 1;
+	prop.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Alignment = 0;
+	desc.Width = sizeAligned;
+	desc.Height = 1;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	HRESULT hr = pDevice->CreateCommittedResource
+	(
+		&prop,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_pResource.GetAddressOf())
+	);
+	if (FAILED(hr))
+	{
+		return false;
+	}
+	
+	D3D12_CONSTANT_BUFFER_VIEW_DESC descCBV = {};
+	descCBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
+	descCBV.SizeInBytes = static_cast<UINT>(sizeAligned);
+	pDevice->CreateConstantBufferView(&descCBV, m_pHandleSRV->HandleCPU);
+
+	return true;
+}
+
 bool Resource::InitAsVertexBuffer(ID3D12Device* pDevice, size_t stride, size_t size)
 {
 	if (pDevice == nullptr || size == 0 || stride == 0)
@@ -389,6 +461,12 @@ void Resource::Unmap() const
 D3D12_VERTEX_BUFFER_VIEW Resource::GetVBV() const
 {
 	return m_VBV;
+}
+
+DescriptorHandle* Resource::GetHandleCBV() const
+{
+	// m_pHandleSRVをCBV用に使う。SRVとCBVを同人に使うことがないので。
+	return m_pHandleSRV;
 }
 
 DescriptorHandle* Resource::GetHandleSRV() const
