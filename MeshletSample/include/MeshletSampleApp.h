@@ -4,7 +4,6 @@
 #include <chrono>
 #include "App.h"
 #include "ConstantBuffer.h"
-#include "StructuredBuffer.h"
 #include "Resource.h"
 #include "ColorTarget.h"
 #include "DepthTarget.h"
@@ -43,7 +42,7 @@ private:
 	ColorTarget m_DrawParticlesTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 	Resource m_DispatchIndirectArgsBB;
-	StructuredBuffer m_ParticlesSB[FRAME_COUNT];
+	Resource m_ParticlesSB[FRAME_COUNT];
 	Resource m_DrawParticlesIndirectArgsBB[FRAME_COUNT];
 	ConstantBuffer m_SimulationCB;
 	ConstantBuffer m_BackBufferCB;
@@ -54,8 +53,8 @@ private:
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 
 	void ResetNumParticles(ID3D12GraphicsCommandList* pCmdList, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB);
-	void UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& prevParticlesSB, const StructuredBuffer& currParticlesSB, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB, const std::chrono::milliseconds& deltaTimeMS);
-	void DrawParticles(ID3D12GraphicsCommandList* pCmdList, const StructuredBuffer& currParticlesSB, const Resource& currDrawParticlesArgsBB);
+	void UpdateParticles(ID3D12GraphicsCommandList* pCmdList, const Resource& prevParticlesSB, const Resource& currParticlesSB, const Resource& prevDrawParticlesArgsBB, const Resource& currDrawParticlesArgsBB, const std::chrono::milliseconds& deltaTimeMS);
+	void DrawParticles(ID3D12GraphicsCommandList* pCmdList, const Resource& currParticlesSB, const Resource& currDrawParticlesArgsBB);
 	void DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawImGui(ID3D12GraphicsCommandList* pCmdList);
 };
