@@ -516,6 +516,8 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
 	// スクリーンスペースパス用頂点バッファの生成
 	{
 		struct Vertex
@@ -526,18 +528,30 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 			float ty;
 		};
 
-		if (!m_QuadVB.Init<Vertex>(m_pDevice.Get(), 3 * sizeof(Vertex)))
+		if (!m_QuadVB.InitAsVertexBuffer<Vertex>(
+			m_pDevice.Get(),
+			3
+		))
 		{
-			ELOG("Error : VertexBuffer::Init Failed.");
+			ELOG("Error : Resource::InitAsVertexBuffer Failed.");
 			return false;
 		}
 
-		Vertex* ptr = m_QuadVB.Map<Vertex>();
-		assert(ptr != nullptr);
-		ptr[0].px = -1.0f; ptr[0].py = 1.0f; ptr[0].tx = 0.0f; ptr[0].ty = 0.0f;
-		ptr[1].px = 3.0f; ptr[1].py = 1.0f; ptr[1].tx = 2.0f; ptr[1].ty = 0.0f;
-		ptr[2].px = -1.0f; ptr[2].py = -3.0f; ptr[2].tx = 0.0f; ptr[2].ty = 2.0f;
-		m_QuadVB.Unmap();
+		Vertex verts[3];
+		verts[0].px = -1.0f; verts[0].py = 1.0f; verts[0].tx = 0.0f; verts[0].ty = 0.0f;
+		verts[1].px = 3.0f; verts[1].py = 1.0f; verts[1].tx = 2.0f; verts[1].ty = 0.0f;
+		verts[2].px = -1.0f; verts[2].py = -3.0f; verts[2].tx = 0.0f; verts[2].ty = 2.0f;
+
+		if (!m_QuadVB.UploadBufferTypeData<Vertex>(
+			m_pDevice.Get(),
+			pCmd,
+			3,
+			verts
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
 	}
 
 	// カメラの定数バッファの作成
@@ -550,19 +564,22 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCamera)))
+			if (!m_CameraCB[i].InitAsConstantBuffer<CbCamera>(
+				m_pDevice.Get(),
+				D3D12_HEAP_TYPE_UPLOAD,
+				m_pPool[POOL_TYPE_RES]
+			))
 			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
+				ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
 				return false;
 			}
 
-			CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+			CbCamera* ptr = m_CameraCB[i].Map<CbCamera>();
 			ptr->View = view;
 			ptr->Proj = proj;
+			m_CameraCB[i].Unmap();
 		}
 	}
-
-	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 	// パーティクル更新用のDispatchIndirectArgsBufferの作成
 	{
@@ -600,16 +617,14 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 	{
 		for (uint32_t i = 0; i < FRAME_COUNT; i++)
 		{
-			if (!m_ParticlesSB[i].InitAsStructuredBuffer<ParticleData>
-				(
-					m_pDevice.Get(),
-					MAX_NUM_PARTICLES,
-					D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-					D3D12_RESOURCE_STATE_COMMON,
-					m_pPool[POOL_TYPE_RES],
-					m_pPool[POOL_TYPE_RES]
-				)
-			)
+			if (!m_ParticlesSB[i].InitAsStructuredBuffer<ParticleData>(
+				m_pDevice.Get(),
+				MAX_NUM_PARTICLES,
+				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+				D3D12_RESOURCE_STATE_COMMON,
+				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES]
+			))
 			{
 				ELOG("Error : Resource::InitAsResource() Failed.");
 				return false;
@@ -657,30 +672,40 @@ bool ParticleSampleApp::OnInit(HWND hWnd)
 
 	// 時間関係の定数バッファの作成
 	{
-		if (!m_SimulationCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSimulation)))
+		if (!m_SimulationCB.InitAsConstantBuffer<CbSimulation>(
+			m_pDevice.Get(),
+			D3D12_HEAP_TYPE_UPLOAD,
+			m_pPool[POOL_TYPE_RES]
+		))
 		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
 			return false;
 		}
 
-		CbSimulation* ptr = m_SimulationCB.GetPtr<CbSimulation>();
+		CbSimulation* ptr = m_SimulationCB.Map<CbSimulation>();
 		ptr->DeltaTime = 0.0f;
 		ptr->InitialVelocityScale = 1.0f;
+		m_SimulationCB.Unmap();
 	}
 
 	// バックバッファ描画用の定数バッファの作成
 	{
-		if (!m_BackBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
+		if (!m_BackBufferCB.InitAsConstantBuffer<CbSampleTexture>(
+			m_pDevice.Get(),
+			D3D12_HEAP_TYPE_UPLOAD,
+			m_pPool[POOL_TYPE_RES]
+		))
 		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
 			return false;
 		}
 
-		CbSampleTexture* ptr = m_BackBufferCB.GetPtr<CbSampleTexture>();
+		CbSampleTexture* ptr = m_BackBufferCB.Map<CbSampleTexture>();
 		ptr->bOnlyRedChannel = 0;
 		ptr->Contrast = 1.0f;
 		ptr->Scale = 1.0f;
 		ptr->Bias = 0.0f;
+		m_BackBufferCB.Unmap();
 	}
 
 	pCmd->Close();
@@ -751,9 +776,10 @@ void ParticleSampleApp::OnRender()
 
 	// 定数バッファの更新
 	{
-		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+		CbCamera* ptr = m_CameraCB[m_FrameIndex].Map<CbCamera>();
 		ptr->View = view;
 		ptr->Proj = proj;
+		m_CameraCB[m_FrameIndex].Unmap();
 	}
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
@@ -929,9 +955,10 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, con
 
 	// 定数バッファの更新
 	{
-		CbSimulation* ptr = m_SimulationCB.GetPtr<CbSimulation>();
+		CbSimulation* ptr = m_SimulationCB.Map<CbSimulation>();
 		ptr->DeltaTime = deltaTimeMS.count() / 1000.0f;
 		ptr->InitialVelocityScale = m_InitialVelocityScale;
+		m_SimulationCB.Unmap();
 	}
 
 	DirectX::TransitionResource(pCmdList, prevParticlesSB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -942,7 +969,7 @@ void ParticleSampleApp::UpdateParticles(ID3D12GraphicsCommandList* pCmdList, con
 	uint32_t rootConstants[2] = {m_NumSpawnPerFrame, m_InitialLife};
 	pCmdList->SetComputeRoot32BitConstants(0, 2, rootConstants, 0);
 
-	pCmdList->SetComputeRootDescriptorTable(1, m_SimulationCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(1, m_SimulationCB.GetHandleCBV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, prevParticlesSB.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, currParticlesSB.GetHandleUAV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, prevDrawParticlesArgsBB.GetHandleSRV()->HandleGPU);
@@ -970,7 +997,7 @@ void ParticleSampleApp::DrawParticles(ID3D12GraphicsCommandList* pCmdList, const
 
 	pCmdList->SetGraphicsRootSignature(m_DrawParticlesRootSig.GetPtr());
 #ifndef DYNAMIC_RESOURCES 
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleCBV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, currParticlesSB.GetHandleSRV()->HandleGPU);
 #endif
 	pCmdList->SetPipelineState(m_pDrawParticlesPSO.Get());
@@ -1008,7 +1035,7 @@ void ParticleSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_BackBufferRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pBackBufferPSO.Get());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_DrawParticlesTarget.GetHandleSRV()->HandleGPU);
 
 	// BackBufferのサイズはウィンドウサイズになっているのでアスペクト比を維持する
@@ -1035,7 +1062,7 @@ void ParticleSampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 	
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetVBV();
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);

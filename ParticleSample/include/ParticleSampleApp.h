@@ -3,8 +3,6 @@
 #include <SimpleMath.h>
 #include <chrono>
 #include "App.h"
-#include "VertexBuffer.h"
-#include "ConstantBuffer.h"
 #include "Resource.h"
 #include "ColorTarget.h"
 #include "DepthTarget.h"
@@ -38,15 +36,15 @@ private:
 	ComPtr<ID3D12CommandSignature> m_pDrawParticlesCommandSig;
 	ComPtr<ID3D12PipelineState> m_pBackBufferPSO;
 	RootSignature m_BackBufferRootSig;
-	VertexBuffer m_QuadVB;
+	Resource m_QuadVB;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_DrawParticlesTarget;
-	ConstantBuffer m_CameraCB[FRAME_COUNT];
+	Resource m_CameraCB[FRAME_COUNT];
 	Resource m_DispatchIndirectArgsBB;
 	Resource m_ParticlesSB[FRAME_COUNT];
 	Resource m_DrawParticlesIndirectArgsBB[FRAME_COUNT];
-	ConstantBuffer m_SimulationCB;
-	ConstantBuffer m_BackBufferCB;
+	Resource m_SimulationCB;
+	Resource m_BackBufferCB;
 
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
