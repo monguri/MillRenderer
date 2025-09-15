@@ -42,10 +42,10 @@ public:
 	void UnmapConstantBuffer(uint32_t frameIndex) const;
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GetConstantBufferHandle(uint32_t frameIndex) const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletInfoCBHandle() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletInfoLastCBHandle() const;
 
 	uint32_t GetMaterialId() const;
-	size_t GetVertexCount() const;
-	size_t GetIndexCount() const;
 	Mobility GetMobility() const;
 	void SetMobility(Mobility mobility);
 
@@ -54,8 +54,9 @@ private:
 	Resource m_VB;
 	Resource m_IB;
 	Resource m_CB[App::FRAME_COUNT];
+	Resource m_MeshletInfoCB;
+	Resource m_MeshletInfoLastCB;
 	uint32_t m_MaterialId;
-	size_t m_VertexCount;
 	size_t m_IndexCount;
 	Mobility m_Mobility;
 	class DescriptorPool* m_pPool;

@@ -32,20 +32,83 @@ bool Mesh::Init
 
 	assert(cbBufferSize > 0);
 
-	m_VertexCount = resource.Vertices.size();
+	size_t vertexCount = resource.Vertices.size();
 	m_IndexCount = resource.Indices.size();
-	assert(m_IndexCount >= m_VertexCount);
 
 	m_IsMeshlet = isMeshlet;
 
 	if (m_IsMeshlet)
 	{
+		// TriangleListを前提としている
+		assert(m_IndexCount % 3 == 0);
+		size_t biggerCount = std::max(vertexCount, m_IndexCount / 3);
+
+		// シェーダ側と合わせる
+		static constexpr uint32_t NUM_THREAD_MESHLET = 128;
+		size_t numMeshletGroup = (biggerCount + NUM_THREAD_MESHLET - 1) / NUM_THREAD_MESHLET;
+
+		struct alignas(256) CbMeshletInfo
+		{
+			uint32_t VertexCount;
+			uint32_t IndexCount;
+			uint32_t Padding[2];
+		};
+
+		if (!m_MeshletInfoCB.InitAsConstantBuffer<CbMeshletInfo>(
+			pDevice,
+			D3D12_HEAP_TYPE_DEFAULT,
+			pPool
+		))
+		{
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+			return false;
+		}
+
+		CbMeshletInfo cbMeshletInfo = {};
+		cbMeshletInfo.VertexCount = static_cast<uint32_t>(vertexCount / numMeshletGroup);
+		cbMeshletInfo.IndexCount = static_cast<uint32_t>(m_IndexCount / numMeshletGroup);
+
+		if (!m_MeshletInfoCB.UploadBufferTypeData<CbMeshletInfo>(
+			pDevice,
+			pCmdList,
+			1,
+			&cbMeshletInfo
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletInfoLastCB.InitAsConstantBuffer<CbMeshletInfo>(
+			pDevice,
+			D3D12_HEAP_TYPE_DEFAULT,
+			pPool
+		))
+		{
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+			return false;
+		}
+
+		CbMeshletInfo cbMeshletInfoLast = {};
+		cbMeshletInfoLast.VertexCount = static_cast<uint32_t>(vertexCount % numMeshletGroup);
+		cbMeshletInfoLast.IndexCount = static_cast<uint32_t>(m_IndexCount % numMeshletGroup);
+
+		if (!m_MeshletInfoLastCB.UploadBufferTypeData<CbMeshletInfo>(
+			pDevice,
+			pCmdList,
+			1,
+			&cbMeshletInfoLast
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
 	}
 	else
 	{
 		if (!m_VB.InitAsVertexBuffer<MeshVertex>(
 			pDevice,
-			m_VertexCount
+			vertexCount
 		))
 		{
 			ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
@@ -55,7 +118,7 @@ bool Mesh::Init
 		if (!m_VB.UploadBufferTypeData<MeshVertex>(
 			pDevice,
 			pCmdList,
-			m_VertexCount,
+			vertexCount,
 			resource.Vertices.data()
 		))
 		{
@@ -131,9 +194,6 @@ void Mesh::Draw(ID3D12GraphicsCommandList* pCmdList) const
 {
 	if (m_IsMeshlet)
 	{
-		// シェーダ側と合わせる
-		static constexpr uint32_t NUM_THREAD_MESHLET = 128;
-		size_t numMeshletGroup = (m_IndexCount + NUM_THREAD_MESHLET - 1) / NUM_THREAD_MESHLET;
 
 	}
 	else
@@ -158,19 +218,19 @@ D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetConstantBufferHandle(uint32_t frameIndex) c
 	return m_CB[frameIndex].GetHandleCBV()->HandleGPU;
 }
 
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletInfoCBHandle() const
+{
+	return D3D12_GPU_DESCRIPTOR_HANDLE();
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletInfoLastCBHandle() const
+{
+	return D3D12_GPU_DESCRIPTOR_HANDLE();
+}
+
 uint32_t Mesh::GetMaterialId() const
 {
 	return m_MaterialId;
-}
-
-size_t Mesh::GetVertexCount() const
-{
-	return m_VertexCount;
-}
-
-size_t Mesh::GetIndexCount() const
-{
-	return m_IndexCount;
 }
 
 Mobility Mesh::GetMobility() const
