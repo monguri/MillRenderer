@@ -21,7 +21,8 @@ bool Mesh::Init
 	ID3D12GraphicsCommandList* pCmdList,
 	class DescriptorPool* pPool,
 	const ResMesh& resource,
-	size_t cbBufferSize
+	size_t cbBufferSize,
+	bool isMeshlet
 )
 {
 	if (pDevice == nullptr)

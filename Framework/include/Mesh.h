@@ -16,14 +16,18 @@ public:
 	Mesh();
 	~Mesh();
 
+	template<typename CbType>
 	bool Init
 	(
 		ID3D12Device* pDevice,
 		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPool,
 		const ResMesh& resource,
-		size_t cbBufferSize
-	);
+		bool isMeshlet = false
+	)
+	{
+		return Init(pDevice, pCmdList, pPool, resource, sizeof(CbType), isMeshlet);
+	}
 
 	void Term();
 
@@ -51,6 +55,16 @@ private:
 	uint32_t m_IndexCount;
 	Mobility m_Mobility;
 	class DescriptorPool* m_pPool;
+
+	bool Init
+	(
+		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
+		class DescriptorPool* pPool,
+		const ResMesh& resource,
+		size_t cbBufferSize,
+		bool isMeshlet
+	);
 
 	Mesh(const Mesh&) = delete;
 	void operator=(const Mesh&) = delete;

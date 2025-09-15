@@ -846,7 +846,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i], sizeof(CbMesh)))
+			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i]))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
@@ -992,7 +992,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i], sizeof(CbMesh)))
+			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i]))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
