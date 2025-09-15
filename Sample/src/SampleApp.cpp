@@ -120,6 +120,12 @@ namespace
 	struct alignas(256) CbMesh
 	{
 		Matrix World;
+#if USE_MESHLET
+		uint32_t VertexOffset;
+		uint32_t VertexCount;
+		uint32_t IndexOffset;
+		uint32_t IndexCount;
+#endif
 	};
 
 	struct alignas(256) CbTransform

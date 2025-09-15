@@ -32,47 +32,57 @@ bool Mesh::Init
 
 	assert(cbBufferSize > 0);
 
+	m_VertexCount = resource.Vertices.size();
+	m_IndexCount = resource.Indices.size();
+	assert(m_IndexCount >= m_VertexCount);
+
 	m_IsMeshlet = isMeshlet;
 
-	if (!m_VB.InitAsVertexBuffer<MeshVertex>(
-		pDevice,
-		resource.Vertices.size()
-	))
+	if (m_IsMeshlet)
 	{
-		ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
-		return false;
 	}
-
-	if (!m_VB.UploadBufferTypeData<MeshVertex>(
-		pDevice,
-		pCmdList,
-		resource.Vertices.size(),
-		resource.Vertices.data()
-	))
+	else
 	{
-		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-		return false;
-	}
+		if (!m_VB.InitAsVertexBuffer<MeshVertex>(
+			pDevice,
+			m_VertexCount
+		))
+		{
+			ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
+			return false;
+		}
 
-	if (!m_IB.InitAsIndexBuffer<uint32_t>(
-		pDevice,
-		DXGI_FORMAT_R32_UINT,
-		resource.Indices.size()
-	))
-	{
-		ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
-		return false;
-	}
+		if (!m_VB.UploadBufferTypeData<MeshVertex>(
+			pDevice,
+			pCmdList,
+			m_VertexCount,
+			resource.Vertices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
 
-	if (!m_IB.UploadBufferTypeData<uint32_t>(
-		pDevice,
-		pCmdList,
-		resource.Indices.size(),
-		resource.Indices.data()
-	))
-	{
-		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-		return false;
+		if (!m_IB.InitAsIndexBuffer<uint32_t>(
+			pDevice,
+			DXGI_FORMAT_R32_UINT,
+			m_IndexCount
+		))
+		{
+			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_IB.UploadBufferTypeData<uint32_t>(
+			pDevice,
+			pCmdList,
+			m_IndexCount,
+			resource.Indices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
 	}
 
 	m_pPool = pPool;
@@ -93,7 +103,6 @@ bool Mesh::Init
 	}
 
 	m_MaterialId = resource.MaterialId;
-	m_IndexCount = uint32_t(resource.Indices.size());
 
 	return true;
 }
@@ -120,12 +129,23 @@ void Mesh::Term()
 
 void Mesh::Draw(ID3D12GraphicsCommandList* pCmdList) const
 {
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_VB.GetVBV();
-	const D3D12_INDEX_BUFFER_VIEW& IBV = m_IB.GetIBV();
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	pCmdList->IASetVertexBuffers(0, 1, &VBV);
-	pCmdList->IASetIndexBuffer(&IBV);
-	pCmdList->DrawIndexedInstanced(m_IndexCount, 1, 0, 0, 0);
+	if (m_IsMeshlet)
+	{
+		// シェーダ側と合わせる
+		static constexpr uint32_t NUM_THREAD_MESHLET = 128;
+		size_t numMeshletGroup = (m_IndexCount + NUM_THREAD_MESHLET - 1) / NUM_THREAD_MESHLET;
+
+	}
+	else
+	{
+		const D3D12_VERTEX_BUFFER_VIEW& VBV = m_VB.GetVBV();
+		const D3D12_INDEX_BUFFER_VIEW& IBV = m_IB.GetIBV();
+
+		pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		pCmdList->IASetVertexBuffers(0, 1, &VBV);
+		pCmdList->IASetIndexBuffer(&IBV);
+		pCmdList->DrawIndexedInstanced(static_cast<UINT>(m_IndexCount), 1, 0, 0, 0);
+	}
 }
 
 void Mesh::UnmapConstantBuffer(uint32_t frameIndex) const
@@ -141,6 +161,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetConstantBufferHandle(uint32_t frameIndex) c
 uint32_t Mesh::GetMaterialId() const
 {
 	return m_MaterialId;
+}
+
+size_t Mesh::GetVertexCount() const
+{
+	return m_VertexCount;
+}
+
+size_t Mesh::GetIndexCount() const
+{
+	return m_IndexCount;
 }
 
 Mobility Mesh::GetMobility() const
