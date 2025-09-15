@@ -20,6 +20,8 @@
 #include "Material.h"
 #include "InlineUtil.h"
 #include "RootSignature.h"
+#include "RenderModel.h"
+#include "ResMesh.h"
 #include "ScopedTimer.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
