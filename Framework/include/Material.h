@@ -4,7 +4,7 @@
 #include <map>
 #include <xstring>
 #include <ResourceUploadBatch.h>
-#include "ConstantBuffer.h"
+#include "Resource.h"
 #include "Texture.h"
 
 class Material
@@ -30,13 +30,32 @@ public:
 	Material();
 	~Material();
 
+	template<typename CbType>
 	bool Init
 	(
 		ID3D12Device* pDevice,
 		class DescriptorPool* pPool,
-		size_t bufferSize,
 		Texture* pDummyTexture
-	);
+	)
+	{
+		return Init(pDevice, pPool, sizeof(CbType), pDummyTexture);
+	}
+
+	template<typename CbType>
+	bool UploadConstantBufferData
+	(
+		ID3D12Device* pDevice,
+		ID3D12GraphicsCommandList* pCmdList,
+		const CbType& pData
+	)
+	{
+		return m_CB.UploadBufferTypeData<CbType>(
+			pDevice,
+			pCmdList,
+			1,
+			&pData
+		);
+	}
 
 	void Term();
 
@@ -47,28 +66,27 @@ public:
 		DirectX::ResourceUploadBatch& batch
 	);
 
-	void SetDoubleSided(bool isDoubleSided );
-
-	void* GetBufferPtr() const;
-
-	template<typename T>
-	T* GetBufferPtr() const
-	{
-		return reinterpret_cast<T*>(GetBufferPtr());
-	}
-
 	D3D12_GPU_DESCRIPTOR_HANDLE GetBufferHandle() const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetTextureHandle(TEXTURE_USAGE usage) const;
 
 	bool GetDoubleSided() const;
+	void SetDoubleSided(bool isDoubleSided );
 
 private:
 	Texture* m_pDummyTexture = nullptr;
-	ConstantBuffer m_ConstantBuffer;
+	Resource m_CB;
 	Texture m_Textures[TEXTURE_USAGE_COUNT];
 	bool m_DoubleSided;
 	ID3D12Device* m_pDevice;
 	class DescriptorPool* m_pPool;
+
+	bool Init
+	(
+		ID3D12Device* pDevice,
+		class DescriptorPool* pPool,
+		size_t cbSize,
+		Texture* pDummyTexture
+	);
 
 	Material(const Material&) = delete;
 	void operator=(const Material&) = delete;

@@ -875,14 +875,6 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		pMeshes.shrink_to_fit();
 
-		pCmd->Close();
-
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
-
-		// Wait command queue finishing.
-		m_Fence.Wait(m_pQueue.Get(), INFINITE);
-
 		//TODO: Velocityのテストとして2番のメッシュをMovableとする
 		if (RENDER_SPONZA)
 		{
@@ -912,7 +904,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!material->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), &m_DummyTexture))
+			if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], &m_DummyTexture))
 			{
 				ELOG("Error : Material Initialize Failed.");
 				delete material;
@@ -951,14 +943,19 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			pMaterial->SetDoubleSided(resMat.DoubleSided);
 
-			CbMaterial* ptr = pMaterial->GetBufferPtr<CbMaterial>();
-			ptr->BaseColorFactor = resMat.BaseColor;
-			ptr->MetallicFactor = resMat.MetallicFactor;
-			ptr->RoughnessFactor = resMat.RoughnessFactor;
-			ptr->EmissiveFactor = resMat.EmissiveFactor;
-			ptr->AlphaCutoff = resMat.AlphaCutoff;
-			ptr->bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
-			ptr->bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+			CbMaterial cbMat = {};
+			cbMat.BaseColorFactor = resMat.BaseColor;
+			cbMat.MetallicFactor = resMat.MetallicFactor;
+			cbMat.RoughnessFactor = resMat.RoughnessFactor;
+			cbMat.EmissiveFactor = resMat.EmissiveFactor;
+			cbMat.AlphaCutoff = resMat.AlphaCutoff;
+			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
+			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+			if (!pMaterial->UploadConstantBufferData<CbMaterial>(m_pDevice.Get(), pCmd, cbMat))
+			{
+				ELOG("Error : Material::UploadConstantBufferData() Failed.");
+				return false;
+			}
 		}
 
 		std::future<void> future = batch.End(m_pQueue.Get());
@@ -967,6 +964,14 @@ bool SampleApp::OnInit(HWND hWnd)
 		model->SetMaterials(pMaterials);
 
 		m_pModels.push_back(model);
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+
+		// Wait command queue finishing.
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
 	// 2つ目のメッシュをロード
@@ -1024,11 +1029,6 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		pMeshes.shrink_to_fit();
 
-		pCmd->Close();
-
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
-
 		// Wait command queue finishing.
 		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 
@@ -1052,9 +1052,9 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!material->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMaterial), &m_DummyTexture))
+			if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], &m_DummyTexture))
 			{
-				ELOG("Error : Material Initialize Failed.");
+				ELOG("Error : Material::Init() Failed.");
 				delete material;
 				return false;
 			}
@@ -1083,14 +1083,19 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			pMaterial->SetDoubleSided(resMat.DoubleSided);
 
-			CbMaterial* ptr = pMaterial->GetBufferPtr<CbMaterial>();
-			ptr->BaseColorFactor = resMat.BaseColor;
-			ptr->MetallicFactor = resMat.MetallicFactor;
-			ptr->RoughnessFactor = resMat.RoughnessFactor;
-			ptr->EmissiveFactor = resMat.EmissiveFactor;
-			ptr->AlphaCutoff = resMat.AlphaCutoff;
-			ptr->bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
-			ptr->bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+			CbMaterial cbMat = {};
+			cbMat.BaseColorFactor = resMat.BaseColor;
+			cbMat.MetallicFactor = resMat.MetallicFactor;
+			cbMat.RoughnessFactor = resMat.RoughnessFactor;
+			cbMat.EmissiveFactor = resMat.EmissiveFactor;
+			cbMat.AlphaCutoff = resMat.AlphaCutoff;
+			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
+			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+			if (!pMaterial->UploadConstantBufferData<CbMaterial>(m_pDevice.Get(), pCmd, cbMat))
+			{
+				ELOG("Error : Material::UploadConstantBufferData() Failed.");
+				return false;
+			}
 		}
 
 		std::future<void> future = batch.End(m_pQueue.Get());
@@ -1099,6 +1104,11 @@ bool SampleApp::OnInit(HWND hWnd)
 		model->SetMaterials(pMaterials);
 
 		m_pModels.push_back(model);
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
 	}
 
 	m_pModels.shrink_to_fit();

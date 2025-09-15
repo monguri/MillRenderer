@@ -18,7 +18,7 @@ bool Material::Init
 (
 	ID3D12Device* pDevice,
 	DescriptorPool* pPool,
-	size_t bufferSize,
+	size_t cbSize,
 	Texture* pDummyTexture
 )
 {
@@ -30,7 +30,7 @@ bool Material::Init
 		return false;
 	}
 
-	assert(bufferSize > 0);
+	assert(cbSize > 0);
 
 	m_pDevice = pDevice;
 	m_pDevice->AddRef();
@@ -38,12 +38,13 @@ bool Material::Init
 	m_pPool = pPool;
 	m_pPool->AddRef();
 
-	if (!m_ConstantBuffer.Init(pDevice, pPool, bufferSize))
-	{
-		ELOG("Error : m_ConstantBuffer::Init() Failed.");
-		m_ConstantBuffer.Term();
-		return false;
-	}
+	// 更新を頻繁に行わない想定なのでDEFAULTヒープに置く
+	m_CB.InitAsConstantBuffer(
+		pDevice,
+		cbSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		pPool
+	);
 
 	return true;
 }
@@ -52,7 +53,7 @@ void Material::Term()
 {
 	m_pDummyTexture = nullptr;
 
-	m_ConstantBuffer.Term();
+	m_CB.Term();
 
 	for (uint32_t i = 0; i < TEXTURE_USAGE_COUNT; ++i)
 	{
@@ -102,19 +103,9 @@ bool Material::SetTexture
 	return true;
 }
 
-void Material::SetDoubleSided(bool isDoubleSided)
-{
-	m_DoubleSided = isDoubleSided;
-}
-
-void* Material::GetBufferPtr() const
-{
-	return m_ConstantBuffer.GetPtr();
-}
-
 D3D12_GPU_DESCRIPTOR_HANDLE Material::GetBufferHandle() const
 {
-	return m_ConstantBuffer.GetHandleGPU();
+	return m_CB.GetHandleCBV()->HandleGPU;
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE Material::GetTextureHandle(TEXTURE_USAGE usage) const
@@ -134,3 +125,8 @@ bool Material::GetDoubleSided() const
 {
 	return m_DoubleSided;
 }
+
+void Material::SetDoubleSided(bool isDoubleSided)
+{
+	m_DoubleSided = isDoubleSided;
+} 
