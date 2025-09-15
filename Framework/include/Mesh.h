@@ -48,6 +48,7 @@ public:
 	void SetMobility(Mobility mobility);
 
 private:
+	bool m_IsMeshlet = false;
 	Resource m_VB;
 	Resource m_IB;
 	Resource m_CB[App::FRAME_COUNT];

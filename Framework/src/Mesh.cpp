@@ -32,6 +32,8 @@ bool Mesh::Init
 
 	assert(cbBufferSize > 0);
 
+	m_IsMeshlet = isMeshlet;
+
 	if (!m_VB.InitAsVertexBuffer<MeshVertex>(
 		pDevice,
 		resource.Vertices.size()

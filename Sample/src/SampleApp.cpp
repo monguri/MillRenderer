@@ -24,6 +24,8 @@
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
 #define RENDER_SPONZA true
+// MeshをMeshletとMSで描画する場合はtrueにする
+#define USE_MESHLET false
 
 using namespace DirectX::SimpleMath;
 
@@ -846,7 +848,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i]))
+			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i], USE_MESHLET))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
@@ -992,7 +994,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i]))
+			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i], USE_MESHLET))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
