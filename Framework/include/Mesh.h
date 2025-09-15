@@ -44,6 +44,8 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetConstantBufferHandle(uint32_t frameIndex) const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletInfoCBHandle() const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletInfoLastCBHandle() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletVeticesSBHandle() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletIndicesSBHandle() const;
 
 	uint32_t GetMaterialId() const;
 	Mobility GetMobility() const;
@@ -51,7 +53,9 @@ public:
 
 private:
 	bool m_IsMeshlet = false;
+	// Meshlet‚Ìê‡‚ÍSBA’ÊíMesh‚Ìê‡‚ÍVB
 	Resource m_VB;
+	// Meshlet‚Ìê‡‚ÍSBA’ÊíMesh‚Ìê‡‚ÍIB
 	Resource m_IB;
 	Resource m_CB[App::FRAME_COUNT];
 	Resource m_MeshletInfoCB;

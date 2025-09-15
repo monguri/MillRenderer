@@ -103,6 +103,32 @@ bool Mesh::Init
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
+
+		if (!m_VB.InitAsStructuredBuffer<MeshVertex>(
+			pDevice,
+			vertexCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_IB.InitAsStructuredBuffer<uint32_t>(
+			pDevice,
+			m_IndexCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
 	}
 	else
 	{
@@ -220,12 +246,22 @@ D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetConstantBufferHandle(uint32_t frameIndex) c
 
 D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletInfoCBHandle() const
 {
-	return D3D12_GPU_DESCRIPTOR_HANDLE();
+	return m_MeshletInfoCB.GetHandleCBV()->HandleGPU;
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletInfoLastCBHandle() const
 {
-	return D3D12_GPU_DESCRIPTOR_HANDLE();
+	return m_MeshletInfoLastCB.GetHandleCBV()->HandleGPU;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletVeticesSBHandle() const
+{
+	return m_VB.GetHandleSRV()->HandleGPU;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletIndicesSBHandle() const
+{
+	return m_IB.GetHandleSRV()->HandleGPU;
 }
 
 uint32_t Mesh::GetMaterialId() const
