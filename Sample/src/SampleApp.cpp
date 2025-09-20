@@ -13,6 +13,9 @@
 #include <CommonStates.h>
 #include <DirectXHelpers.h>
 
+// Pix
+#include <pix3.h>
+
 // Framework
 #include "FileUtil.h"
 #include "Logger.h"
@@ -22,7 +25,6 @@
 #include "RootSignature.h"
 #include "RenderModel.h"
 #include "ResMesh.h"
-#include "ScopedTimer.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
 #define RENDER_SPONZA true
@@ -5226,7 +5228,7 @@ void SampleApp::OnRender()
 	DrawBloomSetup(pCmd);
 
 	{
-		ScopedTimer scopedTimer(pCmd, L"Downsample");
+		::PIXScopedEvent(pCmd, 0, L"Downsample");
 
 		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
 		{
@@ -5235,7 +5237,7 @@ void SampleApp::OnRender()
 	}
 
 	{
-		ScopedTimer scopedTimer(pCmd, L"BloomGaussianFilter");
+		::PIXScopedEvent(pCmd, 0, L"BloomGaussianFilter");
 
 		for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
 		{
@@ -5274,7 +5276,7 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 {
 	assert(RENDER_SPONZA);
 
-	ScopedTimer scopedTimer(pCmdList, L"DirectionalLightShadowMap");
+	::PIXScopedEvent(pCmdList, 0, L"DirectionalLightShadowMap");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -5338,7 +5340,7 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 
 void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SkyTransmittanceLUT");
+	::PIXScopedEvent(pCmdList, 0, L"SkyTransmittanceLUT");
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -5362,7 +5364,7 @@ void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SkyMultiScatteringLUT");
+	::PIXScopedEvent(pCmdList, 0, L"SkyMultiScatteringLUT");
 
 	DirectX::TransitionResource(pCmdList, m_SkyTransmittanceLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SkyMultiScatteringLUT_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -5389,7 +5391,7 @@ void SampleApp::DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Matrix& skyViewLutReferential, const Vector3& dirLightDir)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SkyViewLUT");
+	::PIXScopedEvent(pCmdList, 0, L"SkyViewLUT");
 
 	CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[m_FrameIndex].GetPtr<CbSkyAtmosphere>();
 	ptr->SkyViewLutReferential = skyViewLutReferential;
@@ -5422,7 +5424,7 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Matrix
 
 void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"VolumetricCloud");
+	::PIXScopedEvent(pCmdList, 0, L"VolumetricCloud");
 
 	DirectX::TransitionResource(pCmdList, m_CloudTracingTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	DirectX::TransitionResource(pCmdList, m_CloudSecondaryTracingTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -5458,7 +5460,7 @@ void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
 {
-	ScopedTimer scopedTimer(pCmdList, L"BasePass");
+	::PIXScopedEvent(pCmdList, 0, L"BasePass");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -5685,7 +5687,7 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 
 void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"BuildHCB");
+	::PIXScopedEvent(pCmdList, 0, L"BuildHCB");
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 1 << (HCB_MAX_NUM_OUTPUT_MIP - 1);
@@ -5737,7 +5739,7 @@ void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"BuildHZB");
+	::PIXScopedEvent(pCmdList, 0, L"BuildHZB");
 
 	// シェーダ側と合わせている
 	const size_t GROUP_SIZE_X = 1 << (HZB_MAX_NUM_OUTPUT_MIP - 1);
@@ -5830,7 +5832,7 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter)
 {
-	ScopedTimer scopedTimer(pCmdList, L"ObjectVelocity");
+	::PIXScopedEvent(pCmdList, 0, L"ObjectVelocity");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -5880,7 +5882,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 
 void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter)
 {
-	ScopedTimer scopedTimer(pCmdList, L"CameraVelocity");
+	::PIXScopedEvent(pCmdList, 0, L"CameraVelocity");
 
 	{
 		CbCameraVelocity* ptr = m_CameraVelocityCB[m_FrameIndex].GetPtr<CbCameraVelocity>();
@@ -5915,7 +5917,7 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 
 void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SSAOSetup");
+	::PIXScopedEvent(pCmdList, 0, L"SSAOSetup");
 
 	DirectX::TransitionResource(pCmdList, m_SSAOSetupTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -5954,7 +5956,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 {
 	// 半解像度パス // TODO:フル解像度パスと処理が冗長
 	{
-		ScopedTimer scopedTimer(pCmdList, L"SSAOHalfRes");
+		::PIXScopedEvent(pCmdList, 0, L"SSAOHalfRes");
 
 		{
 			CbSSAO* ptr = m_SSAO_HalfResCB[m_FrameIndex].GetPtr<CbSSAO>();
@@ -6002,7 +6004,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 	// フル解像度パス
 	{
-		ScopedTimer scopedTimer(pCmdList, L"SSAOFullRes");
+		::PIXScopedEvent(pCmdList, 0, L"SSAOFullRes");
 
 		{
 			CbSSAO* ptr = m_SSAO_FullResCB[m_FrameIndex].GetPtr<CbSSAO>();
@@ -6046,7 +6048,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SSGI");
+	::PIXScopedEvent(pCmdList, 0, L"SSGI");
 
 	{
 		CbSSGI* ptr = m_SSGI_CB.GetPtr<CbSSGI>();
@@ -6088,7 +6090,7 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 void SampleApp::DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SSGI Denoise");
+	::PIXScopedEvent(pCmdList, 0, L"SSGI Denoise");
 
 	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -6116,7 +6118,7 @@ void SampleApp::DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList)
 // TODO: SSGIのTemporalAccumulationはUEの実装が汎用的すぎて参考にするのが難しいので一旦開発を止めている
 void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& prevTarget, const ColorTarget& curTarget)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SSGI TemporalAccumulation");
+	::PIXScopedEvent(pCmdList, 0, L"SSGI TemporalAccumulation");
 
 	DirectX::TransitionResource(pCmdList, m_SSGI_DenoiseTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, prevTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -6149,7 +6151,7 @@ void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdLis
 
 void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SSGI_CurTarget)
 {
-	ScopedTimer scopedTimer(pCmdList, L"AmbientLight");
+	::PIXScopedEvent(pCmdList, 0, L"AmbientLight");
 
 	DirectX::TransitionResource(pCmdList, m_AmbientLightTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -6178,7 +6180,7 @@ void SampleApp::DrawAmbientLight(ID3D12GraphicsCommandList* pCmdList, const Colo
 
 void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& viewRotProj)
 {
-	ScopedTimer scopedTimer(pCmdList, L"SSR");
+	::PIXScopedEvent(pCmdList, 0, L"SSR");
 
 	{
 		CbSSR* ptr = m_SSR_CB.GetPtr<CbSSR>();
@@ -6222,7 +6224,7 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 {
 	assert(RENDER_SPONZA);
 
-	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogScattering");
+	::PIXScopedEvent(pCmdList, 0, L"VolumetricFogScattering");
 
 	{
 		CbVolumetricFog* ptr = m_VolumetricFogCB.GetPtr<CbVolumetricFog>();
@@ -6283,7 +6285,7 @@ void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList
 {
 	assert(RENDER_SPONZA);
 
-	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogIntegration");
+	::PIXScopedEvent(pCmdList, 0, L"VolumetricFogIntegration");
 
 	DirectX::TransitionResource(pCmdList, curTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VolumetricFogIntegrationTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -6310,7 +6312,7 @@ void SampleApp::DrawVolumetricFogComposition(ID3D12GraphicsCommandList* pCmdList
 {
 	assert(RENDER_SPONZA);
 
-	ScopedTimer scopedTimer(pCmdList, L"VolumetricFogComposition");
+	::PIXScopedEvent(pCmdList, 0, L"VolumetricFogComposition");
 
 	DirectX::TransitionResource(pCmdList, m_VolumetricCompositionTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -6340,7 +6342,7 @@ void SampleApp::DrawVolumetricFogComposition(ID3D12GraphicsCommandList* pCmdList
 
 void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float temporalJitetrPixelsX, float temporalJitetrPixelsY, const ColorTarget& prevTarget, const ColorTarget& curTarget)
 {
-	ScopedTimer scopedTimer(pCmdList, L"TemporalAA");
+	::PIXScopedEvent(pCmdList, 0, L"TemporalAA");
 
 	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
@@ -6434,7 +6436,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float tempor
 
 void SampleApp::DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& InputColor)
 {
-	ScopedTimer scopedTimer(pCmdList, L"MotionBlur");
+	::PIXScopedEvent(pCmdList, 0, L"MotionBlur");
 
 	{
 		CbMotionBlur* ptr = m_MotionBlurCB.GetPtr<CbMotionBlur>();
@@ -6468,7 +6470,7 @@ void SampleApp::DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorT
 
 void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"BloomSetup");
+	::PIXScopedEvent(pCmdList, 0, L"BloomSetup");
 
 	DirectX::TransitionResource(pCmdList, m_BloomSetupTarget[0].GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -6500,7 +6502,7 @@ void SampleApp::DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"Tonemap");
+	::PIXScopedEvent(pCmdList, 0, L"Tonemap");
 
 	{
 		CbTonemap* ptr = m_TonemapCB[m_FrameIndex].GetPtr<CbTonemap>();
@@ -6538,7 +6540,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"FXAA");
+	::PIXScopedEvent(pCmdList, 0, L"FXAA");
 
 	{
 		CbFXAA* ptr = m_FXAA_CB.GetPtr<CbFXAA>();
@@ -6572,12 +6574,7 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx)
 {
-	std::wstringstream markerName;
-	markerName << L"Downsample ";
-	markerName << DstColor.GetDesc().Width;
-	markerName << L"x";
-	markerName << DstColor.GetDesc().Height;
-	ScopedTimer scopedTimer(pCmdList, markerName.str());
+	::PIXScopedEvent(pCmdList, 0, L"Downsample %d x %d", DstColor.GetDesc().Width, DstColor.GetDesc().Height);
 
 	DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -6613,12 +6610,7 @@ void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarge
 {
 	// Horizontal Gaussian Filter
 	{
-		std::wstringstream markerName;
-		markerName << L"FilterHorizontal ";
-		markerName << IntermediateColor.GetDesc().Width;
-		markerName << L"x";
-		markerName << IntermediateColor.GetDesc().Height;
-		ScopedTimer scopedTimer(pCmdList, markerName.str());
+		::PIXScopedEvent(pCmdList, 0, L"FilterHorizontal %dx%d", IntermediateColor.GetDesc().Width, IntermediateColor.GetDesc().Height);
 
 		DirectX::TransitionResource(pCmdList, IntermediateColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -6652,12 +6644,7 @@ void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarge
 
 	// Vertical Gaussian Filter
 	{
-		std::wstringstream markerName;
-		markerName << L"FilterVertical ";
-		markerName << DstColor.GetDesc().Width;
-		markerName << L"x";
-		markerName << DstColor.GetDesc().Height;
-		ScopedTimer scopedTimer(pCmdList, markerName.str());
+		::PIXScopedEvent(pCmdList, 0, L"FilterVertical %dx%d", DstColor.GetDesc().Width, DstColor.GetDesc().Height);
 
 		DirectX::TransitionResource(pCmdList, DstColor.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -6721,7 +6708,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			break;
 	}
 
-	ScopedTimer scopedTimer(pCmdList, L"Draw " + renderTargetName + L"to BackBuffer");
+	::PIXScopedEvent(pCmdList, 0, L"Draw %s to BackBuffer", renderTargetName.c_str());
 
 	{
 		CbSampleTexture* ptr = m_BackBufferCB.GetPtr<CbSampleTexture>();
@@ -6834,7 +6821,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 {
-	ScopedTimer scopedTimer(pCmdList, L"ImGui");
+	::PIXScopedEvent(pCmdList, 0, L"ImGui");
 
 	// TODO: Transitionが直前のパスと重複している
 	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
