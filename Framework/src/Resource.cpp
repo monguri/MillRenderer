@@ -265,7 +265,7 @@ bool Resource::InitAsIndexBuffer
 
 	m_IBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
 	m_IBV.Format = format;
-	m_VBV.SizeInBytes = static_cast<UINT>(size);
+	m_IBV.SizeInBytes = static_cast<UINT>(size);
 
 	return true;
 }
