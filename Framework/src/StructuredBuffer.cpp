@@ -134,7 +134,7 @@ bool StructuredBuffer::Init
 			&prop,
 			D3D12_HEAP_FLAG_NONE,
 			&desc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
+			D3D12_RESOURCE_STATE_COMMON,
 			nullptr,
 			IID_PPV_ARGS(m_pUploadBuffer.GetAddressOf())
 		);

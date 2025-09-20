@@ -152,7 +152,7 @@ bool Resource::InitAsConstantBuffer
 		&prop,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_PPV_ARGS(m_pResource.GetAddressOf())
 	);
@@ -201,7 +201,7 @@ bool Resource::InitAsVertexBuffer(ID3D12Device* pDevice, size_t stride, size_t s
 		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_PPV_ARGS(m_pResource.GetAddressOf())
 	);
@@ -254,7 +254,7 @@ bool Resource::InitAsIndexBuffer
 		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_PPV_ARGS(m_pResource.GetAddressOf())
 	);
@@ -467,7 +467,7 @@ bool Resource::UploadBufferData
 		&prop,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_PPV_ARGS(m_pUploadBuffer.GetAddressOf())
 	);
