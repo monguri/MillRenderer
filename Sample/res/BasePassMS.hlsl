@@ -1,9 +1,10 @@
 #define ROOT_SIGNATURE ""\
 "DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
 
 cbuffer CbTransform : register(b0)
 {
@@ -15,13 +16,16 @@ cbuffer CbMesh : register(b1)
 	float4x4 World : packoffset(c0);
 }
 
-struct Meshlet
+struct MeshletInfo
 {
 	uint vertCount;
 	uint vertOffset;
 	uint triCount;
 	uint triOffset;
 };
+
+ConstantBuffer<MeshletInfo> cbMeshletInfo : register(b2);
+ConstantBuffer<MeshletInfo> cbMeshletInfoLast : register(b3);
 
 //TODO: BasePassVS.hlsl and BasePassMS.hlsl have different VSInput definitions, need to unify
 struct VSInput
@@ -40,9 +44,8 @@ struct VSOutput
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
 };
 
-StructuredBuffer<Meshlet> meshlets : register(t0);
-StructuredBuffer<VSInput> vertices : register(t1);
-StructuredBuffer<uint> indices : register(t2);
+StructuredBuffer<VSInput> vertices : register(t0);
+StructuredBuffer<uint> indices : register(t1);
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
@@ -55,12 +58,22 @@ void main
 	out indices uint3 outTriIndices[128]
 )
 {
-	Meshlet meshlet = meshlets[gid];
-	SetMeshOutputCounts(meshlet.vertCount, meshlet.triCount);
-
-	if (gtid < meshlet.vertCount)
+	MeshletInfo meshletInfo;
+	// TODO: gid‚ªLast‚©‚Ç‚¤‚©‚Å•ªŠò
+	if (gid == 0)
 	{
-		VSInput input = vertices[meshlet.vertOffset + gtid];
+		meshletInfo = cbMeshletInfo;
+	}
+	else
+	{
+		meshletInfo = cbMeshletInfoLast;
+	}
+
+	SetMeshOutputCounts(meshletInfo.vertCount, meshletInfo.triCount);
+
+	if (gtid < meshletInfo.vertCount)
+	{
+		VSInput input = vertices[meshletInfo.vertOffset + gtid];
 
 		float4 localPos = float4(input.Position, 1.0f);
 		float4 worldPos = mul(World, localPos);
@@ -79,8 +92,8 @@ void main
 		outVerts[gtid] = output;
 	}
 
-	if (gtid < meshlet.triCount)
+	if (gtid < meshletInfo.triCount)
 	{
-		outTriIndices[gtid] = uint3(indices[meshlet.triOffset + gtid], indices[meshlet.triOffset + gtid + 1], indices[meshlet.triOffset + gtid + 2]);
+		outTriIndices[gtid] = uint3(indices[meshletInfo.triOffset + gtid], indices[meshletInfo.triOffset + gtid + 1], indices[meshletInfo.triOffset + gtid + 2]);
 	}
 }
