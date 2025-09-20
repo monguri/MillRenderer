@@ -23,21 +23,25 @@ struct Meshlet
 	uint triOffset;
 };
 
-struct Vertex
+//TODO: BasePassVS.hlsl and BasePassMS.hlsl have different VSInput definitions, need to unify
+struct VSInput
 {
-	float3 position;
-	float3 normal;
+	float3 Position : POSITION;
+	float3 Normal : NORMAL;
+	float2 TexCoord : TEXCOORD;
+	float3 Tangent : TANGENT;
 };
 
-struct VertexOutput
+struct VSOutput
 {
-	float4 position : SV_Position;
-	float3 normal : NORMAL;
-	uint meshletIndex: MESHLET_INDEX;
+	float4 Position : SV_POSITION;
+	float2 TexCoord : TEXCOORD;
+	float3 WorldPos : WORLD_POS;
+	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
 };
 
 StructuredBuffer<Meshlet> meshlets : register(t0);
-StructuredBuffer<Vertex> vertices : register(t1);
+StructuredBuffer<VSInput> vertices : register(t1);
 StructuredBuffer<uint> indices : register(t2);
 
 [RootSignature(ROOT_SIGNATURE)]
@@ -47,7 +51,7 @@ void main
 (
 	uint gid : SV_GroupID,
 	uint gtid : SV_GroupThreadID,
-	out vertices VertexOutput outVerts[128],
+	out vertices VSOutput outVerts[128],
 	out indices uint3 outTriIndices[128]
 )
 {
@@ -56,10 +60,23 @@ void main
 
 	if (gtid < meshlet.vertCount)
 	{
-		Vertex v = vertices[meshlet.vertOffset + gtid];
-		outVerts[gtid].position = mul(ViewProj, mul(World, float4(v.position, 1)));
-		outVerts[gtid].normal = normalize(mul((float3x3)World, v.normal));
-		outVerts[gtid].meshletIndex = gtid;
+		VSInput input = vertices[meshlet.vertOffset + gtid];
+
+		float4 localPos = float4(input.Position, 1.0f);
+		float4 worldPos = mul(World, localPos);
+		float4 projPos = mul(ViewProj, worldPos);
+
+		VSOutput output = (VSOutput)0;
+		output.Position = projPos;
+		output.TexCoord = input.TexCoord;
+		output.WorldPos = worldPos.xyz;
+
+		float3 N = normalize(mul((float3x3)World, input.Normal));
+		float3 T = normalize(mul((float3x3)World, input.Tangent));
+		float3 B = normalize(cross(N, T));
+
+		output.InvTangentBasis = transpose(float3x3(T, B, N));
+		outVerts[gtid] = output;
 	}
 
 	if (gtid < meshlet.triCount)
