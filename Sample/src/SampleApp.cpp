@@ -12,6 +12,7 @@
 #include <DirectXMath.h>
 #include <CommonStates.h>
 #include <DirectXHelpers.h>
+#include <d3dx12.h>
 
 // Pix
 #include <pix3.h>
@@ -29,7 +30,7 @@
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
 #define RENDER_SPONZA false
 // MeshをMeshletとMSで描画する場合はtrueにする
-#define USE_MESHLET false
+#define USE_MESHLET true
 
 using namespace DirectX::SimpleMath;
 
@@ -2507,7 +2508,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		// シャドウマップ描画用のパイプラインステートディスクリプタ
 #if USE_MESHLET 
 		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout = MeshVertex::InputLayout;
+		desc.SampleMask = UINT_MAX;
 #else // #if USE_MESHLET 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.InputLayout = MeshVertex::InputLayout;
@@ -2528,6 +2529,56 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.RasterizerState.DepthBias = 100;
 
 		// AlphaModeがOpaqueのシャドウマップ描画用
+#if USE_MESHLET 
+		std::wstring msPath;
+		if (!SearchFilePath(L"BasePassMS.cso", msPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pMSBlob;
+		HRESULT hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
+			return false;
+		}
+
+		if (!m_SceneRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
+		desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
+		desc.pRootSignature = m_SceneRootSig.GetPtr();
+		// PSは実行しないので設定しない
+
+		CD3DX12_PIPELINE_MESH_STATE_STREAM psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+		D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
+		streamDesc.pPipelineStateSubobjectStream = &psoStream;
+		streamDesc.SizeInBytes = sizeof(psoStream);
+
+		hr = m_pDevice->CreatePipelineState(
+			&streamDesc,
+			IID_PPV_ARGS(m_pSceneDepthOpaquePSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+#else // #if USE_MESHLET 
 		std::wstring vsPath;
 		if (!SearchFilePath(L"BasePassVS.cso", vsPath))
 		{
@@ -2571,6 +2622,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 			return false;
 		}
+#endif // #if USE_MESHLET 
 
 		// AlphaModeがMaskのシャドウマップ描画用
 		std::wstring psPath;
@@ -2592,6 +2644,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
 		desc.RasterizerState = DirectX::CommonStates::CullNone;
 
+#if USE_MESHLET 
+		psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+		streamDesc.pPipelineStateSubobjectStream = &psoStream;
+
+		hr = m_pDevice->CreatePipelineState(
+			&streamDesc,
+			IID_PPV_ARGS(m_pSceneDepthMaskPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+#else // #if USE_MESHLET 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pSceneDepthMaskPSO.GetAddressOf())
@@ -2601,6 +2667,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 			return false;
 		}
+#endif // #if USE_MESHLET 
 
 		// AlphaModeがOpaqueのマテリアル用
 		// SceneDepthはReverseZ
@@ -2630,6 +2697,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 
+#if USE_MESHLET 
+		psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+		streamDesc.pPipelineStateSubobjectStream = &psoStream;
+
+		hr = m_pDevice->CreatePipelineState(
+			&streamDesc,
+			IID_PPV_ARGS(m_pSceneOpaquePSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+#else // #if USE_MESHLET 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pSceneOpaquePSO.GetAddressOf())
@@ -2639,6 +2720,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 			return false;
 		}
+#endif // #if USE_MESHLET 
 
 		// AlphaModeがMaskのマテリアル用
 		if (!SearchFilePath(L"BasePassMaskPS.cso", psPath))
@@ -2659,6 +2741,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
 		desc.RasterizerState = DirectX::CommonStates::CullNone;
 
+#if USE_MESHLET 
+		psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+		streamDesc.pPipelineStateSubobjectStream = &psoStream;
+
+		hr = m_pDevice->CreatePipelineState(
+			&streamDesc,
+			IID_PPV_ARGS(m_pSceneMaskPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+#else // #if USE_MESHLET 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pSceneMaskPSO.GetAddressOf())
@@ -2668,6 +2764,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 			return false;
 		}
+#endif // #if USE_MESHLET 
 	}
 
     // HCB作成パス用ルートシグニチャとパイプラインステートの生成
