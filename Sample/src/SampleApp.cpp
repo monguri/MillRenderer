@@ -5655,7 +5655,11 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	}
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
+#if USE_MESHLET
+	pCmdList->SetGraphicsRootDescriptorTable(7, m_CameraCB[m_FrameIndex].GetHandleGPU());
+#else
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandleGPU());
+#endif
 
 	if (RENDER_SPONZA)
 	{
@@ -5673,7 +5677,11 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	}
 	else
 	{
+#if USE_MESHLET
+		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBL_CB.GetHandleGPU());
+#else
 		pCmdList->SetGraphicsRootDescriptorTable(4, m_IBL_CB.GetHandleGPU());
+#endif
 	}
 
 	if (RENDER_SPONZA)
@@ -5687,12 +5695,20 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	}
 	else
 	{
+#if USE_MESHLET
+		pCmdList->SetGraphicsRootDescriptorTable(15, m_IBLBaker.GetHandleGPU_DFG());
+		pCmdList->SetGraphicsRootDescriptorTable(16, m_IBLBaker.GetHandleGPU_DiffuseLD());
+		pCmdList->SetGraphicsRootDescriptorTable(17, m_IBLBaker.GetHandleGPU_SpecularLD());
+#else
 		pCmdList->SetGraphicsRootDescriptorTable(10, m_IBLBaker.GetHandleGPU_DFG());
 		pCmdList->SetGraphicsRootDescriptorTable(11, m_IBLBaker.GetHandleGPU_DiffuseLD());
 		pCmdList->SetGraphicsRootDescriptorTable(12, m_IBLBaker.GetHandleGPU_SpecularLD());
+#endif
 	}
 
+#if !USE_MESHLET
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+#endif
 
 	// Opaqueマテリアルのメッシュの描画
 	if (RENDER_SPONZA)
@@ -5766,7 +5782,12 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 			}
 
 			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex));
+#if USE_MESHLET
+			pCmdList->SetGraphicsRootDescriptorTable(8, pMaterial->GetBufferHandle());
+#else
 			pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetBufferHandle());
+#endif
+
 			if (RENDER_SPONZA)
 			{
 				pCmdList->SetGraphicsRootDescriptorTable(12, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
@@ -5777,14 +5798,24 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 			}
 			else
 			{
+#if USE_MESHLET
+				pCmdList->SetGraphicsRootDescriptorTable(10, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
+				pCmdList->SetGraphicsRootDescriptorTable(11, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+				pCmdList->SetGraphicsRootDescriptorTable(12, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
+				pCmdList->SetGraphicsRootDescriptorTable(13, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
+				pCmdList->SetGraphicsRootDescriptorTable(14, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+#else
 				pCmdList->SetGraphicsRootDescriptorTable(5, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
 				pCmdList->SetGraphicsRootDescriptorTable(6, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
 				pCmdList->SetGraphicsRootDescriptorTable(7, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
 				pCmdList->SetGraphicsRootDescriptorTable(8, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
 				pCmdList->SetGraphicsRootDescriptorTable(9, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+#endif
 			}
 
+#if !USE_MESHLET
 			pMesh->Draw(pCmdList);
+#endif
 		}
 	}
 }
