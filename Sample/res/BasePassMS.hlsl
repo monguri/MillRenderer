@@ -1,33 +1,39 @@
 #define ROOT_SIGNATURE ""\
-"DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
+"RootConstants(num32BitConstants = 1, b0, visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
 
-cbuffer CbTransform : register(b0)
+cbuffer CbRootConst : register(b0)
 {
-	float4x4 ViewProj : packoffset(c0);
+	uint MeshletCount;
 }
 
-cbuffer CbMesh : register(b1)
+cbuffer CbTransform : register(b1)
 {
-	float4x4 World : packoffset(c0);
+	float4x4 ViewProj;
+}
+
+cbuffer CbMesh : register(b2)
+{
+	float4x4 World;
 }
 
 struct MeshletInfo
 {
-	uint vertCount;
-	uint vertOffset;
-	uint triCount;
-	uint triOffset;
+	uint VertCount;
+	uint VertOffset;
+	uint TriCount;
+	uint TriOffset;
 };
 
-ConstantBuffer<MeshletInfo> cbMeshletInfo : register(b2);
-ConstantBuffer<MeshletInfo> cbMeshletInfoLast : register(b3);
+ConstantBuffer<MeshletInfo> cbMeshletInfo : register(b3);
+ConstantBuffer<MeshletInfo> cbMeshletInfoLast : register(b4);
 
-//TODO: BasePassVS.hlsl and BasePassMS.hlsl have different VSInput definitions, need to unify
+//TODO: BasePassVS.hlslÇ∆BasePassMS.hlslÇ≈ç\ë¢ëÃíËã`Ç™èdï°ÇµÇƒÇ¢ÇÈ
 struct VSInput
 {
 	float3 Position : POSITION;
@@ -59,8 +65,7 @@ void main
 )
 {
 	MeshletInfo meshletInfo;
-	// TODO: gidÇ™LastÇ©Ç«Ç§Ç©Ç≈ï™äÚ
-	if (gid == 0)
+	if (gid < MeshletCount - 1)
 	{
 		meshletInfo = cbMeshletInfo;
 	}
@@ -69,11 +74,11 @@ void main
 		meshletInfo = cbMeshletInfoLast;
 	}
 
-	SetMeshOutputCounts(meshletInfo.vertCount, meshletInfo.triCount);
+	SetMeshOutputCounts(meshletInfo.VertCount, meshletInfo.TriCount);
 
-	if (gtid < meshletInfo.vertCount)
+	if (gtid < meshletInfo.VertCount)
 	{
-		VSInput input = vertices[meshletInfo.vertOffset + gtid];
+		VSInput input = vertices[meshletInfo.VertOffset + gtid];
 
 		float4 localPos = float4(input.Position, 1.0f);
 		float4 worldPos = mul(World, localPos);
@@ -92,8 +97,8 @@ void main
 		outVerts[gtid] = output;
 	}
 
-	if (gtid < meshletInfo.triCount)
+	if (gtid < meshletInfo.TriCount)
 	{
-		outTriIndices[gtid] = uint3(indices[meshletInfo.triOffset + gtid], indices[meshletInfo.triOffset + gtid + 1], indices[meshletInfo.triOffset + gtid + 2]);
+		outTriIndices[gtid] = uint3(indices[meshletInfo.TriOffset + gtid], indices[meshletInfo.TriOffset + gtid + 1], indices[meshletInfo.TriOffset + gtid + 2]);
 	}
 }
