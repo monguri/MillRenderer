@@ -1,23 +1,61 @@
 #define ROOT_SIGNATURE ""\
-"RootConstants(num32BitConstants = 1, b0, visibility = SHADER_VISIBILITY_MESH)"\
+"RootFlags"\
+"("\
+"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+")"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_MESH)"\
+", RootConstants(num32BitConstants = 1, b4, visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_ANISOTROPIC"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 16"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+", StaticSampler"\
+"("\
+"s1"\
+", filter = FILTER_MIN_MAG_MIP_LINEAR"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"
 
-cbuffer CbRootConst : register(b0)
-{
-	uint MeshletCount;
-}
-
-cbuffer CbTransform : register(b1)
+cbuffer CbTransform : register(b0)
 {
 	float4x4 ViewProj;
 }
 
-cbuffer CbMesh : register(b2)
+cbuffer CbMesh : register(b1)
 {
 	float4x4 World;
 }
@@ -30,8 +68,13 @@ struct MeshletInfo
 	uint TriOffset;
 };
 
-ConstantBuffer<MeshletInfo> cbMeshletInfo : register(b3);
-ConstantBuffer<MeshletInfo> cbMeshletInfoLast : register(b4);
+ConstantBuffer<MeshletInfo> cbMeshletInfo : register(b2);
+ConstantBuffer<MeshletInfo> cbMeshletInfoLast : register(b3);
+
+cbuffer CbRootConst : register(b4)
+{
+	uint MeshletCount;
+}
 
 //TODO: BasePassVS.hlslÇ∆BasePassMS.hlslÇ≈ç\ë¢ëÃíËã`Ç™èdï°ÇµÇƒÇ¢ÇÈ
 struct VSInput
