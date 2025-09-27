@@ -27,7 +27,7 @@
 #include "ResMesh.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA true
+#define RENDER_SPONZA false
 // MeshをMeshletとMSで描画する場合はtrueにする
 #define USE_MESHLET false
 
@@ -2504,40 +2504,15 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 	else
 	{
-		// AlphaModeがOpaqueのマテリアル用
-		std::wstring psPath;
-		if (!SearchFilePath(L"BasePassOpaquePS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pPSBlob;
-		HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		if (!m_SceneRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
 		// シャドウマップ描画用のパイプラインステートディスクリプタ
+#if USE_MESHLET 
+		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout = MeshVertex::InputLayout;
+#else // #if USE_MESHLET 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.InputLayout = MeshVertex::InputLayout;
-		desc.pRootSignature = m_SceneRootSig.GetPtr();
+#endif // #if USE_MESHLET 
+
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
 		desc.SampleMask = UINT_MAX;
@@ -2561,15 +2536,30 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		ComPtr<ID3DBlob> pVSBlob;
-		hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
 			return false;
 		}
 
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		if (!m_SceneRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.pRootSignature = m_SceneRootSig.GetPtr();
 		// PSは実行しないので設定しない
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
@@ -2583,6 +2573,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		// AlphaModeがMaskのシャドウマップ描画用
+		std::wstring psPath;
 		if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
@@ -2620,6 +2611,22 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.RTVFormats[1] = m_SceneNormalTarget.GetRTVDesc().Format;
 		desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+
+		// AlphaModeがOpaqueのマテリアル用
+		if (!SearchFilePath(L"BasePassOpaquePS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 
