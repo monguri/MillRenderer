@@ -1,3 +1,49 @@
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+")"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
+", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_VERTEX)"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_ANISOTROPIC"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 16"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+", StaticSampler"\
+"("\
+"s1"\
+", filter = FILTER_MIN_MAG_MIP_LINEAR"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"
+
 struct VSInput
 {
 	float3 Position : POSITION;
@@ -24,6 +70,7 @@ cbuffer CbMesh : register(b1)
 	float4x4 World : packoffset(c0);
 }
 
+[RootSignature(ROOT_SIGNATURE)]
 VSOutput main(VSInput input)
 {
 	VSOutput output = (VSOutput)0;
