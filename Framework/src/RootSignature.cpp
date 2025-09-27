@@ -7,7 +7,7 @@ RootSignature::Desc::Desc()
 : m_Desc()
 , m_Flags(0)
 {
-	for (size_t i = 0; i < 5; i++)
+	for (size_t i = 0; i < 7; i++)
 	{
 		m_DenyStage[i] = true;
 	}
@@ -24,7 +24,7 @@ RootSignature::Desc& RootSignature::Desc::Begin()
 {
 	m_Flags = 0;
 
-	for (size_t i = 0; i < 5; i++)
+	for (size_t i = 0; i < 7; i++)
 	{
 		m_DenyStage[i] = true;
 	}
@@ -42,7 +42,7 @@ RootSignature::Desc& RootSignature::Desc::Begin()
 void RootSignature::Desc::CheckStage(ShaderStage stage)
 {
 	int index = int(stage - 1);
-	if (0 <= index && index < 5)
+	if (0 <= index && index < 7)
 	{
 		m_DenyStage[index] = false;
 	}
@@ -300,7 +300,7 @@ RootSignature::Desc& RootSignature::Desc::SetLocalRootSignature()
 	// D3D12_ROOT_SIGNATURE_FLAG_DENY_XXX_SHADER_ROOT_ACCESSが立っていると
 	// D3D12SerializeRootSignature()でErr_InvalidArgが返るので
 	// フラグを立てないようにする
-	for (size_t i = 0; i < 5; i++)
+	for (size_t i = 0; i < 7; i++)
 	{
 		// SetLocalRootSignature()後にm_DenyStage[]をfalseにするような
 		// SetXxx()が呼ばれるとD3D12_ROOT_SIGNATURE_FLAG_DENY_XXX_SHADER_ROOT_ACCESSが
@@ -338,6 +338,16 @@ RootSignature::Desc& RootSignature::Desc::End()
 	if (m_DenyStage[4])
 	{
 		m_Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+	}
+
+	if (m_DenyStage[5])
+	{
+		m_Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
+	}
+
+	if (m_DenyStage[6])
+	{
+		m_Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 	}
 
 	// push_back()によってm_Ranges[rootParamIdx]のアドレスが変わるのでアドレスが確定してから代入する

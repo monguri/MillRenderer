@@ -58,7 +58,7 @@ public:
 		std::vector<D3D12_STATIC_SAMPLER_DESC> m_Samplers;
 		std::vector<D3D12_ROOT_PARAMETER> m_Params;
 		D3D12_ROOT_SIGNATURE_DESC m_Desc;
-		bool m_DenyStage[5];
+		bool m_DenyStage[7];
 		uint32_t m_Flags;
 
 		void CheckStage(ShaderStage stage);
