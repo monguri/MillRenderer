@@ -73,7 +73,7 @@ void CommandList::Term()
 	m_pAllocators.shrink_to_fit();
 }
 
-ID3D12GraphicsCommandList4* CommandList::Reset()
+ID3D12GraphicsCommandList6* CommandList::Reset()
 {
 	HRESULT hr = m_pAllocators[m_Index]->Reset();
 	if (FAILED(hr))

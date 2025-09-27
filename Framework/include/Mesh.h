@@ -31,7 +31,7 @@ public:
 
 	void Term();
 
-	void Draw(ID3D12GraphicsCommandList* pCmdList) const;
+	void Draw(ID3D12GraphicsCommandList6* pCmdList) const;
 
 	template<typename T>
 	T* MapConstantBuffer(uint32_t frameIndex) const
@@ -47,6 +47,7 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletVeticesSBHandle() const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletIndicesSBHandle() const;
 
+	uint32_t GetMeshletCount() const;
 	uint32_t GetMaterialId() const;
 	Mobility GetMobility() const;
 	void SetMobility(Mobility mobility);
@@ -61,7 +62,8 @@ private:
 	Resource m_MeshletInfoCB;
 	Resource m_MeshletInfoLastCB;
 	uint32_t m_MaterialId;
-	size_t m_IndexCount;
+	uint32_t m_IndexCount;
+	uint32_t m_MeshletCount;
 	Mobility m_Mobility;
 	class DescriptorPool* m_pPool;
 

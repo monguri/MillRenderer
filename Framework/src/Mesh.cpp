@@ -4,6 +4,7 @@
 
 Mesh::Mesh()
 : m_MaterialId(UINT32_MAX)
+, m_MeshletCount(0)
 , m_IndexCount(0)
 , m_Mobility(Mobility::Static)
 , m_pPool(nullptr)
@@ -32,8 +33,8 @@ bool Mesh::Init
 
 	assert(cbBufferSize > 0);
 
-	size_t vertexCount = resource.Vertices.size();
-	m_IndexCount = resource.Indices.size();
+	uint32_t vertexCount = static_cast<uint32_t>(resource.Vertices.size());
+	m_IndexCount = static_cast<uint32_t>(resource.Indices.size());
 
 	m_IsMeshlet = isMeshlet;
 
@@ -41,11 +42,11 @@ bool Mesh::Init
 	{
 		// TriangleListを前提としている
 		assert(m_IndexCount % 3 == 0);
-		size_t biggerCount = std::max(vertexCount, m_IndexCount / 3);
+		uint32_t biggerCount = std::max(vertexCount, m_IndexCount / 3);
 
 		// シェーダ側と合わせる
 		static constexpr uint32_t NUM_THREAD_MESHLET = 128;
-		size_t numMeshletGroup = (biggerCount + NUM_THREAD_MESHLET - 1) / NUM_THREAD_MESHLET;
+		m_MeshletCount = (biggerCount + NUM_THREAD_MESHLET - 1) / NUM_THREAD_MESHLET;
 
 		struct alignas(256) CbMeshletInfo
 		{
@@ -65,8 +66,8 @@ bool Mesh::Init
 		}
 
 		CbMeshletInfo cbMeshletInfo = {};
-		cbMeshletInfo.VertexCount = static_cast<uint32_t>(vertexCount / numMeshletGroup);
-		cbMeshletInfo.IndexCount = static_cast<uint32_t>(m_IndexCount / numMeshletGroup);
+		cbMeshletInfo.VertexCount = vertexCount / m_MeshletCount;
+		cbMeshletInfo.IndexCount = m_IndexCount / m_MeshletCount;
 
 		if (!m_MeshletInfoCB.UploadBufferTypeData<CbMeshletInfo>(
 			pDevice,
@@ -90,8 +91,8 @@ bool Mesh::Init
 		}
 
 		CbMeshletInfo cbMeshletInfoLast = {};
-		cbMeshletInfoLast.VertexCount = static_cast<uint32_t>(vertexCount % numMeshletGroup);
-		cbMeshletInfoLast.IndexCount = static_cast<uint32_t>(m_IndexCount % numMeshletGroup);
+		cbMeshletInfoLast.VertexCount = vertexCount % m_MeshletCount;
+		cbMeshletInfoLast.IndexCount = m_IndexCount % m_MeshletCount;
 
 		if (!m_MeshletInfoLastCB.UploadBufferTypeData<CbMeshletInfo>(
 			pDevice,
@@ -216,11 +217,11 @@ void Mesh::Term()
 	}
 }
 
-void Mesh::Draw(ID3D12GraphicsCommandList* pCmdList) const
+void Mesh::Draw(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	if (m_IsMeshlet)
 	{
-
+		pCmdList->DispatchMesh(m_MeshletCount, 1, 1);
 	}
 	else
 	{
@@ -262,6 +263,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletVeticesSBHandle() const
 D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletIndicesSBHandle() const
 {
 	return m_IB.GetHandleSRV()->HandleGPU;
+}
+
+uint32_t Mesh::GetMeshletCount() const
+{
+	return m_MeshletCount;
 }
 
 uint32_t Mesh::GetMaterialId() const

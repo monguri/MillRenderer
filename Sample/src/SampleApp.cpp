@@ -5783,6 +5783,11 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 
 			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex));
 #if USE_MESHLET
+			pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMesletInfoCBHandle());
+			pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMesletInfoLastCBHandle());
+			pCmdList->SetGraphicsRoot32BitConstant(4, pMesh->GetMeshletCount(), 0);
+			pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMesletVeticesSBHandle());
+			pCmdList->SetGraphicsRootDescriptorTable(6, pMesh->GetMesletIndicesSBHandle());
 			pCmdList->SetGraphicsRootDescriptorTable(8, pMaterial->GetBufferHandle());
 #else
 			pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetBufferHandle());
@@ -5813,9 +5818,7 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 #endif
 			}
 
-#if !USE_MESHLET
-			pMesh->Draw(pCmdList);
-#endif
+			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}
 	}
 }
@@ -6007,7 +6010,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 				continue;
 			}
 
-			pMesh->Draw(pCmdList);
+			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}
 	}
 
