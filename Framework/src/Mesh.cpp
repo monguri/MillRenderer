@@ -42,63 +42,79 @@ bool Mesh::Init
 	{
 		// TriangleListを前提としている
 		assert(m_IndexCount % 3 == 0);
-		uint32_t biggerCount = std::max(vertexCount, m_IndexCount / 3);
+		uint32_t triangleCount = m_IndexCount / 3;
+		uint32_t biggerCount = std::max(vertexCount, triangleCount);
 
 		// シェーダ側と合わせる
 		static constexpr uint32_t NUM_THREAD_MESHLET = 128;
 		m_MeshletCount = (biggerCount + NUM_THREAD_MESHLET - 1) / NUM_THREAD_MESHLET;
 
-		struct alignas(256) CbMeshletInfo
+		struct MeshletInfo
 		{
-			uint32_t VertexCount;
-			uint32_t IndexCount;
-			uint32_t Padding[2];
+			uint32_t VertCount;
+			uint32_t VertOffset;
+			uint32_t TriCount;
+			uint32_t TriOffset;
 		};
 
-		if (!m_MeshletInfoCB.InitAsConstantBuffer<CbMeshletInfo>(
+		std::vector<MeshletInfo> meshletInfos;
+		meshletInfos.resize(m_MeshletCount);
+
+		uint32_t vertexCountQuotient = vertexCount / NUM_THREAD_MESHLET;
+		uint32_t triangleCountQuotient = triangleCount / NUM_THREAD_MESHLET;
+		for (uint32_t i = 0; i < m_MeshletCount; i++)
+		{
+			if (i < vertexCountQuotient)
+			{
+				meshletInfos[i].VertCount = NUM_THREAD_MESHLET;
+				meshletInfos[i].VertOffset = i * NUM_THREAD_MESHLET;
+			}
+			else if (i == vertexCountQuotient)
+			{
+				meshletInfos[i].VertCount = (vertexCount % NUM_THREAD_MESHLET);
+				meshletInfos[i].VertOffset = i * NUM_THREAD_MESHLET;
+			}
+			else // (i > vertexCountQuotient)
+			{
+				meshletInfos[i].VertCount = 0;
+				meshletInfos[i].VertOffset = vertexCount;
+			}
+
+			if (i < triangleCountQuotient)
+			{
+				meshletInfos[i].TriCount = NUM_THREAD_MESHLET;
+				meshletInfos[i].TriOffset = i * NUM_THREAD_MESHLET;
+			}
+			else if (i == triangleCountQuotient)
+			{
+				meshletInfos[i].TriCount = (triangleCount % NUM_THREAD_MESHLET);
+				meshletInfos[i].TriOffset = i * NUM_THREAD_MESHLET;
+			}
+			else // (i > triangleCountQuotient)
+			{
+				meshletInfos[i].TriCount = 0;
+				meshletInfos[i].TriOffset = triangleCount;
+			}
+		}
+
+		if (!m_MeshletInfoSB.InitAsStructuredBuffer<MeshletInfo>(
 			pDevice,
-			D3D12_HEAP_TYPE_DEFAULT,
-			pPool
+			m_MeshletCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr
 		))
 		{
-			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
 			return false;
 		}
 
-		CbMeshletInfo cbMeshletInfo = {};
-		cbMeshletInfo.VertexCount = vertexCount / m_MeshletCount;
-		cbMeshletInfo.IndexCount = m_IndexCount / m_MeshletCount;
-
-		if (!m_MeshletInfoCB.UploadBufferTypeData<CbMeshletInfo>(
+		if (!m_MeshletInfoSB.UploadBufferTypeData<MeshletInfo>(
 			pDevice,
 			pCmdList,
-			1,
-			&cbMeshletInfo
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
-		if (!m_MeshletInfoLastCB.InitAsConstantBuffer<CbMeshletInfo>(
-			pDevice,
-			D3D12_HEAP_TYPE_DEFAULT,
-			pPool
-		))
-		{
-			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
-			return false;
-		}
-
-		CbMeshletInfo cbMeshletInfoLast = {};
-		cbMeshletInfoLast.VertexCount = vertexCount % m_MeshletCount;
-		cbMeshletInfoLast.IndexCount = m_IndexCount % m_MeshletCount;
-
-		if (!m_MeshletInfoLastCB.UploadBufferTypeData<CbMeshletInfo>(
-			pDevice,
-			pCmdList,
-			1,
-			&cbMeshletInfoLast
+			m_MeshletCount,
+			meshletInfos.data()
 		))
 		{
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
@@ -142,17 +158,6 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_VB.UploadBufferTypeData<MeshVertex>(
-			pDevice,
-			pCmdList,
-			vertexCount,
-			resource.Vertices.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
 		if (!m_IB.InitAsIndexBuffer<uint32_t>(
 			pDevice,
 			DXGI_FORMAT_R32_UINT,
@@ -162,17 +167,28 @@ bool Mesh::Init
 			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
 			return false;
 		}
+	}
 
-		if (!m_IB.UploadBufferTypeData<uint32_t>(
-			pDevice,
-			pCmdList,
-			m_IndexCount,
-			resource.Indices.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
+	if (!m_VB.UploadBufferTypeData<MeshVertex>(
+		pDevice,
+		pCmdList,
+		vertexCount,
+		resource.Vertices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	if (!m_IB.UploadBufferTypeData<uint32_t>(
+		pDevice,
+		pCmdList,
+		m_IndexCount,
+		resource.Indices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
 	}
 
 	m_pPool = pPool;
@@ -245,14 +261,9 @@ D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetConstantBufferHandle(uint32_t frameIndex) c
 	return m_CB[frameIndex].GetHandleCBV()->HandleGPU;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletInfoCBHandle() const
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletInfoSBHandle() const
 {
-	return m_MeshletInfoCB.GetHandleCBV()->HandleGPU;
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletInfoLastCBHandle() const
-{
-	return m_MeshletInfoLastCB.GetHandleCBV()->HandleGPU;
+	return m_MeshletInfoSB.GetHandleSRV()->HandleGPU;
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletVeticesSBHandle() const
@@ -263,11 +274,6 @@ D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletVeticesSBHandle() const
 D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletIndicesSBHandle() const
 {
 	return m_IB.GetHandleSRV()->HandleGPU;
-}
-
-uint32_t Mesh::GetMeshletCount() const
-{
-	return m_MeshletCount;
 }
 
 uint32_t Mesh::GetMaterialId() const

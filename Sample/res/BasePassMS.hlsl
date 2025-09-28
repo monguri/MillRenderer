@@ -9,11 +9,9 @@
 ")"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_MESH)"\
-", RootConstants(num32BitConstants = 1, b4, visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -68,14 +66,6 @@ struct MeshletInfo
 	uint TriOffset;
 };
 
-ConstantBuffer<MeshletInfo> cbMeshletInfo : register(b2);
-ConstantBuffer<MeshletInfo> cbMeshletInfoLast : register(b3);
-
-cbuffer CbRootConst : register(b4)
-{
-	uint MeshletCount;
-}
-
 //TODO: BasePassVS.hlslÇ∆BasePassMS.hlslÇ≈ç\ë¢ëÃíËã`Ç™èdï°ÇµÇƒÇ¢ÇÈ
 struct VSInput
 {
@@ -93,8 +83,9 @@ struct VSOutput
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
 };
 
-StructuredBuffer<VSInput> vertices : register(t0);
-StructuredBuffer<uint> indices : register(t1);
+StructuredBuffer<MeshletInfo> meshletInfos : register(t0);
+StructuredBuffer<VSInput> vertices : register(t1);
+StructuredBuffer<uint> indices : register(t2);
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
@@ -107,15 +98,7 @@ void main
 	out indices uint3 outTriIndices[128]
 )
 {
-	MeshletInfo meshletInfo;
-	if (gid < MeshletCount - 1)
-	{
-		meshletInfo = cbMeshletInfo;
-	}
-	else
-	{
-		meshletInfo = cbMeshletInfoLast;
-	}
+	MeshletInfo meshletInfo = meshletInfos[gid];
 
 	SetMeshOutputCounts(meshletInfo.VertCount, meshletInfo.TriCount);
 
