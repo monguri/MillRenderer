@@ -571,8 +571,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		float clearColor[] = { 0, 0, 0, 0 };
 		if (!m_RTTarget.InitUnorderedAccessTarget(
 			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES],
 			m_pPool[POOL_TYPE_RTV],
-			nullptr,
 			nullptr,
 			m_Width,
 			m_Height,
@@ -609,11 +609,14 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		std::vector<uint8_t> shaderTblData;
 		shaderTblData.resize(m_ShaderTableEntrySize * 3);
 		memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
 		// RTではディスクリプタテーブルの設定をSetComputeRootDescriptorTable()ではなく
 		// ShaderTableに設定する形で行う
 		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) = m_pTlasResultSrvHandle->HandleGPU.ptr;
 		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8) = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
+
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize * 2, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
 		if (!m_ShaderTableBB.InitAsByteAddressBuffer
