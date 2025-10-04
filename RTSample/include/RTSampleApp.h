@@ -3,7 +3,7 @@
 #include <SimpleMath.h>
 #include <chrono>
 #include "App.h"
-#include "VertexBuffer.h"
+#include "Resource.h"
 #include "IndexBuffer.h"
 #include "ConstantBuffer.h"
 #include "DepthTarget.h"
@@ -25,7 +25,7 @@ private:
 	DepthTarget m_SceneDepthTarget;
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 
-	VertexBuffer m_TriangleVB;
+	Resource m_TriangleVB;
 	ByteAddressBuffer m_BlasResultBB;
 	ByteAddressBuffer m_TlasResultBB;
 	DescriptorHandle* m_pTlasResultSrvHandle = nullptr;
