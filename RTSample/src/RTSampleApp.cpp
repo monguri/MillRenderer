@@ -129,6 +129,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	ID3D12GraphicsCommandList4* pCmd = m_CommandList.Reset();
+
 	// テスト用VBの作成
 	{
 		const Vector3 triangleVertices[3] = {
@@ -137,10 +139,14 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			Vector3(-0.866f, -0.5f, 0),
 		};
 
-		m_TriangleVB.Init<Vector3>(m_pDevice.Get(), 3, triangleVertices);
-	}
+		if (!m_TriangleVB.InitAsVertexBuffer<Vector3>(m_pDevice.Get(), 3))
+		{
+			ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
+			return false;
+		}
 
-	ID3D12GraphicsCommandList4* pCmd = m_CommandList.Reset();
+		m_TriangleVB.UploadBufferTypeData<Vector3>(m_pDevice.Get(), pCmd, 3, triangleVertices);
+	}
 
 	// BLASの作成
 	ByteAddressBuffer blasScratchBB;
@@ -148,7 +154,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		D3D12_RAYTRACING_GEOMETRY_DESC geomDesc;
 		geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 
-		geomDesc.Triangles.VertexBuffer.StartAddress = m_TriangleVB.GetView().BufferLocation;
+		geomDesc.Triangles.VertexBuffer.StartAddress = m_TriangleVB.GetVBV().BufferLocation;
 		geomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vector3);
 		geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 		geomDesc.Triangles.VertexCount = 3;
