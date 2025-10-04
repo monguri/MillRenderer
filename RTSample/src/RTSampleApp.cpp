@@ -154,7 +154,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		D3D12_RAYTRACING_GEOMETRY_DESC geomDesc;
 		geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 
-		geomDesc.Triangles.VertexBuffer.StartAddress = m_TriangleVB.GetVBV().BufferLocation;
+		geomDesc.Triangles.VertexBuffer.StartAddress = m_TriangleVB.GetResource()->GetGPUVirtualAddress();
 		geomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vector3);
 		geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 		geomDesc.Triangles.VertexCount = 3;
