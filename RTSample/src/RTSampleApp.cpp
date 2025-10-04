@@ -161,7 +161,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
 		inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-		//inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
 		inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 		inputs.NumDescs = 1;
 		inputs.pGeometryDescs = &geomDesc;
@@ -222,7 +221,6 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	{
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
 		inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-		//inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
 		inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 		// あとでInstanceDescsを設定するので
 		inputs.NumDescs = 1;
@@ -565,7 +563,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		float clearColor[] = { 0, 0, 0, 0 };
 		if (!m_RTTarget.InitUnorderedAccessTarget(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RTV],
 			nullptr,
 			nullptr,
 			m_Width,
