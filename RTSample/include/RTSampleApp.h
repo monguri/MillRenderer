@@ -9,7 +9,6 @@
 #include "DepthTarget.h"
 #include "RootSignature.h"
 #include "TransformManipulator.h"
-#include "ByteAddressBuffer.h"
 
 class RTSampleApp : public App
 {
@@ -26,14 +25,14 @@ private:
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
 
 	Resource m_TriangleVB;
-	ByteAddressBuffer m_BlasResultBB;
-	ByteAddressBuffer m_TlasResultBB;
+	Resource m_BlasResultBB;
+	Resource m_TlasResultBB;
 	DescriptorHandle* m_pTlasResultSrvHandle = nullptr;
 	RootSignature m_GlobalRootSig;
 
 	ComPtr<ID3D12StateObject> m_pStateObject;
 	ColorTarget m_RTTarget;
-	ByteAddressBuffer m_ShaderTableBB;
+	Resource m_ShaderTableBB;
 
 	size_t m_ShaderTableEntrySize = 0;
 

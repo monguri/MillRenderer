@@ -145,11 +145,15 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		m_TriangleVB.UploadBufferTypeData<Vector3>(m_pDevice.Get(), pCmd, 3, triangleVertices);
+		if (!m_TriangleVB.UploadBufferTypeData<Vector3>(m_pDevice.Get(), pCmd, 3, triangleVertices))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
 	}
 
 	// BLASの作成
-	ByteAddressBuffer blasScratchBB;
+	Resource blasScratchBB;
 	{
 		D3D12_RAYTRACING_GEOMETRY_DESC geomDesc;
 		geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
@@ -176,33 +180,31 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		m_pDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildInfo);
 
 		// ByteAddressBufferである必要は無いが必要な処理が揃っていたので
-		if (!blasScratchBB.Init(
+		if (!blasScratchBB.InitAsByteAddressBuffer
+		(
 			m_pDevice.Get(),
-			nullptr,
-			nullptr,
-			nullptr,
 			preBuildInfo.ScratchDataSizeInBytes,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			nullptr,
 			nullptr
 		))
 		{
-			ELOG("Error : StructuredBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
 			return false;
 		}
 
-		if (!m_BlasResultBB.Init(
+		if (!m_BlasResultBB.InitAsByteAddressBuffer
+		(
 			m_pDevice.Get(),
-			nullptr,
-			nullptr,
-			nullptr,
 			preBuildInfo.ResultDataMaxSizeInBytes,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+			nullptr,
 			nullptr
 		))
 		{
-			ELOG("Error : StructuredBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
 			return false;
 		}
 
@@ -222,8 +224,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	}
 
 	// TLASの作成
-	ByteAddressBuffer tlasScratchBB;
-	ByteAddressBuffer tlasInstanceDescBB;
+	Resource tlasScratchBB;
+	Resource tlasInstanceDescBB;
 	{
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
 		inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
@@ -237,34 +239,30 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		m_pDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildInfo);
 
 		// ByteAddressBufferである必要は無いが必要な処理が揃っていたので
-		if (!tlasScratchBB.Init(
+		if (!tlasScratchBB.InitAsByteAddressBuffer(
 			m_pDevice.Get(),
-			nullptr,
-			nullptr,
-			nullptr,
 			preBuildInfo.ScratchDataSizeInBytes,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			nullptr,
 			nullptr
 		))
 		{
-			ELOG("Error : StructuredBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
 			return false;
 		}
 		DirectX::TransitionResource(pCmd, tlasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-		if (!m_TlasResultBB.Init(
+		if (!m_TlasResultBB.InitAsByteAddressBuffer(
 			m_pDevice.Get(),
-			nullptr,
-			nullptr,
-			nullptr,
 			preBuildInfo.ResultDataMaxSizeInBytes,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+			nullptr,
 			nullptr
 		))
 		{
-			ELOG("Error : ByteAddressBuffer::Init() Failed.");
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
 			return false;
 		}
 
@@ -292,18 +290,22 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		instanceDesc.AccelerationStructure = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
 		instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 
-		if (!tlasInstanceDescBB.Init(
+		if (!tlasInstanceDescBB.InitAsByteAddressBuffer(
 			m_pDevice.Get(),
-			pCmd,
-			nullptr,
-			nullptr,
 			sizeof(instanceDesc),
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
-			&instanceDesc
+			nullptr,
+			nullptr
 		))
 		{
 			ELOG("Error : StructuredBuffer::Init() Failed.");
+			return false;
+		}
+
+		if (!tlasInstanceDescBB.UploadBufferData(m_pDevice.Get(), pCmd, sizeof(instanceDesc), &instanceDesc))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
 
@@ -614,19 +616,23 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize * 2, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
-		if (!m_ShaderTableBB.Init
+		if (!m_ShaderTableBB.InitAsByteAddressBuffer
 		(
 			m_pDevice.Get(),
-			pCmd,
-			nullptr,
-			nullptr,
 			shaderTblData.size(),
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
-			shaderTblData.data()
+			nullptr,
+			nullptr
 		))
 		{
-			ELOG("Error : ByteAddressBuffer::Init() Failed");
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed");
+			return false;
+		}
+
+		if (!m_ShaderTableBB.UploadBufferData(m_pDevice.Get(), pCmd, shaderTblData.size(), shaderTblData.data()))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
 	}
