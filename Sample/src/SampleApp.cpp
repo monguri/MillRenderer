@@ -1,9 +1,9 @@
 ﻿#include "SampleApp.h"
 
 // imgui
-#include "imgui.h"
-#include "backends/imgui_impl_win32.h"
-#include "backends/imgui_impl_dx12.h"
+#include <imgui.h>
+#include <backends/imgui_impl_win32.h>
+#include <backends/imgui_impl_dx12.h>
 
 // stl
 #include <sstream>
@@ -30,7 +30,7 @@
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
 #define RENDER_SPONZA false
 // MeshをMeshletとMSで描画する場合はtrueにする
-#define USE_MESHLET true
+#define USE_MESHLET false
 
 using namespace DirectX::SimpleMath;
 

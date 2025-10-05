@@ -3,6 +3,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <assimp/GltfMaterial.h>
+#include <meshoptimizer.h>
 #include <codecvt>
 #include <cassert>
 

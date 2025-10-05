@@ -11,6 +11,22 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\meshoptimizer\allocator.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\clusterizer.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\indexanalyzer.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\indexcodec.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\indexgenerator.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\overdrawoptimizer.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\partition.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\quantization.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\rasterizer.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\simplifier.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\spatialorder.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\stripifier.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\vcacheoptimizer.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\vertexcodec.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\vertexfilter.cpp" />
+    <ClCompile Include="..\..\meshoptimizer\vfetchoptimizer.cpp" />
     <ClCompile Include="..\src\App.cpp" />
     <ClCompile Include="..\src\ByteAddressBuffer.cpp" />
     <ClCompile Include="..\src\Resource.cpp" />
@@ -34,6 +50,7 @@
     <ClCompile Include="..\src\VertexBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\meshoptimizer\meshoptimizer.h" />
     <ClInclude Include="..\include\App.h" />
     <ClInclude Include="..\include\ByteAddressBuffer.h" />
     <ClInclude Include="..\include\Resource.h" />
@@ -108,7 +125,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;NOMINMAX;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\include;$(ProjectDir)..\..\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\include;$(ProjectDir)..\..\assimp\include;$(ProjectDir)..\..\meshoptimizer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -123,7 +140,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;NOMINMAX;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\include;$(ProjectDir)..\..\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\include;$(ProjectDir)..\..\assimp\include;$(ProjectDir)..\..\meshoptimizer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
