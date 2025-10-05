@@ -90,9 +90,17 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_MeshletsTrianglesBB.InitAsByteAddressBuffer(
+		// TODO: uint8_tの3つをuint32_tに詰め込んでBBで扱いたい。
+		// 無駄にVRAMとメモリ帯域を使っている。Pixでの値確認はしやすいが。
+		std::vector<uint32_t> meshletsTriangles;
+		for (uint8_t index : resource.MeshletsTriangles)
+		{
+			meshletsTriangles.push_back(static_cast<uint32_t>(index));
+		}
+
+		if (!m_MeshletsTrianglesBB.InitAsStructuredBuffer<uint32_t>(
 			pDevice,
-			resource.MeshletsTriangles.size(),
+			meshletsTriangles.size(),
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
 			pPool,
@@ -103,11 +111,11 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_MeshletsTrianglesBB.UploadBufferTypeData<uint8_t>(
+		if (!m_MeshletsTrianglesBB.UploadBufferTypeData<uint32_t>(
 			pDevice,
 			pCmdList,
-			resource.MeshletsTriangles.size(),
-			resource.MeshletsTriangles.data()
+			meshletsTriangles.size(),
+			meshletsTriangles.data()
 		))
 		{
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
