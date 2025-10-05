@@ -3,7 +3,6 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <assimp/GltfMaterial.h>
-#include <meshoptimizer.h>
 #include <codecvt>
 #include <cassert>
 
@@ -40,6 +39,7 @@ namespace
 		bool Load
 		(
 			const wchar_t* filename,
+			bool buildMeshlet,
 			std::vector<ResMesh>& meshes,
 			std::vector<ResMaterial>& materials
 		);
@@ -47,6 +47,7 @@ namespace
 	private:
 		void ParseMesh(ResMesh& dstMesh, const aiMesh* pSrcMesh);
 		void ParseMaterial(ResMaterial& dstMaterial, const aiMaterial* pSrcMaterial);
+		void BuildMeshlet(ResMesh& dstMesh);
 	};
 
 	MeshLoader::MeshLoader()
@@ -60,6 +61,7 @@ namespace
 	bool MeshLoader::Load
 	(
 		const wchar_t* filename,
+		bool buildMeshlet,
 		std::vector<ResMesh>& meshes,
 		std::vector<ResMaterial>& materials
 	)
@@ -98,6 +100,14 @@ namespace
 		for (size_t i = 0; i < meshes.size(); i++)
 		{
 			ParseMesh(meshes[i], pScene->mMeshes[i]);
+		}
+
+		if (buildMeshlet)
+		{
+			for (ResMesh& mesh : meshes)
+			{
+				BuildMeshlet(mesh);
+			}
 		}
 
 		materials.clear();
@@ -425,6 +435,45 @@ namespace
 			}
 		}
 	}
+
+	void MeshLoader::BuildMeshlet(ResMesh& dstMesh)
+	{
+		// NVIDIAÇÃêÑèßíl
+		static constexpr uint32_t MAX_VERTS = 64;
+		static constexpr uint32_t MAX_TRIS = 126;
+		size_t indexCount = dstMesh.Indices.size();
+		size_t vertexCount = dstMesh.Vertices.size();
+
+		size_t maxMeshletCount = meshopt_buildMeshletsBound(indexCount, MAX_VERTS, MAX_TRIS);
+
+		dstMesh.Meshlets.resize(maxMeshletCount);
+		std::vector<unsigned int> meshletVertices(indexCount);
+		std::vector<unsigned char> meshletTriangles(indexCount);
+
+		assert(sizeof(float) * 3 == sizeof(DirectX::XMFLOAT3));
+		std::vector<float> vertexPositions(vertexCount * 3);
+		for (size_t i = 0; i < vertexCount; i++)
+		{
+			const MeshVertex& vert = dstMesh.Vertices[i];
+			memcpy(&vertexPositions[3 * i], &vert.Position, sizeof(DirectX::XMFLOAT3));
+		}
+
+		size_t meshletCount = meshopt_buildMeshlets(
+			dstMesh.Meshlets.data(),
+			meshletVertices.data(),
+			meshletTriangles.data(),
+			dstMesh.Indices.data(),
+			indexCount,
+			vertexPositions.data(),
+			vertexCount,
+			sizeof(MeshVertex),
+			MAX_VERTS,
+			MAX_TRIS,
+			0.0f // cone cullingÇégÇÌÇ»Ç¢
+		);
+
+		dstMesh.Meshlets.resize(meshletCount);
+	}
 }
 
 const D3D12_INPUT_ELEMENT_DESC MeshVertex::InputElements[] = {
@@ -444,10 +493,11 @@ static_assert(sizeof(MeshVertex) == 44, "Vertex struct/layout mismatch");
 bool LoadMesh
 (
 	const wchar_t* filename,
+	bool buildMeshlet,
 	std::vector<ResMesh>& meshes,
 	std::vector<ResMaterial>& materials
 )
 {
 	MeshLoader loader;
-	return loader.Load(filename, meshes, materials);
+	return loader.Load(filename, buildMeshlet, meshes, materials);
 }

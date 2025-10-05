@@ -2,6 +2,7 @@
 
 #include "d3d12.h"
 #include "DirectXMath.h"
+#include <meshoptimizer.h>
 #include <string>
 #include <vector>
 
@@ -70,6 +71,7 @@ struct ResMesh
 {
 	std::vector<MeshVertex> Vertices;
 	std::vector<uint32_t> Indices;
+	std::vector<meshopt_Meshlet> Meshlets;
 	uint32_t MaterialId;
 };
 
@@ -85,6 +87,7 @@ struct ResMesh
 bool LoadMesh
 (
 	const wchar_t* filename,
+	bool buildMeshlet,
 	std::vector<ResMesh>& meshes,
 	std::vector<ResMaterial>& materials
 );

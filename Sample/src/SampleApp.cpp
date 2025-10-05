@@ -833,7 +833,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		std::vector<ResMesh> resMesh;
 		std::vector<ResMaterial> resMaterial;
-		if (!LoadMesh(path.c_str(), resMesh, resMaterial))
+		if (!LoadMesh(path.c_str(), USE_MESHLET, resMesh, resMaterial))
 		{
 			ELOG("Error : Load Mesh Failed. filepath = %ls", path.c_str());
 			return false;
@@ -984,7 +984,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		std::vector<ResMesh> resMesh;
 		std::vector<ResMaterial> resMaterial;
-		if (!LoadMesh(path.c_str(), resMesh, resMaterial))
+		if (!LoadMesh(path.c_str(), USE_MESHLET, resMesh, resMaterial))
 		{
 			ELOG("Error : Load Mesh Failed. filepath = %ls", path.c_str());
 			return false;
