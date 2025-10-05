@@ -33,71 +33,16 @@ bool Mesh::Init
 
 	assert(cbBufferSize > 0);
 
-	uint32_t vertexCount = static_cast<uint32_t>(resource.Vertices.size());
-	m_IndexCount = static_cast<uint32_t>(resource.Indices.size());
+	size_t vertexCount = resource.Vertices.size();
+	m_IndexCount = resource.Indices.size();
 
 	m_IsMeshlet = isMeshlet;
 
 	if (m_IsMeshlet)
 	{
-		// TriangleListを前提としている
-		assert(m_IndexCount % 3 == 0);
-		uint32_t triangleCount = m_IndexCount / 3;
-		uint32_t biggerCount = std::max(vertexCount, triangleCount);
+		m_MeshletCount = resource.Meshlets.size();
 
-		// シェーダ側と合わせる
-		static constexpr uint32_t NUM_THREAD_MESHLET = 128;
-		m_MeshletCount = (biggerCount + NUM_THREAD_MESHLET - 1) / NUM_THREAD_MESHLET;
-
-		struct MeshletInfo
-		{
-			uint32_t VertCount;
-			uint32_t VertOffset;
-			uint32_t TriCount;
-			uint32_t TriOffset;
-		};
-
-		std::vector<MeshletInfo> meshletInfos;
-		meshletInfos.resize(m_MeshletCount);
-
-		uint32_t vertexCountQuotient = vertexCount / NUM_THREAD_MESHLET;
-		uint32_t triangleCountQuotient = triangleCount / NUM_THREAD_MESHLET;
-		for (uint32_t i = 0; i < m_MeshletCount; i++)
-		{
-			if (i < vertexCountQuotient)
-			{
-				meshletInfos[i].VertCount = NUM_THREAD_MESHLET;
-				meshletInfos[i].VertOffset = i * NUM_THREAD_MESHLET;
-			}
-			else if (i == vertexCountQuotient)
-			{
-				meshletInfos[i].VertCount = (vertexCount % NUM_THREAD_MESHLET);
-				meshletInfos[i].VertOffset = i * NUM_THREAD_MESHLET;
-			}
-			else // (i > vertexCountQuotient)
-			{
-				meshletInfos[i].VertCount = 0;
-				meshletInfos[i].VertOffset = vertexCount;
-			}
-
-			if (i < triangleCountQuotient)
-			{
-				meshletInfos[i].TriCount = NUM_THREAD_MESHLET;
-				meshletInfos[i].TriOffset = i * NUM_THREAD_MESHLET;
-			}
-			else if (i == triangleCountQuotient)
-			{
-				meshletInfos[i].TriCount = (triangleCount % NUM_THREAD_MESHLET);
-				meshletInfos[i].TriOffset = i * NUM_THREAD_MESHLET;
-			}
-			else // (i > triangleCountQuotient)
-			{
-				meshletInfos[i].TriCount = 0;
-				meshletInfos[i].TriOffset = triangleCount;
-			}
-		}
-
-		if (!m_MeshletInfoSB.InitAsStructuredBuffer<MeshletInfo>(
+		if (!m_MeshletsSB.InitAsStructuredBuffer<meshopt_Meshlet>(
 			pDevice,
 			m_MeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
@@ -110,11 +55,59 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_MeshletInfoSB.UploadBufferTypeData<MeshletInfo>(
+		if (!m_MeshletsSB.UploadBufferTypeData<meshopt_Meshlet>(
 			pDevice,
 			pCmdList,
 			m_MeshletCount,
-			meshletInfos.data()
+			resource.Meshlets.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsVerticesSB.InitAsStructuredBuffer<uint32_t>(
+			pDevice,
+			resource.MeshletsVertices.size(),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsVerticesSB.UploadBufferTypeData<uint32_t>(
+			pDevice,
+			pCmdList,
+			resource.MeshletsVertices.size(),
+			resource.MeshletsVertices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsTrianglesSB.InitAsByteAddressBuffer(
+			pDevice,
+			resource.MeshletsTriangles.size(),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsTrianglesSB.UploadBufferTypeData<uint8_t>(
+			pDevice,
+			pCmdList,
+			resource.MeshletsTriangles.size(),
+			resource.MeshletsTriangles.data()
 		))
 		{
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
@@ -124,19 +117,6 @@ bool Mesh::Init
 		if (!m_VB.InitAsStructuredBuffer<MeshVertex>(
 			pDevice,
 			vertexCount,
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
-			nullptr
-		))
-		{
-			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
-			return false;
-		}
-
-		if (!m_IB.InitAsStructuredBuffer<uint32_t>(
-			pDevice,
-			m_IndexCount,
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
 			pPool,
@@ -167,6 +147,17 @@ bool Mesh::Init
 			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
 			return false;
 		}
+
+		if (!m_IB.UploadBufferTypeData<uint32_t>(
+			pDevice,
+			pCmdList,
+			m_IndexCount,
+			resource.Indices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
 	}
 
 	if (!m_VB.UploadBufferTypeData<MeshVertex>(
@@ -174,17 +165,6 @@ bool Mesh::Init
 		pCmdList,
 		vertexCount,
 		resource.Vertices.data()
-	))
-	{
-		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-		return false;
-	}
-
-	if (!m_IB.UploadBufferTypeData<uint32_t>(
-		pDevice,
-		pCmdList,
-		m_IndexCount,
-		resource.Indices.data()
 	))
 	{
 		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
@@ -223,6 +203,10 @@ void Mesh::Term()
 		m_CB[i].Term();
 	}
 
+	m_MeshletsSB.Term();
+	m_MeshletsVerticesSB.Term();
+	m_MeshletsTrianglesSB.Term();
+
 	m_MaterialId = UINT32_MAX;
 	m_IndexCount = 0;
 
@@ -237,7 +221,7 @@ void Mesh::Draw(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	if (m_IsMeshlet)
 	{
-		pCmdList->DispatchMesh(m_MeshletCount, 1, 1);
+		pCmdList->DispatchMesh(static_cast<UINT>(m_MeshletCount), 1, 1);
 	}
 	else
 	{
@@ -261,19 +245,24 @@ D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetConstantBufferHandle(uint32_t frameIndex) c
 	return m_CB[frameIndex].GetHandleCBV()->HandleGPU;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletInfoSBHandle() const
-{
-	return m_MeshletInfoSB.GetHandleSRV()->HandleGPU;
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletVeticesSBHandle() const
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetVertexBufferSBHandle() const
 {
 	return m_VB.GetHandleSRV()->HandleGPU;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletIndicesSBHandle() const
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletsSBHandle() const
 {
-	return m_IB.GetHandleSRV()->HandleGPU;
+	return m_MeshletsSB.GetHandleSRV()->HandleGPU;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletsVerticesSBHandle() const
+{
+	return m_MeshletsVerticesSB.GetHandleSRV()->HandleGPU;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletsTrianglesSBHandle() const
+{
+	return m_MeshletsTrianglesSB.GetHandleSRV()->HandleGPU;
 }
 
 uint32_t Mesh::GetMaterialId() const

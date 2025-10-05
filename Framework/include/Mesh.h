@@ -42,9 +42,10 @@ public:
 	void UnmapConstantBuffer(uint32_t frameIndex) const;
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GetConstantBufferHandle(uint32_t frameIndex) const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletInfoSBHandle() const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletVeticesSBHandle() const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletIndicesSBHandle() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetVertexBufferSBHandle() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsSBHandle() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsVerticesSBHandle() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsTrianglesSBHandle() const;
 
 	uint32_t GetMaterialId() const;
 	Mobility GetMobility() const;
@@ -54,13 +55,14 @@ private:
 	bool m_IsMeshlet = false;
 	// MeshletÇÃèÍçáÇÕSBÅAí èÌMeshÇÃèÍçáÇÕVB
 	Resource m_VB;
-	// MeshletÇÃèÍçáÇÕSBÅAí èÌMeshÇÃèÍçáÇÕIB
 	Resource m_IB;
 	Resource m_CB[App::FRAME_COUNT];
-	Resource m_MeshletInfoSB;
+	Resource m_MeshletsSB;
+	Resource m_MeshletsVerticesSB;
+	Resource m_MeshletsTrianglesSB;
 	uint32_t m_MaterialId;
-	uint32_t m_IndexCount;
-	uint32_t m_MeshletCount;
+	size_t m_IndexCount;
+	size_t m_MeshletCount;
 	Mobility m_Mobility;
 	class DescriptorPool* m_pPool;
 

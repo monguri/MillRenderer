@@ -71,7 +71,12 @@ struct ResMesh
 {
 	std::vector<MeshVertex> Vertices;
 	std::vector<uint32_t> Indices;
+
+	// データにはmeshletoptimezerのものをそのまま使う
 	std::vector<meshopt_Meshlet> Meshlets;
+	std::vector<uint32_t> MeshletsVertices;
+	std::vector<uint8_t> MeshletsTriangles;
+
 	uint32_t MaterialId;
 };
 

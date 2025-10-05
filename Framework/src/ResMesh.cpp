@@ -447,10 +447,10 @@ namespace
 		size_t maxMeshletCount = meshopt_buildMeshletsBound(indexCount, MAX_VERTS, MAX_TRIS);
 
 		dstMesh.Meshlets.resize(maxMeshletCount);
-		std::vector<unsigned int> meshletVertices(indexCount);
-		std::vector<unsigned char> meshletTriangles(indexCount);
+		dstMesh.MeshletsVertices.resize(indexCount);
+		dstMesh.MeshletsTriangles.resize(indexCount);
 
-		assert(sizeof(float) * 3 == sizeof(DirectX::XMFLOAT3));
+		static_assert(sizeof(float) * 3 == sizeof(DirectX::XMFLOAT3));
 		std::vector<float> vertexPositions(vertexCount * 3);
 		for (size_t i = 0; i < vertexCount; i++)
 		{
@@ -458,10 +458,14 @@ namespace
 			memcpy(&vertexPositions[3 * i], &vert.Position, sizeof(DirectX::XMFLOAT3));
 		}
 
+		// MeshletsVertices‚ÆMeshletsTriangles‚ÌŒ^‚ªuint32_t‚Æuint8_t‚È‚Ì‚Åstatic_assert‚ÅŠm”F‚µ‚Ä‚¨‚­
+		static_assert(sizeof(unsigned int) == sizeof(uint32_t));
+		static_assert(sizeof(unsigned char) == sizeof(uint8_t));
+
 		size_t meshletCount = meshopt_buildMeshlets(
 			dstMesh.Meshlets.data(),
-			meshletVertices.data(),
-			meshletTriangles.data(),
+			dstMesh.MeshletsVertices.data(),
+			dstMesh.MeshletsTriangles.data(),
 			dstMesh.Indices.data(),
 			indexCount,
 			vertexPositions.data(),
@@ -471,8 +475,6 @@ namespace
 			MAX_TRIS,
 			0.0f // cone culling‚ðŽg‚í‚È‚¢
 		);
-
-		dstMesh.Meshlets.resize(meshletCount);
 	}
 }
 

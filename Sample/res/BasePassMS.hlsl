@@ -12,6 +12,7 @@
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -58,12 +59,12 @@ cbuffer CbMesh : register(b1)
 	float4x4 World;
 }
 
-struct MeshletInfo
+struct meshopt_Meshlet
 {
-	uint VertCount;
 	uint VertOffset;
-	uint TriCount;
 	uint TriOffset;
+	uint VertCount;
+	uint TriCount;
 };
 
 //TODO: BasePassVS.hlslÇ∆BasePassMS.hlslÇ≈ç\ë¢ëÃíËã`Ç™èdï°ÇµÇƒÇ¢ÇÈ
@@ -83,9 +84,10 @@ struct VSOutput
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
 };
 
-StructuredBuffer<MeshletInfo> meshletInfos : register(t0);
-StructuredBuffer<VSInput> vertices : register(t1);
-StructuredBuffer<uint> indices : register(t2);
+StructuredBuffer<VSInput> vertexBuffer : register(t0);
+StructuredBuffer<meshopt_Meshlet> meshlets : register(t1);
+StructuredBuffer<uint> meshletsVertices : register(t2);
+ByteAddressBuffer meshletsTriangles : register(t3);
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
@@ -94,17 +96,18 @@ void main
 (
 	uint gid : SV_GroupID,
 	uint gtid : SV_GroupThreadID,
-	out vertices VSOutput outVerts[128],
-	out indices uint3 outTriIndices[128]
+	out vertices VSOutput outVerts[64],
+	out indices uint3 outTriIndices[126]
 )
 {
-	MeshletInfo meshletInfo = meshletInfos[gid];
+	meshopt_Meshlet meshlet = meshlets[gid];
 
-	SetMeshOutputCounts(meshletInfo.VertCount, meshletInfo.TriCount);
+	SetMeshOutputCounts(meshlet.VertCount, meshlet.TriCount);
 
-	if (gtid < meshletInfo.VertCount)
+	if (gtid < meshlet.VertCount)
 	{
-		VSInput input = vertices[meshletInfo.VertOffset + gtid];
+		uint vertexIndex = meshletsVertices[meshlet.VertOffset + gtid];
+		VSInput input = vertexBuffer[vertexIndex];
 
 		float4 localPos = float4(input.Position, 1.0f);
 		float4 worldPos = mul(World, localPos);
@@ -123,8 +126,8 @@ void main
 		outVerts[gtid] = output;
 	}
 
-	if (gtid < meshletInfo.TriCount)
+	if (gtid < meshlet.TriCount)
 	{
-		outTriIndices[gtid] = uint3(indices[meshletInfo.TriOffset + gtid], indices[meshletInfo.TriOffset + gtid + 1], indices[meshletInfo.TriOffset + gtid + 2]);
+		outTriIndices[gtid] = meshletsTriangles.Load3(meshlet.TriOffset + gtid * 3);
 	}
 }
