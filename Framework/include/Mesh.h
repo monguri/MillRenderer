@@ -45,7 +45,7 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetVertexBufferSBHandle() const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsSBHandle() const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsVerticesSBHandle() const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsTrianglesSBHandle() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsTrianglesBBHandle() const;
 
 	uint32_t GetMaterialId() const;
 	Mobility GetMobility() const;
@@ -59,7 +59,7 @@ private:
 	Resource m_CB[App::FRAME_COUNT];
 	Resource m_MeshletsSB;
 	Resource m_MeshletsVerticesSB;
-	Resource m_MeshletsTrianglesSB;
+	Resource m_MeshletsTrianglesBB;
 	uint32_t m_MaterialId;
 	size_t m_IndexCount;
 	size_t m_MeshletCount;

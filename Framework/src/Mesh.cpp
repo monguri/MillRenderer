@@ -90,7 +90,7 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_MeshletsTrianglesSB.InitAsByteAddressBuffer(
+		if (!m_MeshletsTrianglesBB.InitAsByteAddressBuffer(
 			pDevice,
 			resource.MeshletsTriangles.size(),
 			D3D12_RESOURCE_FLAG_NONE,
@@ -103,7 +103,7 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_MeshletsTrianglesSB.UploadBufferTypeData<uint8_t>(
+		if (!m_MeshletsTrianglesBB.UploadBufferTypeData<uint8_t>(
 			pDevice,
 			pCmdList,
 			resource.MeshletsTriangles.size(),
@@ -205,7 +205,7 @@ void Mesh::Term()
 
 	m_MeshletsSB.Term();
 	m_MeshletsVerticesSB.Term();
-	m_MeshletsTrianglesSB.Term();
+	m_MeshletsTrianglesBB.Term();
 
 	m_MaterialId = UINT32_MAX;
 	m_IndexCount = 0;
@@ -260,9 +260,9 @@ D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletsVerticesSBHandle() const
 	return m_MeshletsVerticesSB.GetHandleSRV()->HandleGPU;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletsTrianglesSBHandle() const
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletsTrianglesBBHandle() const
 {
-	return m_MeshletsTrianglesSB.GetHandleSRV()->HandleGPU;
+	return m_MeshletsTrianglesBB.GetHandleSRV()->HandleGPU;
 }
 
 uint32_t Mesh::GetMaterialId() const
