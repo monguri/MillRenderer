@@ -67,6 +67,7 @@ struct meshopt_Meshlet
 	uint TriCount;
 };
 
+//TODO: SponzaVS.hlslとSponzaMS.hlslで構造体定義が重複している
 //TODO: BasePassVS.hlslとBasePassMS.hlslで構造体定義が重複している
 struct VSInput
 {
