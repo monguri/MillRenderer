@@ -1,5 +1,186 @@
 #include "ShadowMap.hlsli"
 
+#ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
+	#define ROOT_SIGNATURE ""\
+	"RootFlags"\
+	"("\
+	"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+	" | DENY_HULL_SHADER_ROOT_ACCESS"\
+	" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+	" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+	" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+	")"\
+	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b6), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b7), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b8), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t8), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", StaticSampler"\
+	"("\
+	"s0"\
+	", filter = FILTER_ANISOTROPIC"\
+	", addressU = TEXTURE_ADDRESS_WRAP"\
+	", addressV = TEXTURE_ADDRESS_WRAP"\
+	", addressW = TEXTURE_ADDRESS_WRAP"\
+	", maxAnisotropy = 16"\
+	", comparisonFunc = COMPARISON_NEVER"\
+	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+	", visibility = SHADER_VISIBILITY_PIXEL"\
+	")"\
+	", StaticSampler"\
+	"("\
+	"s1"\
+	", filter = FILTER_MIN_MAG_MIP_POINT"\
+	", addressU = TEXTURE_ADDRESS_CLAMP"\
+	", addressV = TEXTURE_ADDRESS_CLAMP"\
+	", addressW = TEXTURE_ADDRESS_CLAMP"\
+	", maxAnisotropy = 1"\
+	", comparisonFunc = COMPARISON_NEVER"\
+	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+	", visibility = SHADER_VISIBILITY_PIXEL"\
+	")"
+#else // #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
+	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+		#define ROOT_SIGNATURE ""\
+		"RootFlags"\
+		"("\
+		"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+		" | DENY_HULL_SHADER_ROOT_ACCESS"\
+		" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+		" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+		" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+		")"\
+		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b6), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b7), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b8), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t8), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", StaticSampler"\
+		"("\
+		"s0"\
+		", filter = FILTER_ANISOTROPIC"\
+		", addressU = TEXTURE_ADDRESS_WRAP"\
+		", addressV = TEXTURE_ADDRESS_WRAP"\
+		", addressW = TEXTURE_ADDRESS_WRAP"\
+		", maxAnisotropy = 16"\
+		", comparisonFunc = COMPARISON_NEVER"\
+		", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+		", visibility = SHADER_VISIBILITY_PIXEL"\
+		")"\
+		", StaticSampler"\
+		"("\
+		"s1"\
+		", filter = FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT"\
+		", addressU = TEXTURE_ADDRESS_CLAMP"\
+		", addressV = TEXTURE_ADDRESS_CLAMP"\
+		", addressW = TEXTURE_ADDRESS_CLAMP"\
+		", maxAnisotropy = 1"\
+		", comparisonFunc = COMPARISON_LESS_EQUAL"\
+		", borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE"\
+		", visibility = SHADER_VISIBILITY_PIXEL"\
+		")"
+	#else // #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+		#define ROOT_SIGNATURE ""\
+		"RootFlags"\
+		"("\
+		"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+		" | DENY_HULL_SHADER_ROOT_ACCESS"\
+		" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+		" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+		" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+		")"\
+		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
+		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b6), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b7), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b8), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", DescriptorTable(SRV(t8), visibility = SHADER_VISIBILITY_PIXEL)"\
+		", StaticSampler"\
+		"("\
+		"s0"\
+		", filter = FILTER_ANISOTROPIC"\
+		", addressU = TEXTURE_ADDRESS_WRAP"\
+		", addressV = TEXTURE_ADDRESS_WRAP"\
+		", addressW = TEXTURE_ADDRESS_WRAP"\
+		", maxAnisotropy = 16"\
+		", comparisonFunc = COMPARISON_NEVER"\
+		", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+		", visibility = SHADER_VISIBILITY_PIXEL"\
+		")"\
+		", StaticSampler"\
+		"("\
+		"s1"\
+		", filter = FILTER_MIN_MAG_LINEAR_MIP_POINT"\
+		", addressU = TEXTURE_ADDRESS_CLAMP"\
+		", addressV = TEXTURE_ADDRESS_CLAMP"\
+		", addressW = TEXTURE_ADDRESS_CLAMP"\
+		", maxAnisotropy = 1"\
+		", comparisonFunc = COMPARISON_NEVER"\
+		", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+		", visibility = SHADER_VISIBILITY_PIXEL"\
+		")"
+	#endif // #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+#endif // #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
+
 //TODO: SponzaVS.hlslとSponzaMS.hlslで構造体定義が重複している
 //TODO: BasePassVS.hlslとBasePassMS.hlslで構造体定義が重複している
 struct VSInput
@@ -32,7 +213,11 @@ struct meshopt_Meshlet
 
 cbuffer CbTransform : register(b0)
 {
-	float4x4 ViewProj;
+	float4x4 ViewProj : packoffset(c0);
+	float4x4 WorldToDirLightShadowMap : packoffset(c4);
+	float4x4 WorldToSpotLight1ShadowMap : packoffset(c8);
+	float4x4 WorldToSpotLight2ShadowMap : packoffset(c12);
+	float4x4 WorldToSpotLight3ShadowMap : packoffset(c16);
 }
 
 cbuffer CbMesh : register(b1)
@@ -43,12 +228,9 @@ cbuffer CbMesh : register(b1)
 StructuredBuffer<VSInput> vertexBuffer : register(t0);
 StructuredBuffer<meshopt_Meshlet> meshlets : register(t1);
 StructuredBuffer<uint> meshletsVertices : register(t2);
-#if 0
-ByteAddressBuffer meshletsTriangles : register(t3);
-#else
 StructuredBuffer<uint> meshletsTriangles : register(t3);
-#endif
 
+[RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
 [OutputTopology("triangle")]
 void main
@@ -76,6 +258,19 @@ void main
 		output.Position = projPos;
 		output.TexCoord = input.TexCoord;
 		output.WorldPos = worldPos.xyz;
+
+		float4 dirLightShadowPos = mul(WorldToDirLightShadowMap, worldPos);
+		// dividing by w is not necessary because it is 1 by orthogonal.
+		output.DirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
+
+		float4 spotLight1ShadowPos = mul(WorldToSpotLight1ShadowMap, worldPos);
+		output.SpotLight1ShadowCoord = spotLight1ShadowPos.xyz / spotLight1ShadowPos.w;
+
+		float4 spotLight2ShadowPos = mul(WorldToSpotLight2ShadowMap, worldPos);
+		output.SpotLight2ShadowCoord = spotLight2ShadowPos.xyz / spotLight2ShadowPos.w;
+
+		float4 spotLight3ShadowPos = mul(WorldToSpotLight3ShadowMap, worldPos);
+		output.SpotLight3ShadowCoord = spotLight3ShadowPos.xyz / spotLight3ShadowPos.w;
 
 		float3 N = normalize(mul((float3x3)World, input.Normal));
 		float3 T = normalize(mul((float3x3)World, input.Tangent));

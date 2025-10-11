@@ -88,11 +88,7 @@ struct VSOutput
 StructuredBuffer<VSInput> vertexBuffer : register(t0);
 StructuredBuffer<meshopt_Meshlet> meshlets : register(t1);
 StructuredBuffer<uint> meshletsVertices : register(t2);
-#if 0
-ByteAddressBuffer meshletsTriangles : register(t3);
-#else
 StructuredBuffer<uint> meshletsTriangles : register(t3);
-#endif
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
