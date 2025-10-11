@@ -111,7 +111,7 @@ namespace
 		TONEMAP_KHRONOS_PBR_NEUTRAL,
 	};
 
-	enum DEBUG_VIEW_RENDER_TARGET
+	enum DEBUG_VIEW
 	{
 		DEBUG_VIEW_NONE = 0,
 		DEBUG_VIEW_DEPTH,
@@ -120,6 +120,7 @@ namespace
 		DEBUG_VIEW_SSAO_FULL_RES,
 		DEBUG_VIEW_SSAO_HALF_RES,
 		DEBUG_VIEW_SSGI,
+		DEBUG_VIEW_MESHLET_CLUSTER,
 	};
 
 	struct alignas(256) CbMesh
@@ -6966,6 +6967,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	switch (m_debugViewRenderTarget)
 	{
 		case DEBUG_VIEW_NONE:
+		case DEBUG_VIEW_MESHLET_CLUSTER:
 			renderTargetName = L"Final Result";
 			break;
 		case DEBUG_VIEW_DEPTH:
@@ -7001,6 +7003,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		{
 			case DEBUG_VIEW_NONE:
 			case DEBUG_VIEW_SSGI:
+			case DEBUG_VIEW_MESHLET_CLUSTER:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 1.0f;
 				ptr->Bias = 0.0f;
@@ -7045,6 +7048,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	switch (m_debugViewRenderTarget)
 	{
 		case DEBUG_VIEW_NONE:
+		case DEBUG_VIEW_MESHLET_CLUSTER:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
 		case DEBUG_VIEW_DEPTH:
@@ -7130,6 +7134,9 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::RadioButton("SSAO FullRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_FULL_RES);
 	ImGui::RadioButton("SSAO HalfRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_HALF_RES);
 	ImGui::RadioButton("SSGI", &m_debugViewRenderTarget, DEBUG_VIEW_SSGI);
+#if USE_MESHLET
+	ImGui::RadioButton("Meshlet Cluster", &m_debugViewRenderTarget, DEBUG_VIEW_MESHLET_CLUSTER);
+#endif
 	ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 
 	ImGui::SeparatorText("Light Intensity");
