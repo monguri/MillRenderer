@@ -470,11 +470,18 @@ namespace
 			indexCount,
 			vertexPositions.data(),
 			vertexCount,
-			sizeof(MeshVertex),
+			sizeof(float) * 3,
 			MAX_VERTS,
 			MAX_TRIS,
 			0.0f // cone culling‚ðŽg‚í‚È‚¢
 		);
+
+		// shrink to fit
+		const meshopt_Meshlet& lastMeshlet = dstMesh.Meshlets[meshletCount - 1];
+		dstMesh.MeshletsVertices.resize(lastMeshlet.vertex_offset + lastMeshlet.vertex_count);
+		dstMesh.MeshletsTriangles.resize(lastMeshlet.triangle_offset + lastMeshlet.triangle_count * 3);
+
+		dstMesh.Meshlets.resize(meshletCount);
 	}
 }
 
