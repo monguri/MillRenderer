@@ -6156,6 +6156,13 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 				continue;
 			}
 
+#if USE_MESHLET
+			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetVertexBufferSBHandle());
+			pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMesletsSBHandle());
+			pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMesletsVerticesSBHandle());
+			pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMesletsTrianglesBBHandle());
+#endif
+
 			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}
 	}
