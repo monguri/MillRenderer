@@ -2378,7 +2378,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());

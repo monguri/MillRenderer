@@ -1,3 +1,6 @@
+//#define USE_MANUAL_PCF_FOR_SHADOW_MAP
+#define USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+
 // referenced UE ShadowFilteringCommon.ush
 float4 CalculateOcclusion(float4 shadowMapDepth, float sceneDepth, float transitionScale)
 {
