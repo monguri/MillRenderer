@@ -5520,7 +5520,9 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandleGPU());
 
+#if !USE_MESHLET
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+#endif
 
 	// Opaqueマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
@@ -5540,7 +5542,9 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandleGPU());
 
+#if !USE_MESHLET
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+#endif
 
 	// Opaqueマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
@@ -6079,7 +6083,9 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
 	pCmdList->SetGraphicsRootSignature(m_ObjectVelocityRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_ObjectVelocityCB[m_FrameIndex].GetHandleGPU());
+#if !USE_MESHLET
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+#endif
 	pCmdList->SetPipelineState(m_pObjectVelocityPSO.Get());
 
 	// Movableなものだけ描画
