@@ -1,3 +1,15 @@
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+" | DENY_MESH_SHADER_ROOT_ACCESS"\
+")"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
+
 struct VSInput
 {
 	float3 Position : POSITION;
@@ -20,6 +32,7 @@ cbuffer CbObjectVelocity : register(b0)
 	float4x4 PrevWVPNoJitter : packoffset(c8);
 }
 
+[RootSignature(ROOT_SIGNATURE)]
 VSOutput main(VSInput input)
 {
 	VSOutput output = (VSOutput)0;

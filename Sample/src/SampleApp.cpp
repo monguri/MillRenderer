@@ -2350,7 +2350,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		// シャドウマップ描画用のパイプラインステートディスクリプタ
 #if USE_MESHLET 
 		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
-		desc.SampleMask = UINT_MAX;
 #else // #if USE_MESHLET 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.InputLayout = MeshVertex::InputLayout;
@@ -2617,7 +2616,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		// シャドウマップ描画用のパイプラインステートディスクリプタ
 #if USE_MESHLET 
 		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
-		desc.SampleMask = UINT_MAX;
 #else // #if USE_MESHLET 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 		desc.InputLayout = MeshVertex::InputLayout;
@@ -2984,6 +2982,46 @@ bool SampleApp::OnInit(HWND hWnd)
 
     // ObjectVelocity用ルートシグニチャとパイプラインステートの生成
 	{
+#if USE_MESHLET 
+		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
+#else // #if USE_MESHLET 
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+		desc.InputLayout = MeshVertex::InputLayout;
+#endif // #if USE_MESHLET 
+
+#if USE_MESHLET 
+		std::wstring msPath;
+		if (!SearchFilePath(L"ObjectVelocityMS.cso", msPath))
+		{
+			ELOG("Error : Mesh Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pMSBlob;
+		HRESULT hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
+			return false;
+		}
+
+		if (!m_ObjectVelocityRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
+		desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
+#else // #if USE_MESHLET 
 		std::wstring vsPath;
 		if (!SearchFilePath(L"ObjectVelocityVS.cso", vsPath))
 		{
@@ -2998,6 +3036,37 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
 			return false;
 		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		if (!m_ObjectVelocityRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+#endif // #if USE_MESHLET 
+
+		desc.pRootSignature = m_ObjectVelocityRootSig.GetPtr();
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		// SceneDepthはReverseZ
+		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
+		desc.SampleMask = UINT_MAX;
+		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_ObjectVelocityTarget.GetRTVDesc().Format;
+		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
 
 		std::wstring psPath;
 		if (!SearchFilePath(L"ObjectVelocityPS.cso", psPath))
@@ -3014,39 +3083,25 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		if (!m_ObjectVelocityRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout = MeshVertex::InputLayout;
-		desc.pRootSignature = m_ObjectVelocityRootSig.GetPtr();
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		// SceneDepthはReverseZ
-		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
-		desc.SampleMask = UINT_MAX;
-		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_ObjectVelocityTarget.GetRTVDesc().Format;
-		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
-		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 
+#if USE_MESHLET 
+		CD3DX12_PIPELINE_MESH_STATE_STREAM psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+		D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
+		streamDesc.pPipelineStateSubobjectStream = &psoStream;
+		streamDesc.SizeInBytes = sizeof(psoStream);
+
+		hr = m_pDevice->CreatePipelineState(
+			&streamDesc,
+			IID_PPV_ARGS(m_pObjectVelocityPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+#else // #if USE_MESHLET 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pObjectVelocityPSO.GetAddressOf())
@@ -3056,6 +3111,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 			return false;
 		}
+#endif // #if USE_MESHLET 
 	}
 
 	// スクリーンスペース描画パス用のInputElement。解放されないようにスコープ外で定義。

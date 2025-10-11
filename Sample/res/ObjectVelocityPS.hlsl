@@ -1,15 +1,3 @@
-#define ROOT_SIGNATURE ""\
-"RootFlags"\
-"("\
-"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
-" | DENY_HULL_SHADER_ROOT_ACCESS"\
-" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
-" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
-" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
-" | DENY_MESH_SHADER_ROOT_ACCESS"\
-")"\
-", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
-
 struct VSOutput
 {
 	float4 Position : SV_POSITION;
@@ -17,7 +5,6 @@ struct VSOutput
 	float4 PrevClipPos : PREV_CLIP_POSITION;
 };
 
-[RootSignature(ROOT_SIGNATURE)]
 float4 main(const VSOutput input) : SV_TARGET0
 {
 	float4 curNDCPos = input.CurClipPos / input.CurClipPos.w;
