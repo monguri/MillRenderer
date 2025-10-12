@@ -83,6 +83,7 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
+	uint MesletID : MESHLET_ID;
 };
 
 StructuredBuffer<VSInput> vertexBuffer : register(t0);
@@ -115,6 +116,8 @@ void main
 		float4 projPos = mul(ViewProj, worldPos);
 
 		VSOutput output = (VSOutput)0;
+		output.MesletID = gid;
+
 		output.Position = projPos;
 		output.TexCoord = input.TexCoord;
 		output.WorldPos = worldPos.xyz;

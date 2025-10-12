@@ -201,6 +201,7 @@ struct VSOutput
 	float3 SpotLight1ShadowCoord : TEXCOORD3;
 	float3 SpotLight2ShadowCoord : TEXCOORD4;
 	float3 SpotLight3ShadowCoord : TEXCOORD5;
+	uint MesletID : MESHLET_ID;
 };
 
 struct meshopt_Meshlet
@@ -255,6 +256,8 @@ void main
 		float4 projPos = mul(ViewProj, worldPos);
 
 		VSOutput output = (VSOutput)0;
+		output.MesletID = gid;
+
 		output.Position = projPos;
 		output.TexCoord = input.TexCoord;
 		output.WorldPos = worldPos.xyz;

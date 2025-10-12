@@ -195,7 +195,8 @@ namespace
 	struct alignas(256) CbCamera
 	{
 		Vector3 CameraPosition;
-		float Padding[1];
+		// TODO: 新規にCBを作りたくないので間借り。増えたら新規CBを作る。
+		int bDebugViewMeshletCluster;
 	};
 
 	struct alignas(256) CbMaterial
@@ -5766,6 +5767,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
 		ptr->CameraPosition = m_CameraManipulator.GetPosition();
+		ptr->bDebugViewMeshletCluster = (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_CLUSTER) ? 1 : 0;
 	}
 
 	// ライトバッファの更新
@@ -6975,14 +6977,13 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
-		case MESHLET_CLUSTER:
 			renderTargetName = L"Final Result";
 			break;
 		case DEPTH:
-			renderTargetName = L"Depth";
+			renderTargetName = L"SceneDepth";
 			break;
 		case NORMAL:
-			renderTargetName = L"Normal";
+			renderTargetName = L"SceneNormal";
 			break;
 		case SSAO_FULL_RES:
 			renderTargetName = L"SSAO Full Res";
@@ -6995,6 +6996,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			break;
 		case VELOCITY:
 			renderTargetName = L"Velocity";
+			break;
+		case MESHLET_CLUSTER:
+			renderTargetName = L"SceneColor";
 			break;
 		default:
 			assert(false);
@@ -7058,7 +7062,6 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
-		case MESHLET_CLUSTER:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
 		case DEPTH:
@@ -7078,6 +7081,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			break;
 		case VELOCITY:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTarget.GetHandleSRV()->HandleGPU);
+			break;
+		case MESHLET_CLUSTER:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 			break;
 		default:
 			assert(false);

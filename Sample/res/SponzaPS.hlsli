@@ -24,6 +24,7 @@ struct VSOutput
 	float3 SpotLight1ShadowCoord : TEXCOORD3;
 	float3 SpotLight2ShadowCoord : TEXCOORD4;
 	float3 SpotLight3ShadowCoord : TEXCOORD5;
+	uint MeshletID : MESHLET_ID;
 };
 
 struct PSOutput
@@ -36,6 +37,7 @@ struct PSOutput
 cbuffer CbCamera : register(b0)
 {
 	float3 CameraPosition : packoffset(c0);
+	int bDebugViewMeshletCluster : packoffset(c0.w);
 };
 
 cbuffer CbMaterial : register(b1)
@@ -536,7 +538,19 @@ PSOutput main(VSOutput input)
 		AO = AOMap.Sample(AnisotropicWrapSmp, input.TexCoord).r;
 	}
 
-	output.Color.rgb = lit * AO + emissive;
+	if (bDebugViewMeshletCluster == 0)
+	{
+		output.Color.rgb = lit * AO + emissive;
+	}
+	else
+	{
+		output.Color.rgb = float3
+		(
+			float((input.MeshletID & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
+			float((input.MeshletID & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
+			float((input.MeshletID & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
+		);
+	}
 	output.Color.a = 1.0f;
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;

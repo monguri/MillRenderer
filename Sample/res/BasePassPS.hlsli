@@ -6,6 +6,7 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
+	uint MeshletID : MESHLET_ID;
 };
 
 struct PSOutput
@@ -18,6 +19,7 @@ struct PSOutput
 cbuffer CbCamera : register(b0)
 {
 	float3 CameraPosition : packoffset(c0);
+	int bDebugViewMeshletCluster : packoffset(c0.w);
 };
 
 cbuffer CbMaterial : register(b1)
@@ -175,7 +177,7 @@ PSOutput main(VSOutput input)
 	lit += EvaluateIBLSpecular(NdotV, N, R, Ks, roughness, TextureSize, MipCount);
 #else
 
-	float3 cDiff = lerp(baseColor.rgb, 0.0f, metallic);
+	float3 cDiff = lerp(baseColor.rgb, 0.0f, metallic);;
 	float3 F0 = ComputeF0(baseColor.rgb, metallic);
 	float3 Fr = max(1.0f - roughness, F0) - F0;
 	
@@ -199,7 +201,19 @@ PSOutput main(VSOutput input)
 		AO = AOMap.Sample(AnisotropicWrapSmp, input.TexCoord).r;
 	}
 
-	output.Color.rgb = lit * LightIntensity * AO + emissive;
+	if (bDebugViewMeshletCluster == 0)
+	{
+		output.Color.rgb = lit * LightIntensity * AO + emissive;
+	}
+	else
+	{
+		output.Color.rgb = float3
+		(
+			float((input.MeshletID & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
+			float((input.MeshletID & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
+			float((input.MeshletID & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
+		);
+	}
 	output.Color.a = 1.0f;
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;
