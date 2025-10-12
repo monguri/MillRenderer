@@ -57,6 +57,8 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;NOMINMAX;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)..\include;$(ProjectDir)..\..\Framework\include;$(ProjectDir)..\..\assimp\include;$(ProjectDir)..\..\imgui;$(ProjectDir)..\..\meshoptimizer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -79,6 +81,8 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;NOMINMAX;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)..\include;$(ProjectDir)..\..\Framework\include;$(ProjectDir)..\..\assimp\include;$(ProjectDir)..\..\imgui;$(ProjectDir)..\..\meshoptimizer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
