@@ -113,14 +113,14 @@ namespace
 
 	enum DEBUG_VIEW
 	{
-		DEBUG_VIEW_NONE = 0,
-		DEBUG_VIEW_DEPTH,
-		DEBUG_VIEW_NORMAL,
-		DEBUG_VIEW_VELOCITY,
-		DEBUG_VIEW_SSAO_FULL_RES,
-		DEBUG_VIEW_SSAO_HALF_RES,
-		DEBUG_VIEW_SSGI,
-		DEBUG_VIEW_MESHLET_CLUSTER,
+		NONE = 0,
+		DEPTH,
+		NORMAL,
+		VELOCITY,
+		SSAO_FULL_RES,
+		SSAO_HALF_RES,
+		SSGI,
+		MESHLET_CLUSTER,
 	};
 
 	struct alignas(256) CbMesh
@@ -751,7 +751,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_enableTemporalAA(true)
 , m_enableFXAA(false)
 , m_enableFXAA_HighQuality(true)
-, m_debugViewRenderTarget(DEBUG_VIEW_NONE)
+, m_debugViewRenderTarget(NONE)
 , m_isLightManipulateMode(false)
 {
 }
@@ -6973,26 +6973,26 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	std::wstring renderTargetName;
 	switch (m_debugViewRenderTarget)
 	{
-		case DEBUG_VIEW_NONE:
-		case DEBUG_VIEW_MESHLET_CLUSTER:
+		case NONE:
+		case MESHLET_CLUSTER:
 			renderTargetName = L"Final Result";
 			break;
-		case DEBUG_VIEW_DEPTH:
+		case DEPTH:
 			renderTargetName = L"Depth";
 			break;
-		case DEBUG_VIEW_NORMAL:
+		case NORMAL:
 			renderTargetName = L"Normal";
 			break;
-		case DEBUG_VIEW_SSAO_FULL_RES:
+		case SSAO_FULL_RES:
 			renderTargetName = L"SSAO Full Res";
 			break;
-		case DEBUG_VIEW_SSAO_HALF_RES:
+		case SSAO_HALF_RES:
 			renderTargetName = L"SSAO Half Res";
 			break;
-		case DEBUG_VIEW_SSGI:
+		case SSGI:
 			renderTargetName = L"SSGI";
 			break;
-		case DEBUG_VIEW_VELOCITY:
+		case VELOCITY:
 			renderTargetName = L"Velocity";
 			break;
 		default:
@@ -7008,22 +7008,22 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 
 		switch (m_debugViewRenderTarget)
 		{
-			case DEBUG_VIEW_NONE:
-			case DEBUG_VIEW_SSGI:
-			case DEBUG_VIEW_MESHLET_CLUSTER:
+			case NONE:
+			case SSGI:
+			case MESHLET_CLUSTER:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 1.0f;
 				ptr->Bias = 0.0f;
 				break;
-			case DEBUG_VIEW_DEPTH:
-			case DEBUG_VIEW_SSAO_FULL_RES:
-			case DEBUG_VIEW_SSAO_HALF_RES:
+			case DEPTH:
+			case SSAO_FULL_RES:
+			case SSAO_HALF_RES:
 				ptr->bOnlyRedChannel = 1;
 				ptr->Scale = 1.0f;
 				ptr->Bias = 0.0f;
 				break;
-			case DEBUG_VIEW_NORMAL:
-			case DEBUG_VIEW_VELOCITY:
+			case NORMAL:
+			case VELOCITY:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 0.5f;
 				ptr->Bias = 0.5f;
@@ -7054,26 +7054,26 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandleGPU());
 	switch (m_debugViewRenderTarget)
 	{
-		case DEBUG_VIEW_NONE:
-		case DEBUG_VIEW_MESHLET_CLUSTER:
+		case NONE:
+		case MESHLET_CLUSTER:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
-		case DEBUG_VIEW_DEPTH:
+		case DEPTH:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 			break;
-		case DEBUG_VIEW_NORMAL:
+		case NORMAL:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
 			break;
-		case DEBUG_VIEW_SSAO_FULL_RES:
+		case SSAO_FULL_RES:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
 			break;
-		case DEBUG_VIEW_SSAO_HALF_RES:
+		case SSAO_HALF_RES:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
 			break;
-		case DEBUG_VIEW_SSGI:
+		case SSGI:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSGI_DenoiseTarget.GetHandleSRV()->HandleGPU);
 			break;
-		case DEBUG_VIEW_VELOCITY:
+		case VELOCITY:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 			break;
 		default:
@@ -7134,15 +7134,15 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
     ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
 
 	ImGui::SeparatorText("Debug View");
-	ImGui::RadioButton("No Debug View", &m_debugViewRenderTarget, DEBUG_VIEW_NONE);
-	ImGui::RadioButton("Depth", &m_debugViewRenderTarget, DEBUG_VIEW_DEPTH);
-	ImGui::RadioButton("Normal", &m_debugViewRenderTarget, DEBUG_VIEW_NORMAL);
-	ImGui::RadioButton("Velocity", &m_debugViewRenderTarget, DEBUG_VIEW_VELOCITY);
-	ImGui::RadioButton("SSAO FullRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_FULL_RES);
-	ImGui::RadioButton("SSAO HalfRes", &m_debugViewRenderTarget, DEBUG_VIEW_SSAO_HALF_RES);
-	ImGui::RadioButton("SSGI", &m_debugViewRenderTarget, DEBUG_VIEW_SSGI);
+	ImGui::RadioButton("No Debug View", &m_debugViewRenderTarget, NONE);
+	ImGui::RadioButton("Depth", &m_debugViewRenderTarget, DEPTH);
+	ImGui::RadioButton("Normal", &m_debugViewRenderTarget, NORMAL);
+	ImGui::RadioButton("Velocity", &m_debugViewRenderTarget, VELOCITY);
+	ImGui::RadioButton("SSAO FullRes", &m_debugViewRenderTarget, SSAO_FULL_RES);
+	ImGui::RadioButton("SSAO HalfRes", &m_debugViewRenderTarget, SSAO_HALF_RES);
+	ImGui::RadioButton("SSGI", &m_debugViewRenderTarget, SSGI);
 #if USE_MESHLET
-	ImGui::RadioButton("Meshlet Cluster", &m_debugViewRenderTarget, DEBUG_VIEW_MESHLET_CLUSTER);
+	ImGui::RadioButton("Meshlet Cluster", &m_debugViewRenderTarget, MESHLET_CLUSTER);
 #endif
 	ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 
