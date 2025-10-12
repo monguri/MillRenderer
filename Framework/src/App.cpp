@@ -497,8 +497,41 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 			continue;
 		}
 
-		// Check feature support. D3D12_OPTIONS5 is needed for ray tracing.
-		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5;
+		// Check feature support.
+
+		// Dynamic resources.
+		D3D12_FEATURE_DATA_D3D12_OPTIONS features = {};
+		hr = m_pDevice->CheckFeatureSupport(
+			D3D12_FEATURE_D3D12_OPTIONS,
+			&features,
+			sizeof(features)
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (features.ResourceBindingTier < D3D12_RESOURCE_BINDING_TIER_3)
+		{
+			continue;
+		}
+
+		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = {};
+		hr = m_pDevice->CheckFeatureSupport(
+			D3D12_FEATURE_SHADER_MODEL,
+			&shaderModel,
+			sizeof(shaderModel)
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_6)
+		{
+			continue;
+		}
+
+		// D3D12_OPTIONS5 is needed for ray tracing.
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5 = {};
 		hr = m_pDevice->CheckFeatureSupport(
 			D3D12_FEATURE_D3D12_OPTIONS5,
 			&features5,
