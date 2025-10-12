@@ -34,6 +34,32 @@
 
 using namespace DirectX::SimpleMath;
 
+enum class COLOR_SPACE : int
+{
+	BT709,
+	BT2100_PQ,
+};
+
+enum class TONE_MAP : int
+{
+	NONE = 0,
+	REINHARD,
+	GRAN_TURISMO,
+	KHRONOS_PBR_NEUTRAL,
+};
+
+enum class DEBUG_VIEW_MODE : int
+{
+	NONE = 0,
+	DEPTH,
+	NORMAL,
+	VELOCITY,
+	SSAO_FULL_RES,
+	SSAO_HALF_RES,
+	SSGI,
+	MESHLET_CLUSTER,
+};
+
 namespace
 {
 	static constexpr float CAMERA_FOV_Y_DEGREE = 37.5f;
@@ -96,20 +122,6 @@ namespace
 	static constexpr float SKY_BOX_HALF_EXTENT = 50.0f;
 
 	static constexpr uint32_t MESHLET_ROOT_PARAM_COUNT = USE_MESHLET ? 4 : 0;
-
-	enum COLOR_SPACE_TYPE
-	{
-		COLOR_SPACE_BT709,
-		COLOR_SPACE_BT2100_PQ,
-	};
-
-	enum TONEMAP_TYPE
-	{
-		TONEMAP_NONE = 0,
-		TONEMAP_REINHARD,
-		TONEMAP_GT,
-		TONEMAP_KHRONOS_PBR_NEUTRAL,
-	};
 
 	struct alignas(256) CbMesh
 	{
@@ -707,8 +719,8 @@ namespace
 
 SampleApp::SampleApp(uint32_t width, uint32_t height)
 : App(width, height, DXGI_FORMAT_R10G10B10A2_UNORM)
-, m_TonemapType(TONEMAP_GT)
-, m_ColorSpace(COLOR_SPACE_BT709)
+, m_ToneMapType(TONE_MAP::GRAN_TURISMO)
+, m_ColorSpace(COLOR_SPACE::BT709)
 , m_BaseLuminance(100.0f)
 , m_MaxLuminance(100.0f)
 , m_PrevCursorX(0)
@@ -6785,8 +6797,8 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 
 	{
 		CbTonemap* ptr = m_TonemapCB[m_FrameIndex].GetPtr<CbTonemap>();
-		ptr->Type = m_TonemapType;
-		ptr->ColorSpace = m_ColorSpace;
+		ptr->Type = static_cast<int>(m_ToneMapType);
+		ptr->ColorSpace = static_cast<int>(m_ColorSpace);
 		ptr->BaseLuminance = m_BaseLuminance;
 		ptr->MaxLuminance = m_MaxLuminance;
 		ptr->BloomIntensity = m_BloomIntensity;
@@ -7180,10 +7192,11 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 
 	ImGui::SeparatorText("Tonemap");
 	{
-		ImGui::RadioButton("No Tonemap", &m_TonemapType, TONEMAP_NONE);
-		ImGui::RadioButton("Reinhard", &m_TonemapType, TONEMAP_REINHARD);
-		ImGui::RadioButton("Gran Turismo", &m_TonemapType, TONEMAP_GT);
-		ImGui::RadioButton("Khronos PBR Neutral", &m_TonemapType, TONEMAP_KHRONOS_PBR_NEUTRAL);
+		using enum TONE_MAP;
+		ImGui::RadioButton("No Tonemap", reinterpret_cast<int*>(&m_ToneMapType), static_cast<int>(NONE));
+		ImGui::RadioButton("Reinhard", reinterpret_cast<int*>(&m_ToneMapType), static_cast<int>(REINHARD));
+		ImGui::RadioButton("Gran Turismo", reinterpret_cast<int*>(&m_ToneMapType), static_cast<int>(GRAN_TURISMO));
+		ImGui::RadioButton("Khronos PBR Neutral", reinterpret_cast<int*>(&m_ToneMapType), static_cast<int>(KHRONOS_PBR_NEUTRAL));
 	}
 
 	ImGui::SeparatorText("Other Postprocess");

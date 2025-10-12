@@ -25,18 +25,6 @@ private:
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
 
-	enum class DEBUG_VIEW_MODE : int
-	{
-		NONE = 0,
-		DEPTH,
-		NORMAL,
-		VELOCITY,
-		SSAO_FULL_RES,
-		SSAO_HALF_RES,
-		SSGI,
-		MESHLET_CLUSTER,
-	};
-
 	Texture m_DummyTexture;
 	ComPtr<ID3D12PipelineState> m_pSkyTransmittanceLUT_PSO;
 	RootSignature m_SkyTransmittanceLUT_RootSig;
@@ -174,8 +162,8 @@ private:
 	std::vector<class Model*> m_pModels;
 	std::vector<DescriptorHandle*> m_pHZB_ParentMipSRVs;
 	float m_RotateAngle;
-	int m_TonemapType;
-	int m_ColorSpace;
+	enum class TONE_MAP m_ToneMapType;
+	enum class COLOR_SPACE m_ColorSpace;
 	float m_BaseLuminance;
 	float m_MaxLuminance;
 	TransformManipulator m_CameraManipulator;
@@ -210,7 +198,7 @@ private:
 	bool m_enableTemporalAA;
 	bool m_enableFXAA;
 	bool m_enableFXAA_HighQuality;
-	DEBUG_VIEW_MODE m_debugViewMode;
+	enum class DEBUG_VIEW_MODE m_debugViewMode;
 	bool m_isLightManipulateMode;
 
 	virtual bool OnInit(HWND hWnd) override;
