@@ -77,6 +77,8 @@ DescriptorHandle* DescriptorPool::AllocHandle()
 {
 	const auto& func = [&](uint32_t index, DescriptorHandle* pHandle)
 	{
+		pHandle->m_IndexInDescriptorHeap = index;
+
 		D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = m_pHeap->GetCPUDescriptorHandleForHeapStart();
 		handleCPU.ptr += m_DescriptorSize * index;
 		

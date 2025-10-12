@@ -8,8 +8,16 @@
 class DescriptorHandle
 {
 public:
+	// DescriptorPool.m_DescriptorSizeがわかっていればm_IndexInDescriptorHeapからHandleCPU/HandleGPUは計算できるし、
+	// 逆もしかりなのでメモリ的には無駄だが、利便性のために持っておく。
+	uint32_t m_IndexInDescriptorHeap = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE HandleCPU;
 	D3D12_GPU_DESCRIPTOR_HANDLE HandleGPU;
+
+	uint32_t GetIndexInDescriptorHeap() const
+	{
+		return m_IndexInDescriptorHeap;
+	}
 
 	bool HasCPU() const
 	{
@@ -34,7 +42,6 @@ public:
 	void AddRef();
 	void Release();
 	uint32_t GetCount() const;
-
 
 	DescriptorHandle* AllocHandle();
 	void FreeHandle(DescriptorHandle*& pHandle);
