@@ -111,18 +111,6 @@ namespace
 		TONEMAP_KHRONOS_PBR_NEUTRAL,
 	};
 
-	enum DEBUG_VIEW
-	{
-		NONE = 0,
-		DEPTH,
-		NORMAL,
-		VELOCITY,
-		SSAO_FULL_RES,
-		SSAO_HALF_RES,
-		SSGI,
-		MESHLET_CLUSTER,
-	};
-
 	struct alignas(256) CbMesh
 	{
 		Matrix World;
@@ -751,7 +739,7 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_enableTemporalAA(true)
 , m_enableFXAA(false)
 , m_enableFXAA_HighQuality(true)
-, m_debugViewRenderTarget(NONE)
+, m_debugViewMode(DEBUG_VIEW_MODE::NONE)
 , m_isLightManipulateMode(false)
 {
 }
@@ -6971,8 +6959,9 @@ void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarge
 void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
 	std::wstring renderTargetName;
-	switch (m_debugViewRenderTarget)
+	switch (m_debugViewMode)
 	{
+		using enum DEBUG_VIEW_MODE;
 		case NONE:
 		case MESHLET_CLUSTER:
 			renderTargetName = L"Final Result";
@@ -7006,8 +6995,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		CbSampleTexture* ptr = m_BackBufferCB.GetPtr<CbSampleTexture>();
 		ptr->Contrast = m_debugViewContrast;
 
-		switch (m_debugViewRenderTarget)
+		switch (m_debugViewMode)
 		{
+			using enum DEBUG_VIEW_MODE;
 			case NONE:
 			case SSGI:
 			case MESHLET_CLUSTER:
@@ -7052,8 +7042,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_BackBufferRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pBackBufferPSO.Get());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandleGPU());
-	switch (m_debugViewRenderTarget)
+	switch (m_debugViewMode)
 	{
+		using enum DEBUG_VIEW_MODE;
 		case NONE:
 		case MESHLET_CLUSTER:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
@@ -7134,56 +7125,75 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
     ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
 
 	ImGui::SeparatorText("Debug View");
-	ImGui::RadioButton("No Debug View", &m_debugViewRenderTarget, NONE);
-	ImGui::RadioButton("Depth", &m_debugViewRenderTarget, DEPTH);
-	ImGui::RadioButton("Normal", &m_debugViewRenderTarget, NORMAL);
-	ImGui::RadioButton("Velocity", &m_debugViewRenderTarget, VELOCITY);
-	ImGui::RadioButton("SSAO FullRes", &m_debugViewRenderTarget, SSAO_FULL_RES);
-	ImGui::RadioButton("SSAO HalfRes", &m_debugViewRenderTarget, SSAO_HALF_RES);
-	ImGui::RadioButton("SSGI", &m_debugViewRenderTarget, SSGI);
+	{
+		using enum DEBUG_VIEW_MODE;
+		ImGui::RadioButton("No Debug View", reinterpret_cast<int*>(& m_debugViewMode), static_cast<int>(NONE));
+		ImGui::RadioButton("Depth", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(DEPTH));
+		ImGui::RadioButton("Normal", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(NORMAL));
+		ImGui::RadioButton("Velocity", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(VELOCITY));
+		ImGui::RadioButton("SSAO FullRes", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSAO_FULL_RES));
+		ImGui::RadioButton("SSAO HalfRes", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSAO_HALF_RES));
+		ImGui::RadioButton("SSGI", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSGI));
 #if USE_MESHLET
-	ImGui::RadioButton("Meshlet Cluster", &m_debugViewRenderTarget, MESHLET_CLUSTER);
+		ImGui::RadioButton("Meshlet Cluster", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_CLUSTER));
 #endif
-	ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
+		ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
+	}
 
 	ImGui::SeparatorText("Light Intensity");
-	ImGui::SliderFloat("Dir Light Intensity", &m_directionalLightIntensity, 0.0f, 100.0f);
-	ImGui::SliderFloat("Point Light Intensity", &m_pointLightIntensity, 0.0f, 1000.0f);
-	ImGui::SliderFloat("Spot Light Intensity", &m_spotLightIntensity, 0.0f, 10000.0f);
+	{
+		ImGui::SliderFloat("Dir Light Intensity", &m_directionalLightIntensity, 0.0f, 100.0f);
+		ImGui::SliderFloat("Point Light Intensity", &m_pointLightIntensity, 0.0f, 1000.0f);
+		ImGui::SliderFloat("Spot Light Intensity", &m_spotLightIntensity, 0.0f, 10000.0f);
+	}
 
 	ImGui::SeparatorText("Velocity and Motion Blur");
-	ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
-	ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
-	ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
+	{
+		ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
+		ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
+		ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
+	}
 
 	ImGui::SeparatorText("SSAO");
-	ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.01f, 10.0f, "%f", ImGuiSliderFlags_Logarithmic);
-	ImGui::SliderFloat("SSAO Intensity", &m_SSAO_Intensity, 0.0f, 1.0f);
+	{
+		ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.01f, 10.0f, "%f", ImGuiSliderFlags_Logarithmic);
+		ImGui::SliderFloat("SSAO Intensity", &m_SSAO_Intensity, 0.0f, 1.0f);
+	}
 
 	ImGui::SeparatorText("SSGI(WIP)");
-	ImGui::SliderFloat("SSGI Intensity", &m_SSGI_Intensity, 0.0f, 1.0f);
+	{
+		ImGui::SliderFloat("SSGI Intensity", &m_SSGI_Intensity, 0.0f, 1.0f);
+	}
 
 	ImGui::SeparatorText("Volumetric Fog Intensity");
-	ImGui::SliderFloat("Dir Light Scattering", &m_directionalLightVolumetricFogScatteringIntensity, 0.0f, 10000.0f);
-	ImGui::SliderFloat("Spot Light Scattering", &m_spotLightVolumetricFogScatteringIntensity, 0.0f, 100000.0f);
+	{
+		ImGui::SliderFloat("Dir Light Scattering", &m_directionalLightVolumetricFogScatteringIntensity, 0.0f, 10000.0f);
+		ImGui::SliderFloat("Spot Light Scattering", &m_spotLightVolumetricFogScatteringIntensity, 0.0f, 100000.0f);
+	}
 
 	ImGui::SeparatorText("AA");
-	ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
-	ImGui::Checkbox("FXAA", &m_enableFXAA);
-	ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
+	{
+		ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
+		ImGui::Checkbox("FXAA", &m_enableFXAA);
+		ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
+	}
 
 	ImGui::SeparatorText("Tonemap");
-	ImGui::RadioButton("No Tonemap", &m_TonemapType, TONEMAP_NONE);
-	ImGui::RadioButton("Reinhard", &m_TonemapType, TONEMAP_REINHARD);
-	ImGui::RadioButton("Gran Turismo", &m_TonemapType, TONEMAP_GT);
-	ImGui::RadioButton("Khronos PBR Neutral", &m_TonemapType, TONEMAP_KHRONOS_PBR_NEUTRAL);
+	{
+		ImGui::RadioButton("No Tonemap", &m_TonemapType, TONEMAP_NONE);
+		ImGui::RadioButton("Reinhard", &m_TonemapType, TONEMAP_REINHARD);
+		ImGui::RadioButton("Gran Turismo", &m_TonemapType, TONEMAP_GT);
+		ImGui::RadioButton("Khronos PBR Neutral", &m_TonemapType, TONEMAP_KHRONOS_PBR_NEUTRAL);
+	}
 
 	ImGui::SeparatorText("Other Postprocess");
-	ImGui::SliderFloat("SSR Intensity", &m_SSR_Intensity, 0.0f, 10.0f);
-#if 0 // TODO: SSRだけでなくVolumetricFogも表示されるので、一旦機能をカット。将来的に他のパスについてもDebugViewを一通り揃えるなら改めてSSRについても正しいものを追加する
-	ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
-#endif
-	ImGui::SliderFloat("Bloom Intensity", &m_BloomIntensity, 0.0f, 10.0f);
+	{
+		ImGui::SliderFloat("SSR Intensity", &m_SSR_Intensity, 0.0f, 10.0f);
+	#if 0 // TODO: SSRだけでなくVolumetricFogも表示されるので、一旦機能をカット。将来的に他のパスについてもDebugViewを一通り揃えるなら改めてSSRについても正しいものを追加する
+		ImGui::Checkbox("Debug View SSR", &m_debugViewSSR);
+	#endif
+		ImGui::SliderFloat("Bloom Intensity", &m_BloomIntensity, 0.0f, 10.0f);
+	}
 
 	ImGui::End();
 

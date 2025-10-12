@@ -25,6 +25,18 @@ private:
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
 
+	enum class DEBUG_VIEW_MODE : int
+	{
+		NONE = 0,
+		DEPTH,
+		NORMAL,
+		VELOCITY,
+		SSAO_FULL_RES,
+		SSAO_HALF_RES,
+		SSGI,
+		MESHLET_CLUSTER,
+	};
+
 	Texture m_DummyTexture;
 	ComPtr<ID3D12PipelineState> m_pSkyTransmittanceLUT_PSO;
 	RootSignature m_SkyTransmittanceLUT_RootSig;
@@ -198,7 +210,7 @@ private:
 	bool m_enableTemporalAA;
 	bool m_enableFXAA;
 	bool m_enableFXAA_HighQuality;
-	int m_debugViewRenderTarget;
+	DEBUG_VIEW_MODE m_debugViewMode;
 	bool m_isLightManipulateMode;
 
 	virtual bool OnInit(HWND hWnd) override;
