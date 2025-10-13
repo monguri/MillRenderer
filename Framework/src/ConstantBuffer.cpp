@@ -110,29 +110,9 @@ void ConstantBuffer::Term()
 	m_pMappedPtr = nullptr;
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS ConstantBuffer::GetAddress() const
+DescriptorHandle* ConstantBuffer::GetHandle() const
 {
-	return m_Desc.BufferLocation;
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE ConstantBuffer::GetHandleCPU() const
-{
-	if (m_pHandle != nullptr)
-	{
-		return m_pHandle->HandleCPU;
-	}
-
-	return D3D12_CPU_DESCRIPTOR_HANDLE();
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE ConstantBuffer::GetHandleGPU() const
-{
-	if (m_pHandle != nullptr)
-	{
-		return m_pHandle->HandleGPU;
-	}
-
-	return D3D12_GPU_DESCRIPTOR_HANDLE();
+	return m_pHandle;
 }
 
 void* ConstantBuffer::GetPtr() const

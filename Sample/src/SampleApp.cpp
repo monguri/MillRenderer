@@ -31,6 +31,9 @@
 #define RENDER_SPONZA true
 // MeshをMeshletとMSで描画する場合はtrueにする
 #define USE_MESHLET true
+// Dynamic Resourcesを使うかどうか
+// TODO:現在適用しているのはMesh描画のみ
+#define USE_DYNAMIC_RESOURCE false
 
 using namespace DirectX::SimpleMath;
 
@@ -5576,7 +5579,15 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 	pCmdList->RSSetViewports(1, &m_DirLightShadowMapViewport);
 	pCmdList->RSSetScissorRects(1, &m_DirLightShadowMapScissor);
 	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandleGPU());
+	if (USE_DYNAMIC_RESOURCE)
+	{
+		//uint32_t descHeapIdx = m_DirLightShadowMapTransformCB[m_FrameIndex]
+		//pCmdList->SetGraphicsRoot32BitConstants(0, 1, m_DirLightShadowMapTransformCB[m_FrameIndex].GetGPUVirtualAddress(), 0);
+	}
+	else
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	}
 
 #if !USE_MESHLET
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -5598,7 +5609,13 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 	assert(RENDER_SPONZA);
 
 	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandleGPU());
+	if (USE_DYNAMIC_RESOURCE)
+	{
+	}
+	else
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandle()->HandleGPU);
+	}
 
 #if !USE_MESHLET
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -5621,7 +5638,7 @@ void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_SkyTransmittanceLUT_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSkyTransmittanceLUT_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_SkyTransmittanceLUT_Target.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
@@ -5646,7 +5663,7 @@ void SampleApp::DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_SkyMultiScatteringLUT_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSkyMultiScatteringLUT_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_SkyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_SkyMultiScatteringLUT_Target.GetHandleUAVs()[0]->HandleGPU);
 
@@ -5677,8 +5694,8 @@ void SampleApp::DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const Matrix
 
 	pCmdList->SetComputeRootSignature(m_SkyViewLUT_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSkyViewLUT_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SkyAtmosphereCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_SkyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_SkyMultiScatteringLUT_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, m_SkyViewLUT_Target.GetHandleUAVs()[0]->HandleGPU);
@@ -5707,8 +5724,8 @@ void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_VolumetricCloudRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricCloudPSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricCloudCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricCloudCB.GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_CloudTracingTarget.GetHandleUAVs()[0]->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_CloudSecondaryTracingTarget.GetHandleUAVs()[0]->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, m_CloudTracingDepthTarget.GetHandleUAVs()[0]->HandleGPU);
@@ -5820,47 +5837,54 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
 	if (RENDER_SPONZA)
 	{
-		pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
+			pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
 	}
 	else
 	{
 		pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	}
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetGraphicsRootDescriptorTable(2 + MESHLET_ROOT_PARAM_COUNT, m_CameraCB[m_FrameIndex].GetHandleGPU());
 
-	if (RENDER_SPONZA)
+	if (USE_DYNAMIC_RESOURCE)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(4 + MESHLET_ROOT_PARAM_COUNT, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
-
-		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(5 + MESHLET_ROOT_PARAM_COUNT + i, m_PointLightCB[i].GetHandleGPU());
-		}
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(9 + MESHLET_ROOT_PARAM_COUNT + i, m_SpotLightCB[i].GetHandleGPU());
-		}
 	}
 	else
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(4 + MESHLET_ROOT_PARAM_COUNT, m_IBL_CB.GetHandleGPU());
-	}
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2 + MESHLET_ROOT_PARAM_COUNT, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 
-	if (RENDER_SPONZA)
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(17 + MESHLET_ROOT_PARAM_COUNT, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		if (RENDER_SPONZA)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(18 + MESHLET_ROOT_PARAM_COUNT + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(4 + MESHLET_ROOT_PARAM_COUNT, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
+
+			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(5 + MESHLET_ROOT_PARAM_COUNT + i, m_PointLightCB[i].GetHandle()->HandleGPU);
+			}
+
+			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(9 + MESHLET_ROOT_PARAM_COUNT + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
+			}
 		}
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(10 + MESHLET_ROOT_PARAM_COUNT, m_IBLBaker.GetHandleGPU_DFG());
-		pCmdList->SetGraphicsRootDescriptorTable(11 + MESHLET_ROOT_PARAM_COUNT, m_IBLBaker.GetHandleGPU_DiffuseLD());
-		pCmdList->SetGraphicsRootDescriptorTable(12 + MESHLET_ROOT_PARAM_COUNT, m_IBLBaker.GetHandleGPU_SpecularLD());
+		else
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(4 + MESHLET_ROOT_PARAM_COUNT, m_IBL_CB.GetHandle()->HandleGPU);
+		}
+
+		if (RENDER_SPONZA)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(17 + MESHLET_ROOT_PARAM_COUNT, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(18 + MESHLET_ROOT_PARAM_COUNT + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+			}
+		}
+		else
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(10 + MESHLET_ROOT_PARAM_COUNT, m_IBLBaker.GetHandleGPU_DFG());
+			pCmdList->SetGraphicsRootDescriptorTable(11 + MESHLET_ROOT_PARAM_COUNT, m_IBLBaker.GetHandleGPU_DiffuseLD());
+			pCmdList->SetGraphicsRootDescriptorTable(12 + MESHLET_ROOT_PARAM_COUNT, m_IBLBaker.GetHandleGPU_SpecularLD());
+		}
 	}
 
 #if !USE_MESHLET
@@ -5938,30 +5962,36 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 				continue;
 			}
 
-			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex));
-#if USE_MESHLET
-			pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle());
-			pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMesletsSBHandle());
-			pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMesletsVerticesSBHandle());
-			pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMesletsTrianglesBBHandle());
-#endif
-			pCmdList->SetGraphicsRootDescriptorTable(3 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetBufferHandle());
-
-			if (RENDER_SPONZA)
+			if (USE_DYNAMIC_RESOURCE)
 			{
-				pCmdList->SetGraphicsRootDescriptorTable(12 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
-				pCmdList->SetGraphicsRootDescriptorTable(13 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-				pCmdList->SetGraphicsRootDescriptorTable(14 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
-				pCmdList->SetGraphicsRootDescriptorTable(15 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
-				pCmdList->SetGraphicsRootDescriptorTable(16 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
 			}
 			else
 			{
-				pCmdList->SetGraphicsRootDescriptorTable(5 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
-				pCmdList->SetGraphicsRootDescriptorTable(6 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
-				pCmdList->SetGraphicsRootDescriptorTable(7 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
-				pCmdList->SetGraphicsRootDescriptorTable(8 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
-				pCmdList->SetGraphicsRootDescriptorTable(9 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex));
+#if USE_MESHLET
+				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle());
+				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMesletsSBHandle());
+				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMesletsVerticesSBHandle());
+				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMesletsTrianglesBBHandle());
+#endif
+				pCmdList->SetGraphicsRootDescriptorTable(3 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetBufferHandle());
+
+				if (RENDER_SPONZA)
+				{
+					pCmdList->SetGraphicsRootDescriptorTable(12 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
+					pCmdList->SetGraphicsRootDescriptorTable(13 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+					pCmdList->SetGraphicsRootDescriptorTable(14 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
+					pCmdList->SetGraphicsRootDescriptorTable(15 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
+					pCmdList->SetGraphicsRootDescriptorTable(16 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+				}
+				else
+				{
+					pCmdList->SetGraphicsRootDescriptorTable(5 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_BASE_COLOR));
+					pCmdList->SetGraphicsRootDescriptorTable(6 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS));
+					pCmdList->SetGraphicsRootDescriptorTable(7 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_NORMAL));
+					pCmdList->SetGraphicsRootDescriptorTable(8 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_EMISSIVE));
+					pCmdList->SetGraphicsRootDescriptorTable(9 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION));
+				}
 			}
 
 			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
@@ -6004,7 +6034,7 @@ void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_HCB_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pHCB_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_HCB_CB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_HCB_CB.GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 
 	for (uint32_t mip = 0; mip < HCB_MAX_NUM_OUTPUT_MIP; mip++)
@@ -6084,7 +6114,7 @@ void SampleApp::DrawHZB(ID3D12GraphicsCommandList* pCmdList)
 
 		pCmdList->SetComputeRootSignature(m_HZB_RootSig.GetPtr());
 		pCmdList->SetPipelineState(m_pHZB_PSO.Get());
-		pCmdList->SetComputeRootDescriptorTable(0, m_pHZB_CBs[i]->GetHandleGPU());
+		pCmdList->SetComputeRootDescriptorTable(0, m_pHZB_CBs[i]->GetHandle()->HandleGPU);
 		if (i == 0)
 		{
 			pCmdList->SetComputeRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
@@ -6141,7 +6171,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 
 	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
 	pCmdList->SetGraphicsRootSignature(m_ObjectVelocityRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_ObjectVelocityCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_ObjectVelocityCB[m_FrameIndex].GetHandle()->HandleGPU);
 #if !USE_MESHLET
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 #endif
@@ -6191,7 +6221,7 @@ void SampleApp::DrawCameraVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	m_VelocityTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_CameraVelocityRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraVelocityCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraVelocityCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_ObjectVelocityTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pCameraVelocityPSO.Get());
@@ -6220,7 +6250,7 @@ void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
 	m_SSAOSetupTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_SSAOSetupRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAOSetupCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAOSetupCB.GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pSSAOSetupPSO.Get());
@@ -6270,7 +6300,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 		m_SSAO_HalfResTarget.ClearView(pCmdList);
 
 		pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResCB[m_FrameIndex].GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_HalfResCB[m_FrameIndex].GetHandle()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_SSAOSetupTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTex.GetHandleGPU());
@@ -6318,7 +6348,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 		m_SSAO_FullResTarget.ClearView(pCmdList);
 
 		pCmdList->SetGraphicsRootSignature(m_SSAO_RootSig.GetPtr());
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResCB[m_FrameIndex].GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAO_FullResCB[m_FrameIndex].GetHandle()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_SSAOSetupTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTex.GetHandleGPU());
@@ -6359,7 +6389,7 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 	pCmdList->SetComputeRootSignature(m_SSGI_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSSGI_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_CB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_CB.GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_HCB_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_HZB_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
@@ -6390,7 +6420,7 @@ void SampleApp::DrawSSGI_Denoise(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_SSGI_DenoiseRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSSGI_DenoisePSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_DenoiseCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_DenoiseCB.GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_SSGI_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_SSGI_DenoiseTarget.GetHandleUAVs()[0]->HandleGPU);
 
@@ -6420,7 +6450,7 @@ void SampleApp::DrawSSGI_TemporalAccumulation(ID3D12GraphicsCommandList* pCmdLis
 
 	pCmdList->SetComputeRootSignature(m_SSGI_TemporalAccumulationRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pSSGI_TemporalAccumulationPSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_DenoiseCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_DenoiseCB.GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_SSGI_DenoiseTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, prevTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_VelocityTarget.GetHandleSRV()->HandleGPU);
@@ -6493,7 +6523,7 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	m_SSR_Target.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_SSR_RootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSR_CB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSR_CB.GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
@@ -6539,14 +6569,14 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 
 	pCmdList->SetComputeRootSignature(m_VolumetricFogScatteringRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricFogScatteringPSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(1, m_DirectionalLightCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
 	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 	{
-		pCmdList->SetComputeRootDescriptorTable(2 + i, m_SpotLightCB[i].GetHandleGPU());
+		pCmdList->SetComputeRootDescriptorTable(2 + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
 	}
-	pCmdList->SetComputeRootDescriptorTable(2 + NUM_SPOT_LIGHTS, m_CameraCB[m_FrameIndex].GetHandleGPU());
-	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_TransformCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(2 + NUM_SPOT_LIGHTS, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 	pCmdList->SetComputeRootDescriptorTable(4 + NUM_SPOT_LIGHTS, prevTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(5 + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
@@ -6585,7 +6615,7 @@ void SampleApp::DrawVolumetricFogIntegration(ID3D12GraphicsCommandList* pCmdList
 
 	pCmdList->SetComputeRootSignature(m_VolumetricFogIntegrationRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pVolumetricFogIntegrationPSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_VolumetricFogCB.GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, curTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_VolumetricFogIntegrationTarget.GetHandleUAVs()[0]->HandleGPU);
 
@@ -6615,7 +6645,7 @@ void SampleApp::DrawVolumetricFogComposition(ID3D12GraphicsCommandList* pCmdList
 	m_VolumetricCompositionTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_VolumetricFogCompositionRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_VolumetricFogCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_VolumetricFogCB.GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SSR_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_VolumetricFogIntegrationTarget.GetHandleSRV()->HandleGPU);
@@ -6691,7 +6721,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float tempor
 
 	pCmdList->SetComputeRootSignature(m_TemporalAA_RootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pTemporalAA_PSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAA_CB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetComputeRootDescriptorTable(0, m_TemporalAA_CB[m_FrameIndex].GetHandle()->HandleGPU);
 	if (RENDER_SPONZA)
 	{
 		pCmdList->SetComputeRootDescriptorTable(1, m_VolumetricCompositionTarget.GetHandleSRV()->HandleGPU);
@@ -6744,7 +6774,7 @@ void SampleApp::DrawMotionBlur(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	m_MotionBlurTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_MotionBlurRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_MotionBlurCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_MotionBlurCB.GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, InputColor.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pMotionBlurPSO.Get());
@@ -6814,7 +6844,7 @@ void SampleApp::DrawTonemap(ID3D12GraphicsCommandList* pCmdList)
 	m_TonemapTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_TonemapRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_TonemapCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MotionBlurTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_BloomVerticalTarget[0].GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pTonemapPSO.Get());
@@ -6849,7 +6879,7 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 	m_FXAA_Target.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_FXAA_RootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_FXAA_CB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_FXAA_CB.GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_TonemapTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pFXAA_PSO.Get());
 
@@ -6875,7 +6905,7 @@ void SampleApp::DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorT
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 	pCmdList->SetGraphicsRootSignature(m_DownsampleRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_DownsampleCB[CBIdx].GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_DownsampleCB[CBIdx].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, SrcColor.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pDownsamplePSO.Get());
 
@@ -6911,7 +6941,7 @@ void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarge
 		pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 		pCmdList->SetGraphicsRootSignature(m_FilterRootSig.GetPtr());
-		pCmdList->SetGraphicsRootDescriptorTable(0, HorizontalConstantBuffer.GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(0, HorizontalConstantBuffer.GetHandle()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(1, SrcColor.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, DownerResultColor.GetHandleSRV()->HandleGPU);
 		pCmdList->SetPipelineState(m_pFilterPSO.Get());
@@ -6945,7 +6975,7 @@ void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarge
 		pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 		pCmdList->SetGraphicsRootSignature(m_FilterRootSig.GetPtr());
-		pCmdList->SetGraphicsRootDescriptorTable(0, VerticalConstantBuffer.GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(0, VerticalConstantBuffer.GetHandle()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(1, IntermediateColor.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, DownerResultColor.GetHandleSRV()->HandleGPU);
 		pCmdList->SetPipelineState(m_pFilterPSO.Get());
@@ -7057,7 +7087,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_BackBufferRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pBackBufferPSO.Get());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandleGPU());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_BackBufferCB.GetHandle()->HandleGPU);
 	switch (m_debugViewMode)
 	{
 		using enum DEBUG_VIEW_MODE;

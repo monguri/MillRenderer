@@ -357,7 +357,7 @@ void SkyBox::DrawSkyAtmosphere
 	}
 
 	pCmd->SetGraphicsRootSignature(m_pRootSig.GetPtr());
-	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandleGPU());
+	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandle()->HandleGPU);
 	pCmd->SetGraphicsRootDescriptorTable(1, skyViewLUT_Target.GetHandleSRV()->HandleGPU);
 	pCmd->SetGraphicsRootDescriptorTable(2, skyTransmittanceLUT_Target.GetHandleSRV()->HandleGPU);
 
@@ -384,7 +384,7 @@ void SkyBox::DrawEnvironmentCubeMap
 	}
 
 	pCmd->SetGraphicsRootSignature(m_pRootSig.GetPtr());
-	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandleGPU());
+	pCmd->SetGraphicsRootDescriptorTable(0, m_CB[m_Index].GetHandle()->HandleGPU);
 	pCmd->SetGraphicsRootDescriptorTable(1, cubeMapHandle);
 
 	DrawBox(pCmd);

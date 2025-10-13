@@ -791,7 +791,7 @@ void IBLBaker::IntegrateDiffuseLD(ID3D12GraphicsCommandList* pCmdList, D3D12_GPU
 		pCmdList->RSSetViewports(1, &viewport);
 		pCmdList->RSSetScissorRects(1, &scissor);
 		pCmdList->SetPipelineState(m_pDiffuseLD_PSO.Get());
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_BakeCB[i * MipCount].GetHandleGPU());
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_BakeCB[i * MipCount].GetHandle()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(1, handleCubeMap);
 
 		pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -838,7 +838,7 @@ void IBLBaker::IntegrateSpecularLD(ID3D12GraphicsCommandList* pCmdList, D3D12_GP
 			pCmdList->RSSetViewports(1, &viewport);
 			pCmdList->RSSetScissorRects(1, &scissor);
 			pCmdList->SetPipelineState(m_pSpecularLD_PSO.Get());
-			pCmdList->SetGraphicsRootDescriptorTable(0, m_BakeCB[idx].GetHandleGPU());
+			pCmdList->SetGraphicsRootDescriptorTable(0, m_BakeCB[idx].GetHandle()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(1, handleCubeMap);
 
 			pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

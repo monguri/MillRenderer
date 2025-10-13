@@ -489,7 +489,7 @@ void SphereMapConverter::DrawToCube(ID3D12GraphicsCommandList* pCmdList, D3D12_G
 			pCmdList->OMSetRenderTargets(1, &handleRTV, FALSE, nullptr);
 
 			pCmdList->SetGraphicsRootSignature(m_pRootSig.Get());
-			pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[i].GetHandleGPU());
+			pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[i].GetHandle()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(1, sphereMapHandle);
 			pCmdList->SetPipelineState(m_pPSO.Get());
 

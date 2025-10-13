@@ -21,10 +21,7 @@ public:
 
 	void Term();
 
-	D3D12_GPU_VIRTUAL_ADDRESS GetAddress() const;
-
-	D3D12_CPU_DESCRIPTOR_HANDLE GetHandleCPU() const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetHandleGPU() const;
+	DescriptorHandle* GetHandle() const;
 
 	void* GetPtr() const;
 
