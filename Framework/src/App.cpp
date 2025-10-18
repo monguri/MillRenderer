@@ -256,23 +256,15 @@ bool App::InitD3D()
 		return false;
 	}
 
-	// TODO:現状、RTVとDSV用のDescriptorHeapでのGetGPUDescriptorHandleForHeapStart()でエラーが出るが、
-	// DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLEをつけたらつけたでCreateDescriptorHeap()でエラーが出るので、
-	// ブレークせず放置する以外に対処が見つかってない。
-	// 本でも解決してない。
-	// よって便利なのだがコメントアウトしておく。
-	// D3D12 ERROR: ID3D12DescriptorHeap::GetGPUDescriptorHandleForHeapStart: GetGPUDescriptorHandleForHeapStart is invalid to call on a descriptor heap that does not have DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE set. If the heap is not supposed to be shader visible, then GetCPUDescriptorHandleForHeapStart would be the appropriate method to call. That call is valid both for shader visible and non shader visible descriptor heaps. [ STATE_GETTING ERROR #1315: DESCRIPTOR_HEAP_NOT_SHADER_VISIBLE]
-#if 0
 #if defined(DEBUG) || defined(_DEBUG)
 	{
 		ComPtr<ID3D12InfoQueue> pInfoQueue;
-		hr = m_pDevice->QueryInterface(IID_PPV_ARGS(pInfoQueue.GetAddressOf()));
+		HRESULT hr = m_pDevice->QueryInterface(IID_PPV_ARGS(pInfoQueue.GetAddressOf()));
 		if (SUCCEEDED(hr))
 		{
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
 		}
 	}
-#endif
 #endif
 
 	// Create command queue.
