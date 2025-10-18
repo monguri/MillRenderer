@@ -85,7 +85,7 @@ private:
 	bool InitD3D();
 	void TermD3D();
 	void MainLoop();
-	void CheckSupportHDR();
+	bool CheckSupportHDR();
 
 	static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
 };

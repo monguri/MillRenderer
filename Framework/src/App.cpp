@@ -232,8 +232,9 @@ bool App::InitD3D()
 		}
 
 		// Check feature support. D3D_SHADER_MODEL_6_5 is needed for mesh shader.
+		// D3D_SHADER_MODEL_6_6 is needed for dynamic resources.
 		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel;
-		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_5;
+		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_6;
 		hr = m_pDevice->CheckFeatureSupport(
 			D3D12_FEATURE_SHADER_MODEL,
 			&shaderModel,
@@ -243,7 +244,7 @@ bool App::InitD3D()
 		{
 			continue;
 		}
-		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_5)
+		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_6)
 		{
 			continue;
 		}
@@ -509,6 +510,7 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 		}
 
 		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = {};
+		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_6;
 		hr = m_pDevice->CheckFeatureSupport(
 			D3D12_FEATURE_SHADER_MODEL,
 			&shaderModel,
@@ -577,11 +579,11 @@ float App::GetMinLuminance() const
 	return m_MinLuminance;
 }
 
-void App::CheckSupportHDR()
+bool App::CheckSupportHDR()
 {
 	if (m_pSwapChain == nullptr || m_pFactory == nullptr || m_pDevice == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	HRESULT hr = S_OK;
@@ -593,7 +595,7 @@ void App::CheckSupportHDR()
 		hr = CreateDXGIFactory2(0, IID_PPV_ARGS(m_pFactory.GetAddressOf()));
 		if (FAILED(hr))
 		{
-			return;
+			return false;
 		}
 	}
 
@@ -609,7 +611,7 @@ void App::CheckSupportHDR()
 	ComPtr<IDXGIAdapter1> pAdapter = SelectAdapter();
 	if (pAdapter == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	// Find best intersected display to this application window.
@@ -619,7 +621,7 @@ void App::CheckSupportHDR()
 		hr = currentOutput->GetDesc(&desc);
 		if (FAILED(hr))
 		{
-			return;
+			return false;
 		}
 
 		int intersectArea = ComputeIntersectionArea(
@@ -640,19 +642,20 @@ void App::CheckSupportHDR()
 	hr = bestOutput.As(&pOutput6);
 	if (FAILED(hr))
 	{
-		return;
+		return false;
 	}
 
 	DXGI_OUTPUT_DESC1 desc1;
 	hr = pOutput6->GetDesc1(&desc1);
 	if (FAILED(hr))
 	{
-		return;
+		return false;
 	}
 
 	m_SupportHDR = (desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
 	m_MaxLuminance = desc1.MaxLuminance;
 	m_MinLuminance = desc1.MinLuminance;
+	return true;
 }
 
 LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -709,7 +712,10 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 		case WM_DISPLAYCHANGE:
 			if (instance != nullptr)
 			{
-				instance->CheckSupportHDR();
+				if (!instance->CheckSupportHDR())
+				{
+					return false;
+				}
 			}
 			break;
 		default:
