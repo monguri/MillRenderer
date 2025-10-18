@@ -248,29 +248,29 @@ void Mesh::UnmapConstantBuffer(uint32_t frameIndex) const
 	m_CB[frameIndex].Unmap();
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetConstantBufferHandle(uint32_t frameIndex) const
+const DescriptorHandle& Mesh::GetConstantBufferHandle(uint32_t frameIndex) const
 {
-	return m_CB[frameIndex].GetHandleCBV()->HandleGPU;
+	return *m_CB[frameIndex].GetHandleCBV();
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetVertexBufferSBHandle() const
+const DescriptorHandle& Mesh::GetVertexBufferSBHandle() const
 {
-	return m_VB.GetHandleSRV()->HandleGPU;
+	return *m_VB.GetHandleSRV();
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletsSBHandle() const
+const DescriptorHandle& Mesh::GetMesletsSBHandle() const
 {
-	return m_MeshletsSB.GetHandleSRV()->HandleGPU;
+	return *m_MeshletsSB.GetHandleSRV();
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletsVerticesSBHandle() const
+const DescriptorHandle& Mesh::GetMesletsVerticesSBHandle() const
 {
-	return m_MeshletsVerticesSB.GetHandleSRV()->HandleGPU;
+	return *m_MeshletsVerticesSB.GetHandleSRV();
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMesletsTrianglesBBHandle() const
+const DescriptorHandle& Mesh::GetMesletsTrianglesBBHandle() const
 {
-	return m_MeshletsTrianglesBB.GetHandleSRV()->HandleGPU;
+	return *m_MeshletsTrianglesBB.GetHandleSRV();
 }
 
 uint32_t Mesh::GetMaterialId() const

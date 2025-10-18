@@ -60,8 +60,7 @@ public:
 
 	void Term();
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetHandleCPU() const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetHandleGPU() const;
+	const DescriptorHandle* GetHandleSRVPtr() const;
 
 	ID3D12Resource* GetResource() const;
 	D3D12_RESOURCE_DESC GetDesc() const;

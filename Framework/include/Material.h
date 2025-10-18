@@ -66,8 +66,8 @@ public:
 		DirectX::ResourceUploadBatch& batch
 	);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE GetBufferHandle() const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetTextureHandle(TEXTURE_USAGE usage) const;
+	const DescriptorHandle& GetCBHandle() const;
+	const DescriptorHandle& GetTextureSrvHandle(TEXTURE_USAGE usage) const;
 
 	bool GetDoubleSided() const;
 	void SetDoubleSided(bool isDoubleSided );

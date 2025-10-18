@@ -30,13 +30,9 @@ public:
 	void IntegrateDFG(ID3D12GraphicsCommandList* pCmdList);
 	void IntegrateLD(ID3D12GraphicsCommandList* pCmdList, uint32_t mapSize, uint32_t mipCount, D3D12_GPU_DESCRIPTOR_HANDLE handleCubeMap);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetHandleCPU_DFG() const;
-
-	D3D12_GPU_DESCRIPTOR_HANDLE GetHandleGPU_DFG() const;
-
-	D3D12_GPU_DESCRIPTOR_HANDLE GetHandleGPU_DiffuseLD() const;
-
-	D3D12_GPU_DESCRIPTOR_HANDLE GetHandleGPU_SpecularLD() const;
+	DescriptorHandle* GetHandleSRV_DFG() const;
+	DescriptorHandle* GetHandleSRV_DiffuseLD() const;
+	DescriptorHandle* GetHandleSRV_SpecularLD() const;
 
 private:
 	ConstantBuffer m_BakeCB[MipCount * 6];

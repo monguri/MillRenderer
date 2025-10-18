@@ -103,21 +103,21 @@ bool Material::SetTexture
 	return true;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Material::GetBufferHandle() const
+const DescriptorHandle& Material::GetCBHandle() const
 {
-	return m_CB.GetHandleCBV()->HandleGPU;
+	return *m_CB.GetHandleCBV();
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Material::GetTextureHandle(TEXTURE_USAGE usage) const
+const DescriptorHandle& Material::GetTextureSrvHandle(TEXTURE_USAGE usage) const
 {
-	if (m_Textures[usage].GetHandleGPU().ptr == 0)
+	if (m_Textures[usage].GetHandleSRVPtr() == nullptr)
 	{
 		// テクスチャが初期化されてなければダミーを用いる
-		return m_pDummyTexture->GetHandleGPU();
+		return *m_pDummyTexture->GetHandleSRVPtr();
 	}
 	else
 	{
-		return m_Textures[usage].GetHandleGPU();
+		return *m_Textures[usage].GetHandleSRVPtr();
 	}
 }
 

@@ -313,24 +313,10 @@ void Texture::Term()
 	}
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetHandleCPU() const
+// Materialクラスなど未初期化でm_pHandle == nullptrのまま扱うケースがあるので戻り値はポインタで返す
+const DescriptorHandle* Texture::GetHandleSRVPtr() const
 {
-	if (m_pHandle != nullptr)
-	{
-		return m_pHandle->HandleCPU;
-	}
-
-	return D3D12_CPU_DESCRIPTOR_HANDLE();
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE Texture::GetHandleGPU() const
-{
-	if (m_pHandle != nullptr)
-	{
-		return m_pHandle->HandleGPU;
-	}
-
-	return D3D12_GPU_DESCRIPTOR_HANDLE();
+	return m_pHandle;
 }
 
 ID3D12Resource* Texture::GetResource() const

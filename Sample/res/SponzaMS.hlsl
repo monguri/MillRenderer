@@ -1,5 +1,7 @@
 #include "ShadowMap.hlsli"
 
+//#define USE_DYNAMIC_RESOURCE
+
 #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
 	#define ROOT_SIGNATURE ""\
 	"RootFlags"\
@@ -61,6 +63,8 @@
 	")"
 #else // #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
 	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+		#ifdef USE_DYNAMIC_RESOURCE
+		#else
 		#define ROOT_SIGNATURE ""\
 		"RootFlags"\
 		"("\
@@ -119,6 +123,7 @@
 		", borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE"\
 		", visibility = SHADER_VISIBILITY_PIXEL"\
 		")"
+		#endif // #ifdef USE_DYNAMIC_RESOURCE
 	#else // #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 		#define ROOT_SIGNATURE ""\
 		"RootFlags"\

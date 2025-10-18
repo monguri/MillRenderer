@@ -867,22 +867,17 @@ void IBLBaker::IntegrateSpecularLD(ID3D12GraphicsCommandList* pCmdList, D3D12_GP
 	DirectX::TransitionResource(pCmdList, m_TexSpecularLD.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE IBLBaker::GetHandleCPU_DFG() const
+DescriptorHandle* IBLBaker::GetHandleSRV_DFG() const
 {
-	return m_pHandleSRV_DFG->HandleCPU;
+	return m_pHandleSRV_DFG;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE IBLBaker::GetHandleGPU_DFG() const
+DescriptorHandle* IBLBaker::GetHandleSRV_DiffuseLD() const
 {
-	return m_pHandleSRV_DFG->HandleGPU;
+	return m_pHandleSRV_DiffuseLD;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE IBLBaker::GetHandleGPU_DiffuseLD() const
+DescriptorHandle* IBLBaker::GetHandleSRV_SpecularLD() const
 {
-	return m_pHandleSRV_DiffuseLD->HandleGPU;
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE IBLBaker::GetHandleGPU_SpecularLD() const
-{
-	return m_pHandleSRV_SpecularLD->HandleGPU;
+	return m_pHandleSRV_SpecularLD;
 }

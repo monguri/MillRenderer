@@ -41,11 +41,11 @@ public:
 
 	void UnmapConstantBuffer(uint32_t frameIndex) const;
 
-	D3D12_GPU_DESCRIPTOR_HANDLE GetConstantBufferHandle(uint32_t frameIndex) const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetVertexBufferSBHandle() const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsSBHandle() const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsVerticesSBHandle() const;
-	D3D12_GPU_DESCRIPTOR_HANDLE GetMesletsTrianglesBBHandle() const;
+	const DescriptorHandle& GetConstantBufferHandle(uint32_t frameIndex) const;
+	const DescriptorHandle& GetVertexBufferSBHandle() const;
+	const DescriptorHandle& GetMesletsSBHandle() const;
+	const DescriptorHandle& GetMesletsVerticesSBHandle() const;
+	const DescriptorHandle& GetMesletsTrianglesBBHandle() const;
 
 	uint32_t GetMaterialId() const;
 	Mobility GetMobility() const;

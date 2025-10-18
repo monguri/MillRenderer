@@ -49,6 +49,7 @@ bool DescriptorPool::Create(
 	}
 
 	instance->m_DescriptorSize = pDevice->GetDescriptorHandleIncrementSize(pDesc->Type);
+	instance->m_IsShaderVisible = ((pDesc->Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) > 0);
 
 	*ppPool = instance;
 	return true;
@@ -81,12 +82,17 @@ DescriptorHandle* DescriptorPool::AllocHandle()
 
 		D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = m_pHeap->GetCPUDescriptorHandleForHeapStart();
 		handleCPU.ptr += m_DescriptorSize * index;
-		
-		D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = m_pHeap->GetGPUDescriptorHandleForHeapStart();
-		handleGPU.ptr += m_DescriptorSize * index;
-
 		pHandle->HandleCPU = handleCPU;
-		pHandle->HandleGPU = handleGPU;
+		
+		// ShaderVisibleでないD3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAVとD3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER以外で
+		// GetGPUDescriptorHandleForHeapStart()を呼ぶとGPU Validation Layerでエラーが出る。
+		// D3D12 ERROR: ID3D12DescriptorHeap::GetGPUDescriptorHandleForHeapStart: GetGPUDescriptorHandleForHeapStart is invalid to call on a descriptor heap that does not have DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE set. If the heap is not supposed to be shader visible, then GetCPUDescriptorHandleForHeapStart would be the appropriate method to call. That call is valid both for shader visible and non shader visible descriptor heaps. [ STATE_GETTING ERROR #1315: DESCRIPTOR_HEAP_NOT_SHADER_VISIBLE]
+		if (m_IsShaderVisible)
+		{
+			D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = m_pHeap->GetGPUDescriptorHandleForHeapStart();
+			handleGPU.ptr += m_DescriptorSize * index;
+			pHandle->HandleGPU = handleGPU;
+		}
 	};
 
 	return m_Pool.Alloc(func);

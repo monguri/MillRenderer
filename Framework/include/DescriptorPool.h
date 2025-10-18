@@ -11,22 +11,12 @@ public:
 	// DescriptorPool.m_DescriptorSizeがわかっていればm_IndexInDescriptorHeapからHandleCPU/HandleGPUは計算できるし、
 	// 逆もしかりなのでメモリ的には無駄だが、利便性のために持っておく。
 	uint32_t m_IndexInDescriptorHeap = 0;
-	D3D12_CPU_DESCRIPTOR_HANDLE HandleCPU;
-	D3D12_GPU_DESCRIPTOR_HANDLE HandleGPU;
+	D3D12_CPU_DESCRIPTOR_HANDLE HandleCPU = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE HandleGPU = {};
 
-	uint32_t GetIndexInDescriptorHeap() const
+	uint32_t GetDescriptorIndex() const
 	{
 		return m_IndexInDescriptorHeap;
-	}
-
-	bool HasCPU() const
-	{
-		return HandleCPU.ptr != 0;
-	}
-
-	bool HasGPU() const
-	{
-		return HandleGPU.ptr != 0;
 	}
 };
 
@@ -56,6 +46,7 @@ private:
 	Pool<DescriptorHandle> m_Pool;
 	ComPtr<ID3D12DescriptorHeap> m_pHeap;
 	uint32_t m_DescriptorSize;
+	bool m_IsShaderVisible;
 
 	DescriptorPool();
 	~DescriptorPool();
