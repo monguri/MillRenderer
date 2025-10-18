@@ -175,7 +175,7 @@ private:
 
 	Item* GetItem(uint32_t index)
 	{
-		assert(0 <= index && index <= m_Capacity + 1);
+		assert(0 <= index && index < m_Capacity + 2);
 		return reinterpret_cast<Item*>(m_pBuffer + sizeof(Item) * index);
 	}
 
