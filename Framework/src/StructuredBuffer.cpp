@@ -204,18 +204,26 @@ void StructuredBuffer::Term()
 	if (m_pHandleSRV != nullptr && m_pPoolSRV != nullptr)
 	{
 		m_pPoolSRV->FreeHandle(m_pHandleSRV);
+		m_pHandleSRV = nullptr;
 	}
 
-	m_pHandleSRV = nullptr;
-	m_pPoolSRV = nullptr;
+	if (m_pPoolSRV != nullptr)
+	{
+		m_pPoolSRV->Release();
+		m_pPoolSRV = nullptr;
+	}
 
 	if (m_pHandleUAV != nullptr && m_pPoolUAV != nullptr)
 	{
 		m_pPoolUAV->FreeHandle(m_pHandleUAV);
+		m_pHandleUAV = nullptr;
 	}
 
-	m_pHandleUAV = nullptr;
-	m_pPoolUAV = nullptr;
+	if (m_pPoolUAV != nullptr)
+	{
+		m_pPoolUAV->Release();
+		m_pPoolUAV = nullptr;
+	}
 }
 
 void* StructuredBuffer::Map() const

@@ -468,10 +468,14 @@ void ColorTarget::Term()
 	if (m_pHandleRTV != nullptr && m_pPoolRTV != nullptr)
 	{
 		m_pPoolRTV->FreeHandle(m_pHandleRTV);
+		m_pHandleRTV = nullptr;
 	}
 
-	m_pHandleRTV = nullptr;
-	m_pPoolRTV = nullptr;
+	if (m_pPoolRTV != nullptr)
+	{
+		m_pPoolRTV->Release();
+		m_pPoolRTV = nullptr;
+	}
 
 	for (DescriptorHandle* pHandleUAV : m_pHandleMipUAVs)
 	{
@@ -481,16 +485,25 @@ void ColorTarget::Term()
 		}
 	}
 
-	m_pPoolUAV = nullptr;
 	m_pHandleMipUAVs.clear();
+
+	if (m_pPoolUAV != nullptr)
+	{
+		m_pPoolUAV->Release();
+		m_pPoolUAV = nullptr;
+	}
 
 	if (m_pHandleSRV != nullptr && m_pPoolSRV != nullptr)
 	{
 		m_pPoolSRV->FreeHandle(m_pHandleSRV);
+		m_pHandleSRV = nullptr;
 	}
 
-	m_pHandleSRV = nullptr;
-	m_pPoolSRV = nullptr;
+	if (m_pPoolSRV != nullptr)
+	{
+		m_pPoolSRV->Release();
+		m_pPoolSRV = nullptr;
+	}
 }
 
 DescriptorHandle* ColorTarget::GetHandleRTV() const
