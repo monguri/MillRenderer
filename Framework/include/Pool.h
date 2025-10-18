@@ -36,7 +36,7 @@ public:
 		for (uint32_t i = 2u; i < m_Capacity + 2; i++)
 		{
 			Item* item = GetItem(i);
-			item->m_Index = i;
+			item->m_Index = i - 2u;
 		}
 
 		m_pActive = GetItem(0);
@@ -103,6 +103,7 @@ public:
 
 		if (func != nullptr)
 		{
+			assert(item->m_Index >= 0 && item->m_Index < m_Capacity);
 			func(item->m_Index, val);
 		}
 
