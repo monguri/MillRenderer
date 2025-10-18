@@ -593,7 +593,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		// 全シェーダ、最大サイズになるray-genシェーダに合わせる
 		m_ShaderTableEntrySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 		// デスクリプタテーブルの分
-		m_ShaderTableEntrySize += 8;
+		m_ShaderTableEntrySize += 8 * 2;
 		m_ShaderTableEntrySize = (m_ShaderTableEntrySize + D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
 
 		ComPtr<ID3D12StateObjectProperties> pStateObjProps;
@@ -613,6 +613,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		// RTではディスクリプタテーブルの設定をSetComputeRootDescriptorTable()ではなく
 		// ShaderTableに設定する形で行う
 		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) = m_pTlasResultSrvHandle->HandleGPU.ptr;
+		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8) = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
 
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
