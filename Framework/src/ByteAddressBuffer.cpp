@@ -210,25 +210,18 @@ void ByteAddressBuffer::Term()
 	if (m_pHandleSRV != nullptr && m_pPoolSRV != nullptr)
 	{
 		m_pPoolSRV->FreeHandle(m_pHandleSRV);
-		m_pHandleSRV = nullptr;
 	}
 
-	if (m_pPoolSRV != nullptr)
-	{
-		m_pPoolSRV->Release();
-		m_pPoolSRV = nullptr;
-	}
+	m_pHandleSRV = nullptr;
+	m_pPoolSRV = nullptr;
 
 	if (m_pHandleUAV != nullptr && m_pPoolUAV != nullptr)
 	{
 		m_pPoolUAV->FreeHandle(m_pHandleUAV);
 	}
 
-	if (m_pPoolUAV != nullptr)
-	{
-		m_pPoolUAV->Release();
-		m_pPoolUAV = nullptr;
-	}
+	m_pHandleUAV = nullptr;
+	m_pPoolUAV = nullptr;
 }
 
 void* ByteAddressBuffer::Map() const
