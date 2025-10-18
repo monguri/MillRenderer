@@ -694,8 +694,8 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 				}
 
 				// Format引数とFlags引数は初期化時に作ったDXGI_SWAP_CHAIN_DESCと同じ値にする
-				// 戻り値は見ない
-				instance->m_pSwapChain->ResizeBuffers(0, (UINT)LOWORD(lp), (UINT)HIWORD(lp), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+				// 戻り値はチェックしない
+				HRESULT hr = instance->m_pSwapChain->ResizeBuffers(0, (UINT)LOWORD(lp), (UINT)HIWORD(lp), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
 
 				// Re-Create render target view.
 				for (uint32_t i = 0u; i < FRAME_COUNT; ++i)
