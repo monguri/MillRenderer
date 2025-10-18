@@ -33,9 +33,9 @@ public:
 
 		m_Capacity = count;
 
-		for (uint32_t i = 0u; i < m_Capacity; i++)
+		for (uint32_t i = 2u; i < m_Capacity + 2; i++)
 		{
-			Item* item = GetItem(i + 2);
+			Item* item = GetItem(i);
 			item->m_Index = i;
 		}
 
@@ -45,14 +45,17 @@ public:
 
 		m_pFree = GetItem(1);
 		m_pFree->m_Index = uint32_t(-2);
+		m_pFree->m_pPrev = nullptr;
+		m_pFree->m_pNext = GetItem(2);
 
-		for (uint32_t i = 1u; i < m_Capacity + 2; i++)
+		for (uint32_t i = 2u; i < m_Capacity + 1; i++)
 		{
 			GetItem(i)->m_pPrev = nullptr;
 			GetItem(i)->m_pNext = GetItem(i + 1); // m_pFree->m_pNextはm_Index==2のアイテムになる。すべてm_pNextを通してm_pFreeにつながっている形。フリーリストはm_pNextのみでつながっている。m_pPrevが入るのはアクティブリストに入ってから。
 		}
 
-		GetItem(m_Capacity + 1)->m_pPrev = m_pFree; // 配列の最後の要素
+		GetItem(m_Capacity + 1)->m_pPrev = nullptr;
+		GetItem(m_Capacity + 1)->m_pNext = m_pFree;
 
 		m_Count = 0;
 
@@ -171,7 +174,7 @@ private:
 
 	Item* GetItem(uint32_t index)
 	{
-		assert(0 <= index && index <= m_Capacity + 2);
+		assert(0 <= index && index <= m_Capacity + 1);
 		return reinterpret_cast<Item*>(m_pBuffer + sizeof(Item) * index);
 	}
 
