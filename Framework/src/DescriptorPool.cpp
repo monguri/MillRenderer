@@ -12,6 +12,7 @@ DescriptorPool::~DescriptorPool()
 {
 	m_Pool.Term();
 	m_pHeap.Reset();
+	m_pHeap = nullptr;
 	m_DescriptorSize = 0;
 }
 
