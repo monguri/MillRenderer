@@ -99,15 +99,6 @@
 			", RootConstants(num32BitConstants=1, b16, visibility = SHADER_VISIBILITY_PIXEL)"\
 			", RootConstants(num32BitConstants=1, b17, visibility = SHADER_VISIBILITY_PIXEL)"\
 			", RootConstants(num32BitConstants=1, b18, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", DescriptorTable(SRV(t0, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)"\
-			", DescriptorTable(SRV(t1, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)"\
-			", DescriptorTable(SRV(t2, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)"\
-			", DescriptorTable(SRV(t3, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)"\
-			", DescriptorTable(SRV(t4, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)"\
-			", DescriptorTable(SRV(t5, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)"\
-			", DescriptorTable(SRV(t6, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)"\
-			", DescriptorTable(SRV(t7, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)"\
-			", DescriptorTable(SRV(t8, numDescriptors = unbounded), visibility = SHADER_VISIBILITY_PIXEL)"\
 			", StaticSampler"\
 			"("\
 			"s0"\
