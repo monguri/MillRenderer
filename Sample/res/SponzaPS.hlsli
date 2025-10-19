@@ -1,6 +1,8 @@
 #include "ShadowMap.hlsli"
 #include "BRDF.hlsli"
 
+//#define USE_DYNAMIC_RESOURCE
+
 #ifndef MIN_DIST
 #define MIN_DIST (0.01)
 #endif // MIN_DIST
@@ -34,101 +36,161 @@ struct PSOutput
 	float2 MetallicRoughness : SV_TARGET2;
 };
 
-cbuffer CbCamera : register(b0)
+struct Camera
 {
-	float3 CameraPosition : packoffset(c0);
-	int bDebugViewMeshletCluster : packoffset(c0.w);
+	float3 CameraPosition;
+	int bDebugViewMeshletCluster;
 };
 
-cbuffer CbMaterial : register(b1)
+struct Material
 {
-	float3 BaseColorFactor : packoffset(c0);
-	float MetallicFactor : packoffset(c0.w);
-	float RoughnessFactor : packoffset(c1);
-	float3 EmissiveFactor : packoffset(c1.y);
-	float AlphaCutoff : packoffset(c2);
-	int bExistEmissiveTex : packoffset(c2.y);
-	int bExistAOTex : packoffset(c2.z);
+	float3 BaseColorFactor;
+	float MetallicFactor;
+	float RoughnessFactor;
+	float3 EmissiveFactor;
+	float AlphaCutoff;
+	int bExistEmissiveTex;
+	int bExistAOTex;
 };
 
-cbuffer CbDirectionalLight : register(b2)
+struct DirectionalLight
 {
-	float3 DirLightColor: packoffset(c0);
-	float3 DirLightForward : packoffset(c1);
-	float2 DirLightShadowMapSize : packoffset(c2); // x is pixel size, y is texel size on UV.
+	float3 DirLightColor;
+	float3 DirLightForward;
+	float2 DirLightShadowMapSize; // x is pixel size, y is texel size on UV.
 };
 
 // TODO:Use ConstantBuffer<>
-cbuffer CbPointLight1 : register(b3)
+
+struct PointLight
 {
-	float3 PointLight1Position : packoffset(c0);
-	float PointLight1InvSqrRadius : packoffset(c0.w);
-	float3 PointLight1Color : packoffset(c1);
-	float PointLight1Intensity : packoffset(c1.w);
+	float3 PointLightPosition;
+	float PointLightInvSqrRadius;
+	float3 PointLightColor;
+	float PointLightIntensity;
 };
 
-cbuffer CbPointLight2 : register(b4)
+struct SpotLight
 {
-	float3 PointLight2Position : packoffset(c0);
-	float PointLight2InvSqrRadius : packoffset(c0.w);
-	float3 PointLight2Color: packoffset(c1);
-	float PointLight2Intensity: packoffset(c1.w);
+	float3 SpotLightPosition;
+	float SpotLightInvSqrRadius;
+	float3 SpotLightColor;
+	float SpotLightIntensity;
+	float3 SpotLightForward;
+	float SpotLightAngleScale;
+	float SpotLightAngleOffset;
+	int SpotLightType;
+	float2 SpotLightShadowMapSize; // x is pixel size, y is texel size on UV.
 };
+#ifdef USE_DYNAMIC_RESOURCE
+cbuffer CbRootConst0 : register(b0)
+{
+	uint CbCameraDescIndex;
+}
 
-cbuffer CbPointLight3 : register(b5)
+cbuffer CbRootConst1 : register(b1)
 {
-	float3 PointLight3Position : packoffset(c0);
-	float PointLight3InvSqrRadius : packoffset(c0.w);
-	float3 PointLight3Color : packoffset(c1);
-	float PointLight3Intensity : packoffset(c1.w);
-};
+	uint CbMaterialDescIndex;
+}
 
-cbuffer CbPointLight4 : register(b6)
+cbuffer CbRootConst2 : register(b2)
 {
-	float3 PointLight4Position : packoffset(c0);
-	float PointLight4InvSqrRadius : packoffset(c0.w);
-	float3 PointLight4Color : packoffset(c1);
-	float PointLight4Intensity : packoffset(c1.w);
-};
+	uint CbDirLightDescIndex;
+}
 
-cbuffer CbSpotLight1 : register(b7)
+cbuffer CbRootConst3 : register(b3)
 {
-	float3 SpotLight1Position : packoffset(c0);
-	float SpotLight1InvSqrRadius : packoffset(c0.w);
-	float3 SpotLight1Color : packoffset(c1);
-	float SpotLight1Intensity : packoffset(c1.w);
-	float3 SpotLight1Forward : packoffset(c2);
-	float SpotLight1AngleScale : packoffset(c2.w);
-	float SpotLight1AngleOffset : packoffset(c3);
-	int SpotLight1Type : packoffset(c3.y);
-	float2 SpotLight1ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
-};
+	uint CbPointLight1DescIndex;
+}
 
-cbuffer CbSpotLight2 : register(b8)
+cbuffer CbRootConst4 : register(b2)
 {
-	float3 SpotLight2Position : packoffset(c0);
-	float SpotLight2InvSqrRadius : packoffset(c0.w);
-	float3 SpotLight2Color : packoffset(c1);
-	float SpotLight2Intensity : packoffset(c1.w);
-	float3 SpotLight2Forward : packoffset(c2);
-	float SpotLight2AngleScale : packoffset(c2.w);
-	float SpotLight2AngleOffset : packoffset(c3);
-	int SpotLight2Type : packoffset(c3.y);
-	float2 SpotLight2ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
-};
+	uint CbPointLight2DescIndex;
+}
 
-cbuffer CbSpotLight3 : register(b9)
+cbuffer CbRootConst5 : register(b5)
 {
-	float3 SpotLight3Position : packoffset(c0);
-	float SpotLight3InvSqrRadius : packoffset(c0.w);
-	float3 SpotLight3Color : packoffset(c1);
-	float SpotLight3Intensity : packoffset(c1.w);
-	float3 SpotLight3Forward : packoffset(c2);
-	float SpotLight3AngleScale : packoffset(c2.w);
-	float SpotLight3AngleOffset : packoffset(c3);
-	int SpotLight3Type : packoffset(c3.y);
-	float2 SpotLight3ShadowMapSize : packoffset(c3.z); // x is pixel size, y is texel size on UV.
-};
+	uint CbPointLight3DescIndex;
+}
+
+cbuffer CbRootConst6 : register(b6)
+{
+	uint CbPointLight4DescIndex;
+}
+
+cbuffer CbRootConst7 : register(b7)
+{
+	uint CbSpotLight1DescIndex;
+}
+
+cbuffer CbRootConst8 : register(b8)
+{
+	uint CbSpotLight2DescIndex;
+}
+
+cbuffer CbRootConst9 : register(b9)
+{
+	uint CbSpotLight3DescIndex;
+}
+
+cbuffer CbRootConst10 : register(b10)
+{
+	uint BaseColorMapDescIndex;
+}
+
+cbuffer CbRootConst11 : register(b11)
+{
+	uint MetallicRoughnessMapDescIndex;
+}
+
+cbuffer CbRootConst12 : register(b12)
+{
+	uint NormalMapDescIndex;
+}
+
+cbuffer CbRootConst13 : register(b13)
+{
+	uint EmissiveMapDescIndex;
+}
+
+cbuffer CbRootConst14 : register(b14)
+{
+	uint AOMapDescIndex;
+}
+
+cbuffer CbRootConst15 : register(b15)
+{
+	uint DirLightShadowMapDescIndex;
+}
+
+cbuffer CbRootConst16 : register(b16)
+{
+	uint SpotLight1ShadowMapDescIndex;
+}
+
+cbuffer CbRootConst17 : register(b17)
+{
+	uint SpotLight2ShadowMapDescIndex;
+}
+
+cbuffer CbRootConst18 : register(b18)
+{
+	uint SpotLight3ShadowMapDescIndex;
+}
+#else // #ifdef USE_DYNAMIC_RESOURCE
+ConstantBuffer<Camera> CbCamera : register(b0);
+ConstantBuffer<Material> CbMaterial : register(b1);
+
+ConstantBuffer<DirectionalLight> CbDirectionalLight : register(b2);
+
+ConstantBuffer<PointLight> CbPointLight1 : register(b3);
+ConstantBuffer<PointLight> CbPointLight2 : register(b4);
+ConstantBuffer<PointLight> CbPointLight3 : register(b5);
+ConstantBuffer<PointLight> CbPointLight4 : register(b6);
+
+ConstantBuffer<SpotLight> CbSpotLight1 : register(b7);
+ConstantBuffer<SpotLight> CbSpotLight2 : register(b8);
+ConstantBuffer<SpotLight> CbSpotLight3 : register(b9);
 
 Texture2D BaseColorMap : register(t0);
 Texture2D MetallicRoughnessMap : register(t1);
@@ -141,6 +203,7 @@ Texture2D DirLightShadowMap : register(t5);
 Texture2D SpotLight1ShadowMap : register(t6);
 Texture2D SpotLight2ShadowMap : register(t7);
 Texture2D SpotLight3ShadowMap : register(t8);
+#endif // #ifdef USE_DYNAMIC_RESOURCE
 
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 SamplerComparisonState ShadowSmp : register(s1);
@@ -349,19 +412,19 @@ PSOutput main(VSOutput input)
 
 	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, input.TexCoord);
 #ifdef ALPHA_MODE_MASK
-	if (baseColor.a < AlphaCutoff)
+	if (baseColor.a < CbMaterial.AlphaCutoff)
 	{
 		discard;
 	}
 #endif
 
-	baseColor.rgb *= BaseColorFactor;
+	baseColor.rgb *= CbMaterial.BaseColorFactor;
 
 	// metallic value is G. roughness value is B.
 	// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
 	float2 metallicRoughness = MetallicRoughnessMap.Sample(AnisotropicWrapSmp, input.TexCoord).bg;
-	float metallic = metallicRoughness.x * MetallicFactor;
-	float roughness = metallicRoughness.y * RoughnessFactor;
+	float metallic = metallicRoughness.x * CbMaterial.MetallicFactor;
+	float roughness = metallicRoughness.y * CbMaterial.RoughnessFactor;
 
 	float3 N = NormalMap.Sample(AnisotropicWrapSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 
@@ -370,11 +433,11 @@ PSOutput main(VSOutput input)
 	roughness = IsotropicNDFFiltering(N, roughness);
 
 	N = mul(input.InvTangentBasis, N);
-	float3 V = normalize(CameraPosition - input.WorldPos);
+	float3 V = normalize(CbCamera.CameraPosition - input.WorldPos);
 	float NV = saturate(dot(N, V));
 
 	// directional light
-	float3 dirLightL = normalize(-DirLightForward);
+	float3 dirLightL = normalize(-CbDirectionalLight.DirLightForward);
 	float3 dirLightH = normalize(V + dirLightL);
 	float dirLightVH = saturate(dot(V, dirLightH));
 	float dirLightNH = saturate(dot(N, dirLightH));
@@ -391,8 +454,8 @@ PSOutput main(VSOutput input)
 	);
 
 	float transitionScale = DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS, 1, dirLightNL);
-	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, ShadowSmp, DirLightShadowMapSize, input.DirLightShadowCoord, transitionScale);
-	float3 dirLightReflection = dirLightBRDF * DirLightColor * dirLightShadowMult;
+	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, ShadowSmp, CbDirectionalLight.DirLightShadowMapSize, input.DirLightShadowCoord, transitionScale);
+	float3 dirLightReflection = dirLightBRDF * CbDirectionalLight.DirLightColor * dirLightShadowMult;
 
 	// 4 point light
 	float3 pointLight1Reflection = EvaluatePointLightReflection
@@ -403,10 +466,10 @@ PSOutput main(VSOutput input)
 		N,
 		V,
 		input.WorldPos,
-		PointLight1Position,
-		PointLight1InvSqrRadius,
-		PointLight1Color,
-		PointLight1Intensity
+		CbPointLight1.PointLightPosition,
+		CbPointLight1.PointLightInvSqrRadius,
+		CbPointLight1.PointLightColor,
+		CbPointLight1.PointLightIntensity
 	);
 
 	float3 pointLight2Reflection = EvaluatePointLightReflection
@@ -417,10 +480,10 @@ PSOutput main(VSOutput input)
 		N,
 		V,
 		input.WorldPos,
-		PointLight2Position,
-		PointLight2InvSqrRadius,
-		PointLight2Color,
-		PointLight2Intensity
+		CbPointLight2.PointLightPosition,
+		CbPointLight2.PointLightInvSqrRadius,
+		CbPointLight2.PointLightColor,
+		CbPointLight2.PointLightIntensity
 	);
 
 	float3 pointLight3Reflection = EvaluatePointLightReflection
@@ -431,10 +494,10 @@ PSOutput main(VSOutput input)
 		N,
 		V,
 		input.WorldPos,
-		PointLight3Position,
-		PointLight3InvSqrRadius,
-		PointLight3Color,
-		PointLight3Intensity
+		CbPointLight3.PointLightPosition,
+		CbPointLight3.PointLightInvSqrRadius,
+		CbPointLight3.PointLightColor,
+		CbPointLight3.PointLightIntensity
 	);
 
 	float3 pointLight4Reflection = EvaluatePointLightReflection
@@ -445,10 +508,10 @@ PSOutput main(VSOutput input)
 		N,
 		V,
 		input.WorldPos,
-		PointLight4Position,
-		PointLight4InvSqrRadius,
-		PointLight4Color,
-		PointLight4Intensity
+		CbPointLight4.PointLightPosition,
+		CbPointLight4.PointLightInvSqrRadius,
+		CbPointLight4.PointLightColor,
+		CbPointLight4.PointLightIntensity
 	);
 
 	// 3 spot light
@@ -460,16 +523,16 @@ PSOutput main(VSOutput input)
 		N,
 		V,
 		input.WorldPos,
-		SpotLight1Position,
-		SpotLight1InvSqrRadius,
-		SpotLight1Forward,
-		SpotLight1Color,
-		SpotLight1AngleScale,
-		SpotLight1AngleOffset,
-		SpotLight1Intensity,
+		CbSpotLight1.SpotLightPosition,
+		CbSpotLight1.SpotLightInvSqrRadius,
+		CbSpotLight1.SpotLightForward,
+		CbSpotLight1.SpotLightColor,
+		CbSpotLight1.SpotLightAngleScale,
+		CbSpotLight1.SpotLightAngleOffset,
+		CbSpotLight1.SpotLightIntensity,
 		SpotLight1ShadowMap,
 		ShadowSmp,
-		SpotLight1ShadowMapSize,
+		CbSpotLight1.SpotLightShadowMapSize,
 		input.SpotLight1ShadowCoord
 	);
 
@@ -481,16 +544,16 @@ PSOutput main(VSOutput input)
 		N,
 		V,
 		input.WorldPos,
-		SpotLight2Position,
-		SpotLight2InvSqrRadius,
-		SpotLight2Forward,
-		SpotLight2Color,
-		SpotLight2AngleScale,
-		SpotLight2AngleOffset,
-		SpotLight2Intensity,
+		CbSpotLight2.SpotLightPosition,
+		CbSpotLight2.SpotLightInvSqrRadius,
+		CbSpotLight2.SpotLightForward,
+		CbSpotLight2.SpotLightColor,
+		CbSpotLight2.SpotLightAngleScale,
+		CbSpotLight2.SpotLightAngleOffset,
+		CbSpotLight2.SpotLightIntensity,
 		SpotLight2ShadowMap,
 		ShadowSmp,
-		SpotLight2ShadowMapSize,
+		CbSpotLight2.SpotLightShadowMapSize,
 		input.SpotLight2ShadowCoord
 	);
 
@@ -502,16 +565,16 @@ PSOutput main(VSOutput input)
 		N,
 		V,
 		input.WorldPos,
-		SpotLight3Position,
-		SpotLight3InvSqrRadius,
-		SpotLight3Forward,
-		SpotLight3Color,
-		SpotLight3AngleScale,
-		SpotLight3AngleOffset,
-		SpotLight3Intensity,
+		CbSpotLight3.SpotLightPosition,
+		CbSpotLight3.SpotLightInvSqrRadius,
+		CbSpotLight3.SpotLightForward,
+		CbSpotLight3.SpotLightColor,
+		CbSpotLight3.SpotLightAngleScale,
+		CbSpotLight3.SpotLightAngleOffset,
+		CbSpotLight3.SpotLightIntensity,
 		SpotLight3ShadowMap,
 		ShadowSmp,
-		SpotLight3ShadowMapSize,
+		CbSpotLight3.SpotLightShadowMapSize,
 		input.SpotLight3ShadowCoord
 	);
 
@@ -526,19 +589,19 @@ PSOutput main(VSOutput input)
 		+ spotLight3Reflection;
 
 	float3 emissive = 0;
-	if (bExistEmissiveTex)
+	if (CbMaterial.bExistEmissiveTex)
 	{
-		emissive = EmissiveFactor;
+		emissive = CbMaterial.EmissiveFactor;
 		emissive *= EmissiveMap.Sample(AnisotropicWrapSmp, input.TexCoord).rgb;
 	}
 
 	float AO = 1;
-	if (bExistAOTex)
+	if (CbMaterial.bExistAOTex)
 	{
 		AO = AOMap.Sample(AnisotropicWrapSmp, input.TexCoord).r;
 	}
 
-	if (bDebugViewMeshletCluster == 0)
+	if (CbCamera.bDebugViewMeshletCluster == 0)
 	{
 		output.Color.rgb = lit * AO + emissive;
 	}

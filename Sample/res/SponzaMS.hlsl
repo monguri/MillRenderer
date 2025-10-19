@@ -64,65 +64,123 @@
 #else // #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
 	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 		#ifdef USE_DYNAMIC_RESOURCE
-		#else
-		#define ROOT_SIGNATURE ""\
-		"RootFlags"\
-		"("\
-		"DENY_VERTEX_SHADER_ROOT_ACCESS"\
-		" | DENY_HULL_SHADER_ROOT_ACCESS"\
-		" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
-		" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
-		" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
-		")"\
-		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
-		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
-		", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
-		", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
-		", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
-		", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
-		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(CBV(b6), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(CBV(b7), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(CBV(b8), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", DescriptorTable(SRV(t8), visibility = SHADER_VISIBILITY_PIXEL)"\
-		", StaticSampler"\
-		"("\
-		"s0"\
-		", filter = FILTER_ANISOTROPIC"\
-		", addressU = TEXTURE_ADDRESS_WRAP"\
-		", addressV = TEXTURE_ADDRESS_WRAP"\
-		", addressW = TEXTURE_ADDRESS_WRAP"\
-		", maxAnisotropy = 16"\
-		", comparisonFunc = COMPARISON_NEVER"\
-		", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-		", visibility = SHADER_VISIBILITY_PIXEL"\
-		")"\
-		", StaticSampler"\
-		"("\
-		"s1"\
-		", filter = FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT"\
-		", addressU = TEXTURE_ADDRESS_CLAMP"\
-		", addressV = TEXTURE_ADDRESS_CLAMP"\
-		", addressW = TEXTURE_ADDRESS_CLAMP"\
-		", maxAnisotropy = 1"\
-		", comparisonFunc = COMPARISON_LESS_EQUAL"\
-		", borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE"\
-		", visibility = SHADER_VISIBILITY_PIXEL"\
-		")"
+			#define ROOT_SIGNATURE ""\
+			"RootFlags"\
+			"("\
+			"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+			" | DENY_HULL_SHADER_ROOT_ACCESS"\
+			" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+			" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+			" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+			")"\
+			", RootConstants(num32BitConstants=1, b0, visibility = SHADER_VISIBILITY_MESH)"\
+			", RootConstants(num32BitConstants=1, b1, visibility = SHADER_VISIBILITY_MESH)"\
+			", RootConstants(num32BitConstants=1, b2, visibility = SHADER_VISIBILITY_MESH)"\
+			", RootConstants(num32BitConstants=1, b3, visibility = SHADER_VISIBILITY_MESH)"\
+			", RootConstants(num32BitConstants=1, b4, visibility = SHADER_VISIBILITY_MESH)"\
+			", RootConstants(num32BitConstants=1, b5, visibility = SHADER_VISIBILITY_MESH)"\
+			", RootConstants(num32BitConstants=1, b0, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b2, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b3, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b4, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b5, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b6, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b7, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b8, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b9, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b10, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b11, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b12, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b13, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b14, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b15, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b16, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b17, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=1, b18, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", StaticSampler"\
+			"("\
+			"s0"\
+			", filter = FILTER_ANISOTROPIC"\
+			", addressU = TEXTURE_ADDRESS_WRAP"\
+			", addressV = TEXTURE_ADDRESS_WRAP"\
+			", addressW = TEXTURE_ADDRESS_WRAP"\
+			", maxAnisotropy = 16"\
+			", comparisonFunc = COMPARISON_NEVER"\
+			", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+			", visibility = SHADER_VISIBILITY_PIXEL"\
+			")"\
+			", StaticSampler"\
+			"("\
+			"s1"\
+			", filter = FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT"\
+			", addressU = TEXTURE_ADDRESS_CLAMP"\
+			", addressV = TEXTURE_ADDRESS_CLAMP"\
+			", addressW = TEXTURE_ADDRESS_CLAMP"\
+			", maxAnisotropy = 1"\
+			", comparisonFunc = COMPARISON_LESS_EQUAL"\
+			", borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE"\
+			", visibility = SHADER_VISIBILITY_PIXEL"\
+			")"
+		#else // #ifdef USE_DYNAMIC_RESOURCE
+			#define ROOT_SIGNATURE ""\
+			"RootFlags"\
+			"("\
+			"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+			" | DENY_HULL_SHADER_ROOT_ACCESS"\
+			" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+			" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+			" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+			")"\
+			", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
+			", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
+			", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
+			", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
+			", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
+			", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
+			", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(CBV(b6), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(CBV(b7), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(CBV(b8), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", DescriptorTable(SRV(t8), visibility = SHADER_VISIBILITY_PIXEL)"\
+			", StaticSampler"\
+			"("\
+			"s0"\
+			", filter = FILTER_ANISOTROPIC"\
+			", addressU = TEXTURE_ADDRESS_WRAP"\
+			", addressV = TEXTURE_ADDRESS_WRAP"\
+			", addressW = TEXTURE_ADDRESS_WRAP"\
+			", maxAnisotropy = 16"\
+			", comparisonFunc = COMPARISON_NEVER"\
+			", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+			", visibility = SHADER_VISIBILITY_PIXEL"\
+			")"\
+			", StaticSampler"\
+			"("\
+			"s1"\
+			", filter = FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT"\
+			", addressU = TEXTURE_ADDRESS_CLAMP"\
+			", addressV = TEXTURE_ADDRESS_CLAMP"\
+			", addressW = TEXTURE_ADDRESS_CLAMP"\
+			", maxAnisotropy = 1"\
+			", comparisonFunc = COMPARISON_LESS_EQUAL"\
+			", borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE"\
+			", visibility = SHADER_VISIBILITY_PIXEL"\
+			")"
 		#endif // #ifdef USE_DYNAMIC_RESOURCE
 	#else // #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 		#define ROOT_SIGNATURE ""\
@@ -217,24 +275,61 @@ struct meshopt_Meshlet
 	uint TriCount;
 };
 
-cbuffer CbTransform : register(b0)
+struct Transform
 {
-	float4x4 ViewProj : packoffset(c0);
-	float4x4 WorldToDirLightShadowMap : packoffset(c4);
-	float4x4 WorldToSpotLight1ShadowMap : packoffset(c8);
-	float4x4 WorldToSpotLight2ShadowMap : packoffset(c12);
-	float4x4 WorldToSpotLight3ShadowMap : packoffset(c16);
-}
+	float4x4 ViewProj;
+	float4x4 WorldToDirLightShadowMap;
+	float4x4 WorldToSpotLight1ShadowMap;
+	float4x4 WorldToSpotLight2ShadowMap;
+	float4x4 WorldToSpotLight3ShadowMap;
+};
 
-cbuffer CbMesh : register(b1)
+struct Mesh
 {
 	float4x4 World;
+};
+
+#ifdef USE_DYNAMIC_RESOURCE
+cbuffer CbRootConst0 : register(b0)
+{
+	uint CbTransformDescIndex;
 }
+
+cbuffer CbRootConst1 : register(b1)
+{
+	uint CbMeshDescIndex;
+}
+
+cbuffer CbRootConst2 : register(b2)
+{
+	uint SbVertexBufferDescIndex;
+}
+
+cbuffer CbRootConst3 : register(b3)
+{
+	uint SbMeshletseDescIndex;
+}
+
+cbuffer CbRootConst4 : register(b4)
+{
+	uint SbMeshletVerticesDescIndex;
+}
+
+cbuffer CbRootConst5 : register(b5)
+{
+	uint SbMeshletTrianglesDescIndex;
+}
+
+#else // #ifdef USE_DYNAMIC_RESOURCE
+ConstantBuffer<Transform> CbTransform : register(b0);
+
+ConstantBuffer<Mesh> CbMesh : register(b1);
 
 StructuredBuffer<VSInput> vertexBuffer : register(t0);
 StructuredBuffer<meshopt_Meshlet> meshlets : register(t1);
 StructuredBuffer<uint> meshletsVertices : register(t2);
 StructuredBuffer<uint> meshletsTriangles : register(t3);
+#endif // #ifdef USE_DYNAMIC_RESOURCE
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
@@ -257,8 +352,8 @@ void main
 		VSInput input = vertexBuffer[vertexIndex];
 
 		float4 localPos = float4(input.Position, 1.0f);
-		float4 worldPos = mul(World, localPos);
-		float4 projPos = mul(ViewProj, worldPos);
+		float4 worldPos = mul(CbMesh.World, localPos);
+		float4 projPos = mul(CbTransform.ViewProj, worldPos);
 
 		VSOutput output = (VSOutput)0;
 		output.MesletID = gid;
@@ -267,21 +362,21 @@ void main
 		output.TexCoord = input.TexCoord;
 		output.WorldPos = worldPos.xyz;
 
-		float4 dirLightShadowPos = mul(WorldToDirLightShadowMap, worldPos);
+		float4 dirLightShadowPos = mul(CbTransform.WorldToDirLightShadowMap, worldPos);
 		// dividing by w is not necessary because it is 1 by orthogonal.
 		output.DirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
 
-		float4 spotLight1ShadowPos = mul(WorldToSpotLight1ShadowMap, worldPos);
+		float4 spotLight1ShadowPos = mul(CbTransform.WorldToSpotLight1ShadowMap, worldPos);
 		output.SpotLight1ShadowCoord = spotLight1ShadowPos.xyz / spotLight1ShadowPos.w;
 
-		float4 spotLight2ShadowPos = mul(WorldToSpotLight2ShadowMap, worldPos);
+		float4 spotLight2ShadowPos = mul(CbTransform.WorldToSpotLight2ShadowMap, worldPos);
 		output.SpotLight2ShadowCoord = spotLight2ShadowPos.xyz / spotLight2ShadowPos.w;
 
-		float4 spotLight3ShadowPos = mul(WorldToSpotLight3ShadowMap, worldPos);
+		float4 spotLight3ShadowPos = mul(CbTransform.WorldToSpotLight3ShadowMap, worldPos);
 		output.SpotLight3ShadowCoord = spotLight3ShadowPos.xyz / spotLight3ShadowPos.w;
 
-		float3 N = normalize(mul((float3x3)World, input.Normal));
-		float3 T = normalize(mul((float3x3)World, input.Tangent));
+		float3 N = normalize(mul((float3x3)CbMesh.World, input.Normal));
+		float3 T = normalize(mul((float3x3)CbMesh.World, input.Tangent));
 		float3 B = normalize(cross(N, T));
 
 		output.InvTangentBasis = transpose(float3x3(T, B, N));
