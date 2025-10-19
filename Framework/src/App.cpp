@@ -161,7 +161,9 @@ bool App::InitD3D()
 			hr = pDebug->QueryInterface(IID_PPV_ARGS(pDebug.GetAddressOf()));
 			if (SUCCEEDED(hr))
 			{
-				pDebug->SetEnableGPUBasedValidation(true);
+				// PSO検証を有効にする場合はここをtrueにする
+				// ただし、PSO検証はかなり重い処理で起動が遅くなるので普段は無効にしておく
+				pDebug->SetEnableGPUBasedValidation(false);
 			}
 		}
 	}
