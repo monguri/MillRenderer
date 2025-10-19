@@ -1,6 +1,6 @@
 #include "ShadowMap.hlsli"
 
-//#define USE_DYNAMIC_RESOURCE
+#define USE_DYNAMIC_RESOURCE
 
 #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
 	#define ROOT_SIGNATURE ""\
@@ -72,6 +72,7 @@
 			" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
 			" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
 			" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+			" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
 			")"\
 			", RootConstants(num32BitConstants=1, b0, visibility = SHADER_VISIBILITY_MESH)"\
 			", RootConstants(num32BitConstants=1, b1, visibility = SHADER_VISIBILITY_MESH)"\
@@ -307,7 +308,7 @@ cbuffer CbRootConst2 : register(b2)
 
 cbuffer CbRootConst3 : register(b3)
 {
-	uint SbMeshletseDescIndex;
+	uint SbMeshletsDescIndex;
 }
 
 cbuffer CbRootConst4 : register(b4)
@@ -342,6 +343,16 @@ void main
 	out indices uint3 outTriIndices[126]
 )
 {
+#ifdef USE_DYNAMIC_RESOURCE
+	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[CbTransformDescIndex];
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbMeshDescIndex];
+
+	StructuredBuffer<VSInput> vertexBuffer = ResourceDescriptorHeap[SbVertexBufferDescIndex];
+	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[SbMeshletsDescIndex];
+	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[SbMeshletVerticesDescIndex];
+	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[SbMeshletTrianglesDescIndex];
+#endif //#ifdef USE_DYNAMIC_RESOURCE
+
 	meshopt_Meshlet meshlet = meshlets[gid];
 
 	SetMeshOutputCounts(meshlet.VertCount, meshlet.TriCount);

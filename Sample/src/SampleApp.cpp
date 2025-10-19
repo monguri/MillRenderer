@@ -33,7 +33,7 @@
 #define USE_MESHLET true
 // Dynamic Resourcesを使うかどうか
 // TODO:現在適用しているのはMesh描画のみ
-#define USE_DYNAMIC_RESOURCE false
+#define USE_DYNAMIC_RESOURCE true
 
 using namespace DirectX::SimpleMath;
 
