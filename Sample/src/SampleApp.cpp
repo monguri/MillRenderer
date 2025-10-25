@@ -3063,7 +3063,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.pRootSignature = m_ObjectVelocityRootSig.GetPtr();
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		// SceneDepthはReverseZ
-		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
+		desc.DepthStencilState = DirectX::CommonStates::DepthReadReverseZ;
 		desc.SampleMask = UINT_MAX;
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
