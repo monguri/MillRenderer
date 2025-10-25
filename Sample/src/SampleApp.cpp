@@ -32,8 +32,8 @@
 // MeshをMeshletとMSで描画する場合はtrueにする
 #define USE_MESHLET true
 // Dynamic Resourcesを使うかどうか
-// TODO:現在適用しているのはMesh描画のみ
-#define USE_DYNAMIC_RESOURCE true
+// TODO:現在適用しているのはMeshlet描画でのMesh描画のみ
+#define USE_DYNAMIC_RESOURCE (true && USE_MESHLET)
 
 using namespace DirectX::SimpleMath;
 
@@ -5839,7 +5839,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
 	if (RENDER_SPONZA)
 	{
-			pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
+		pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
 	}
 	else
 	{
