@@ -5579,9 +5579,13 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 	pCmdList->RSSetViewports(1, &m_DirLightShadowMapViewport);
 	pCmdList->RSSetScissorRects(1, &m_DirLightShadowMapScissor);
 	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
+
+	// USE_DYNAMIC_RESOURCEでしか使ってない
+	std::vector<uint32_t> descHeapIndices(18 + MESHLET_ROOT_PARAM_COUNT + NUM_SPOT_LIGHTS);
+
 	if (USE_DYNAMIC_RESOURCE)
 	{
-		pCmdList->SetGraphicsRoot32BitConstant(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex(), 0);
+		descHeapIndices[0] = m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
 	}
 	else
 	{
@@ -5594,11 +5598,11 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 
 	// Opaqueマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
-	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, descHeapIndices);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
-	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, descHeapIndices);
 
 	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
@@ -5607,10 +5611,13 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 {
 	assert(RENDER_SPONZA);
 
+	// USE_DYNAMIC_RESOURCEでしか使ってない
+	std::vector<uint32_t> descHeapIndices(18 + MESHLET_ROOT_PARAM_COUNT + NUM_SPOT_LIGHTS);
+
 	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
 	if (USE_DYNAMIC_RESOURCE)
 	{
-		pCmdList->SetGraphicsRoot32BitConstant(0, m_SpotLightShadowMapTransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex(), 0);
+		descHeapIndices[0] = m_SpotLightShadowMapTransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
 	}
 	else
 	{
@@ -5623,11 +5630,11 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 
 	// Opaqueマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
-	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, descHeapIndices);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
-	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, descHeapIndices);
 }
 
 void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
@@ -5846,44 +5853,46 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 		pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	}
 
+	// USE_DYNAMIC_RESOURCEでしか使ってない
+	std::vector<uint32_t> descHeapIndices(18 + MESHLET_ROOT_PARAM_COUNT + NUM_SPOT_LIGHTS);
+
 	if (USE_DYNAMIC_RESOURCE)
 	{
-		//TODO: SetGraphicsRoot32BitConstants()でCBひとつにまとめてレジスタもひとつにしたい
-		pCmdList->SetGraphicsRoot32BitConstant(0, m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex(), 0);
-		pCmdList->SetGraphicsRoot32BitConstant(2 + MESHLET_ROOT_PARAM_COUNT, m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex(), 0);
+		descHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+		descHeapIndices[2 + MESHLET_ROOT_PARAM_COUNT] = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
 
 		if (RENDER_SPONZA)
 		{
-			pCmdList->SetGraphicsRoot32BitConstant(4 + MESHLET_ROOT_PARAM_COUNT, m_DirectionalLightCB[m_FrameIndex].GetHandle()->GetDescriptorIndex(), 0);
+			descHeapIndices[4 + MESHLET_ROOT_PARAM_COUNT] = m_DirectionalLightCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
 
 			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 			{
-				pCmdList->SetGraphicsRoot32BitConstant(5 + MESHLET_ROOT_PARAM_COUNT + i, m_PointLightCB[i].GetHandle()->GetDescriptorIndex(), 0);
+				descHeapIndices[5 + MESHLET_ROOT_PARAM_COUNT + i] = m_PointLightCB[i].GetHandle()->GetDescriptorIndex();
 			}
 
 			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 			{
-				pCmdList->SetGraphicsRoot32BitConstant(9 + MESHLET_ROOT_PARAM_COUNT + i, m_SpotLightCB[i].GetHandle()->GetDescriptorIndex(), 0);
+				descHeapIndices[9 + MESHLET_ROOT_PARAM_COUNT + i] = m_SpotLightCB[i].GetHandle()->GetDescriptorIndex();
 			}
 		}
 		else
 		{
-			pCmdList->SetGraphicsRoot32BitConstant(4 + MESHLET_ROOT_PARAM_COUNT, m_IBL_CB.GetHandle()->GetDescriptorIndex(), 0);
+			descHeapIndices[4 + MESHLET_ROOT_PARAM_COUNT] = m_IBL_CB.GetHandle()->GetDescriptorIndex();
 		}
 
 		if (RENDER_SPONZA)
 		{
-			pCmdList->SetGraphicsRoot32BitConstant(17 + MESHLET_ROOT_PARAM_COUNT, m_DirLightShadowMapTarget.GetHandleSRV()->GetDescriptorIndex(), 0);
+			descHeapIndices[17 + MESHLET_ROOT_PARAM_COUNT] = m_DirLightShadowMapTarget.GetHandleSRV()->GetDescriptorIndex();
 			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 			{
-				pCmdList->SetGraphicsRoot32BitConstant(18 + MESHLET_ROOT_PARAM_COUNT + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->GetDescriptorIndex(), 0);
+				descHeapIndices[18 + MESHLET_ROOT_PARAM_COUNT + i] = m_SpotLightShadowMapTarget[i].GetHandleSRV()->GetDescriptorIndex();
 			}
 		}
 		else
 		{
-			pCmdList->SetGraphicsRoot32BitConstant(10 + MESHLET_ROOT_PARAM_COUNT, m_IBLBaker.GetHandleSRV_DFG()->GetDescriptorIndex(), 0);
-			pCmdList->SetGraphicsRoot32BitConstant(11 + MESHLET_ROOT_PARAM_COUNT, m_IBLBaker.GetHandleSRV_DiffuseLD()->GetDescriptorIndex(), 0);
-			pCmdList->SetGraphicsRoot32BitConstant(12 + MESHLET_ROOT_PARAM_COUNT, m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex(), 0);
+			descHeapIndices[10 + MESHLET_ROOT_PARAM_COUNT] = m_IBLBaker.GetHandleSRV_DFG()->GetDescriptorIndex();
+			descHeapIndices[11 + MESHLET_ROOT_PARAM_COUNT] = m_IBLBaker.GetHandleSRV_DiffuseLD()->GetDescriptorIndex();
+			descHeapIndices[12 + MESHLET_ROOT_PARAM_COUNT] = m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex();
 		}
 	}
 	else
@@ -5939,7 +5948,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	{
 		pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
 	}
-	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, descHeapIndices);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	if (RENDER_SPONZA)
@@ -5950,7 +5959,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	{
 		pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
 	}
-	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+	DrawMesh(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, descHeapIndices);
 
 	if (RENDER_SPONZA)
 	{
@@ -5981,7 +5990,7 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
+void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, std::vector<uint32_t>& descHeapIndices)
 {
 	for (const Model* model : m_pModels)
 	{
@@ -6003,30 +6012,30 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 
 			if (USE_DYNAMIC_RESOURCE)
 			{
-				pCmdList->SetGraphicsRoot32BitConstant(1, pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex(), 0);
+				descHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();
 #if USE_MESHLET
-				pCmdList->SetGraphicsRoot32BitConstant(2, pMesh->GetVertexBufferSBHandle().GetDescriptorIndex(), 0);
-				pCmdList->SetGraphicsRoot32BitConstant(3, pMesh->GetMesletsSBHandle().GetDescriptorIndex(), 0);
-				pCmdList->SetGraphicsRoot32BitConstant(4, pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex(), 0);
-				pCmdList->SetGraphicsRoot32BitConstant(5, pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex(), 0);
+				descHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
+				descHeapIndices[3] = pMesh->GetMesletsSBHandle().GetDescriptorIndex();
+				descHeapIndices[4] = pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex();
+				descHeapIndices[5] = pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex();
 #endif
-				pCmdList->SetGraphicsRoot32BitConstant(3 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetCBHandle().GetDescriptorIndex(), 0);
+				descHeapIndices[3 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetCBHandle().GetDescriptorIndex();
 
 				if (RENDER_SPONZA)
 				{
-					pCmdList->SetGraphicsRoot32BitConstant(12 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex(), 0);
-					pCmdList->SetGraphicsRoot32BitConstant(13 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex(), 0);
-					pCmdList->SetGraphicsRoot32BitConstant(14 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex(), 0);
-					pCmdList->SetGraphicsRoot32BitConstant(15 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex(), 0);
-					pCmdList->SetGraphicsRoot32BitConstant(16 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex(), 0);
+					descHeapIndices[12 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
+					descHeapIndices[13 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
+					descHeapIndices[14 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
+					descHeapIndices[15 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
+					descHeapIndices[16 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
 				}
 				else
 				{
-					pCmdList->SetGraphicsRoot32BitConstant(5 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex(), 0);
-					pCmdList->SetGraphicsRoot32BitConstant(6 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex(), 0);
-					pCmdList->SetGraphicsRoot32BitConstant(7 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex(), 0);
-					pCmdList->SetGraphicsRoot32BitConstant(8 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex(), 0);
-					pCmdList->SetGraphicsRoot32BitConstant(9 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex(), 0);
+					descHeapIndices[5 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
+					descHeapIndices[6 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
+					descHeapIndices[7 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
+					descHeapIndices[8 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
+					descHeapIndices[9 + MESHLET_ROOT_PARAM_COUNT] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
 				}
 			}
 			else
@@ -6056,6 +6065,11 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 					pCmdList->SetGraphicsRootDescriptorTable(8 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
 					pCmdList->SetGraphicsRootDescriptorTable(9 + MESHLET_ROOT_PARAM_COUNT, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
 				}
+			}
+
+			if (USE_DYNAMIC_RESOURCE)
+			{
+				pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(descHeapIndices.size()), descHeapIndices.data(), 0);
 			}
 
 			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));

@@ -86,100 +86,38 @@ struct SpotLight
 SamplerState AnisotropicWrapSmp : register(s0);
 
 #ifdef USE_DYNAMIC_RESOURCE
-cbuffer CbRootConst0 : register(b0)
+// TODO: MSとPSに必要なDescHeapIndexをまとめている。別にしてルートパラメータとして別にしてもいいが
+// また、定義がPS側と重複している
+struct DescHeapIndices
 {
-	uint CbCameraDescIndex;
-}
+	uint CbTransform;
+	uint CbMesh;
+	uint SbVertexBuffer;
+	uint SbMeshlets;
+	uint SbMeshletVertices;
+	uint SbMeshletTriangles;
+	uint CbCamera;
+	uint CbMaterial;
+	uint CbDirLight;
+	uint CbPointLight1;
+	uint CbPointLight2;
+	uint CbPointLight3;
+	uint CbPointLight4;
+	uint CbSpotLight1;
+	uint CbSpotLight2;
+	uint CbSpotLight3;
+	uint BaseColorMap;
+	uint MetallicRoughnessMap;
+	uint NormalMap;
+	uint EmissiveMap;
+	uint AOMap;
+	uint DirLightShadowMap;
+	uint SpotLight1ShadowMap;
+	uint SpotLight2ShadowMap;
+	uint SpotLight3ShadowMap;
+};
 
-cbuffer CbRootConst1 : register(b1)
-{
-	uint CbMaterialDescIndex;
-}
-
-cbuffer CbRootConst2 : register(b2)
-{
-	uint CbDirLightDescIndex;
-}
-
-cbuffer CbRootConst3 : register(b3)
-{
-	uint CbPointLight1DescIndex;
-}
-
-cbuffer CbRootConst4 : register(b4)
-{
-	uint CbPointLight2DescIndex;
-}
-
-cbuffer CbRootConst5 : register(b5)
-{
-	uint CbPointLight3DescIndex;
-}
-
-cbuffer CbRootConst6 : register(b6)
-{
-	uint CbPointLight4DescIndex;
-}
-
-cbuffer CbRootConst7 : register(b7)
-{
-	uint CbSpotLight1DescIndex;
-}
-
-cbuffer CbRootConst8 : register(b8)
-{
-	uint CbSpotLight2DescIndex;
-}
-
-cbuffer CbRootConst9 : register(b9)
-{
-	uint CbSpotLight3DescIndex;
-}
-
-cbuffer CbRootConst10 : register(b10)
-{
-	uint BaseColorMapDescIndex;
-}
-
-cbuffer CbRootConst11 : register(b11)
-{
-	uint MetallicRoughnessMapDescIndex;
-}
-
-cbuffer CbRootConst12 : register(b12)
-{
-	uint NormalMapDescIndex;
-}
-
-cbuffer CbRootConst13 : register(b13)
-{
-	uint EmissiveMapDescIndex;
-}
-
-cbuffer CbRootConst14 : register(b14)
-{
-	uint AOMapDescIndex;
-}
-
-cbuffer CbRootConst15 : register(b15)
-{
-	uint DirLightShadowMapDescIndex;
-}
-
-cbuffer CbRootConst16 : register(b16)
-{
-	uint SpotLight1ShadowMapDescIndex;
-}
-
-cbuffer CbRootConst17 : register(b17)
-{
-	uint SpotLight2ShadowMapDescIndex;
-}
-
-cbuffer CbRootConst18 : register(b18)
-{
-	uint SpotLight3ShadowMapDescIndex;
-}
+ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
 #else // #ifdef USE_DYNAMIC_RESOURCE
 ConstantBuffer<Camera> CbCamera : register(b0);
 ConstantBuffer<Material> CbMaterial : register(b1);
@@ -411,29 +349,29 @@ float3 EvaluateSpotLightReflection
 PSOutput main(VSOutput input)
 {
 #ifdef USE_DYNAMIC_RESOURCE
-	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbCameraDescIndex];
-	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbMaterialDescIndex];
+	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbDescHeapIndices.CbCamera];
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
 
-	ConstantBuffer<DirectionalLight> CbDirectionalLight = ResourceDescriptorHeap[CbDirLightDescIndex];
+	ConstantBuffer<DirectionalLight> CbDirectionalLight = ResourceDescriptorHeap[CbDescHeapIndices.CbDirLight];
 
-	ConstantBuffer<PointLight> CbPointLight1 = ResourceDescriptorHeap[CbPointLight1DescIndex];
-	ConstantBuffer<PointLight> CbPointLight2 = ResourceDescriptorHeap[CbPointLight2DescIndex];
-	ConstantBuffer<PointLight> CbPointLight3 = ResourceDescriptorHeap[CbPointLight3DescIndex];
-	ConstantBuffer<PointLight> CbPointLight4 = ResourceDescriptorHeap[CbPointLight4DescIndex];
+	ConstantBuffer<PointLight> CbPointLight1 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight1];
+	ConstantBuffer<PointLight> CbPointLight2 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight2];
+	ConstantBuffer<PointLight> CbPointLight3 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight3];
+	ConstantBuffer<PointLight> CbPointLight4 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight4];
 
-	ConstantBuffer<SpotLight> CbSpotLight1 = ResourceDescriptorHeap[CbSpotLight1DescIndex];
-	ConstantBuffer<SpotLight> CbSpotLight2 = ResourceDescriptorHeap[CbSpotLight2DescIndex];
-	ConstantBuffer<SpotLight> CbSpotLight3 = ResourceDescriptorHeap[CbSpotLight3DescIndex];
+	ConstantBuffer<SpotLight> CbSpotLight1 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight1];
+	ConstantBuffer<SpotLight> CbSpotLight2 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight2];
+	ConstantBuffer<SpotLight> CbSpotLight3 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight3];
 
-	Texture2D BaseColorMap = ResourceDescriptorHeap[BaseColorMapDescIndex];
-	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[MetallicRoughnessMapDescIndex];
-	Texture2D NormalMap = ResourceDescriptorHeap[NormalMapDescIndex];
-	Texture2D EmissiveMap = ResourceDescriptorHeap[EmissiveMapDescIndex];
-	Texture2D AOMap = ResourceDescriptorHeap[AOMapDescIndex];
-	Texture2D DirLightShadowMap = ResourceDescriptorHeap[DirLightShadowMapDescIndex];
-	Texture2D SpotLight1ShadowMap = ResourceDescriptorHeap[SpotLight1ShadowMapDescIndex];
-	Texture2D SpotLight2ShadowMap = ResourceDescriptorHeap[SpotLight2ShadowMapDescIndex];
-	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[SpotLight3ShadowMapDescIndex];
+	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
+	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[CbDescHeapIndices.MetallicRoughnessMap];
+	Texture2D NormalMap = ResourceDescriptorHeap[CbDescHeapIndices.NormalMap];
+	Texture2D EmissiveMap = ResourceDescriptorHeap[CbDescHeapIndices.EmissiveMap];
+	Texture2D AOMap = ResourceDescriptorHeap[CbDescHeapIndices.AOMap];
+	Texture2D DirLightShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.DirLightShadowMap];
+	Texture2D SpotLight1ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLight1ShadowMap];
+	Texture2D SpotLight2ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLight2ShadowMap];
+	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLight3ShadowMap];
 #endif //#ifdef USE_DYNAMIC_RESOURCE
 
 	PSOutput output = (PSOutput)0;

@@ -74,31 +74,7 @@
 			" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
 			" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
 			")"\
-			", RootConstants(num32BitConstants=1, b0, visibility = SHADER_VISIBILITY_MESH)"\
-			", RootConstants(num32BitConstants=1, b1, visibility = SHADER_VISIBILITY_MESH)"\
-			", RootConstants(num32BitConstants=1, b2, visibility = SHADER_VISIBILITY_MESH)"\
-			", RootConstants(num32BitConstants=1, b3, visibility = SHADER_VISIBILITY_MESH)"\
-			", RootConstants(num32BitConstants=1, b4, visibility = SHADER_VISIBILITY_MESH)"\
-			", RootConstants(num32BitConstants=1, b5, visibility = SHADER_VISIBILITY_MESH)"\
-			", RootConstants(num32BitConstants=1, b0, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b2, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b3, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b4, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b5, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b6, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b7, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b8, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b9, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b10, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b11, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b12, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b13, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b14, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b15, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b16, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b17, visibility = SHADER_VISIBILITY_PIXEL)"\
-			", RootConstants(num32BitConstants=1, b18, visibility = SHADER_VISIBILITY_PIXEL)"\
+			", RootConstants(num32BitConstants=25, b0, visibility = SHADER_VISIBILITY_ALL)"\
 			", StaticSampler"\
 			"("\
 			"s0"\
@@ -291,36 +267,38 @@ struct Mesh
 };
 
 #ifdef USE_DYNAMIC_RESOURCE
-cbuffer CbRootConst0 : register(b0)
+// TODO: MSとPSに必要なDescHeapIndexをまとめている。別にしてルートパラメータとして別にしてもいいが
+// また、定義がPS側と重複している
+struct DescHeapIndices
 {
-	uint CbTransformDescIndex;
-}
+	uint CbTransform;
+	uint CbMesh;
+	uint SbVertexBuffer;
+	uint SbMeshlets;
+	uint SbMeshletVertices;
+	uint SbMeshletTriangles;
+	uint CbCamera;
+	uint CbMaterial;
+	uint CbDirLight;
+	uint CbPointLight1;
+	uint CbPointLight2;
+	uint CbPointLight3;
+	uint CbPointLight4;
+	uint CbSpotLight1;
+	uint CbSpotLight2;
+	uint CbSpotLight3;
+	uint BaseColorMap;
+	uint MetallicRoughnessMap;
+	uint NormalMap;
+	uint EmissiveMap;
+	uint AOMap;
+	uint DirLightShadowMap;
+	uint SpotLight1ShadowMap;
+	uint SpotLight2ShadowMap;
+	uint SpotLight3ShadowMap;
+};
 
-cbuffer CbRootConst1 : register(b1)
-{
-	uint CbMeshDescIndex;
-}
-
-cbuffer CbRootConst2 : register(b2)
-{
-	uint SbVertexBufferDescIndex;
-}
-
-cbuffer CbRootConst3 : register(b3)
-{
-	uint SbMeshletsDescIndex;
-}
-
-cbuffer CbRootConst4 : register(b4)
-{
-	uint SbMeshletVerticesDescIndex;
-}
-
-cbuffer CbRootConst5 : register(b5)
-{
-	uint SbMeshletTrianglesDescIndex;
-}
-
+ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
 #else // #ifdef USE_DYNAMIC_RESOURCE
 ConstantBuffer<Transform> CbTransform : register(b0);
 
@@ -344,13 +322,13 @@ void main
 )
 {
 #ifdef USE_DYNAMIC_RESOURCE
-	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[CbTransformDescIndex];
-	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbMeshDescIndex];
+	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[CbDescHeapIndices.CbTransform];
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbDescHeapIndices.CbMesh];
 
-	StructuredBuffer<VSInput> vertexBuffer = ResourceDescriptorHeap[SbVertexBufferDescIndex];
-	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[SbMeshletsDescIndex];
-	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[SbMeshletVerticesDescIndex];
-	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[SbMeshletTrianglesDescIndex];
+	StructuredBuffer<VSInput> vertexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.SbVertexBuffer];
+	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshlets];
+	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletVertices];
+	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletTriangles];
 #endif //#ifdef USE_DYNAMIC_RESOURCE
 
 	meshopt_Meshlet meshlet = meshlets[gid];

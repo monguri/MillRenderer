@@ -20,15 +20,36 @@ struct Material
 };
 
 #ifdef USE_DYNAMIC_RESOURCE
-cbuffer CbRootConst1 : register(b1)
+struct DescHeapIndices
 {
-	uint CbMaterialDescIndex;
-}
+	uint CbTransform;
+	uint CbMesh;
+	uint SbVertexBuffer;
+	uint SbMeshlets;
+	uint SbMeshletVertices;
+	uint SbMeshletTriangles;
+	uint CbCamera;
+	uint CbMaterial;
+	uint CbDirLight;
+	uint CbPointLight1;
+	uint CbPointLight2;
+	uint CbPointLight3;
+	uint CbPointLight4;
+	uint CbSpotLight1;
+	uint CbSpotLight2;
+	uint CbSpotLight3;
+	uint BaseColorMap;
+	uint MetallicRoughnessMap;
+	uint NormalMap;
+	uint EmissiveMap;
+	uint AOMap;
+	uint DirLightShadowMap;
+	uint SpotLight1ShadowMap;
+	uint SpotLight2ShadowMap;
+	uint SpotLight3ShadowMap;
+};
 
-cbuffer CbRootConst10 : register(b10)
-{
-	uint BaseColorMapDescIndex;
-}
+ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
 #else // #ifdef USE_DYNAMIC_RESOURCE
 ConstantBuffer<Material> CbMaterial : register(b1);
 Texture2D BaseColorMap : register(t0);
@@ -39,8 +60,8 @@ SamplerState BaseColorSmp : register(s0);
 void main(VSOutput input)
 {
 #ifdef USE_DYNAMIC_RESOURCE
-	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbMaterialDescIndex];
-	Texture2D BaseColorMap = ResourceDescriptorHeap[BaseColorMapDescIndex];
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
+	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
 #endif //#ifdef USE_DYNAMIC_RESOURCE
 	float4 baseColor = BaseColorMap.Sample(BaseColorSmp, input.TexCoord);
 	if (baseColor.a < CbMaterial.AlphaCutoff)
