@@ -191,6 +191,7 @@ struct VSOutput
 	float3 SpotLight1ShadowCoord : TEXCOORD3;
 	float3 SpotLight2ShadowCoord : TEXCOORD4;
 	float3 SpotLight3ShadowCoord : TEXCOORD5;
+	uint MeshletID : MESHLET_ID;
 };
 
 cbuffer CbTransform : register(b0)
