@@ -60,6 +60,7 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
+	uint MeshletID : MESHLET_ID;
 };
 
 cbuffer CbTransform : register(b0)
