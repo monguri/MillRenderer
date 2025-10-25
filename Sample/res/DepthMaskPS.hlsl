@@ -22,12 +22,6 @@ struct Material
 #ifdef USE_DYNAMIC_RESOURCE
 struct DescHeapIndices
 {
-	uint CbTransform;
-	uint CbMesh;
-	uint SbVertexBuffer;
-	uint SbMeshlets;
-	uint SbMeshletVertices;
-	uint SbMeshletTriangles;
 	uint CbCamera;
 	uint CbMaterial;
 	uint CbDirLight;
@@ -49,7 +43,7 @@ struct DescHeapIndices
 	uint SpotLight3ShadowMap;
 };
 
-ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
+ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b1);
 #else // #ifdef USE_DYNAMIC_RESOURCE
 ConstantBuffer<Material> CbMaterial : register(b1);
 Texture2D BaseColorMap : register(t0);

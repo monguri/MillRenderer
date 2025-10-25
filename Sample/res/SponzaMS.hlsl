@@ -74,7 +74,8 @@
 			" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
 			" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
 			")"\
-			", RootConstants(num32BitConstants=25, b0, visibility = SHADER_VISIBILITY_ALL)"\
+			", RootConstants(num32BitConstants=6, b0, visibility = SHADER_VISIBILITY_MESH)"\
+			", RootConstants(num32BitConstants=19, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
 			", StaticSampler"\
 			"("\
 			"s0"\
@@ -267,8 +268,6 @@ struct Mesh
 };
 
 #ifdef USE_DYNAMIC_RESOURCE
-// TODO: MSとPSに必要なDescHeapIndexをまとめている。別にしてルートパラメータとして別にしてもいいが
-// また、定義がPS側と重複している
 struct DescHeapIndices
 {
 	uint CbTransform;
@@ -277,25 +276,6 @@ struct DescHeapIndices
 	uint SbMeshlets;
 	uint SbMeshletVertices;
 	uint SbMeshletTriangles;
-	uint CbCamera;
-	uint CbMaterial;
-	uint CbDirLight;
-	uint CbPointLight1;
-	uint CbPointLight2;
-	uint CbPointLight3;
-	uint CbPointLight4;
-	uint CbSpotLight1;
-	uint CbSpotLight2;
-	uint CbSpotLight3;
-	uint BaseColorMap;
-	uint MetallicRoughnessMap;
-	uint NormalMap;
-	uint EmissiveMap;
-	uint AOMap;
-	uint DirLightShadowMap;
-	uint SpotLight1ShadowMap;
-	uint SpotLight2ShadowMap;
-	uint SpotLight3ShadowMap;
 };
 
 ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);

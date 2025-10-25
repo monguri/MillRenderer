@@ -86,16 +86,8 @@ struct SpotLight
 SamplerState AnisotropicWrapSmp : register(s0);
 
 #ifdef USE_DYNAMIC_RESOURCE
-// TODO: MSとPSに必要なDescHeapIndexをまとめている。別にしてルートパラメータとして別にしてもいいが
-// また、定義がPS側と重複している
 struct DescHeapIndices
 {
-	uint CbTransform;
-	uint CbMesh;
-	uint SbVertexBuffer;
-	uint SbMeshlets;
-	uint SbMeshletVertices;
-	uint SbMeshletTriangles;
 	uint CbCamera;
 	uint CbMaterial;
 	uint CbDirLight;
@@ -117,7 +109,7 @@ struct DescHeapIndices
 	uint SpotLight3ShadowMap;
 };
 
-ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
+ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b1);
 #else // #ifdef USE_DYNAMIC_RESOURCE
 ConstantBuffer<Camera> CbCamera : register(b0);
 ConstantBuffer<Material> CbMaterial : register(b1);
