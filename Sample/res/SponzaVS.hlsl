@@ -251,9 +251,6 @@ struct Mesh
 };
 
 #ifdef USE_DYNAMIC_RESOURCE
-//TODO:仮実装
-// TODO: VSとPSに必要なDescHeapIndexをまとめている。別にしてルートパラメータとして別にしてもいいが
-// また、定義がPS側と重複している
 struct DescHeapIndices
 {
 	uint CbTransform;
