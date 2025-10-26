@@ -1,71 +1,94 @@
-#define ROOT_SIGNATURE ""\
-"RootFlags"\
-"("\
-"DENY_VERTEX_SHADER_ROOT_ACCESS"\
-" | DENY_HULL_SHADER_ROOT_ACCESS"\
-" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
-" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
-" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
-")"\
-", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
-", StaticSampler"\
-"("\
-"s0"\
-", filter = FILTER_ANISOTROPIC"\
-", addressU = TEXTURE_ADDRESS_WRAP"\
-", addressV = TEXTURE_ADDRESS_WRAP"\
-", addressW = TEXTURE_ADDRESS_WRAP"\
-", maxAnisotropy = 16"\
-", comparisonFunc = COMPARISON_NEVER"\
-", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-", visibility = SHADER_VISIBILITY_PIXEL"\
-")"\
-", StaticSampler"\
-"("\
-"s1"\
-", filter = FILTER_MIN_MAG_MIP_LINEAR"\
-", addressU = TEXTURE_ADDRESS_WRAP"\
-", addressV = TEXTURE_ADDRESS_WRAP"\
-", addressW = TEXTURE_ADDRESS_WRAP"\
-", maxAnisotropy = 1"\
-", comparisonFunc = COMPARISON_NEVER"\
-", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-", visibility = SHADER_VISIBILITY_PIXEL"\
-")"
+#define USE_DYNAMIC_RESOURCE
 
-cbuffer CbTransform : register(b0)
-{
-	float4x4 ViewProj;
-}
-
-cbuffer CbMesh : register(b1)
-{
-	float4x4 World;
-}
-
-struct meshopt_Meshlet
-{
-	uint VertOffset;
-	uint TriOffset;
-	uint VertCount;
-	uint TriCount;
-};
+#ifdef USE_DYNAMIC_RESOURCE
+	#define ROOT_SIGNATURE ""\
+	"RootFlags"\
+	"("\
+	"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+	" | DENY_HULL_SHADER_ROOT_ACCESS"\
+	" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+	" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+	" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+	" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
+	")"\
+	", RootConstants(num32BitConstants=6, b0, visibility = SHADER_VISIBILITY_MESH)"\
+	", RootConstants(num32BitConstants=11, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
+	", StaticSampler"\
+	"("\
+	"s0"\
+	", filter = FILTER_ANISOTROPIC"\
+	", addressU = TEXTURE_ADDRESS_WRAP"\
+	", addressV = TEXTURE_ADDRESS_WRAP"\
+	", addressW = TEXTURE_ADDRESS_WRAP"\
+	", maxAnisotropy = 16"\
+	", comparisonFunc = COMPARISON_NEVER"\
+	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+	", visibility = SHADER_VISIBILITY_PIXEL"\
+	")"\
+	", StaticSampler"\
+	"("\
+	"s1"\
+	", filter = FILTER_MIN_MAG_MIP_LINEAR"\
+	", addressU = TEXTURE_ADDRESS_WRAP"\
+	", addressV = TEXTURE_ADDRESS_WRAP"\
+	", addressW = TEXTURE_ADDRESS_WRAP"\
+	", maxAnisotropy = 1"\
+	", comparisonFunc = COMPARISON_NEVER"\
+	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+	", visibility = SHADER_VISIBILITY_PIXEL"\
+	")"
+#else // #ifdef USE_DYNAMIC_RESOURCE
+	#define ROOT_SIGNATURE ""\
+	"RootFlags"\
+	"("\
+	"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+	" | DENY_HULL_SHADER_ROOT_ACCESS"\
+	" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+	" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+	" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+	")"\
+	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+	", StaticSampler"\
+	"("\
+	"s0"\
+	", filter = FILTER_ANISOTROPIC"\
+	", addressU = TEXTURE_ADDRESS_WRAP"\
+	", addressV = TEXTURE_ADDRESS_WRAP"\
+	", addressW = TEXTURE_ADDRESS_WRAP"\
+	", maxAnisotropy = 16"\
+	", comparisonFunc = COMPARISON_NEVER"\
+	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+	", visibility = SHADER_VISIBILITY_PIXEL"\
+	")"\
+	", StaticSampler"\
+	"("\
+	"s1"\
+	", filter = FILTER_MIN_MAG_MIP_LINEAR"\
+	", addressU = TEXTURE_ADDRESS_WRAP"\
+	", addressV = TEXTURE_ADDRESS_WRAP"\
+	", addressW = TEXTURE_ADDRESS_WRAP"\
+	", maxAnisotropy = 1"\
+	", comparisonFunc = COMPARISON_NEVER"\
+	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+	", visibility = SHADER_VISIBILITY_PIXEL"\
+	")"
+#endif //#ifdef USE_DYNAMIC_RESOURCE
 
 //TODO: SponzaVS.hlslとSponzaMS.hlslで構造体定義が重複している
 //TODO: BasePassVS.hlslとBasePassMS.hlslで構造体定義が重複している
@@ -86,6 +109,42 @@ struct VSOutput
 	uint MesletID : MESHLET_ID;
 };
 
+struct meshopt_Meshlet
+{
+	uint VertOffset;
+	uint TriOffset;
+	uint VertCount;
+	uint TriCount;
+};
+
+struct Transform
+{
+	float4x4 ViewProj;
+};
+
+struct Mesh
+{
+	float4x4 World;
+};
+
+#ifdef USE_DYNAMIC_RESOURCE
+struct DescHeapIndices
+{
+	uint CbTransform;
+	uint CbMesh;
+	uint SbVertexBuffer;
+	uint SbMeshlets;
+	uint SbMeshletVertices;
+	uint SbMeshletTriangles;
+};
+
+ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
+#else // #ifdef USE_DYNAMIC_RESOURCE
+ConstantBuffer<Transform> CbTransform : register(b0);
+
+ConstantBuffer<Mesh> CbMesh : register(b1);
+#endif // #ifdef USE_DYNAMIC_RESOURCE
+
 StructuredBuffer<VSInput> vertexBuffer : register(t0);
 StructuredBuffer<meshopt_Meshlet> meshlets : register(t1);
 StructuredBuffer<uint> meshletsVertices : register(t2);
@@ -102,6 +161,16 @@ void main
 	out indices uint3 outTriIndices[126]
 )
 {
+#ifdef USE_DYNAMIC_RESOURCE
+	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[CbDescHeapIndices.CbTransform];
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbDescHeapIndices.CbMesh];
+
+	StructuredBuffer<VSInput> vertexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.SbVertexBuffer];
+	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshlets];
+	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletVertices];
+	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletTriangles];
+#endif //#ifdef USE_DYNAMIC_RESOURCE
+
 	meshopt_Meshlet meshlet = meshlets[gid];
 
 	SetMeshOutputCounts(meshlet.VertCount, meshlet.TriCount);
@@ -112,8 +181,8 @@ void main
 		VSInput input = vertexBuffer[vertexIndex];
 
 		float4 localPos = float4(input.Position, 1.0f);
-		float4 worldPos = mul(World, localPos);
-		float4 projPos = mul(ViewProj, worldPos);
+		float4 worldPos = mul(CbMesh.World, localPos);
+		float4 projPos = mul(CbTransform.ViewProj, worldPos);
 
 		VSOutput output = (VSOutput)0;
 		output.MesletID = gid;
@@ -122,8 +191,8 @@ void main
 		output.TexCoord = input.TexCoord;
 		output.WorldPos = worldPos.xyz;
 
-		float3 N = normalize(mul((float3x3)World, input.Normal));
-		float3 T = normalize(mul((float3x3)World, input.Tangent));
+		float3 N = normalize(mul((float3x3)CbMesh.World, input.Normal));
+		float3 T = normalize(mul((float3x3)CbMesh.World, input.Tangent));
 		float3 B = normalize(cross(N, T));
 
 		output.InvTangentBasis = transpose(float3x3(T, B, N));

@@ -1,5 +1,7 @@
 #include "BRDF.hlsli"
 
+#define USE_DYNAMIC_RESOURCE
+
 struct VSOutput
 {
 	float4 Position : SV_POSITION;
@@ -16,29 +18,51 @@ struct PSOutput
 	float2 MetallicRoughness : SV_TARGET2;
 };
 
-cbuffer CbCamera : register(b0)
+struct Camera
 {
-	float3 CameraPosition : packoffset(c0);
-	int bDebugViewMeshletCluster : packoffset(c0.w);
+	float3 CameraPosition;
+	int bDebugViewMeshletCluster;
 };
 
-cbuffer CbMaterial : register(b1)
+struct Material
 {
-	float3 BaseColorFactor : packoffset(c0);
-	float MetallicFactor : packoffset(c0.w);
-	float RoughnessFactor : packoffset(c1);
-	float3 EmissiveFactor : packoffset(c1.y);
-	float AlphaCutoff : packoffset(c2);
-	int bExistEmissiveTex : packoffset(c2.y);
-	int bExistAOTex : packoffset(c2.z);
+	float3 BaseColorFactor;
+	float MetallicFactor;
+	float RoughnessFactor;
+	float3 EmissiveFactor;
+	float AlphaCutoff;
+	int bExistEmissiveTex;
+	int bExistAOTex;
 };
 
-cbuffer CbIBL : register(b2)
+struct IBL
 {
-	float TextureSize : packoffset(c0);
-	float MipCount : packoffset(c0.y);
-	float LightIntensity : packoffset(c0.z);
+	float TextureSize;
+	float MipCount;
+	float LightIntensity;
 };
+
+#ifdef USE_DYNAMIC_RESOURCE
+struct DescHeapIndices
+{
+	uint CbCamera;
+	uint CbMaterial;
+	uint CbIBL;
+	uint BaseColorMap;
+	uint MetallicRoughnessMap;
+	uint NormalMap;
+	uint EmissiveMap;
+	uint AOMap;
+	uint DFGMap;
+	uint DiffuseLDMap;
+	uint SpecularLDMap;
+};
+
+ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b1);
+#else // #ifdef USE_DYNAMIC_RESOURCE
+ConstantBuffer<Camera> CbCamera : register(b0);
+ConstantBuffer<Material> CbMaterial : register(b1);
+ConstantBuffer<IBL> CbIBL : register(b2);
 
 Texture2D BaseColorMap : register(t0);
 Texture2D MetallicRoughnessMap : register(t1);
@@ -48,6 +72,7 @@ Texture2D AOMap : register(t4);
 Texture2D DFGMap : register(t5);
 TextureCube DiffuseLDMap : register(t6);
 TextureCube SpecularLDMap : register(t7);
+#endif // #ifdef USE_DYNAMIC_RESOURCE
 
 SamplerState AnisotropicWrapSmp : register(s0);
 SamplerState LinearWrapSmp : register(s1);
@@ -61,12 +86,20 @@ float3 GetSpecularDominantDir(float3 N, float3 R, float roughness)
 
 float3 EvaluateIBLDiffuse(float3 N)
 {
+#ifdef USE_DYNAMIC_RESOURCE
+	TextureCube DiffuseLDMap = ResourceDescriptorHeap[CbDescHeapIndices.DiffuseLDMap];
+#endif //#ifdef USE_DYNAMIC_RESOURCE
+
 	return DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
 }
 
 // Referenced glTF-Sample-Viewer ibl.glsl
 float3 GetIBLRadianceLambertian(float3 N, float3 NdotV, float roughness, float3 diffuseColor, float3 F0, float3 Fr, float2 f_ab)
 {
+#ifdef USE_DYNAMIC_RESOURCE
+	TextureCube DiffuseLDMap = ResourceDescriptorHeap[CbDescHeapIndices.DiffuseLDMap];
+#endif //#ifdef USE_DYNAMIC_RESOURCE
+
 	float3 irradiance = DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
 
     // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
@@ -100,6 +133,11 @@ float3 EvaluateIBLSpecular
 	float mipCount
 )
 {
+#ifdef USE_DYNAMIC_RESOURCE
+	Texture2D DFGMap = ResourceDescriptorHeap[CbDescHeapIndices.DFGMap];
+	TextureCube SpecularLDMap = ResourceDescriptorHeap[CbDescHeapIndices.SpecularLDMap];
+#endif //#ifdef USE_DYNAMIC_RESOURCE
+
 	float a = roughness * roughness;
 	float3 dominantR = GetSpecularDominantDir(N, R, a);
 
@@ -122,6 +160,10 @@ float3 EvaluateIBLSpecular
 // Referenced glTF-Sample-Viewer ibl.glsl
 float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, float3 F0, float3 Fr, float2 f_ab, float mipCount)
 {
+#ifdef USE_DYNAMIC_RESOURCE
+	TextureCube SpecularLDMap = ResourceDescriptorHeap[CbDescHeapIndices.SpecularLDMap];
+#endif //#ifdef USE_DYNAMIC_RESOURCE
+
 	// TODO: float3 dominantR = GetSpecularDominantDir(N, R, a);‚È‚µ
 	float mipLevel = RoughnessToMipLevel(roughness, mipCount);
 
@@ -139,23 +181,37 @@ float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, floa
 
 PSOutput main(VSOutput input)
 {
+#ifdef USE_DYNAMIC_RESOURCE
+	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbDescHeapIndices.CbCamera];
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
+	ConstantBuffer<IBL> CbIBL = ResourceDescriptorHeap[CbDescHeapIndices.CbIBL];
+
+	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
+	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[CbDescHeapIndices.MetallicRoughnessMap];
+	Texture2D NormalMap = ResourceDescriptorHeap[CbDescHeapIndices.NormalMap];
+	Texture2D EmissiveMap = ResourceDescriptorHeap[CbDescHeapIndices.EmissiveMap];
+	Texture2D AOMap = ResourceDescriptorHeap[CbDescHeapIndices.AOMap];
+	Texture2D DFGMap = ResourceDescriptorHeap[CbDescHeapIndices.DFGMap];
+	TextureCube DiffuseLDMap = ResourceDescriptorHeap[CbDescHeapIndices.DiffuseLDMap];
+	TextureCube SpecularLDMap = ResourceDescriptorHeap[CbDescHeapIndices.SpecularLDMap];
+#endif //#ifdef USE_DYNAMIC_RESOURCE
 	PSOutput output = (PSOutput)0;
 
 	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, input.TexCoord);
 #ifdef ALPHA_MODE_MASK
-	if (baseColor.a < AlphaCutoff)
+	if (baseColor.a < CbMaterial.AlphaCutoff)
 	{
 		discard;
 	}
 #endif
 
-	baseColor.rgb *= BaseColorFactor;
+	baseColor.rgb *= CbMaterial.BaseColorFactor;
 
 	// metallic value is G. roughness value is B.
 	// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
 	float2 metallicRoughness = MetallicRoughnessMap.Sample(AnisotropicWrapSmp, input.TexCoord).bg;
-	float metallic = metallicRoughness.x * MetallicFactor;
-	float roughness = metallicRoughness.y * RoughnessFactor;
+	float metallic = metallicRoughness.x * CbMaterial.MetallicFactor;
+	float roughness = metallicRoughness.y * CbMaterial.RoughnessFactor;
 
 	float3 N = NormalMap.Sample(AnisotropicWrapSmp, input.TexCoord).xyz * 2.0f - 1.0f;
 
@@ -164,7 +220,7 @@ PSOutput main(VSOutput input)
 	roughness = IsotropicNDFFiltering(N, roughness);
 
 	N = mul(input.InvTangentBasis, N);
-	float3 V = normalize(CameraPosition - input.WorldPos);
+	float3 V = normalize(CbCamera.CameraPosition - input.WorldPos);
 	float3 R = normalize(reflect(-V, N));
 	float NdotV = saturate(dot(N, V));
 
@@ -174,7 +230,7 @@ PSOutput main(VSOutput input)
 
 	float3 lit = 0;
 	lit += EvaluateIBLDiffuse(N) * Kd;
-	lit += EvaluateIBLSpecular(NdotV, N, R, Ks, roughness, TextureSize, MipCount);
+	lit += EvaluateIBLSpecular(NdotV, N, R, Ks, roughness, CbIBL.TextureSize, CbIBL.MipCount);
 #else
 
 	float3 cDiff = lerp(baseColor.rgb, 0.0f, metallic);;
@@ -184,26 +240,26 @@ PSOutput main(VSOutput input)
 	float2 f_ab = DFGMap.SampleLevel(LinearWrapSmp, float2(NdotV, roughness), 0).xy;
 
 	float3 diffuse = GetIBLRadianceLambertian(N, NdotV, roughness, cDiff, F0, Fr, f_ab);
-	float3 specular = GetIBLRadianceGGX(N, R, NdotV, roughness, F0, Fr, f_ab, MipCount);
+	float3 specular = GetIBLRadianceGGX(N, R, NdotV, roughness, F0, Fr, f_ab, CbIBL.MipCount);
 	float3 lit = diffuse + specular;
 #endif
 
 	float3 emissive = 0;
-	if (bExistEmissiveTex)
+	if (CbMaterial.bExistEmissiveTex)
 	{
-		emissive = EmissiveFactor;
+		emissive = CbMaterial.EmissiveFactor;
 		emissive *= EmissiveMap.Sample(AnisotropicWrapSmp, input.TexCoord).rgb;
 	}
 
 	float AO = 1;
-	if (bExistAOTex)
+	if (CbMaterial.bExistAOTex)
 	{
 		AO = AOMap.Sample(AnisotropicWrapSmp, input.TexCoord).r;
 	}
 
-	if (bDebugViewMeshletCluster == 0)
+	if (CbCamera.bDebugViewMeshletCluster == 0)
 	{
-		output.Color.rgb = lit * LightIntensity * AO + emissive;
+		output.Color.rgb = lit * CbIBL.LightIntensity * AO + emissive;
 	}
 	else
 	{

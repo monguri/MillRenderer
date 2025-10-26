@@ -28,7 +28,7 @@
 #include "ResMesh.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA true
+#define RENDER_SPONZA false
 // MeshをMeshletとMSで描画する場合はtrueにする
 #define USE_MESHLET false
 // Dynamic Resourcesを使うかどうか
@@ -5857,7 +5857,15 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 
 	// USE_DYNAMIC_RESOURCEでしか使ってない
 	std::vector<uint32_t> gsDescHeapIndices(2 + MESHLET_ROOT_PARAM_COUNT);
-	std::vector<uint32_t> psDescHeapIndices(16 + NUM_SPOT_LIGHTS);
+	std::vector<uint32_t> psDescHeapIndices;
+	if (RENDER_SPONZA)
+	{
+		psDescHeapIndices.resize(16 + NUM_SPOT_LIGHTS);
+	}
+	else
+	{
+		psDescHeapIndices.resize(11);
+	}
 
 	if (USE_DYNAMIC_RESOURCE)
 	{
