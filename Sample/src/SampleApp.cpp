@@ -28,9 +28,9 @@
 #include "ResMesh.h"
 
 // Sponzaは、ライティングをIBLでなくハードコーディングで配置したライトを使うなど特別な処理を多くやっているので分岐する
-#define RENDER_SPONZA false
+#define RENDER_SPONZA true
 // MeshをMeshletとMSで描画する場合はtrueにする
-#define USE_MESHLET false
+#define USE_MESHLET true
 // Dynamic Resourcesを使うかどうか
 // TODO:現在適用しているのはMeshのGバッファ描画のみ
 #define USE_DYNAMIC_RESOURCE true
