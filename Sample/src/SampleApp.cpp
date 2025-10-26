@@ -721,8 +721,11 @@ namespace
 	}
 }
 
-SampleApp::SampleApp(uint32_t width, uint32_t height)
+SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 : App(width, height, DXGI_FORMAT_R10G10B10A2_UNORM)
+, m_drawIBLScene(false)
+, m_useMeshlet(false)
+, m_useDynamicResources(false)
 , m_ToneMapType(TONE_MAP::GRAN_TURISMO)
 , m_ColorSpace(COLOR_SPACE::BT709)
 , m_BaseLuminance(100.0f)
@@ -758,6 +761,21 @@ SampleApp::SampleApp(uint32_t width, uint32_t height)
 , m_debugViewMode(DEBUG_VIEW_MODE::NONE)
 , m_isLightManipulateMode(false)
 {
+	for (int a = 0; a < argc; a++)
+	{
+		if (wcscmp(argv[a], L"--IBL") == 0)
+		{
+			m_drawIBLScene = true;
+		}
+		else if (wcscmp(argv[a], L"--meshlet") == 0)
+		{
+			m_useMeshlet = true;
+		}
+		else if (wcscmp(argv[a], L"--dynamicresources") == 0)
+		{
+			m_useDynamicResources = true;
+		}
+	}
 }
 
 SampleApp::~SampleApp()

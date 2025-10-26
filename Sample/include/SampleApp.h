@@ -16,7 +16,7 @@
 class SampleApp : public App
 {
 public:
-	SampleApp(uint32_t width, uint32_t height);
+	SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height);
 	virtual ~SampleApp();
 
 private:
@@ -24,6 +24,10 @@ private:
 	static constexpr uint32_t NUM_SPOT_LIGHTS = 3;
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
+
+	bool m_drawIBLScene = false;
+	bool m_useMeshlet = false;
+	bool m_useDynamicResources = true;
 
 	Texture m_DummyTexture;
 	ComPtr<ID3D12PipelineState> m_pSkyTransmittanceLUT_PSO;
