@@ -25,9 +25,15 @@ private:
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
 
-	bool m_drawIBLScene = false;
+	// true:IBL下でのモデルビューワ
+	// false:ハードコーディングで配置した解析的ライトやとSkyBoxを使ってSponzaを描画
+	bool m_drawSponza = false;
+	// true:MeshletとMSでのジオメトリ処理、false:VSでのジオメトリ処理
 	bool m_useMeshlet = false;
+	// true:動的リソース割り当て、false:静的リソース割り当て
 	bool m_useDynamicResources = true;
+
+	uint32_t m_meshletRootParamCount = 0;
 
 	Texture m_DummyTexture;
 	ComPtr<ID3D12PipelineState> m_pSkyTransmittanceLUT_PSO;
