@@ -1,6 +1,5 @@
 #include "ShaderCompiler.h"
 #include "Logger.h"
-#include <dxcapi.h>
 
 ShaderCompiler::~ShaderCompiler()
 {
@@ -32,7 +31,7 @@ void ShaderCompiler::Term()
 	m_pCompiler.Reset();
 }
 
-bool ShaderCompiler::Compile(const wchar_t* filePath, std::vector<const wchar_t*>& args, ComPtr<class IDxcBlob>& outBlob)
+bool ShaderCompiler::Compile(const wchar_t* filePath, std::vector<const wchar_t*>& args, ComPtr<IDxcBlob>& outBlob)
 {
 	ComPtr<IDxcBlobEncoding> pSourceBlob;
 	HRESULT hr = m_pUtils->LoadFile(

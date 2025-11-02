@@ -2,6 +2,7 @@
 
 #include <SimpleMath.h>
 #include "App.h"
+#include "ShaderCompiler.h"
 #include "VertexBuffer.h"
 #include "ConstantBuffer.h"
 #include "ColorTarget.h"
@@ -35,6 +36,7 @@ private:
 
 	uint32_t m_meshletRootParamCount = 0;
 
+	ShaderCompiler m_ShaderCompiler;
 	Texture m_DummyTexture;
 	ComPtr<ID3D12PipelineState> m_pSkyTransmittanceLUT_PSO;
 	RootSignature m_SkyTransmittanceLUT_RootSig;
