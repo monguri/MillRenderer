@@ -75,6 +75,35 @@ bool ShaderCompiler::Compile(const wchar_t* filePath, std::vector<const wchar_t*
 		ELOG("Error : IDxcResult::GetOutput() Failed.");
 		return false;
 	}
+	if (pErrors != nullptr && pErrors->GetStringLength() != 0)
+	{
+		ELOG("Shader Compile Error : \n%s", pErrors->GetStringPointer());
+		return false;
+	}
+
+	HRESULT status;
+	hr = pResult->GetStatus(&status);
+	if (FAILED(hr))
+	{
+		ELOG("Error : IDxcResult::GetStatus() Failed.");
+		return false;
+	}
+	if (FAILED(status))
+	{
+		ELOG("Error : IDxcResult::GetStatus() returned %d.", hr);
+		return false;
+	}
+
+	hr = pResult->GetOutput(
+		DXC_OUT_OBJECT,
+		IID_PPV_ARGS(outBlob.GetAddressOf()),
+		nullptr
+	);
+	if (FAILED(status))
+	{
+		ELOG("Error : IDxcResult::GetOutput() Failed.");
+		return false;
+	}
 
 	return true;
 }
