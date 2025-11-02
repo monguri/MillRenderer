@@ -788,6 +788,8 @@ bool SampleApp::OnInit(HWND hWnd)
 	m_CameraManipulator.Reset(CAMERA_START_POSITION, CAMERA_START_TARGET);
 	m_DirLightManipulator.Reset(DIRECTIONAL_LIGHT_START_POSITION, DIRECTIONAL_LIGHT_START_TARGET);
 
+	m_ShaderCompiler.Init();
+
 	// imgui初期化
 	{
 		// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
@@ -5110,6 +5112,8 @@ bool SampleApp::OnInit(HWND hWnd)
 
 void SampleApp::OnTerm()
 {
+	m_ShaderCompiler.Term();
+
 	// imgui終了処理
 	if (ImGui::GetCurrentContext() != nullptr)
 	{
