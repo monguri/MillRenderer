@@ -2375,46 +2375,58 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		// AlphaModeがMaskのシャドウマップ描画用
 		std::wstring psPath;
-		if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
+		if (!SearchFilePath(L"DepthMaskPS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		ComPtr<ID3DBlob> pDepthMaskPSBlob;
-		HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
-		if (FAILED(hr))
+		std::vector<const wchar_t*> compileArgs =
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			L"-T ps_6_7",
+			L"-I", L"../res",
+#if defined(DEBUG) || defined(_DEBUG)
+			L"-Zi",
+			L"-Qembed_debug",
+			L"-Od"
+#endif
+		};
+		if (m_useDynamicResources)
+		{
+			compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
+		}
+
+		ComPtr<IDxcBlob> pDepthMaskPSBlob;
+		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pDepthMaskPSBlob))
+		{
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
-		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
+		if (!SearchFilePath(L"SponzaOpaquePS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		ComPtr<ID3DBlob> pOpaquePSBlob;
-		hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
-		if (FAILED(hr))
+		ComPtr<IDxcBlob> pOpaquePSBlob;
+		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pOpaquePSBlob))
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
 		// AlphaModeがMaskのマテリアル用
-		if (!SearchFilePath(L"SponzaMaskPS.cso", psPath))
+		if (!SearchFilePath(L"SponzaMaskPS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		ComPtr<ID3DBlob> pMaskPSBlob;
-		hr = D3DReadFileToBlob(psPath.c_str(), pMaskPSBlob.GetAddressOf());
-		if (FAILED(hr))
+		ComPtr<IDxcBlob> pMaskPSBlob;
+		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pMaskPSBlob))
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
@@ -2425,22 +2437,36 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring msPath;
-			if (!SearchFilePath(L"SponzaMS.cso", msPath))
+			if (!SearchFilePath(L"SponzaMS.hlsl", msPath))
 			{
 				ELOG("Error : Mesh Shader Not Found");
 				return false;
 			}
 
-			ComPtr<ID3DBlob> pMSBlob;
-			hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
-			if (FAILED(hr))
+			std::vector<const wchar_t*> compileArgs =
 			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
+				L"-T ms_6_7",
+				L"-I", L"../res",
+#if defined(DEBUG) || defined(_DEBUG)
+				L"-Zi",
+				L"-Qembed_debug",
+				L"-Od"
+#endif
+			};
+			if (m_useDynamicResources)
+			{
+				compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
+			}
+
+			ComPtr<IDxcBlob> pMSBlob;
+			if (!m_ShaderCompiler.Compile(msPath.c_str(), compileArgs, pMSBlob))
+			{
+				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", msPath.c_str());
 				return false;
 			}
 
 			ComPtr<ID3DBlob> pRSBlob;
-			hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			HRESULT hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
@@ -2555,17 +2581,31 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring vsPath;
-			if (!SearchFilePath(L"SponzaVS.cso", vsPath))
+			if (!SearchFilePath(L"SponzaVS.hlsl", vsPath))
 			{
 				ELOG("Error : Vertex Shader Not Found");
 				return false;
 			}
 
-			ComPtr<ID3DBlob> pVSBlob;
-			hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-			if (FAILED(hr))
+			std::vector<const wchar_t*> compileArgs =
 			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+				L"-T vs_6_7",
+				L"-I", L"../res",
+#if defined(DEBUG) || defined(_DEBUG)
+				L"-Zi",
+				L"-Qembed_debug",
+				L"-Od"
+#endif
+			};
+			if (m_useDynamicResources)
+			{
+				compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
+			}
+
+			ComPtr<IDxcBlob> pVSBlob;
+			if (!m_ShaderCompiler.Compile(vsPath.c_str(), compileArgs, pVSBlob))
+			{
+				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", vsPath.c_str());
 				return false;
 			}
 
@@ -2574,7 +2614,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			// PSは実行しないので設定しない
 
 			ComPtr<ID3DBlob> pRSBlob;
-			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			HRESULT hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
@@ -2669,46 +2709,59 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		// AlphaModeがMaskのシャドウマップ描画用
 		std::wstring psPath;
-		if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
+		if (!SearchFilePath(L"DepthMaskPS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		ComPtr<ID3DBlob> pDepthMaskPSBlob;
-		HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
-		if (FAILED(hr))
+		std::vector<const wchar_t*> compileArgs =
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			L"-T ps_6_7",
+			L"-I", L"../res",
+#if defined(DEBUG) || defined(_DEBUG)
+			L"-Zi",
+			L"-Qembed_debug",
+			L"-Od"
+#endif
+		};
+		if (m_useDynamicResources)
+		{
+			compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
+		}
+
+		ComPtr<IDxcBlob> pDepthMaskPSBlob;
+		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pDepthMaskPSBlob))
+		{
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
 		// AlphaModeがOpaqueのマテリアル用
-		if (!SearchFilePath(L"BasePassOpaquePS.cso", psPath))
+		if (!SearchFilePath(L"BasePassOpaquePS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		ComPtr<ID3DBlob> pPSBlob;
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
+		ComPtr<IDxcBlob> pOpaquePSBlob;
+		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pOpaquePSBlob))
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
 		// AlphaModeがMaskのマテリアル用
-		if (!SearchFilePath(L"BasePassMaskPS.cso", psPath))
+		if (!SearchFilePath(L"BasePassMaskPS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
+		ComPtr<IDxcBlob> pMaskPSBlob;
+		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pMaskPSBlob))
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
@@ -2760,7 +2813,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 
 			ComPtr<ID3DBlob> pRSBlob;
-			hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			HRESULT hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
@@ -2820,8 +2873,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
 			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 
-			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+			desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pOpaquePSBlob->GetBufferSize();
 
 			psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
 			streamDesc.pPipelineStateSubobjectStream = &psoStream;
@@ -2836,8 +2889,9 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+			// AlphaModeがMaskのマテリアル用
+			desc.PS.pShaderBytecode = pMaskPSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pMaskPSBlob->GetBufferSize();
 			//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
 			desc.RasterizerState = DirectX::CommonStates::CullNone;
 
@@ -2875,22 +2929,35 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring vsPath;
-			if (!SearchFilePath(L"BasePassVS.cso", vsPath))
+			if (!SearchFilePath(L"BasePassVS.hlsl", vsPath))
 			{
 				ELOG("Error : Vertex Shader Not Found");
 				return false;
 			}
 
-			ComPtr<ID3DBlob> pVSBlob;
-			hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-			if (FAILED(hr))
+			std::vector<const wchar_t*> compileArgs =
 			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+				L"-T vs_6_7",
+#if defined(DEBUG) || defined(_DEBUG)
+				L"-Zi",
+				L"-Qembed_debug",
+				L"-Od"
+#endif
+			};
+			if (m_useDynamicResources)
+			{
+				compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
+			}
+
+			ComPtr<IDxcBlob> pVSBlob;
+			if (!m_ShaderCompiler.Compile(vsPath.c_str(), compileArgs, pVSBlob))
+			{
+				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", vsPath.c_str());
 				return false;
 			}
 
 			ComPtr<ID3DBlob> pRSBlob;
-			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			HRESULT hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
@@ -2942,8 +3009,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
 			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 
-			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+			desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pOpaquePSBlob->GetBufferSize();
 
 			hr = m_pDevice->CreateGraphicsPipelineState(
 				&desc,
@@ -2955,8 +3022,9 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+			// AlphaModeがMaskのマテリアル用
+			desc.PS.pShaderBytecode = pMaskPSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pMaskPSBlob->GetBufferSize();
 			//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
 			desc.RasterizerState = DirectX::CommonStates::CullNone;
 

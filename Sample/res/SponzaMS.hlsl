@@ -1,7 +1,5 @@
 #include "ShadowMap.hlsli"
 
-#define USE_DYNAMIC_RESOURCE
-
 #ifdef USE_MANUAL_PCF_FOR_SHADOW_MAP
 	#define ROOT_SIGNATURE ""\
 	"RootFlags"\

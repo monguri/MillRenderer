@@ -1,5 +1,3 @@
-#define USE_DYNAMIC_RESOURCE
-
 struct VSOutput
 {
 	float4 Position : SV_POSITION;

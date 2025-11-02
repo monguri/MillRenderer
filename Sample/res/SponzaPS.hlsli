@@ -1,8 +1,6 @@
 #include "ShadowMap.hlsli"
 #include "BRDF.hlsli"
 
-#define USE_DYNAMIC_RESOURCE
-
 #ifndef MIN_DIST
 #define MIN_DIST (0.01)
 #endif // MIN_DIST
