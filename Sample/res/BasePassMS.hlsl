@@ -1,5 +1,3 @@
-#define USE_DYNAMIC_RESOURCE
-
 #ifdef USE_DYNAMIC_RESOURCE
 	#define ROOT_SIGNATURE ""\
 	"RootFlags"\

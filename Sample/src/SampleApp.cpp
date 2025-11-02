@@ -2732,17 +2732,30 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring msPath;
-			if (!SearchFilePath(L"BasePassMS.cso", msPath))
+			if (!SearchFilePath(L"BasePassMS.hlsl", msPath))
 			{
-				ELOG("Error : Vertex Shader Not Found");
+				ELOG("Error : Mesh Shader Not Found");
 				return false;
 			}
 
-			ComPtr<ID3DBlob> pMSBlob;
-			hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
-			if (FAILED(hr))
+			std::vector<const wchar_t*> compileArgs =
 			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
+				L"-T ms_6_7",
+#if defined(DEBUG) || defined(_DEBUG)
+				L"-Zi",
+				L"-Qembed_debug",
+				L"-Od"
+#endif
+			};
+			if (m_useDynamicResources)
+			{
+				compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
+			}
+
+			ComPtr<IDxcBlob> pMSBlob;
+			if (!m_ShaderCompiler.Compile(msPath.c_str(), compileArgs, pMSBlob))
+			{
+				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", msPath.c_str());
 				return false;
 			}
 
