@@ -15,4 +15,5 @@ public:
 private:
 	ComPtr<struct IDxcUtils> m_pUtils;
 	ComPtr<struct IDxcCompiler3> m_pCompiler;
+	ComPtr<struct IDxcIncludeHandler> m_pIncludeHandler;
 };

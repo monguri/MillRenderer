@@ -11,14 +11,21 @@ bool ShaderCompiler::Init()
 	HRESULT hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(m_pUtils.GetAddressOf()));
 	if (FAILED(hr))
 	{
-		ELOG("Error : DxcCreateInstance Failed.");
+		ELOG("Error : DxcCreateInstance() Failed.");
 		return false;
 	}
 
 	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(m_pCompiler.GetAddressOf()));
 	if (FAILED(hr))
 	{
-		ELOG("Error : DxcCreateInstance Failed.");
+		ELOG("Error : DxcCreateInstance() Failed.");
+		return false;
+	}
+
+	hr = m_pUtils->CreateDefaultIncludeHandler(m_pIncludeHandler.GetAddressOf());
+	if (FAILED(hr))
+	{
+		ELOG("Error : IDxcUtils::CreateDefaultIncludeHandler() Failed.");
 		return false;
 	}
 
@@ -55,7 +62,7 @@ bool ShaderCompiler::Compile(const wchar_t* filePath, std::vector<const wchar_t*
 		&sourceBuffer,
 		args.data(),
 		static_cast<UINT32>(args.size()),
-		nullptr,
+		m_pIncludeHandler.Get(),
 		IID_PPV_ARGS(pResult.GetAddressOf())
 	);
 	if (FAILED(hr))
