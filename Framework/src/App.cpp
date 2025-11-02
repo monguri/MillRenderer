@@ -372,6 +372,8 @@ void App::TermD3D()
 	m_pQueue.Reset();
 
 	m_pDevice.Reset();
+
+    CoUninitialize();
 }
 
 void App::MainLoop()
