@@ -287,7 +287,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		instanceDesc.InstanceID = 0;
 		instanceDesc.InstanceMask = 0xFF;
 		instanceDesc.InstanceContributionToHitGroupIndex = 0;
-		instanceDesc.AccelerationStructure = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
+		instanceDesc.AccelerationStructure = m_BlasResultBB.GetResource()->GetGPUVirtualAddress();
 		instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 
 		if (!tlasInstanceDescBB.InitAsByteAddressBuffer(
