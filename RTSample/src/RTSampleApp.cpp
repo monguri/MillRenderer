@@ -529,7 +529,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		// Global Root SignatureのSubObjectを作成
 		ID3D12RootSignature* pGlobalRootSig = nullptr;
 		{
-#if 0 // RootSignatureのDescriptorTable方式でTdrが起きてるのかもしれないのでTLASをルートデスクリプタ方式にしてみる
+#if 1 // RootSignatureのDescriptorTable方式でTdrが起きてるのかもしれないのでTLASをルートデスクリプタ方式にしてみる
 			RootSignature::Desc desc;
 			desc.Begin()
 #if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
@@ -919,8 +919,11 @@ void RTSampleApp::RayTrace(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
 #if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 	// 試しにTLASをDesriptorTable方式でなくルートデスクリプタ方式にしてみる
-	//pCmdList->SetComputeRootDescriptorTable(0, m_pTlasResultSrvHandle->HandleGPU);
+#if 1
+	pCmdList->SetComputeRootDescriptorTable(0, m_pTlasResultSrvHandle->HandleGPU);
+#else
 	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
+#endif
 	pCmdList->SetComputeRootDescriptorTable(1, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
 #endif
 	pCmdList->DispatchRays(&dispatchDesc);
