@@ -531,6 +531,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		// Global Root SignatureのSubObjectを作成
 		ID3D12RootSignature* pGlobalRootSig = nullptr;
 		{
+#if 0 // RootSignatureのDescriptorTable方式でTdrが起きてるのかもしれないのでTLASをルートデスクリプタ方式にしてみる
 			RootSignature::Desc desc;
 			desc.Begin()
 #if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
@@ -544,6 +545,37 @@ bool RTSampleApp::OnInit(HWND hWnd)
 				ELOG("Error : RootSignature::Init() Failed");
 				return false;
 			}
+#else
+			D3D12_DESCRIPTOR_RANGE range[1] = {};
+			range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+			range[0].NumDescriptors = 1;
+			range[0].BaseShaderRegister = 0;
+			range[0].RegisterSpace = 0;
+			range[0].OffsetInDescriptorsFromTableStart = 0;
+
+			D3D12_ROOT_PARAMETER param[2] = {};
+			param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+			param[0].Descriptor.ShaderRegister = 0;
+			param[0].Descriptor.RegisterSpace = 0;
+			param[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			// ディスクリプタテーブル方式にしないとTexture2Dのようなtyped-UAVが使えない
+			param[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			param[1].DescriptorTable.NumDescriptorRanges = 1;
+			param[1].DescriptorTable.pDescriptorRanges = &range[0];
+			param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			D3D12_ROOT_SIGNATURE_DESC desc = {};
+			desc.NumParameters = _countof(param);
+			desc.pParameters = param;
+			desc.NumStaticSamplers = 0;
+			desc.pStaticSamplers = nullptr;
+
+			if (!m_GlobalRootSig.Init(m_pDevice.Get(), &desc))
+			{
+				ELOG("Error : RootSignature::Init() Failed");
+				return false;
+			}
+#endif
 
 			D3D12_STATE_SUBOBJECT subObjGlobalRootSig;
 			subObjGlobalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
@@ -888,7 +920,9 @@ void RTSampleApp::RayTrace(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
 #if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
-	pCmdList->SetComputeRootDescriptorTable(0, m_pTlasResultSrvHandle->HandleGPU);
+	// 試しにTLASをDesriptorTable方式でなくルートデスクリプタ方式にしてみる
+	//pCmdList->SetComputeRootDescriptorTable(0, m_pTlasResultSrvHandle->HandleGPU);
+	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
 	pCmdList->SetComputeRootDescriptorTable(1, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
 #endif
 	pCmdList->DispatchRays(&dispatchDesc);
