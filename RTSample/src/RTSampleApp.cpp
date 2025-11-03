@@ -402,8 +402,10 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
+#if 0 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 				.SetSRV(ShaderStage::ALL, 0, 0)
 				.SetUAV(ShaderStage::ALL, 1, 0)
+#endif
 				.SetLocalRootSignature()
 				.End();
 
@@ -530,8 +532,12 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		ID3D12RootSignature* pGlobalRootSig = nullptr;
 		{
 			RootSignature::Desc desc;
-			// GlobalRootSignatureの場合は何も設定しない
-			desc.Begin().End();
+			desc.Begin()
+#if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
+				.SetSRV(ShaderStage::ALL, 0, 0)
+				.SetUAV(ShaderStage::ALL, 1, 0)
+#endif
+				.End();
 
 			if (!m_GlobalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 			{
@@ -592,9 +598,11 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	{
 		// 全シェーダ、最大サイズになるray-genシェーダに合わせる
 		m_ShaderTableEntrySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+#if 0 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 		// デスクリプタテーブルの分
 		m_ShaderTableEntrySize += 8 * 2;
-		m_ShaderTableEntrySize = (m_ShaderTableEntrySize + D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
+#endif
+		m_ShaderTableEntrySize = (m_ShaderTableEntrySize + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
 
 		ComPtr<ID3D12StateObjectProperties> pStateObjProps;
 		HRESULT hr = m_pStateObject->QueryInterface(IID_PPV_ARGS(pStateObjProps.GetAddressOf()));
@@ -610,10 +618,15 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		shaderTblData.resize(m_ShaderTableEntrySize * 3);
 		memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
+#if 0 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 		// RTではディスクリプタテーブルの設定をSetComputeRootDescriptorTable()ではなく
 		// ShaderTableに設定する形で行う
-		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) = m_pTlasResultSrvHandle->HandleGPU.ptr;
-		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8) = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
+		uint64_t* pHandles = reinterpret_cast<uint64_t*>(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		//*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) = m_pTlasResultSrvHandle->HandleGPU.ptr;
+		//*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8) = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
+		pHandles[0] = m_pTlasResultSrvHandle->HandleGPU.ptr;
+		pHandles[1] = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
+#endif
 
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
@@ -874,6 +887,10 @@ void RTSampleApp::RayTrace(ID3D12GraphicsCommandList4* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
+#if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
+	pCmdList->SetComputeRootDescriptorTable(0, m_pTlasResultSrvHandle->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
+#endif
 	pCmdList->DispatchRays(&dispatchDesc);
 
 	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
