@@ -227,12 +227,39 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	Resource tlasScratchBB;
 	Resource tlasInstanceDescBB;
 	{
+		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc;
+		const Matrix& identityMat = Matrix::Identity;
+		memcpy(instanceDesc.Transform, &identityMat, sizeof(instanceDesc.Transform));
+		instanceDesc.InstanceID = 0;
+		instanceDesc.InstanceMask = 0xFF;
+		instanceDesc.InstanceContributionToHitGroupIndex = 0;
+		instanceDesc.AccelerationStructure = m_BlasResultBB.GetResource()->GetGPUVirtualAddress();
+		instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+
+		if (!tlasInstanceDescBB.InitAsByteAddressBuffer(
+			m_pDevice.Get(),
+			sizeof(instanceDesc),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			nullptr
+		))
+		{
+			ELOG("Error : StructuredBuffer::Init() Failed.");
+			return false;
+		}
+
+		if (!tlasInstanceDescBB.UploadBufferData(m_pDevice.Get(), pCmd, sizeof(instanceDesc), &instanceDesc))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
 		inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 		inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-		// あとでInstanceDescsを設定するので
 		inputs.NumDescs = 1;
-		inputs.pGeometryDescs = nullptr;
+		inputs.InstanceDescs = tlasInstanceDescBB.GetResource()->GetGPUVirtualAddress();
 		inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildInfo;
@@ -281,37 +308,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		m_pDevice.Get()->CreateShaderResourceView(nullptr, &srvDesc, m_pTlasResultSrvHandle->HandleCPU);
 
-		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc;
-		const Matrix& identityMat = Matrix::Identity;
-		memcpy(instanceDesc.Transform, &identityMat, sizeof(instanceDesc.Transform));
-		instanceDesc.InstanceID = 0;
-		instanceDesc.InstanceMask = 0xFF;
-		instanceDesc.InstanceContributionToHitGroupIndex = 0;
-		instanceDesc.AccelerationStructure = m_BlasResultBB.GetResource()->GetGPUVirtualAddress();
-		instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-
-		if (!tlasInstanceDescBB.InitAsByteAddressBuffer(
-			m_pDevice.Get(),
-			sizeof(instanceDesc),
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			nullptr
-		))
-		{
-			ELOG("Error : StructuredBuffer::Init() Failed.");
-			return false;
-		}
-
-		if (!tlasInstanceDescBB.UploadBufferData(m_pDevice.Get(), pCmd, sizeof(instanceDesc), &instanceDesc))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
 		asDesc.Inputs = inputs;
-		asDesc.Inputs.InstanceDescs = tlasInstanceDescBB.GetResource()->GetGPUVirtualAddress();
 		asDesc.DestAccelerationStructureData = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
 		asDesc.ScratchAccelerationStructureData = tlasScratchBB.GetResource()->GetGPUVirtualAddress();
 		asDesc.SourceAccelerationStructureData = 0;
