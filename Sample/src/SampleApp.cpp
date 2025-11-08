@@ -1551,6 +1551,27 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// VisibilyBufferの生成
+	if (m_doDeferredMaterial)
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_SceneVisibilityTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R32_UINT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::InitRenderTarget() Failed.");
+			return false;
+		}
+	}
+
 	// シーン用デプスターゲットの生成
 	{
 		if (!m_SceneDepthTarget.Init
@@ -5312,6 +5333,7 @@ void SampleApp::OnTerm()
 	m_SceneColorTarget.Term();
 	m_SceneNormalTarget.Term();
 	m_SceneMetallicRoughnessTarget.Term();
+	m_SceneVisibilityTarget.Term();
 	m_SceneDepthTarget.Term();
 
 	m_HCB_Target.Term();

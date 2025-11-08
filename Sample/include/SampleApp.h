@@ -113,6 +113,7 @@ private:
 	ColorTarget m_SceneColorTarget;
 	ColorTarget m_SceneNormalTarget;
 	ColorTarget m_SceneMetallicRoughnessTarget;
+	ColorTarget m_SceneVisibilityTarget;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_HCB_Target;
 	ColorTarget m_HZB_Target;
