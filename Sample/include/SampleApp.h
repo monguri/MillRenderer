@@ -33,6 +33,8 @@ private:
 	bool m_useMeshlet = false;
 	// true:動的リソース割り当て、false:静的リソース割り当て
 	bool m_useDynamicResources = true;
+	// Visibility Bufferを使ったDeferredMaterialをやるかどうか
+	bool m_doDeferredMaterial = false;
 
 	uint32_t m_meshletRootParamCount = 0;
 

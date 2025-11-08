@@ -767,6 +767,10 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		{
 			m_useDynamicResources = true;
 		}
+		else if (wcscmp(argv[a], L"--dererredmaterial") == 0)
+		{
+			m_doDeferredMaterial = true;
+		}
 	}
 
 	if (m_useMeshlet)
