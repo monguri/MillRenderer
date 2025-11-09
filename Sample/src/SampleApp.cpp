@@ -5698,13 +5698,27 @@ void SampleApp::OnRender()
 
 	DrawVolumetricCloud(pCmd);
 
-	if (m_enableTemporalAA)
+	if (m_useMeshlet && m_useDynamicResources && m_doDeferredMaterial)
 	{
-		DrawScene(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
+		if (m_enableTemporalAA)
+		{
+			DrawVisibility(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter);
+		}
+		else
+		{
+			DrawVisibility(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter);
+		}
 	}
 	else
 	{
-		DrawScene(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential);
+		if (m_enableTemporalAA)
+		{
+			DrawScene(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
+		}
+		else
+		{
+			DrawScene(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential);
+		}
 	}
 
 	DrawHCB(pCmd);
@@ -6056,6 +6070,33 @@ void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_CloudTracingTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_CloudSecondaryTracingTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_CloudTracingDepthTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj)
+{
+	::PIXScopedEvent(pCmdList, 0, L"Visibility");
+
+	// 変換行列用の定数バッファの更新
+	{
+		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		ptr->ViewProj = viewProj;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_SceneVisibilityTarget.GetHandleRTV()->HandleCPU;
+	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+	pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
+
+	m_SceneVisibilityTarget.ClearView(pCmdList);
+	m_SceneDepthTarget.ClearView(pCmdList);
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
