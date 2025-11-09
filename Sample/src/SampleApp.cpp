@@ -6095,6 +6095,16 @@ void SampleApp::DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const Direct
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 	
+	pCmdList->SetGraphicsRootSignature(m_VisibilityRootSig.GetPtr());
+
+	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
+	std::vector<uint32_t> psDescHeapIndices(1);
+
+	gsDescHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+
+	pCmdList->SetPipelineState(m_pVisibilityPSO.Get());
+	DrawMeshVisibility(pCmdList, gsDescHeapIndices, psDescHeapIndices);
+
 	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
@@ -6338,6 +6348,11 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawMeshVisibility(ID3D12GraphicsCommandList* pCmdList, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices)
+{
+	//TODO:実装
 }
 
 void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices)
