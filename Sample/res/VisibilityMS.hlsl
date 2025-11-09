@@ -1,3 +1,17 @@
+// TODO: とりあえずMeshlet、DynamicResourceのときに実装を限定する
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
+")"\
+", RootConstants(num32BitConstants=5, b0, visibility = SHADER_VISIBILITY_MESH)"\
+", RootConstants(num32BitConstants=1, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
+
 // TODO: VisibiligyBufferの段階ではPosition以外はVBに必要ないので削れる
 struct VSInput
 {
@@ -26,7 +40,6 @@ struct meshopt_Meshlet
 	uint TriCount;
 };
 
-// TODO: とりあえずMeshlet、DynamicResourceのときに実装を限定する
 struct DescHeapIndices
 {
 	uint CbTransform;
@@ -49,11 +62,7 @@ struct Mesh
 
 ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
 
-StructuredBuffer<VSInput> vertexBuffer : register(t0);
-StructuredBuffer<meshopt_Meshlet> meshlets : register(t1);
-StructuredBuffer<uint> meshletsVertices : register(t2);
-StructuredBuffer<uint> meshletsTriangles : register(t3);
-
+[RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
 [OutputTopology("triangle")]
 void main

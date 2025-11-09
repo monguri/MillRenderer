@@ -19,25 +19,7 @@ struct Material
 
 struct DescHeapIndices
 {
-	uint CbCamera;
 	uint CbMaterial;
-	uint CbDirLight;
-	uint CbPointLight1;
-	uint CbPointLight2;
-	uint CbPointLight3;
-	uint CbPointLight4;
-	uint CbSpotLight1;
-	uint CbSpotLight2;
-	uint CbSpotLight3;
-	uint BaseColorMap;
-	uint MetallicRoughnessMap;
-	uint NormalMap;
-	uint EmissiveMap;
-	uint AOMap;
-	uint DirLightShadowMap;
-	uint SpotLight1ShadowMap;
-	uint SpotLight2ShadowMap;
-	uint SpotLight3ShadowMap;
 };
 
 ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b1);
