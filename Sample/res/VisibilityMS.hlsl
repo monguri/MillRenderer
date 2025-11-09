@@ -9,13 +9,13 @@ struct VSInput
 
 struct VertexData
 {
-	float4 position : SV_Position;
+	float4 Position : SV_Position;
 };
 
 struct PrimitiveData
 {
-	uint primitiveID : SV_PrimitiveID;
-	uint meshletID : MESHLET_ID;
+	uint PrimitiveID : SV_PrimitiveID;
+	uint MeshletID : MESHLET_ID;
 };
 
 struct meshopt_Meshlet
@@ -87,7 +87,7 @@ void main
 		float4 projPos = mul(CbTransform.ViewProj, worldPos);
 
 		VertexData v;
-		v.position = projPos;
+		v.Position = projPos;
 		outVerts[gtid] = v;
 	}
 
@@ -103,8 +103,8 @@ void main
 	if (gtid < 126)
 	{
 		PrimitiveData p;
-		p.primitiveID = gtid;
-		p.meshletID = gid;
+		p.PrimitiveID = gtid;
+		p.MeshletID = gid;
 		outPrims[gtid] = p;
 	}
 }

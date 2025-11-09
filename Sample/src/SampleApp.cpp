@@ -1563,7 +1563,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES],
 			m_Width,
 			m_Height,
-			DXGI_FORMAT_R32_UINT,
+			DXGI_FORMAT_R32G32_UINT,
 			clearColor
 		))
 		{
