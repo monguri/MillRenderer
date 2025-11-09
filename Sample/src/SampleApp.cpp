@@ -201,7 +201,7 @@ namespace
 		float AlphaCutoff;
 		int bExistEmissiveTex;
 		int bExistAOTex;
-		float Padding[1];
+		unsigned int MaterialID;
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい

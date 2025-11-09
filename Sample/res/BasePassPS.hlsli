@@ -31,6 +31,7 @@ struct Material
 	float AlphaCutoff;
 	int bExistEmissiveTex;
 	int bExistAOTex;
+	uint MaterialID;
 };
 
 struct IBL

@@ -15,6 +15,7 @@ struct Material
 	float AlphaCutoff;
 	int bExistEmissiveTex;
 	int bExistAOTex;
+	uint MaterialID;
 };
 
 #ifdef USE_DYNAMIC_RESOURCE
