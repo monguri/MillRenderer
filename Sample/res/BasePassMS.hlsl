@@ -104,7 +104,7 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 	float3 WorldPos : WORLD_POS;
 	float3x3 InvTangentBasis : INV_TANGENT_BASIS;
-	uint MesletID : MESHLET_ID;
+	uint MeshletID : MESHLET_ID;
 };
 
 struct meshopt_Meshlet
@@ -183,7 +183,7 @@ void main
 		float4 projPos = mul(CbTransform.ViewProj, worldPos);
 
 		VSOutput output = (VSOutput)0;
-		output.MesletID = gid;
+		output.MeshletID = gid;
 
 		output.Position = projPos;
 		output.TexCoord = input.TexCoord;
