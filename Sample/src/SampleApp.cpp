@@ -119,6 +119,8 @@ namespace
 	struct alignas(256) CbMesh
 	{
 		Matrix World;
+		unsigned int MeshID;
+		float Padding[3];
 	};
 
 	struct alignas(256) CbTransform

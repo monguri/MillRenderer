@@ -2,7 +2,7 @@ struct MSOutput
 {
 	float4 Position : SV_Position;
 	uint PrimitiveID : SV_PrimitiveID;
-	uint MeshletID : MESHLET_ID;
+	uint MeshID : MESH_ID;
 };
 
 struct Material
@@ -27,6 +27,6 @@ ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b1);
 uint2 main(MSOutput input) : SV_TARGET
 {
 	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
-	// MaterialID‚ÆMeshletID‚Í16bit‚¸‚Â‚ÉŽû‚Ü‚é‘z’è
-	return uint2((CbMaterial.MaterialID << 16) | (input.MeshletID & 0xffff), input.PrimitiveID);
+	// MaterialID‚ÆMeshID‚Í16bit‚¸‚Â‚ÉŽû‚Ü‚é‘z’è
+	return uint2((CbMaterial.MaterialID << 16) | (input.MeshID & 0xffff), input.PrimitiveID);
 }
