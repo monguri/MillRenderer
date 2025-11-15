@@ -227,12 +227,39 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	Resource tlasScratchBB;
 	Resource tlasInstanceDescBB;
 	{
+		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc;
+		const Matrix& identityMat = Matrix::Identity;
+		memcpy(instanceDesc.Transform, &identityMat, sizeof(instanceDesc.Transform));
+		instanceDesc.InstanceID = 0;
+		instanceDesc.InstanceMask = 0xFF;
+		instanceDesc.InstanceContributionToHitGroupIndex = 0;
+		instanceDesc.AccelerationStructure = m_BlasResultBB.GetResource()->GetGPUVirtualAddress();
+		instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+
+		if (!tlasInstanceDescBB.InitAsByteAddressBuffer(
+			m_pDevice.Get(),
+			sizeof(instanceDesc),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			nullptr
+		))
+		{
+			ELOG("Error : StructuredBuffer::Init() Failed.");
+			return false;
+		}
+
+		if (!tlasInstanceDescBB.UploadBufferData(m_pDevice.Get(), pCmd, sizeof(instanceDesc), &instanceDesc))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
 		inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 		inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-		// あとでInstanceDescsを設定するので
 		inputs.NumDescs = 1;
-		inputs.pGeometryDescs = nullptr;
+		inputs.InstanceDescs = tlasInstanceDescBB.GetResource()->GetGPUVirtualAddress();
 		inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildInfo;
@@ -281,37 +308,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		m_pDevice.Get()->CreateShaderResourceView(nullptr, &srvDesc, m_pTlasResultSrvHandle->HandleCPU);
 
-		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc;
-		const Matrix& identityMat = Matrix::Identity;
-		memcpy(instanceDesc.Transform, &identityMat, sizeof(instanceDesc.Transform));
-		instanceDesc.InstanceID = 0;
-		instanceDesc.InstanceMask = 0xFF;
-		instanceDesc.InstanceContributionToHitGroupIndex = 0;
-		instanceDesc.AccelerationStructure = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
-		instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-
-		if (!tlasInstanceDescBB.InitAsByteAddressBuffer(
-			m_pDevice.Get(),
-			sizeof(instanceDesc),
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			nullptr
-		))
-		{
-			ELOG("Error : StructuredBuffer::Init() Failed.");
-			return false;
-		}
-
-		if (!tlasInstanceDescBB.UploadBufferData(m_pDevice.Get(), pCmd, sizeof(instanceDesc), &instanceDesc))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
 		asDesc.Inputs = inputs;
-		asDesc.Inputs.InstanceDescs = tlasInstanceDescBB.GetResource()->GetGPUVirtualAddress();
 		asDesc.DestAccelerationStructureData = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
 		asDesc.ScratchAccelerationStructureData = tlasScratchBB.GetResource()->GetGPUVirtualAddress();
 		asDesc.SourceAccelerationStructureData = 0;
@@ -402,8 +400,10 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
+#if 0 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 				.SetSRV(ShaderStage::ALL, 0, 0)
 				.SetUAV(ShaderStage::ALL, 1, 0)
+#endif
 				.SetLocalRootSignature()
 				.End();
 
@@ -529,15 +529,51 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		// Global Root SignatureのSubObjectを作成
 		ID3D12RootSignature* pGlobalRootSig = nullptr;
 		{
+#if 1 // RootSignatureのDescriptorTable方式でTdrが起きてるのかもしれないのでTLASをルートデスクリプタ方式にしてみる
 			RootSignature::Desc desc;
-			// GlobalRootSignatureの場合は何も設定しない
-			desc.Begin().End();
+			desc.Begin()
+#if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
+				.SetSRV(ShaderStage::ALL, 0, 0)
+				.SetUAV(ShaderStage::ALL, 1, 0)
+#endif
+				.End();
 
 			if (!m_GlobalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 			{
 				ELOG("Error : RootSignature::Init() Failed");
 				return false;
 			}
+#else
+			D3D12_DESCRIPTOR_RANGE range[1] = {};
+			range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+			range[0].NumDescriptors = 1;
+			range[0].BaseShaderRegister = 0;
+			range[0].RegisterSpace = 0;
+			range[0].OffsetInDescriptorsFromTableStart = 0;
+
+			D3D12_ROOT_PARAMETER param[2] = {};
+			param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+			param[0].Descriptor.ShaderRegister = 0;
+			param[0].Descriptor.RegisterSpace = 0;
+			param[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			// ディスクリプタテーブル方式にしないとTexture2Dのようなtyped-UAVが使えない
+			param[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			param[1].DescriptorTable.NumDescriptorRanges = 1;
+			param[1].DescriptorTable.pDescriptorRanges = &range[0];
+			param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			D3D12_ROOT_SIGNATURE_DESC desc = {};
+			desc.NumParameters = _countof(param);
+			desc.pParameters = param;
+			desc.NumStaticSamplers = 0;
+			desc.pStaticSamplers = nullptr;
+
+			if (!m_GlobalRootSig.Init(m_pDevice.Get(), &desc))
+			{
+				ELOG("Error : RootSignature::Init() Failed");
+				return false;
+			}
+#endif
 
 			D3D12_STATE_SUBOBJECT subObjGlobalRootSig;
 			subObjGlobalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
@@ -592,9 +628,11 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	{
 		// 全シェーダ、最大サイズになるray-genシェーダに合わせる
 		m_ShaderTableEntrySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+#if 0 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 		// デスクリプタテーブルの分
 		m_ShaderTableEntrySize += 8 * 2;
-		m_ShaderTableEntrySize = (m_ShaderTableEntrySize + D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
+#endif
+		m_ShaderTableEntrySize = (m_ShaderTableEntrySize + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
 
 		ComPtr<ID3D12StateObjectProperties> pStateObjProps;
 		HRESULT hr = m_pStateObject->QueryInterface(IID_PPV_ARGS(pStateObjProps.GetAddressOf()));
@@ -610,10 +648,15 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		shaderTblData.resize(m_ShaderTableEntrySize * 3);
 		memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
+#if 0 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 		// RTではディスクリプタテーブルの設定をSetComputeRootDescriptorTable()ではなく
 		// ShaderTableに設定する形で行う
-		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) = m_pTlasResultSrvHandle->HandleGPU.ptr;
-		*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8) = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
+		uint64_t* pHandles = reinterpret_cast<uint64_t*>(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		//*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) = m_pTlasResultSrvHandle->HandleGPU.ptr;
+		//*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8) = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
+		pHandles[0] = m_pTlasResultSrvHandle->HandleGPU.ptr;
+		pHandles[1] = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
+#endif
 
 		memcpy(shaderTblData.data() + m_ShaderTableEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
@@ -874,6 +917,15 @@ void RTSampleApp::RayTrace(ID3D12GraphicsCommandList4* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
+#if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
+	// 試しにTLASをDesriptorTable方式でなくルートデスクリプタ方式にしてみる
+#if 1
+	pCmdList->SetComputeRootDescriptorTable(0, m_pTlasResultSrvHandle->HandleGPU);
+#else
+	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
+#endif
+	pCmdList->SetComputeRootDescriptorTable(1, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
+#endif
 	pCmdList->DispatchRays(&dispatchDesc);
 
 	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);

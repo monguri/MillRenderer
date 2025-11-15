@@ -11,7 +11,8 @@ int wmain(int argc, wchar_t** argv, wchar_t** evnp)
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
-    SampleApp app(1920, 1080);
-    app.Run();
+    SampleApp* app = new SampleApp(argc, argv, 1920, 1080);
+    app->Run();
+    delete app;
     return 0;
 }

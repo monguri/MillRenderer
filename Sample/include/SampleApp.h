@@ -2,6 +2,7 @@
 
 #include <SimpleMath.h>
 #include "App.h"
+#include "ShaderCompiler.h"
 #include "VertexBuffer.h"
 #include "ConstantBuffer.h"
 #include "ColorTarget.h"
@@ -16,7 +17,7 @@
 class SampleApp : public App
 {
 public:
-	SampleApp(uint32_t width, uint32_t height);
+	SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height);
 	virtual ~SampleApp();
 
 private:
@@ -25,6 +26,19 @@ private:
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
 
+	// true:IBL下でのモデルビューワ
+	// false:ハードコーディングで配置した解析的ライトやとSkyBoxを使ってSponzaを描画
+	bool m_drawSponza = false;
+	// true:MeshletとMSでのジオメトリ処理、false:VSでのジオメトリ処理
+	bool m_useMeshlet = false;
+	// true:動的リソース割り当て、false:静的リソース割り当て
+	bool m_useDynamicResources = true;
+	// Visibility Bufferを使った描画をやるかどうか
+	bool m_useVBuffer = false;
+
+	uint32_t m_meshletRootParamCount = 0;
+
+	ShaderCompiler m_ShaderCompiler;
 	Texture m_DummyTexture;
 	ComPtr<ID3D12PipelineState> m_pSkyTransmittanceLUT_PSO;
 	RootSignature m_SkyTransmittanceLUT_RootSig;
@@ -44,6 +58,9 @@ private:
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;
+	ComPtr<ID3D12PipelineState> m_pVisibilityOpaquePSO;
+	ComPtr<ID3D12PipelineState> m_pVisibilityMaskPSO;
+	RootSignature m_VisibilityRootSig;
 	ComPtr<ID3D12PipelineState> m_pHCB_PSO;
 	RootSignature m_HCB_RootSig;
 	ComPtr<ID3D12PipelineState> m_pHZB_PSO;
@@ -99,6 +116,7 @@ private:
 	ColorTarget m_SceneColorTarget;
 	ColorTarget m_SceneNormalTarget;
 	ColorTarget m_SceneMetallicRoughnessTarget;
+	ColorTarget m_SceneVisibilityTarget;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_HCB_Target;
 	ColorTarget m_HZB_Target;
@@ -212,8 +230,10 @@ private:
 	void DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const DirectX::SimpleMath::Vector3& dirLightDir);
 	void DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList);
+	void DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj);
 	void DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential);
-	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode);
+	void DrawMeshVisibility(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices);
+	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices);
 	void DrawHCB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawHZB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& world, const DirectX::SimpleMath::Matrix& prevWorld, const DirectX::SimpleMath::Matrix& viewProjWithJitter, const DirectX::SimpleMath::Matrix& viewProjNoJitter, const DirectX::SimpleMath::Matrix& prevViewProjNoJitter);

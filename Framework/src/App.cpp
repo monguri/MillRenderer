@@ -161,7 +161,9 @@ bool App::InitD3D()
 			hr = pDebug->QueryInterface(IID_PPV_ARGS(pDebug.GetAddressOf()));
 			if (SUCCEEDED(hr))
 			{
-				pDebug->SetEnableGPUBasedValidation(true);
+				// PSO検証を有効にする場合はここをtrueにする
+				// ただし、PSO検証はかなり重い処理で起動が遅くなるので普段は無効にしておく
+				pDebug->SetEnableGPUBasedValidation(false);
 			}
 		}
 	}
@@ -176,82 +178,8 @@ bool App::InitD3D()
 		}
 	}
 
-	// Select an adapter which is HW and supports ray tracing.
-	ComPtr<IDXGIAdapter1> pAdapter;
-	bool foundAdapter = false;
-	for (uint32_t i = 0; !foundAdapter && m_pFactory->EnumAdapters1(i, pAdapter.GetAddressOf()) != DXGI_ERROR_NOT_FOUND; i++)
-	{
-		DXGI_ADAPTER_DESC1 desc;
-		pAdapter->GetDesc1(&desc);
-		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-		{
-			continue;
-		}
-
-		// Create device. 12.0 is needed for ray tracing.
-		HRESULT hr = D3D12CreateDevice(
-			pAdapter.Get(),
-			D3D_FEATURE_LEVEL_12_0,
-			IID_PPV_ARGS(m_pDevice.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-
-		// Check feature support. D3D12_OPTIONS5 is needed for ray tracing.
-		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5 = {};
-		hr = m_pDevice->CheckFeatureSupport(
-			D3D12_FEATURE_D3D12_OPTIONS5,
-			&features5,
-			sizeof(features5)
-		);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-		if (features5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
-		{
-			continue;
-		}
-
-		// Check feature support. D3D12_OPTIONS7 is needed for mesh shader.
-		D3D12_FEATURE_DATA_D3D12_OPTIONS7 features7 = {};
-		hr = m_pDevice->CheckFeatureSupport(
-			D3D12_FEATURE_D3D12_OPTIONS7,
-			&features7,
-			sizeof(features7)
-		);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-		if (features7.MeshShaderTier == D3D12_MESH_SHADER_TIER_NOT_SUPPORTED)
-		{
-			continue;
-		}
-
-		// Check feature support. D3D_SHADER_MODEL_6_5 is needed for mesh shader.
-		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel;
-		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_5;
-		hr = m_pDevice->CheckFeatureSupport(
-			D3D12_FEATURE_SHADER_MODEL,
-			&shaderModel,
-			sizeof(shaderModel)
-		);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_5)
-		{
-			continue;
-		}
-
-		foundAdapter = true;
-	}
-
-	if (!foundAdapter)
+	ComPtr<IDXGIAdapter1> pAdapter = SelectAdapter();
+	if (pAdapter == nullptr)
 	{
 		return false;
 	}
@@ -444,6 +372,8 @@ void App::TermD3D()
 	m_pQueue.Reset();
 
 	m_pDevice.Reset();
+
+    CoUninitialize();
 }
 
 void App::MainLoop()
@@ -468,7 +398,6 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 {
 	// Select an adapter which is HW and supports ray tracing.
 	ComPtr<IDXGIAdapter1> pAdapter;
-
 	bool foundAdapter = false;
 	for (uint32_t i = 0; !foundAdapter && m_pFactory->EnumAdapters1(i, pAdapter.GetAddressOf()) != DXGI_ERROR_NOT_FOUND; i++)
 	{
@@ -490,40 +419,7 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 			continue;
 		}
 
-		// Check feature support.
-
-		// Dynamic resources.
-		D3D12_FEATURE_DATA_D3D12_OPTIONS features = {};
-		hr = m_pDevice->CheckFeatureSupport(
-			D3D12_FEATURE_D3D12_OPTIONS,
-			&features,
-			sizeof(features)
-		);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-		if (features.ResourceBindingTier < D3D12_RESOURCE_BINDING_TIER_3)
-		{
-			continue;
-		}
-
-		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = {};
-		hr = m_pDevice->CheckFeatureSupport(
-			D3D12_FEATURE_SHADER_MODEL,
-			&shaderModel,
-			sizeof(shaderModel)
-		);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_6)
-		{
-			continue;
-		}
-
-		// D3D12_OPTIONS5 is needed for ray tracing.
+		// Check feature support. D3D12_OPTIONS5 is needed for ray tracing.
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5 = {};
 		hr = m_pDevice->CheckFeatureSupport(
 			D3D12_FEATURE_D3D12_OPTIONS5,
@@ -535,6 +431,40 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 			continue;
 		}
 		if (features5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+		{
+			continue;
+		}
+
+		// Check feature support. D3D12_OPTIONS7 is needed for mesh shader.
+		D3D12_FEATURE_DATA_D3D12_OPTIONS7 features7 = {};
+		hr = m_pDevice->CheckFeatureSupport(
+			D3D12_FEATURE_D3D12_OPTIONS7,
+			&features7,
+			sizeof(features7)
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (features7.MeshShaderTier == D3D12_MESH_SHADER_TIER_NOT_SUPPORTED)
+		{
+			continue;
+		}
+
+		// Check feature support. D3D_SHADER_MODEL_6_5 is needed for mesh shader.
+		// D3D_SHADER_MODEL_6_6 is needed for dynamic resources.
+		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel;
+		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_6;
+		hr = m_pDevice->CheckFeatureSupport(
+			D3D12_FEATURE_SHADER_MODEL,
+			&shaderModel,
+			sizeof(shaderModel)
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_6)
 		{
 			continue;
 		}
@@ -577,11 +507,11 @@ float App::GetMinLuminance() const
 	return m_MinLuminance;
 }
 
-void App::CheckSupportHDR()
+bool App::CheckSupportHDR()
 {
 	if (m_pSwapChain == nullptr || m_pFactory == nullptr || m_pDevice == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	HRESULT hr = S_OK;
@@ -593,7 +523,7 @@ void App::CheckSupportHDR()
 		hr = CreateDXGIFactory2(0, IID_PPV_ARGS(m_pFactory.GetAddressOf()));
 		if (FAILED(hr))
 		{
-			return;
+			return false;
 		}
 	}
 
@@ -609,7 +539,7 @@ void App::CheckSupportHDR()
 	ComPtr<IDXGIAdapter1> pAdapter = SelectAdapter();
 	if (pAdapter == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	// Find best intersected display to this application window.
@@ -619,7 +549,7 @@ void App::CheckSupportHDR()
 		hr = currentOutput->GetDesc(&desc);
 		if (FAILED(hr))
 		{
-			return;
+			return false;
 		}
 
 		int intersectArea = ComputeIntersectionArea(
@@ -640,19 +570,20 @@ void App::CheckSupportHDR()
 	hr = bestOutput.As(&pOutput6);
 	if (FAILED(hr))
 	{
-		return;
+		return false;
 	}
 
 	DXGI_OUTPUT_DESC1 desc1;
 	hr = pOutput6->GetDesc1(&desc1);
 	if (FAILED(hr))
 	{
-		return;
+		return false;
 	}
 
 	m_SupportHDR = (desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
 	m_MaxLuminance = desc1.MaxLuminance;
 	m_MinLuminance = desc1.MinLuminance;
+	return true;
 }
 
 LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -709,7 +640,10 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 		case WM_DISPLAYCHANGE:
 			if (instance != nullptr)
 			{
-				instance->CheckSupportHDR();
+				if (!instance->CheckSupportHDR())
+				{
+					return false;
+				}
 			}
 			break;
 		default:

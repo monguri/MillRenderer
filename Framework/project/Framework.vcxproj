@@ -30,6 +30,7 @@
     <ClCompile Include="..\src\App.cpp" />
     <ClCompile Include="..\src\ByteAddressBuffer.cpp" />
     <ClCompile Include="..\src\Resource.cpp" />
+    <ClCompile Include="..\src\ShaderCompiler.cpp" />
     <ClCompile Include="..\src\TransformManipulator.cpp" />
     <ClCompile Include="..\src\ColorTarget.cpp" />
     <ClCompile Include="..\src\CommandList.cpp" />
@@ -54,6 +55,7 @@
     <ClInclude Include="..\include\App.h" />
     <ClInclude Include="..\include\ByteAddressBuffer.h" />
     <ClInclude Include="..\include\Resource.h" />
+    <ClInclude Include="..\include\ShaderCompiler.h" />
     <ClInclude Include="..\include\TransformManipulator.h" />
     <ClInclude Include="..\include\ColorTarget.h" />
     <ClInclude Include="..\include\CommandList.h" />

@@ -129,6 +129,9 @@
     <ClCompile Include="..\..\meshoptimizer\vfetchoptimizer.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ShaderCompiler.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\App.h">
@@ -208,6 +211,9 @@
     </ClInclude>
     <ClInclude Include="..\..\meshoptimizer\meshoptimizer.h">
       <Filter>meshoptimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ShaderCompiler.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
