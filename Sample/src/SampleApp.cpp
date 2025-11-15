@@ -769,9 +769,9 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		{
 			m_useDynamicResources = true;
 		}
-		else if (wcscmp(argv[a], L"--dererredmaterial") == 0)
+		else if (wcscmp(argv[a], L"--vbuffer") == 0)
 		{
-			m_doDeferredMaterial = true;
+			m_useVBuffer = true;
 		}
 	}
 
@@ -1554,7 +1554,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 
 	// VisibilyBufferの生成
-	if (m_doDeferredMaterial)
+	if (m_useVBuffer)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
@@ -3068,7 +3068,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 
 	// Visibilityパス用ルートシグニチャとパイプラインステートの生成
-	if (m_useMeshlet && m_useDynamicResources && m_doDeferredMaterial)
+	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
 	{
 		std::wstring msPath;
 
@@ -5700,7 +5700,7 @@ void SampleApp::OnRender()
 
 	DrawVolumetricCloud(pCmd);
 
-	if (m_useMeshlet && m_useDynamicResources && m_doDeferredMaterial)
+	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
 	{
 		if (m_enableTemporalAA)
 		{
