@@ -165,7 +165,13 @@
     <FxCompile Include="..\res\VisibilityMS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\VisibilityPS.hlsl">
+    <FxCompile Include="..\res\VisibilityPS.hlsli">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="..\res\VisibilityOpaquePS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="..\res\VisibilityMaskPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>

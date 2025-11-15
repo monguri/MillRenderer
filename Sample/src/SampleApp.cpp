@@ -203,6 +203,7 @@ namespace
 		float AlphaCutoff;
 		int bExistEmissiveTex;
 		int bExistAOTex;
+		// GBuffer用のPSOに割り振るIDだが一般にMaterialIDという用語なのでそうしている
 		unsigned int MaterialID;
 	};
 
@@ -982,6 +983,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			cbMat.AlphaCutoff = resMat.AlphaCutoff;
 			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
 			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+			// 現状、DynamicResourceを考慮するとGBuffer描画には一種類のパイプラインしか使っていない
+			cbMat.MaterialID = 0;
 			if (!pMaterial->UploadConstantBufferData<CbMaterial>(m_pDevice.Get(), pCmd, cbMat))
 			{
 				ELOG("Error : Material::UploadConstantBufferData() Failed.");
@@ -1122,6 +1125,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			cbMat.AlphaCutoff = resMat.AlphaCutoff;
 			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
 			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+			// 現状、DynamicResourceを考慮するとGBuffer描画には一種類のパイプラインしか使っていない
+			cbMat.MaterialID = 0;
 			if (!pMaterial->UploadConstantBufferData<CbMaterial>(m_pDevice.Get(), pCmd, cbMat))
 			{
 				ELOG("Error : Material::UploadConstantBufferData() Failed.");
@@ -3103,7 +3108,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		std::wstring psPath;
 
-		if (!SearchFilePath(L"VisibilityPS.cso", psPath))
+		if (!SearchFilePath(L"VisibilityOpaquePS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -3146,7 +3151,39 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreatePipelineState(
 			&streamDesc,
-			IID_PPV_ARGS(m_pVisibilityPSO.GetAddressOf())
+			IID_PPV_ARGS(m_pVisibilityOpaquePSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+
+		if (!SearchFilePath(L"VisibilityMaskPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RasterizerState = DirectX::CommonStates::CullNone;
+
+		psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+		streamDesc.pPipelineStateSubobjectStream = &psoStream;
+		streamDesc.SizeInBytes = sizeof(psoStream);
+
+		hr = m_pDevice->CreatePipelineState(
+			&streamDesc,
+			IID_PPV_ARGS(m_pVisibilityMaskPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -5502,7 +5539,8 @@ void SampleApp::OnTerm()
 
 	m_SceneRootSig.Term();
 
-	m_pVisibilityPSO.Reset();
+	m_pVisibilityOpaquePSO.Reset();
+	m_pVisibilityMaskPSO.Reset();
 	m_VisibilityRootSig.Term();
 
 	m_pHCB_PSO.Reset();
@@ -6076,6 +6114,8 @@ void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj)
 {
+	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
+
 	::PIXScopedEvent(pCmdList, 0, L"Visibility");
 
 	// 変換行列用の定数バッファの更新
@@ -6100,12 +6140,15 @@ void SampleApp::DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const Direct
 	pCmdList->SetGraphicsRootSignature(m_VisibilityRootSig.GetPtr());
 
 	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
-	std::vector<uint32_t> psDescHeapIndices(1);
+	std::vector<uint32_t> psDescHeapIndices(2);
 
 	gsDescHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
 
-	pCmdList->SetPipelineState(m_pVisibilityPSO.Get());
-	DrawMeshVisibility(pCmdList, gsDescHeapIndices, psDescHeapIndices);
+	pCmdList->SetPipelineState(m_pVisibilityOpaquePSO.Get());
+	DrawMeshVisibility(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices);
+
+	pCmdList->SetPipelineState(m_pVisibilityMaskPSO.Get());
+	DrawMeshVisibility(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices);
 
 	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -6352,9 +6395,43 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawMeshVisibility(ID3D12GraphicsCommandList* pCmdList, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices)
+void SampleApp::DrawMeshVisibility(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices)
 {
-	//TODO:実装
+	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
+
+	for (const Model* model : m_pModels)
+	{
+		for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
+		{
+			const Mesh* pMesh = model->GetMesh(meshIdx);
+
+			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
+			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
+
+			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
+			{
+				continue;
+			}
+			else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
+			{
+				continue;
+			}
+
+			gsDescHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();
+			gsDescHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
+			gsDescHeapIndices[3] = pMesh->GetMesletsSBHandle().GetDescriptorIndex();
+			gsDescHeapIndices[4] = pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex();
+			gsDescHeapIndices[5] = pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex();
+
+			psDescHeapIndices[0] = pMaterial->GetCBHandle().GetDescriptorIndex();
+			psDescHeapIndices[1] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
+
+			pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(gsDescHeapIndices.size()), gsDescHeapIndices.data(), 0);
+			pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
+
+			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+		}
+	}
 }
 
 void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices)

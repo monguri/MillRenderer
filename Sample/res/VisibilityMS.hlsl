@@ -9,8 +9,20 @@
 " | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
 " | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
 ")"\
-", RootConstants(num32BitConstants=5, b0, visibility = SHADER_VISIBILITY_MESH)"\
-", RootConstants(num32BitConstants=1, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
+", RootConstants(num32BitConstants=6, b0, visibility = SHADER_VISIBILITY_MESH)"\
+", RootConstants(num32BitConstants=2, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_ANISOTROPIC"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 16"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
 
 // TODO: VisibiligyBufferの段階ではPosition以外はVBに必要ないので削れる
 struct VSInput
@@ -24,6 +36,7 @@ struct VSInput
 struct VertexData
 {
 	float4 Position : SV_Position;
+	float2 TexCoord : TEXCOORD;
 };
 
 struct PrimitiveData
@@ -98,6 +111,7 @@ void main
 
 		VertexData v;
 		v.Position = projPos;
+		v.TexCoord = input.TexCoord;
 		outVerts[gtid] = v;
 	}
 
