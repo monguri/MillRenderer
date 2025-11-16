@@ -6152,6 +6152,8 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
 
 	drawGBufferDescHeapIndices.CbCamera = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.SbVBuffer = m_SceneVisibilityTarget.GetHandleSRV()->GetDescriptorIndex();
+
 	if (m_drawSponza)
 	{
 		drawGBufferDescHeapIndices.DirLightShadowMap = m_DirLightShadowMapTarget.GetHandleSRV()->GetDescriptorIndex();

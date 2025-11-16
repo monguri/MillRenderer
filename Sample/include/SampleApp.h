@@ -42,6 +42,7 @@ private:
 		uint32_t AOMap[MAX_MESH_COUNT];
 
 		uint32_t CbCamera;
+		uint32_t SbVBuffer;
 
 		// Sponza—p
 		uint32_t DirLightShadowMap;
