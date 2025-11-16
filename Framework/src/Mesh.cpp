@@ -134,6 +134,19 @@ bool Mesh::Init
 			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
 			return false;
 		}
+
+		if (!m_IB.InitAsStructuredBuffer<uint32_t>(
+			pDevice,
+			m_IndexCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr
+		))
+		{
+			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+			return false;
+		}
 	}
 	else
 	{
@@ -155,17 +168,6 @@ bool Mesh::Init
 			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
 			return false;
 		}
-
-		if (!m_IB.UploadBufferTypeData<uint32_t>(
-			pDevice,
-			pCmdList,
-			m_IndexCount,
-			resource.Indices.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
 	}
 
 	if (!m_VB.UploadBufferTypeData<MeshVertex>(
@@ -173,6 +175,17 @@ bool Mesh::Init
 		pCmdList,
 		vertexCount,
 		resource.Vertices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	if (!m_IB.UploadBufferTypeData<uint32_t>(
+		pDevice,
+		pCmdList,
+		m_IndexCount,
+		resource.Indices.data()
 	))
 	{
 		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
@@ -255,21 +268,31 @@ const DescriptorHandle& Mesh::GetConstantBufferHandle(uint32_t frameIndex) const
 
 const DescriptorHandle& Mesh::GetVertexBufferSBHandle() const
 {
+	assert(m_IsMeshlet);
 	return *m_VB.GetHandleSRV();
+}
+
+const DescriptorHandle& Mesh::GetIndexBufferSBHandle() const
+{
+	assert(m_IsMeshlet);
+	return *m_IB.GetHandleSRV();
 }
 
 const DescriptorHandle& Mesh::GetMesletsSBHandle() const
 {
+	assert(m_IsMeshlet);
 	return *m_MeshletsSB.GetHandleSRV();
 }
 
 const DescriptorHandle& Mesh::GetMesletsVerticesSBHandle() const
 {
+	assert(m_IsMeshlet);
 	return *m_MeshletsVerticesSB.GetHandleSRV();
 }
 
 const DescriptorHandle& Mesh::GetMesletsTrianglesBBHandle() const
 {
+	assert(m_IsMeshlet);
 	return *m_MeshletsTrianglesBB.GetHandleSRV();
 }
 

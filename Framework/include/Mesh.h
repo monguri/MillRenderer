@@ -43,6 +43,7 @@ public:
 
 	const DescriptorHandle& GetConstantBufferHandle(uint32_t frameIndex) const;
 	const DescriptorHandle& GetVertexBufferSBHandle() const;
+	const DescriptorHandle& GetIndexBufferSBHandle() const;
 	const DescriptorHandle& GetMesletsSBHandle() const;
 	const DescriptorHandle& GetMesletsVerticesSBHandle() const;
 	const DescriptorHandle& GetMesletsTrianglesBBHandle() const;
