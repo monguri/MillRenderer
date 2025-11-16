@@ -123,7 +123,7 @@ struct Transform
 struct Mesh
 {
 	float4x4 World;
-	uint MeshID;
+	uint MeshIdx;
 };
 
 #ifdef USE_DYNAMIC_RESOURCE

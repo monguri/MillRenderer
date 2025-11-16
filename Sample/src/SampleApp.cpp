@@ -119,7 +119,7 @@ namespace
 	struct alignas(256) CbMesh
 	{
 		Matrix World;
-		unsigned int MeshID;
+		unsigned int MeshIdx;
 		float Padding[3];
 	};
 
@@ -6141,6 +6141,7 @@ void SampleApp::DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const Direct
 
 	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
 	std::vector<uint32_t> psDescHeapIndices(2);
+	uint32_t meshIdx = 0;
 
 	gsDescHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
 

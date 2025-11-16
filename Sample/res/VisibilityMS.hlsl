@@ -42,7 +42,7 @@ struct VertexData
 struct PrimitiveData
 {
 	uint PrimitiveID : SV_PrimitiveID;
-	uint MeshID : MESH_ID;
+	uint MeshIdx : MESH_INDEX;
 };
 
 struct meshopt_Meshlet
@@ -71,7 +71,7 @@ struct Transform
 struct Mesh
 {
 	float4x4 World;
-	uint MeshID;
+	uint MeshIdx;
 };
 
 ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
@@ -128,7 +128,7 @@ void main
 	{
 		PrimitiveData p;
 		p.PrimitiveID = meshlet.TriOffset / 3 + gtid;
-		p.MeshID = CbMesh.MeshID;
+		p.MeshIdx = CbMesh.MeshIdx;
 		outPrims[gtid] = p;
 	}
 }
