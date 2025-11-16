@@ -5740,13 +5740,15 @@ void SampleApp::OnRender()
 
 	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
 	{
+		DrawGBufferDescHeapIndices drawGBufferDescHeapIndices;
+
 		if (m_enableTemporalAA)
 		{
-			DrawVisibility(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter);
+			DrawVisibility(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, drawGBufferDescHeapIndices);
 		}
 		else
 		{
-			DrawVisibility(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter);
+			DrawVisibility(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, drawGBufferDescHeapIndices);
 		}
 	}
 	else
@@ -6112,7 +6114,7 @@ void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_CloudTracingDepthTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj)
+void SampleApp::DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
 	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
 
@@ -6139,17 +6141,30 @@ void SampleApp::DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const Direct
 	
 	pCmdList->SetGraphicsRootSignature(m_VisibilityRootSig.GetPtr());
 
-	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
-	std::vector<uint32_t> psDescHeapIndices(2);
 	uint32_t meshIdx = 0;
 
-	gsDescHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-
 	pCmdList->SetPipelineState(m_pVisibilityOpaquePSO.Get());
-	DrawMeshVisibility(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices);
+	DrawMeshVisibility(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, drawGBufferDescHeapIndices);
 
 	pCmdList->SetPipelineState(m_pVisibilityMaskPSO.Get());
-	DrawMeshVisibility(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices);
+	DrawMeshVisibility(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
+
+	drawGBufferDescHeapIndices.CbCamera = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+	if (m_drawSponza)
+	{
+		drawGBufferDescHeapIndices.DirLightShadowMap = m_DirLightShadowMapTarget.GetHandleSRV()->GetDescriptorIndex();
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			drawGBufferDescHeapIndices.SpotLightShadowMap[i] = m_SpotLightShadowMapTarget[i].GetHandleSRV()->GetDescriptorIndex();
+		}
+	}
+	else
+	{
+		drawGBufferDescHeapIndices.CbIBL = m_IBL_CB.GetHandle()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.DFGMap = m_IBLBaker.GetHandleSRV_DFG()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.DiffuseLDMap = m_IBLBaker.GetHandleSRV_DiffuseLD()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.SpecularLDMap = m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex();
+	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -6396,15 +6411,21 @@ void SampleApp::DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::Si
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawMeshVisibility(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices)
+void SampleApp::DrawMeshVisibility(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
 	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
 
+	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
+	std::vector<uint32_t> psDescHeapIndices(2);
+
+	gsDescHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.CbTransform[meshIdx] = gsDescHeapIndices[0];
+
 	for (const Model* model : m_pModels)
 	{
-		for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
+		for (size_t m = 0; m < model->GetMeshCount(); m++)
 		{
-			const Mesh* pMesh = model->GetMesh(meshIdx);
+			const Mesh* pMesh = model->GetMesh(m);
 
 			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
 			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
@@ -6424,13 +6445,25 @@ void SampleApp::DrawMeshVisibility(ID3D12GraphicsCommandList* pCmdList, ALPHA_MO
 			gsDescHeapIndices[4] = pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex();
 			gsDescHeapIndices[5] = pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex();
 
+			drawGBufferDescHeapIndices.CbMesh[meshIdx] = gsDescHeapIndices[1];
+			drawGBufferDescHeapIndices.SbVertexBuffer[meshIdx] = gsDescHeapIndices[2];
+			drawGBufferDescHeapIndices.SbIndexBuffer[meshIdx] = gsDescHeapIndices[3];
+
 			psDescHeapIndices[0] = pMaterial->GetCBHandle().GetDescriptorIndex();
 			psDescHeapIndices[1] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
+			drawGBufferDescHeapIndices.CbMaterial[meshIdx] = psDescHeapIndices[0];
+			drawGBufferDescHeapIndices.BaseColorMap[meshIdx] = psDescHeapIndices[1];
+			drawGBufferDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
+			drawGBufferDescHeapIndices.NormalMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
+			drawGBufferDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
+			drawGBufferDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
 
 			pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(gsDescHeapIndices.size()), gsDescHeapIndices.data(), 0);
 			pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
 
 			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+
+			meshIdx++;
 		}
 	}
 }
@@ -6439,9 +6472,9 @@ void SampleApp::DrawMesh(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMo
 {
 	for (const Model* model : m_pModels)
 	{
-		for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
+		for (size_t i = 0; i < model->GetMeshCount(); i++)
 		{
-			const Mesh* pMesh = model->GetMesh(meshIdx);
+			const Mesh* pMesh = model->GetMesh(i);
 
 			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
 			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());

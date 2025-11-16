@@ -26,6 +26,34 @@ private:
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
 
+	static constexpr uint32_t MAX_MESH_COUNT = 256;
+
+	struct DrawGBufferDescHeapIndices
+	{
+		uint32_t CbTransform[MAX_MESH_COUNT];
+		uint32_t CbMesh[MAX_MESH_COUNT];
+		uint32_t SbVertexBuffer[MAX_MESH_COUNT];
+		uint32_t SbIndexBuffer[MAX_MESH_COUNT];
+		uint32_t CbMaterial[MAX_MESH_COUNT];
+		uint32_t BaseColorMap[MAX_MESH_COUNT];
+		uint32_t MetallicRoughnessMap[MAX_MESH_COUNT];
+		uint32_t NormalMap[MAX_MESH_COUNT];
+		uint32_t EmissiveMap[MAX_MESH_COUNT];
+		uint32_t AOMap[MAX_MESH_COUNT];
+
+		uint32_t CbCamera;
+
+		// Sponza用
+		uint32_t DirLightShadowMap;
+		uint32_t SpotLightShadowMap[NUM_SPOT_LIGHTS];
+
+		// IBL用
+		uint32_t CbIBL;
+		uint32_t DFGMap;
+		uint32_t DiffuseLDMap;
+		uint32_t SpecularLDMap;
+	};
+
 	// true:IBL下でのモデルビューワ
 	// false:ハードコーディングで配置した解析的ライトやとSkyBoxを使ってSponzaを描画
 	bool m_drawSponza = false;
@@ -230,9 +258,9 @@ private:
 	void DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const DirectX::SimpleMath::Vector3& dirLightDir);
 	void DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList);
-	void DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj);
+	void DrawVisibility(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
 	void DrawScene(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential);
-	void DrawMeshVisibility(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices);
+	void DrawMeshVisibility(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
 	void DrawMesh(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices);
 	void DrawHCB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawHZB(ID3D12GraphicsCommandList* pCmdList);
