@@ -899,6 +899,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			{
 				CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
 				ptr->World = Matrix::Identity;
+				ptr->MeshIdx = 0;
 				mesh->UnmapConstantBuffer(frameIndex);
 			}
 
@@ -1055,6 +1056,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			{
 				CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
 				ptr->World = worldMat;
+				ptr->MeshIdx = 0;
 				mesh->UnmapConstantBuffer(frameIndex);
 			}
 
@@ -6435,6 +6437,10 @@ void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 		for (size_t m = 0; m < model->GetMeshCount(); m++)
 		{
 			const Mesh* pMesh = model->GetMesh(m);
+
+			CbMesh* ptr = pMesh->MapConstantBuffer<CbMesh>(m_FrameIndex);
+			ptr->MeshIdx = meshIdx;
+			pMesh->UnmapConstantBuffer(m_FrameIndex);
 
 			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
 			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
