@@ -30,7 +30,7 @@ private:
 	// シェーダ側の定義と値の一致が必要
 	static constexpr uint32_t MAX_MESH_COUNT = 256;
 
-	struct DrawGBufferDescHeapIndices
+	struct alignas(256) CbDrawGBufferDescHeapIndices
 	{
 		uint32_t CbTransform[MAX_MESH_COUNT];
 		uint32_t CbMesh[MAX_MESH_COUNT];
@@ -44,7 +44,8 @@ private:
 		uint32_t AOMap[MAX_MESH_COUNT];
 
 		uint32_t CbCamera;
-		uint32_t SbVBuffer;
+		uint32_t VBuffer;
+		uint32_t DepthBuffer;
 
 		// Sponza用
 		uint32_t DirLightShadowMap;
@@ -55,6 +56,8 @@ private:
 		uint32_t DFGMap;
 		uint32_t DiffuseLDMap;
 		uint32_t SpecularLDMap;
+
+		float Padding[1];
 	};
 
 	// true:IBL下でのモデルビューワ
@@ -173,6 +176,7 @@ private:
 	ColorTarget m_TonemapTarget;
 	ColorTarget m_FXAA_Target;
 	VertexBuffer m_QuadVB;
+	ConstantBuffer m_DrawGBufferDescHeapIndicesCB[FRAME_COUNT];;
 	ConstantBuffer m_DirectionalLightCB[FRAME_COUNT];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
 	ConstantBuffer m_SpotLightCB[NUM_SPOT_LIGHTS];
@@ -261,10 +265,10 @@ private:
 	void DrawSkyMultiScatteringLUT(ID3D12GraphicsCommandList* pCmdList);
 	void DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const DirectX::SimpleMath::Vector3& dirLightDir);
 	void DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList);
-	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
-	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
+	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
+	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential);
-	void DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
+	void DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
 	void DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices);
 	void DrawHCB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawHZB(ID3D12GraphicsCommandList* pCmdList);

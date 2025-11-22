@@ -1151,6 +1151,18 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	m_pModels.shrink_to_fit();
 
+	if (m_useVBuffer)
+	{
+		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
+		{
+			if (!m_DrawGBufferDescHeapIndicesCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDirectionalLight)))
+			{
+				ELOG("Error : ConstantBuffer::Init() Failed.");
+				return false;
+			}
+		}
+	}
+
 	if (m_drawSponza)
 	{
 		// ディレクショナルライトバッファの設定
@@ -1563,7 +1575,8 @@ bool SampleApp::OnInit(HWND hWnd)
 	// VisibilyBufferの生成
 	if (m_useVBuffer)
 	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+		const float INVALID_VISIBILITY = static_cast<float>(UINT32_MAX);
+		float clearColor[4] = {INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY};
 
 		if (!m_SceneVisibilityTarget.InitRenderTarget
 		(
@@ -5742,7 +5755,7 @@ void SampleApp::OnRender()
 
 	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
 	{
-		DrawGBufferDescHeapIndices drawGBufferDescHeapIndices;
+		CbDrawGBufferDescHeapIndices drawGBufferDescHeapIndices;
 
 		if (m_enableTemporalAA)
 		{
@@ -6118,7 +6131,7 @@ void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_CloudTracingDepthTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
 	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
 
@@ -6154,7 +6167,8 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
 
 	drawGBufferDescHeapIndices.CbCamera = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-	drawGBufferDescHeapIndices.SbVBuffer = m_SceneVisibilityTarget.GetHandleSRV()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.VBuffer = m_SceneVisibilityTarget.GetHandleSRV()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.DepthBuffer = m_SceneDepthTarget.GetHandleSRV()->GetDescriptorIndex();
 
 	if (m_drawSponza)
 	{
@@ -6176,9 +6190,14 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
-	// TODO:実装
+	// DescriptorHeapインデックス定数バッファに書き込む
+	{
+		CbDrawGBufferDescHeapIndices* ptr = m_DrawGBufferDescHeapIndicesCB[m_FrameIndex].GetPtr<CbDrawGBufferDescHeapIndices>();
+		*ptr = drawGBufferDescHeapIndices;
+	}
+
 }
 
 void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
@@ -6422,7 +6441,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, DrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
 	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
 
