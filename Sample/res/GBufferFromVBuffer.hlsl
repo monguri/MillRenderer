@@ -114,6 +114,36 @@ struct PSOutput
 // C++側の定義と値の一致が必要
 static const float INVALID_VISIBILITY = 0xffffffff;
 
+// https://shikihuiku.github.io/post/projection_matrix/
+// deviceZ = -Near / viewZ
+// Nearは0.1mくらいにするので、viewZを100kmまで対応しても安全な値にした
+#ifndef DEVICE_Z_MIN_VALUE
+#define DEVICE_Z_MIN_VALUE 1e-7f
+#endif //DEVICE_Z_FURTHEST
+
+// TODO: いろんなSSパスで冗長
+float ConvertFromDeviceZtoViewZ(float deviceZ, float near)
+{
+	// https://shikihuiku.github.io/post/projection_matrix/
+	return -near / max(deviceZ, DEVICE_Z_MIN_VALUE);
+}
+
+float3 ConverFromNDCToVS(float4 ndcPos, float near, float4x4 invProjMat)
+{
+	// referenced.
+	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
+	// That is left-handed projection matrix.
+	// Matrix::CreatePerspectiveFieldOfView() transform right-handed viewspace to left-handed clip space.
+	// So, referenced that code.
+	float deviceZ = ndcPos.z;
+	float viewPosZ = ConvertFromDeviceZtoViewZ(deviceZ, near);
+	float clipPosW = -viewPosZ;
+	float4 clipPos = ndcPos * clipPosW;
+	float4 viewPos = mul(invProjMat, clipPos);
+	
+	return viewPos.xyz;
+}
+
 [RootSignature(ROOT_SIGNATURE)]
 PSOutput main(VSOutput input)
 {
@@ -135,6 +165,7 @@ PSOutput main(VSOutput input)
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
+	//TODO: input.TexCoordは+0.5の必要はある？
 
 	ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer = ResourceDescriptorHeap[CbDescHeapIndices.CbGBufferFromVBuffer];
 
