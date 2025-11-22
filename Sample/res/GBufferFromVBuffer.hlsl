@@ -69,6 +69,7 @@ struct CbDrawGBufferDescHeapIndices
 	uint CbCamera;
 	uint VBuffer;
 	uint DepthBuffer;
+	uint CbGBufferFromVBuffer;
 
 	// Sponza用
 	uint DirLightShadowMap;
@@ -79,6 +80,12 @@ struct CbDrawGBufferDescHeapIndices
 	uint DFGMap;
 	uint DiffuseLDMap;
 	uint SpecularLDMap;
+};
+
+struct GBufferFromVBuffer
+{
+	float4x4 InvProjMatrix;
+	float Near;
 };
 
 ConstantBuffer<CbDrawGBufferDescHeapIndices> CbDescHeapIndices : register(b0);
@@ -104,6 +111,7 @@ struct PSOutput
 	float2 MetallicRoughness : SV_TARGET2;
 };
 
+// C++側の定義と値の一致が必要
 static const float INVALID_VISIBILITY = 0xffffffff;
 
 [RootSignature(ROOT_SIGNATURE)]
@@ -127,6 +135,8 @@ PSOutput main(VSOutput input)
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
+
+	ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer = ResourceDescriptorHeap[CbDescHeapIndices.CbGBufferFromVBuffer];
 
 	PSOutput output = (PSOutput)0;
 	return output;

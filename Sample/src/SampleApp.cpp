@@ -207,6 +207,14 @@ namespace
 		unsigned int MaterialID;
 	};
 
+	// TODO: SS系のパスの多くで同じ変数を別のCBに入れているので共通化したい
+	struct alignas(256) CbGBufferFromVBuffer
+	{
+		Matrix InvProjMatrix;
+		float Near;
+		float Padding[3];
+	};
+
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
 	struct alignas(256) CbHZB
 	{
@@ -228,7 +236,6 @@ namespace
 		Matrix ClipToPrevClip;
 	};
 
-	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
 	struct alignas(256) CbSSAOSetup
 	{
 		int Width;
@@ -1155,12 +1162,22 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_DrawGBufferDescHeapIndicesCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDirectionalLight)))
+			if (!m_DrawGBufferDescHeapIndicesCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDrawGBufferDescHeapIndices)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
 		}
+
+		if (!m_GBufferFromVBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbGBufferFromVBuffer)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbGBufferFromVBuffer* ptr = m_GBufferFromVBufferCB.GetPtr<CbGBufferFromVBuffer>();
+		ptr->Near = CAMERA_NEAR;
+		ptr->InvProjMatrix = Matrix::Identity;
 	}
 
 	if (m_drawSponza)
@@ -1575,6 +1592,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	// VisibilyBufferの生成
 	if (m_useVBuffer)
 	{
+		// シェーダ側の定義と値の一致が必要
 		const float INVALID_VISIBILITY = static_cast<float>(UINT32_MAX);
 		float clearColor[4] = {INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY};
 
@@ -5760,13 +5778,14 @@ void SampleApp::OnRender()
 		if (m_enableTemporalAA)
 		{
 			DrawVBuffer(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, drawGBufferDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, projWithJitter, drawGBufferDescHeapIndices);
 		}
 		else
 		{
 			DrawVBuffer(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, drawGBufferDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, projNoJitter, drawGBufferDescHeapIndices);
 		}
 
-		DrawGBufferFromVBuffer(pCmd, drawGBufferDescHeapIndices);
 	}
 	else
 	{
@@ -6169,6 +6188,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	drawGBufferDescHeapIndices.CbCamera = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
 	drawGBufferDescHeapIndices.VBuffer = m_SceneVisibilityTarget.GetHandleSRV()->GetDescriptorIndex();
 	drawGBufferDescHeapIndices.DepthBuffer = m_SceneDepthTarget.GetHandleSRV()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.CbGBufferFromVBuffer = m_GBufferFromVBufferCB.GetHandle()->GetDescriptorIndex();
 
 	if (m_drawSponza)
 	{
@@ -6190,14 +6210,20 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
-	// DescriptorHeapインデックス定数バッファに書き込む
+	// 定数バッファ更新
 	{
-		CbDrawGBufferDescHeapIndices* ptr = m_DrawGBufferDescHeapIndicesCB[m_FrameIndex].GetPtr<CbDrawGBufferDescHeapIndices>();
-		*ptr = drawGBufferDescHeapIndices;
-	}
+		{
+			CbDrawGBufferDescHeapIndices* ptr = m_DrawGBufferDescHeapIndicesCB[m_FrameIndex].GetPtr<CbDrawGBufferDescHeapIndices>();
+			*ptr = drawGBufferDescHeapIndices;
+		}
 
+		{
+			CbGBufferFromVBuffer* ptr = m_GBufferFromVBufferCB.GetPtr<CbGBufferFromVBuffer>();
+			ptr->InvProjMatrix = proj.Invert();
+		}
+	}
 }
 
 void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)

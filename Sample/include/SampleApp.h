@@ -46,6 +46,7 @@ private:
 		uint32_t CbCamera;
 		uint32_t VBuffer;
 		uint32_t DepthBuffer;
+		uint32_t CbGBufferFromVBuffer;
 
 		// Sponza用
 		uint32_t DirLightShadowMap;
@@ -56,8 +57,6 @@ private:
 		uint32_t DFGMap;
 		uint32_t DiffuseLDMap;
 		uint32_t SpecularLDMap;
-
-		float Padding[1];
 	};
 
 	// true:IBL下でのモデルビューワ
@@ -177,6 +176,7 @@ private:
 	ColorTarget m_FXAA_Target;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_DrawGBufferDescHeapIndicesCB[FRAME_COUNT];;
+	ConstantBuffer m_GBufferFromVBufferCB;
 	ConstantBuffer m_DirectionalLightCB[FRAME_COUNT];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
 	ConstantBuffer m_SpotLightCB[NUM_SPOT_LIGHTS];
@@ -266,7 +266,7 @@ private:
 	void DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const DirectX::SimpleMath::Vector3& dirLightDir);
 	void DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList);
 	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
-	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
+	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential);
 	void DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
 	void DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices);
