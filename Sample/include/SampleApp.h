@@ -22,10 +22,12 @@ public:
 
 private:
 	static constexpr uint32_t NUM_POINT_LIGHTS = 4;
+	// シェーダ側の定義と値の一致が必要
 	static constexpr uint32_t NUM_SPOT_LIGHTS = 3;
 
 	static constexpr uint32_t BLOOM_NUM_DOWN_SAMPLE = 6;
 
+	// シェーダ側の定義と値の一致が必要
 	static constexpr uint32_t MAX_MESH_COUNT = 256;
 
 	struct DrawGBufferDescHeapIndices
