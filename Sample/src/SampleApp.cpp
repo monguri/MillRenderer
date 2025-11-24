@@ -3525,7 +3525,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		SSPassPSODescCommon.SampleDesc.Quality = 0;
 	}
 
-    // CameraVelocity用ルートシグニチャとパイプラインステートの生成
+	// VBufferからのGBuffer描画パス用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring vsPath;
 		std::wstring psPath;
@@ -3587,6 +3587,73 @@ bool SampleApp::OnInit(HWND hWnd)
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pGBufferFromVBufferPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
+    // CameraVelocity用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"CameraVelocityPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_CameraVelocityRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_CameraVelocityRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RTVFormats[0] = m_VelocityTarget.GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pCameraVelocityPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -6296,10 +6363,18 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	m_SceneNormalTarget.ClearView(pCmdList);
 	m_SceneMetallicRoughnessTarget.ClearView(pCmdList);
 
+	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
+	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
+
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 
-	//TODO: 実装
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
 
 	// SkyBoxや環境マップのBoxの描画はVBufferに加えていないので、ここで描画する
 	if (m_drawSponza)
