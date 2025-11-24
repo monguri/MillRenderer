@@ -210,6 +210,7 @@ namespace
 	// TODO: SS系のパスの多くで同じ変数を別のCBに入れているので共通化したい
 	struct alignas(256) CbGBufferFromVBuffer
 	{
+		Matrix ViewMatrix;
 		Matrix InvProjMatrix;
 		float Near;
 		float Padding[3];
@@ -1177,6 +1178,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		CbGBufferFromVBuffer* ptr = m_GBufferFromVBufferCB.GetPtr<CbGBufferFromVBuffer>();
 		ptr->Near = CAMERA_NEAR;
+		ptr->ViewMatrix = Matrix::Identity;
 		ptr->InvProjMatrix = Matrix::Identity;
 	}
 
@@ -5778,12 +5780,12 @@ void SampleApp::OnRender()
 		if (m_enableTemporalAA)
 		{
 			DrawVBuffer(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, drawGBufferDescHeapIndices);
-			DrawGBufferFromVBuffer(pCmd, projWithJitter, drawGBufferDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, view, projWithJitter, drawGBufferDescHeapIndices);
 		}
 		else
 		{
 			DrawVBuffer(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, drawGBufferDescHeapIndices);
-			DrawGBufferFromVBuffer(pCmd, projNoJitter, drawGBufferDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, view, projNoJitter, drawGBufferDescHeapIndices);
 		}
 
 	}
@@ -6210,7 +6212,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& proj, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
 	// 定数バッファ更新
 	{
@@ -6221,6 +6223,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 
 		{
 			CbGBufferFromVBuffer* ptr = m_GBufferFromVBufferCB.GetPtr<CbGBufferFromVBuffer>();
+			ptr->ViewMatrix = view;
 			ptr->InvProjMatrix = proj.Invert();
 		}
 	}

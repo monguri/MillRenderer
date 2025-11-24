@@ -84,6 +84,7 @@ struct CbDrawGBufferDescHeapIndices
 
 struct GBufferFromVBuffer
 {
+	float4x4 ViewMatrix;
 	float4x4 InvProjMatrix;
 	float Near;
 };
@@ -98,6 +99,16 @@ SamplerComparisonState ShadowSmp : register(s2);
 SamplerState ShadowSmp : register(s2);
 #endif
 
+// TODO:冗長
+// VBの頂点構造体
+struct VSInput
+{
+	float3 Position : POSITION;
+	float3 Normal : NORMAL;
+	float2 TexCoord : TEXCOORD;
+	float3 Tangent : TANGENT;
+};
+
 struct VSOutput
 {
 	float4 Position : SV_POSITION;
@@ -109,6 +120,12 @@ struct PSOutput
 	float4 Color : SV_TARGET0;
 	float4 Normal : SV_TARGET1;
 	float2 MetallicRoughness : SV_TARGET2;
+};
+
+struct Mesh
+{
+	float4x4 World;
+	uint MeshIdx;
 };
 
 // C++側の定義と値の一致が必要
@@ -168,6 +185,38 @@ PSOutput main(VSOutput input)
 	//TODO: input.TexCoordは+0.5の必要はある？
 
 	ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer = ResourceDescriptorHeap[CbDescHeapIndices.CbGBufferFromVBuffer];
+
+	// View Spaceで計算する
+
+	float3 viewPos = ConverFromNDCToVS(ndcPos, CbGBufferFromVBuffer.Near, CbGBufferFromVBuffer.InvProjMatrix);
+
+	StructuredBuffer<uint> SbIndexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.SbIndexBuffer[meshIdx]];
+	uint index0 = SbIndexBuffer[3 * triangleIdx + 0];
+	uint index1 = SbIndexBuffer[3 * triangleIdx + 1];
+	uint index2 = SbIndexBuffer[3 * triangleIdx + 2];
+
+	StructuredBuffer<VSInput> SbVertexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.SbVertexBuffer[meshIdx]];
+	VSInput vertex0 = SbVertexBuffer[index0];
+	VSInput vertex1 = SbVertexBuffer[index1];
+	VSInput vertex2 = SbVertexBuffer[index2];
+
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbDescHeapIndices.CbMesh[meshIdx]];
+	float3 vsPos0 = mul(CbGBufferFromVBuffer.ViewMatrix, mul(CbMesh.World, float4(vertex0.Position, 1.0f))).xyz;
+	float3 vsPos1 = mul(CbGBufferFromVBuffer.ViewMatrix, mul(CbMesh.World, float4(vertex1.Position, 1.0f))).xyz;
+	float3 vsPos2 = mul(CbGBufferFromVBuffer.ViewMatrix, mul(CbMesh.World, float4(vertex2.Position, 1.0f))).xyz;
+
+#if 0 // TODO: 思うに、Triangleの3点がわかるならddx(uv)、ddy(uv)、すなわちDuvDpx、DuvDpyは求まるのでは？ピクセル座標で3頂点のUVからヤコビ案計算でわかりそうなものだ
+	float3 triNormal = normalize(cross(vsPos1 - vsPos0, vsPos2 - vsPos0));
+
+	float3 cameraPos = float3(0, 0, 0);
+	float3 rayDirection = normalize(viewPos - cameraPos);
+	float3 planeSurfacePoint = viewPos;
+	float3 planeNormal = triNormal;
+	float hitT;
+	// 必ず衝突するはずなので戻り値は無視
+	RayIntersectPlane(float3(0, 0, 0), normalize(viewPos - cameraPos), viewPos, triNormal, hitT);
+#endif
+
 
 	PSOutput output = (PSOutput)0;
 	return output;

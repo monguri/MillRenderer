@@ -45,3 +45,32 @@ float2 RayIntersectSphere(float3 rayOrigin, float3 rayDirection, float4 sphere)
 	return intersections;
 }
 
+//TODO:未使用だが一応残しておく
+bool RayIntersectPlane(float3 rayOrigin, float3 rayDirection, float3 planeSurfacePoint, float3 planeNormal, out float t)
+{
+	// rayDirection、planeNormalは正規化されている前提
+
+	float cos = dot(planeNormal, rayDirection);
+	float distance = dot(planeNormal, planeSurfacePoint - rayOrigin);
+
+	if (abs(cos) < SMALL_VALUE)
+	{
+		if (abs(distance) < SMALL_VALUE)
+		{
+			// レイが平面上にある場合はt=0としヒットポイントはrayOriginとする
+			t = 0;
+			return true;
+		}
+		else
+		{
+			// 平行で交差しない
+			t = 0;
+			return false;
+		}
+	}
+
+	// 通常の交差
+	t = distance / cos;
+	return true;
+}
+
