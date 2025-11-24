@@ -97,6 +97,8 @@ private:
 	ComPtr<ID3D12PipelineState> m_pVisibilityOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pVisibilityMaskPSO;
 	RootSignature m_VisibilityRootSig;
+	ComPtr<ID3D12PipelineState> m_pGBufferFromVBufferPSO;
+	RootSignature m_GBufferFromVBufferRootSig;
 	ComPtr<ID3D12PipelineState> m_pHCB_PSO;
 	RootSignature m_HCB_RootSig;
 	ComPtr<ID3D12PipelineState> m_pHZB_PSO;

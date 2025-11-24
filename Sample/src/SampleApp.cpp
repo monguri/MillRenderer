@@ -3536,7 +3536,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!SearchFilePath(L"CameraVelocityPS.cso", psPath))
+		if (!SearchFilePath(L"GBufferFromVBufferPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -3567,23 +3567,26 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!m_CameraVelocityRootSig.Init(m_pDevice.Get(), pRSBlob))
+		if (!m_GBufferFromVBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_CameraVelocityRootSig.GetPtr();
+		desc.pRootSignature = m_GBufferFromVBufferRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_VelocityTarget.GetRTVDesc().Format;
+		desc.NumRenderTargets = 3;
+		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
+		desc.RTVFormats[1] = m_SceneNormalTarget.GetRTVDesc().Format;
+		desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pCameraVelocityPSO.GetAddressOf())
+			IID_PPV_ARGS(m_pGBufferFromVBufferPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -5581,6 +5584,9 @@ void SampleApp::OnTerm()
 	m_pVisibilityOpaquePSO.Reset();
 	m_pVisibilityMaskPSO.Reset();
 	m_VisibilityRootSig.Term();
+
+	m_pGBufferFromVBufferPSO.Reset();
+	m_GBufferFromVBufferRootSig.Term();
 
 	m_pHCB_PSO.Reset();
 	m_HCB_RootSig.Term();
