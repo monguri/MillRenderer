@@ -174,7 +174,7 @@
     <FxCompile Include="..\res\VisibilityMaskPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\GBufferFromVBuffer.hlsl">
+    <FxCompile Include="..\res\GBufferFromVBufferPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>
