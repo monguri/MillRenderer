@@ -311,7 +311,6 @@ PSOutput main(VSOutput input)
 	uint meshIdx = visibility.x & 0xffff;
 
 	// [-1,1]x[-1,1]
-	//TODO: input.TexCoordÇÕ+0.5ÇÃïKóvÇÕÇ†ÇÈÅH
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 	ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer = ResourceDescriptorHeap[CbDescHeapIndices.CbGBufferFromVBuffer];
 
