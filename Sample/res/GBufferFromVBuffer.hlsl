@@ -73,7 +73,7 @@ struct CbDrawGBufferDescHeapIndices
 	uint CbGBufferFromVBuffer;
 
 	// Sponza用
-	uint CbDirectionalLight;
+	uint CbDirLight;
 	uint CbPointLight[NUM_POINT_LIGHTS];
 	uint CbSpotLight[NUM_SPOT_LIGHTS];
 	uint DirLightShadowMap;
@@ -137,15 +137,62 @@ struct Mesh
 struct Transform
 {
 	float4x4 ViewProj;
-	float4x4 ModelToDirLightShadowMap;
+	float4x4 WorldToDirLightShadowMap;
 	float4x4 WorldToSpotLight1ShadowMap;
 	float4x4 WorldToSpotLight2ShadowMap;
 	float4x4 WorldToSpotLight3ShadowMap;
 };
 
+struct Camera
+{
+	float3 CameraPosition;
+	int bDebugViewMeshletCluster;
+};
+
+struct Material
+{
+	float3 BaseColorFactor;
+	float MetallicFactor;
+	float RoughnessFactor;
+	float3 EmissiveFactor;
+	float AlphaCutoff;
+	int bExistEmissiveTex;
+	int bExistAOTex;
+	uint MaterialID;
+};
+
+struct DirectionalLight
+{
+	float3 DirLightColor;
+	float3 DirLightForward;
+	float2 DirLightShadowMapSize; // x is pixel size, y is texel size on UV.
+};
+
+struct PointLight
+{
+	float3 PointLightPosition;
+	float PointLightInvSqrRadius;
+	float3 PointLightColor;
+	float PointLightIntensity;
+};
+
+struct SpotLight
+{
+	float3 SpotLightPosition;
+	float SpotLightInvSqrRadius;
+	float3 SpotLightColor;
+	float SpotLightIntensity;
+	float3 SpotLightForward;
+	float SpotLightAngleScale;
+	float SpotLightAngleOffset;
+	int SpotLightType;
+	float2 SpotLightShadowMapSize; // x is pixel size, y is texel size on UV.
+};
+
 // C++側の定義と値の一致が必要
 static const float INVALID_VISIBILITY = 0xffffffff;
 
+#if 0
 // https://shikihuiku.github.io/post/projection_matrix/
 // deviceZ = -Near / viewZ
 // Nearは0.1mくらいにするので、viewZを100kmまで対応しても安全な値にした
@@ -175,6 +222,7 @@ float3 ConverFromNDCToVS(float4 ndcPos, float near, float4x4 invProjMat)
 	
 	return viewPos.xyz;
 }
+#endif
 
 // http://filmicworlds.com/blog/visibility-buffer-rendering-with-material-graphs/
 // からコードをとってきた
@@ -305,16 +353,63 @@ PSOutput main(VSOutput input)
 #endif
 
 	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[CbDescHeapIndices.CbTransform[meshIdx]];
-	float4 csPos0 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
-	float4 csPos1 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
-	float4 csPos2 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
+	float4 clipPos0 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
+	float4 clipPos1 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
+	float4 clipPos2 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
 
-	BarycentricDeriv barycentricDeriv = CalcFullBary(csPos0, csPos1, csPos2, screenPos, float2(CbGBufferFromVBuffer.Width, CbGBufferFromVBuffer.Height));
+	BarycentricDeriv barycentricDeriv = CalcFullBary(clipPos0, clipPos1, clipPos2, screenPos, float2(CbGBufferFromVBuffer.Width, CbGBufferFromVBuffer.Height));
 	//TODO: SponzaVS.hlslおよびSponzaPS.hlsliの処理と重複するので共通化が必要
 	// SponzaVSOutputとSponzaPSOutputを用意して共通関数をhlsliにまとめよう
 	// IBL版も同様
 
+	// 頂点出力の各変数の補間
+	float3 localPos = Baryinterpolate3(barycentricDeriv, vertex0.Position, vertex1.Position, vertex2.Position);
+	float4 worldPos = mul(CbMesh.World, float4(localPos, 1.0f));
 
+	float4 dirLightShadowPos = mul(CbTransform.WorldToDirLightShadowMap, worldPos);
+	float3 dirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
+
+	float4 spotLight1ShadowPos = mul(CbTransform.WorldToSpotLight1ShadowMap, worldPos);
+	float3 spotLight1ShadowCoord = spotLight1ShadowPos.xyz / spotLight1ShadowPos.w;
+
+	float4 spotLight2ShadowPos = mul(CbTransform.WorldToSpotLight2ShadowMap, worldPos);
+	float3 spotLight2ShadowCoord = spotLight2ShadowPos.xyz / spotLight2ShadowPos.w;
+
+	float4 spotLight3ShadowPos = mul(CbTransform.WorldToSpotLight3ShadowMap, worldPos);
+	float3 spotLight3ShadowCoord = spotLight3ShadowPos.xyz / spotLight3ShadowPos.w;
+
+	float3 normal = normalize(Baryinterpolate3(barycentricDeriv, vertex0.Normal, vertex1.Normal, vertex2.Normal));
+	float3 tangent = normalize(Baryinterpolate3(barycentricDeriv, vertex0.Tangent, vertex1.Tangent, vertex2.Tangent));
+	float3 bitangent = normalize(cross(normal, tangent));
+	float3x3 invTangentBasis = transpose(float3x3(tangent, bitangent, normal));
+
+	float2 texCoord, texCoordDdx, texCoordDdy;
+	BaryInterpolateDeriv2(barycentricDeriv, vertex0.TexCoord, vertex1.TexCoord, vertex2.TexCoord, texCoord, texCoordDdx, texCoordDdy);
+
+	// GBuffer描画に必要なリソースを取得
+	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbDescHeapIndices.CbCamera];
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial[meshIdx]];
+
+	ConstantBuffer<DirectionalLight> CbDirectionalLight = ResourceDescriptorHeap[CbDescHeapIndices.CbDirLight];
+
+	ConstantBuffer<PointLight> CbPointLight1 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight[0]];
+	ConstantBuffer<PointLight> CbPointLight2 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight[1]];
+	ConstantBuffer<PointLight> CbPointLight3 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight[2]];
+	ConstantBuffer<PointLight> CbPointLight4 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight[3]];
+
+	ConstantBuffer<SpotLight> CbSpotLight1 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight[0]];
+	ConstantBuffer<SpotLight> CbSpotLight2 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight[1]];
+	ConstantBuffer<SpotLight> CbSpotLight3 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight[2]];
+
+	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap[meshIdx]];
+	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[CbDescHeapIndices.MetallicRoughnessMap[meshIdx]];
+	Texture2D NormalMap = ResourceDescriptorHeap[CbDescHeapIndices.NormalMap[meshIdx]];
+	Texture2D EmissiveMap = ResourceDescriptorHeap[CbDescHeapIndices.EmissiveMap[meshIdx]];
+	Texture2D AOMap = ResourceDescriptorHeap[CbDescHeapIndices.AOMap[meshIdx]];
+	Texture2D DirLightShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.DirLightShadowMap];
+	Texture2D SpotLight1ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLightShadowMap[0]];
+	Texture2D SpotLight2ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLightShadowMap[1]];
+	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLightShadowMap[2]];
 
 	PSOutput output = (PSOutput)0;
 	return output;
