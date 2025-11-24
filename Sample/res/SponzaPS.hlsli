@@ -59,8 +59,6 @@ struct DirectionalLight
 	float2 DirLightShadowMapSize; // x is pixel size, y is texel size on UV.
 };
 
-// TODO:Use ConstantBuffer<>
-
 struct PointLight
 {
 	float3 PointLightPosition;
