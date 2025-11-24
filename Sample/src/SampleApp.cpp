@@ -6273,7 +6273,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 	if (m_drawSponza)
 	{
-		drawGBufferDescHeapIndices.CbDirLight = m_DirectionalLightCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.CbDirectionalLight = m_DirectionalLightCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
 		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 		{
 			drawGBufferDescHeapIndices.CbPointLight[i] = m_PointLightCB[i].GetHandle()->GetDescriptorIndex();

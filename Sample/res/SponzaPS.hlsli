@@ -87,7 +87,7 @@ struct DescHeapIndices
 {
 	uint CbCamera;
 	uint CbMaterial;
-	uint CbDirLight;
+	uint CbDirectionalLight;
 	uint CbPointLight1;
 	uint CbPointLight2;
 	uint CbPointLight3;
@@ -341,7 +341,7 @@ PSOutput main(VSOutput input)
 	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbDescHeapIndices.CbCamera];
 	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
 
-	ConstantBuffer<DirectionalLight> CbDirectionalLight = ResourceDescriptorHeap[CbDescHeapIndices.CbDirLight];
+	ConstantBuffer<DirectionalLight> CbDirectionalLight = ResourceDescriptorHeap[CbDescHeapIndices.CbDirectionalLight];
 
 	ConstantBuffer<PointLight> CbPointLight1 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight1];
 	ConstantBuffer<PointLight> CbPointLight2 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight2];

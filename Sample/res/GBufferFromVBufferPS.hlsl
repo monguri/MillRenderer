@@ -1,4 +1,5 @@
 #include "ShadowMap.hlsli"
+#include "BRDF.hlsli"
 
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
@@ -295,6 +296,215 @@ void BaryInterpolateDeriv2(BarycentricDeriv deriv, float2 v0, float2 v1, float2 
 	ddy.y = dot(float3(v0.y, v1.y, v2.y), deriv.m_ddy);
 }
 
+//TODO: ここからSponzaPS.hlsliのコピペなので共通化が必要
+#ifndef MIN_DIST
+#define MIN_DIST (0.01)
+#endif // MIN_DIST
+
+// referenced UE.
+static const float DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE = 6353.17f;
+static const float DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS = 0.1f;
+
+//static const float SPOT_LIGHT_SHADOW_SOFT_TRANSITION_SCALE = 60.0f;
+//TODO: On UE's spot light, default value is 60, but it creates so wide soft shadow.
+static const float SPOT_LIGHT_SHADOW_SOFT_TRANSITION_SCALE = 6353.17f;
+static const float SPOT_LIGHT_PROJECTION_DEPTH_BIAS = 0.5f;
+
+float SmoothDistanceAttenuation
+(
+	float squareDistance,
+	float invSqrAttRadius
+)
+{
+	float factor = squareDistance * invSqrAttRadius;
+	float smoothFactor = saturate(1.0f - factor * factor);
+	return smoothFactor * smoothFactor;
+}
+
+float GetDistanceAttenuation
+(
+	float3 unnormalizedLightVector,
+	float invSqrAttRadius
+)
+{
+	float sqrDist = dot(unnormalizedLightVector, unnormalizedLightVector);
+	float attenuation = 1.0f / max(sqrDist, MIN_DIST * MIN_DIST);
+	attenuation *= SmoothDistanceAttenuation(sqrDist, invSqrAttRadius);
+	return attenuation;
+}
+
+float3 EvaluatePointLight
+(
+	float3 N,
+	float3 worldPos,
+	float3 lightPos,
+	float lightInvRadiusSq,
+	float3 lightColor
+)
+{
+	float3 dif = lightPos - worldPos;
+	float att = GetDistanceAttenuation(dif, lightInvRadiusSq);
+
+	return lightColor * att / (4.0f * F_PI);
+}
+
+float3 EvaluatePointLightReflection
+(
+	float3 baseColor,
+	float metallic,
+	float roughness,
+	float3 N,
+	float3 V,
+	float3 worldPos,
+	float3 lightPos,
+	float invRadiusSq,
+	float3 color,
+	float intensity
+)
+{
+	float3 L = normalize(lightPos - worldPos);
+	float3 H = normalize(V + L);
+	float VH = saturate(dot(V, H));
+	float NH = saturate(dot(N, H));
+	float NV = saturate(dot(N, V));
+	float NL = saturate(dot(N, L));
+	float3 brdf = ComputeBRDF
+	(
+		baseColor,
+		metallic,
+		roughness,
+		VH,
+		NH,
+		NV,
+		NL 
+	);
+	float3 light = EvaluatePointLight(N, worldPos, lightPos, invRadiusSq, color) * intensity;
+	return brdf * light;
+}
+
+float GetAngleAttenuation
+(
+	float3 normalizedLightVector,
+	float3 lightDir,
+	float lightAngleScale,
+	float lightAngleOffset
+)
+{
+	float cd = dot(lightDir, normalizedLightVector);
+	float attenuation = saturate(cd * lightAngleScale + lightAngleOffset);
+	attenuation *= attenuation;
+	return attenuation;
+}
+
+float3 EvaluateSpotLight
+(
+	float3 worldPos,
+	float3 lightPos,
+	float lightInvRadiusSq,
+	float3 lightForward,
+	float3 lightColor,
+	float lightAngleScale,
+	float lightAngleOffset
+)
+{
+	float3 unnormalizedLightVector = lightPos - worldPos;
+	float sqrDist = dot(unnormalizedLightVector, unnormalizedLightVector);
+	float att = 1.0f / max(sqrDist, MIN_DIST * MIN_DIST);
+	float3 L = normalize(unnormalizedLightVector);
+	att *= GetAngleAttenuation(L, -lightForward, lightAngleScale, lightAngleOffset);
+	return lightColor * att / F_PI;
+}
+
+float3 EvaluateSpotLightKaris
+(
+	float3 worldPos,
+	float3 lightPos,
+	float lightInvRadiusSq,
+	float3 lightForward,
+	float3 lightColor,
+	float lightAngleScale,
+	float lightAngleOffset
+)
+{
+	float3 unnormalizedLightVector = lightPos - worldPos;
+	float sqrDist = dot(unnormalizedLightVector, unnormalizedLightVector);
+	float att = 1.0f / max(sqrDist, MIN_DIST * MIN_DIST);
+	float3 L = normalize(unnormalizedLightVector);
+	att *= SmoothDistanceAttenuation(sqrDist, lightInvRadiusSq);
+	att /= (sqrDist + 1.0f);
+	att *= GetAngleAttenuation(L, -lightForward, lightAngleScale, lightAngleOffset);
+	return lightColor * att / F_PI;
+}
+
+float3 EvaluateSpotLightLagarde
+(
+	float3 worldPos,
+	float3 lightPos,
+	float lightInvRadiusSq,
+	float3 lightForward,
+	float3 lightColor,
+	float lightAngleScale,
+	float lightAngleOffset
+)
+{
+	float3 unnormalizedLightVector = lightPos - worldPos;
+	float sqrDist = dot(unnormalizedLightVector, unnormalizedLightVector);
+	float att = 1.0f / max(sqrDist, MIN_DIST * MIN_DIST);
+	float3 L = normalize(unnormalizedLightVector);
+	att *= GetDistanceAttenuation(unnormalizedLightVector, lightInvRadiusSq);
+	att *= GetAngleAttenuation(L, -lightForward, lightAngleScale, lightAngleOffset);
+	return lightColor * att / F_PI;
+}
+
+float3 EvaluateSpotLightReflection
+(
+	float3 baseColor,
+	float metallic,
+	float roughness,
+	float3 N,
+	float3 V,
+	float3 worldPos,
+	float3 lightPos,
+	float invSqrRadius,
+	float3 forward,
+	float3 color,
+	float angleScale,
+	float angleOffset,
+	float intensity,
+	Texture2D shadowMap,
+#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+	SamplerComparisonState shadowSmp,
+#else
+	SamplerState shadowSmp,
+#endif
+	float2 shadowMapSize,
+	float3 shadowCoord
+)
+{
+	float3 L = normalize(lightPos - worldPos);
+	float3 H = normalize(V + L);
+	float VH = saturate(dot(V, H));
+	float NH = saturate(dot(N, H));
+	float NV = saturate(dot(N, V));
+	float NL = saturate(dot(N, L));
+	float3 brdf = ComputeBRDF
+	(
+		baseColor,
+		metallic,
+		roughness,
+		VH,
+		NH,
+		NV,
+		NL 
+	);
+
+	//TODO: not branching by type
+	float3 light = EvaluateSpotLight(worldPos, lightPos, invSqrRadius, forward, color, angleScale, angleOffset) * intensity;
+	float transitionScale = SPOT_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(SPOT_LIGHT_PROJECTION_DEPTH_BIAS, 1, NL);
+	float shadow = GetShadowMultiplier(shadowMap, shadowSmp, shadowMapSize, shadowCoord, transitionScale);
+	return brdf * light * shadow;
+}
+
 [RootSignature(ROOT_SIGNATURE)]
 PSOutput main(VSOutput input)
 {
@@ -365,6 +575,7 @@ PSOutput main(VSOutput input)
 	float3 localPos = Baryinterpolate3(barycentricDeriv, vertex0.Position, vertex1.Position, vertex2.Position);
 	float4 worldPos = mul(CbMesh.World, float4(localPos, 1.0f));
 
+	//TODO: ShadowMapをSample()でサンプルするケースではShadowPosのddx/ddyがシャドウマップのSampleGrad()に必要
 	float4 dirLightShadowPos = mul(CbTransform.WorldToDirLightShadowMap, worldPos);
 	float3 dirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
 
@@ -411,5 +622,215 @@ PSOutput main(VSOutput input)
 	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLightShadowMap[2]];
 
 	PSOutput output = (PSOutput)0;
+
+	//TODO: ここからSponzaPS.hlsliの処理と重複するので共通化が必要
+	// SampleGradをしてたり、VSOutput input引数がないなどの違いはある
+	float4 baseColor = BaseColorMap.SampleGrad(AnisotropicWrapSmp, texCoord, texCoordDdx, texCoordDdy);
+	// Maskの分岐は既にVBufferで処理済みなのでここでは不要
+	baseColor.rgb *= CbMaterial.BaseColorFactor;
+
+	// metallic value is G. roughness value is B.
+	// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
+	float2 metallicRoughness = MetallicRoughnessMap.SampleGrad(AnisotropicWrapSmp, texCoord, texCoordDdx, texCoordDdy).bg;
+	float metallic = metallicRoughness.x * CbMaterial.MetallicFactor;
+	float roughness = metallicRoughness.y * CbMaterial.RoughnessFactor;
+
+	float3 N = NormalMap.SampleGrad(AnisotropicWrapSmp, texCoord, texCoordDdx, texCoordDdy).xyz * 2.0f - 1.0f;
+
+	// for GGX specular AA
+	N = normalize(N);
+	roughness = IsotropicNDFFiltering(N, roughness);
+
+	N = mul(invTangentBasis, N);
+	float3 V = normalize(CbCamera.CameraPosition - worldPos.xyz);
+	float NV = saturate(dot(N, V));
+
+	// directional light
+	float3 dirLightL = normalize(-CbDirectionalLight.DirLightForward);
+	float3 dirLightH = normalize(V + dirLightL);
+	float dirLightVH = saturate(dot(V, dirLightH));
+	float dirLightNH = saturate(dot(N, dirLightH));
+	float dirLightNL = saturate(dot(N, dirLightL));
+	float3 dirLightBRDF = ComputeBRDF
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		dirLightVH,
+		dirLightNH,
+		NV,
+		dirLightNL 
+	);
+
+	float transitionScale = DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS, 1, dirLightNL);
+	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, ShadowSmp, CbDirectionalLight.DirLightShadowMapSize, dirLightShadowCoord, transitionScale);
+	float3 dirLightReflection = dirLightBRDF * CbDirectionalLight.DirLightColor * dirLightShadowMult;
+
+	// 4 point light
+	float3 pointLight1Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos.xyz,
+		CbPointLight1.PointLightPosition,
+		CbPointLight1.PointLightInvSqrRadius,
+		CbPointLight1.PointLightColor,
+		CbPointLight1.PointLightIntensity
+	);
+
+	float3 pointLight2Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos.xyz,
+		CbPointLight2.PointLightPosition,
+		CbPointLight2.PointLightInvSqrRadius,
+		CbPointLight2.PointLightColor,
+		CbPointLight2.PointLightIntensity
+	);
+
+	float3 pointLight3Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos.xyz,
+		CbPointLight3.PointLightPosition,
+		CbPointLight3.PointLightInvSqrRadius,
+		CbPointLight3.PointLightColor,
+		CbPointLight3.PointLightIntensity
+	);
+
+	float3 pointLight4Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos.xyz,
+		CbPointLight4.PointLightPosition,
+		CbPointLight4.PointLightInvSqrRadius,
+		CbPointLight4.PointLightColor,
+		CbPointLight4.PointLightIntensity
+	);
+
+	// 3 spot light
+	float3 spotLight1Reflection = EvaluateSpotLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos.xyz,
+		CbSpotLight1.SpotLightPosition,
+		CbSpotLight1.SpotLightInvSqrRadius,
+		CbSpotLight1.SpotLightForward,
+		CbSpotLight1.SpotLightColor,
+		CbSpotLight1.SpotLightAngleScale,
+		CbSpotLight1.SpotLightAngleOffset,
+		CbSpotLight1.SpotLightIntensity,
+		SpotLight1ShadowMap,
+		ShadowSmp,
+		CbSpotLight1.SpotLightShadowMapSize,
+		spotLight1ShadowCoord
+	);
+
+	float3 spotLight2Reflection = EvaluateSpotLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos.xyz,
+		CbSpotLight2.SpotLightPosition,
+		CbSpotLight2.SpotLightInvSqrRadius,
+		CbSpotLight2.SpotLightForward,
+		CbSpotLight2.SpotLightColor,
+		CbSpotLight2.SpotLightAngleScale,
+		CbSpotLight2.SpotLightAngleOffset,
+		CbSpotLight2.SpotLightIntensity,
+		SpotLight2ShadowMap,
+		ShadowSmp,
+		CbSpotLight2.SpotLightShadowMapSize,
+		spotLight2ShadowCoord
+	);
+
+	float3 spotLight3Reflection = EvaluateSpotLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos.xyz,
+		CbSpotLight3.SpotLightPosition,
+		CbSpotLight3.SpotLightInvSqrRadius,
+		CbSpotLight3.SpotLightForward,
+		CbSpotLight3.SpotLightColor,
+		CbSpotLight3.SpotLightAngleScale,
+		CbSpotLight3.SpotLightAngleOffset,
+		CbSpotLight3.SpotLightIntensity,
+		SpotLight3ShadowMap,
+		ShadowSmp,
+		CbSpotLight3.SpotLightShadowMapSize,
+		spotLight3ShadowCoord
+	);
+
+	float3 lit = 
+		dirLightReflection
+		+ pointLight1Reflection
+		+ pointLight2Reflection
+		+ pointLight3Reflection
+		+ pointLight4Reflection
+		+ spotLight1Reflection
+		+ spotLight2Reflection
+		+ spotLight3Reflection;
+
+	float3 emissive = 0;
+	if (CbMaterial.bExistEmissiveTex)
+	{
+		emissive = CbMaterial.EmissiveFactor;
+		emissive *= EmissiveMap.SampleGrad(AnisotropicWrapSmp, texCoord, texCoordDdx, texCoordDdy).rgb;
+	}
+
+	float AO = 1;
+	if (CbMaterial.bExistAOTex)
+	{
+		AO = AOMap.SampleGrad(AnisotropicWrapSmp, texCoord, texCoordDdx, texCoordDdy).r;
+	}
+
+	//TODO: MeshletでなくVB/IBを使ってるので無理。VBufferを使う場合は別途実装方法を考える必要がある
+	//if (CbCamera.bDebugViewMeshletCluster == 0)
+	//{
+		output.Color.rgb = lit * AO + emissive;
+	//}
+	//else
+	//{
+	//	output.Color.rgb = float3
+	//	(
+	//		float((input.MeshletID & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
+	//		float((input.MeshletID & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
+	//		float((input.MeshletID & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
+	//	);
+	//}
+	output.Color.rgb = lit * AO + emissive;
+	output.Color.a = 1.0f;
+
+	output.Normal.xyz = (N + 1.0f) * 0.5f;
+	output.Normal.a = 1.0f;
+
+	output.MetallicRoughness.r = metallic;
+	output.MetallicRoughness.g = roughness;
 	return output;
 }
