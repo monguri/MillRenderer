@@ -51,6 +51,7 @@
 
 // C++側の定義と値の一致が必要
 static const uint MAX_MESH_COUNT = 256;
+static const uint NUM_POINT_LIGHTS = 4;
 static const uint NUM_SPOT_LIGHTS = 3;
 
 struct CbDrawGBufferDescHeapIndices
@@ -72,6 +73,9 @@ struct CbDrawGBufferDescHeapIndices
 	uint CbGBufferFromVBuffer;
 
 	// Sponza用
+	uint CbDirectionalLight;
+	uint CbPointLight[NUM_POINT_LIGHTS];
+	uint CbSpotLight[NUM_SPOT_LIGHTS];
 	uint DirLightShadowMap;
 	uint SpotLightShadowMap[NUM_SPOT_LIGHTS];
 
@@ -298,7 +302,8 @@ PSOutput main(VSOutput input)
 	float hitT;
 	// 必ず衝突するはずなので戻り値は無視
 	RayIntersectPlane(float3(0, 0, 0), normalize(viewPos - cameraPos), viewPos, triNormal, hitT);
-#else
+#endif
+
 	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[CbDescHeapIndices.CbTransform[meshIdx]];
 	float4 csPos0 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
 	float4 csPos1 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
@@ -308,7 +313,6 @@ PSOutput main(VSOutput input)
 	//TODO: SponzaVS.hlslおよびSponzaPS.hlsliの処理と重複するので共通化が必要
 	// SponzaVSOutputとSponzaPSOutputを用意して共通関数をhlsliにまとめよう
 	// IBL版も同様
-#endif
 
 
 
