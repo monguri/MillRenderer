@@ -212,8 +212,10 @@ namespace
 	{
 		Matrix ViewMatrix;
 		Matrix InvProjMatrix;
+		int Width;
+		int Height;
 		float Near;
-		float Padding[3];
+		float Padding[1];
 	};
 
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
@@ -1177,9 +1179,11 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		CbGBufferFromVBuffer* ptr = m_GBufferFromVBufferCB.GetPtr<CbGBufferFromVBuffer>();
-		ptr->Near = CAMERA_NEAR;
 		ptr->ViewMatrix = Matrix::Identity;
 		ptr->InvProjMatrix = Matrix::Identity;
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+		ptr->Near = CAMERA_NEAR;
 	}
 
 	if (m_drawSponza)
@@ -5780,12 +5784,12 @@ void SampleApp::OnRender()
 		if (m_enableTemporalAA)
 		{
 			DrawVBuffer(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, drawGBufferDescHeapIndices);
-			DrawGBufferFromVBuffer(pCmd, view, projWithJitter, drawGBufferDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential, drawGBufferDescHeapIndices);
 		}
 		else
 		{
 			DrawVBuffer(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, drawGBufferDescHeapIndices);
-			DrawGBufferFromVBuffer(pCmd, view, projNoJitter, drawGBufferDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential, drawGBufferDescHeapIndices);
 		}
 
 	}
@@ -6002,6 +6006,8 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 {
 	assert(m_drawSponza);
 
+	::PIXScopedEvent(pCmdList, 0, L"SpotLightShadowMap%d", spotLightIdx);
+
 	// m_useDynamicResourcesでしか使ってない
 	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
 	std::vector<uint32_t> psDescHeapIndices(16 + NUM_SPOT_LIGHTS);
@@ -6156,7 +6162,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 {
 	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
 
-	::PIXScopedEvent(pCmdList, 0, L"Visibility");
+	::PIXScopedEvent(pCmdList, 0, L"VBuffer");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -6212,8 +6218,35 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
+	::PIXScopedEvent(pCmdList, 0, L"DrawGBufferFromVBuffer");
+
+	// 変換行列用の定数バッファの更新
+	if (m_drawSponza)
+	{
+		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		// ViewProjはDrawVBuffer()で更新済み
+
+		//TODO: DrawGBuffer()と共通化
+		float zNear = 0.0f;
+		float zFar = 40.0f;
+		float widthHeight = 40.0f;
+
+		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+		// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
+		const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
+		// World行列はMatrix::Identityとする
+		ptr->ModelToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+		ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+	}
+
 	// 定数バッファ更新
 	{
 		{
@@ -6227,6 +6260,58 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 			ptr->InvProjMatrix = proj.Invert();
 		}
 	}
+
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
+		m_SceneColorTarget.GetHandleRTV()->HandleCPU,
+		m_SceneNormalTarget.GetHandleRTV()->HandleCPU, 
+		m_SceneMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
+	};
+	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+
+	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, &handleDSV->HandleCPU);
+
+	m_SceneColorTarget.ClearView(pCmdList);
+	m_SceneNormalTarget.ClearView(pCmdList);
+	m_SceneMetallicRoughnessTarget.ClearView(pCmdList);
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+	//TODO: 実装
+
+	// SkyBoxや環境マップのBoxの描画はVBufferに加えていないので、ここで描画する
+	if (m_drawSponza)
+	{
+		// UEのDirectionalLightComponent::GetOuterSpaceLuminance()を参考にしている
+		const Vector3& discLuminance = GetSunLightDiscLuminance(m_directionalLightIntensity, Vector3::One);
+		m_SkyBox.DrawSkyAtmosphere(
+			pCmdList,
+			m_SkyViewLUT_Target,
+			m_SkyTransmittanceLUT_Target,
+			view,
+			proj,
+			viewRotProj,
+			SKY_BOX_HALF_EXTENT,
+			skyViewLutReferential,
+			PLANET_BOTTOM_RADIUS_KM,
+			-lightForward, // これはDirectionalLightの方向でなく、カメラから見た太陽の方向なので符号を逆にする
+			discLuminance
+		);
+	}
+	else
+	{
+		m_SkyBox.DrawEnvironmentCubeMap(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
+	}
+
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
