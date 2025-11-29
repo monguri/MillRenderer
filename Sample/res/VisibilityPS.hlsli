@@ -42,6 +42,7 @@ uint2 main(MSOutput input) : SV_TARGET
 	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, input.TexCoord);
 	if (baseColor.a < CbMaterial.AlphaCutoff)
 	{
+		// 毎フレームINVALID_VISIBILITYでVisibilityはクリアしてるのでその値のままになる
 		discard;
 	}
 #endif
