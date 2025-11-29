@@ -6364,7 +6364,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	m_SceneMetallicRoughnessTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_DrawGBufferDescHeapIndicesCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
