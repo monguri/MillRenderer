@@ -5852,8 +5852,8 @@ void SampleApp::OnRender()
 
 	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
 	{
-		// Indexは0初期化してシェーダ側で使用するインデックスがずれてもクラッシュさせないようにする
-		// クラッシュするより絵がおかしい方が調査しやすいので
+		// Indexは0初期化してシェーダ側で使用するインデックスがずれてもGPUクラッシュさせないようにする
+		// GPUクラッシュするより絵がおかしい方が調査しやすいので
 		CbDrawGBufferDescHeapIndices drawGBufferDescHeapIndices = {};
 
 		if (m_enableTemporalAA)
