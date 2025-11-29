@@ -6687,7 +6687,7 @@ void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 
 			drawGBufferDescHeapIndices.CbMesh[meshIdx] = gsDescHeapIndices[1];
 			drawGBufferDescHeapIndices.SbVertexBuffer[meshIdx] = gsDescHeapIndices[2];
-			drawGBufferDescHeapIndices.SbIndexBuffer[meshIdx] = gsDescHeapIndices[3];
+			drawGBufferDescHeapIndices.SbIndexBuffer[meshIdx] = pMesh->GetIndexBufferSBHandle().GetDescriptorIndex();
 
 			psDescHeapIndices[0] = pMaterial->GetCBHandle().GetDescriptorIndex();
 			psDescHeapIndices[1] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
