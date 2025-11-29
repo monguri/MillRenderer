@@ -57,34 +57,53 @@ static const uint NUM_SPOT_LIGHTS = 3;
 
 struct CbDrawGBufferDescHeapIndices
 {
-	uint CbTransform[MAX_MESH_COUNT];
-	uint CbMesh[MAX_MESH_COUNT];
-	uint SbVertexBuffer[MAX_MESH_COUNT];
-	uint SbIndexBuffer[MAX_MESH_COUNT];
-	uint CbMaterial[MAX_MESH_COUNT];
-	uint BaseColorMap[MAX_MESH_COUNT];
-	uint MetallicRoughnessMap[MAX_MESH_COUNT];
-	uint NormalMap[MAX_MESH_COUNT];
-	uint EmissiveMap[MAX_MESH_COUNT];
-	uint AOMap[MAX_MESH_COUNT];
+	//uint CbTransform[MAX_MESH_COUNT];
+	//uint CbMesh[MAX_MESH_COUNT];
+	//uint SbVertexBuffer[MAX_MESH_COUNT];
+	//uint SbIndexBuffer[MAX_MESH_COUNT];
+	//uint CbMaterial[MAX_MESH_COUNT];
+	//uint BaseColorMap[MAX_MESH_COUNT];
+	//uint MetallicRoughnessMap[MAX_MESH_COUNT];
+	//uint NormalMap[MAX_MESH_COUNT];
+	//uint EmissiveMap[MAX_MESH_COUNT];
+	//uint AOMap[MAX_MESH_COUNT];
 
-	uint CbCamera;
-	uint VBuffer;
-	uint DepthBuffer;
-	uint CbGBufferFromVBuffer;
+	//uint CbCamera;
+	//uint VBuffer;
+	//uint DepthBuffer;
+	//uint CbGBufferFromVBuffer;
 
-	// Sponza用
-	uint CbPointLight[NUM_POINT_LIGHTS];
-	uint CbSpotLight[NUM_SPOT_LIGHTS];
-	uint CbDirLight;
-	uint SpotLightShadowMap[NUM_SPOT_LIGHTS];
-	uint DirLightShadowMap;
+	//// Sponza用
+	//uint CbPointLight[NUM_POINT_LIGHTS];
+	//uint CbSpotLight[NUM_SPOT_LIGHTS];
+	//uint CbDirLight;
+	//uint SpotLightShadowMap[NUM_SPOT_LIGHTS];
+	//uint DirLightShadowMap;
 
-	// IBL用
-	uint CbIBL;
-	uint DFGMap;
-	uint DiffuseLDMap;
-	uint SpecularLDMap;
+	//// IBL用
+	//uint CbIBL;
+	//uint DFGMap;
+	//uint DiffuseLDMap;
+	//uint SpecularLDMap;
+
+	//TODO: 配列変数が複数あるとメインメモリとのメモリマッピングがうまくいかないので
+	// ひとつのuint[]にまとめてインデックスは別途ゲッターを用意する
+	uint Indices[ 
+		MAX_MESH_COUNT * 10 // CbTransform, CbMesh, SbVertexBuffer, SbIndexBuffer, CbMaterial, BaseColorMap, MetallicRoughnessMap, NormalMap, EmissiveMap, AOMap
+		+ 1 // CbCamera
+		+ 1 // VBuffer
+		+ 1 // DepthBuffer
+		+ 1 // CbGBufferFromVBuffer
+		+ NUM_POINT_LIGHTS // CbPointLight
+		+ NUM_SPOT_LIGHTS // CbSpotLight
+		+ 1 // CbDirLight
+		+ NUM_SPOT_LIGHTS // SpotLightShadowMap
+		+ 1   // DirLightShadowMap
+		+ 1   // CbIBL
+		+ 1   // DFGMap
+		+ 1   // DiffuseLDMap
+		+ 1   // SpecularLDMap
+	];
 };
 
 struct GBufferFromVBuffer
@@ -508,7 +527,27 @@ float3 EvaluateSpotLightReflection
 [RootSignature(ROOT_SIGNATURE)]
 PSOutput main(VSOutput input)
 {
-	Texture2D<uint2> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
+	uint CbTransformBaseIdx = 0;
+	uint CbMeshBaseIdx = CbTransformBaseIdx + MAX_MESH_COUNT;
+	uint SbVertexBufferBaseIdx = CbMeshBaseIdx  + MAX_MESH_COUNT;
+	uint SbIndexBufferBaseIdx = SbVertexBufferBaseIdx + MAX_MESH_COUNT;
+	uint CbMaterialBaseIdx = SbIndexBufferBaseIdx + MAX_MESH_COUNT;
+	uint BaseColorMapBaseIdx = CbMaterialBaseIdx + MAX_MESH_COUNT;
+	uint MetallicRoughnessMapBaseIdx = BaseColorMapBaseIdx + MAX_MESH_COUNT;
+	uint NormalMapBaseIdx = MetallicRoughnessMapBaseIdx + MAX_MESH_COUNT;
+	uint EmissiveMapBaseIdx = NormalMapBaseIdx + MAX_MESH_COUNT;
+	uint AOMapBaseIdx = EmissiveMapBaseIdx + MAX_MESH_COUNT;
+	uint CbCameraIdx = MAX_MESH_COUNT * 10;
+	uint VBufferIdx = CbCameraIdx + 1;
+	uint DepthBufferIdx = VBufferIdx + 1;
+	uint CbGBufferFromVBufferIdx = DepthBufferIdx + 1;
+	uint CbPointLightBaseIdx = CbGBufferFromVBufferIdx + 1;
+	uint CbSpotLightBaseIdx = CbPointLightBaseIdx + NUM_POINT_LIGHTS;
+	uint CbDirLightIdx = CbSpotLightBaseIdx + NUM_SPOT_LIGHTS;
+	uint SpotLightShadowMapBaseIdx = CbDirLightIdx + 1;
+	uint DirLightShadowMapIdx = SpotLightShadowMapBaseIdx + NUM_SPOT_LIGHTS;
+
+	Texture2D<uint2> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.Indices[VBufferIdx]];
 	uint2 visibility = VBuffer.Sample(PointClampSmp, input.TexCoord);
 	uint triangleIdx = visibility.y;
 	// visibilityの初期値はINVALID_VISIBILITY。xとyどちらをチェックしてもいいがとりあえずyでチェック
@@ -522,19 +561,19 @@ PSOutput main(VSOutput input)
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
-	ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer = ResourceDescriptorHeap[CbDescHeapIndices.CbGBufferFromVBuffer];
+	ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbGBufferFromVBufferIdx]];
 
-	StructuredBuffer<uint> SbIndexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.SbIndexBuffer[meshIdx]];
+	StructuredBuffer<uint> SbIndexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.Indices[SbIndexBufferBaseIdx + meshIdx]];
 	uint index0 = SbIndexBuffer[3 * triangleIdx + 0];
 	uint index1 = SbIndexBuffer[3 * triangleIdx + 1];
 	uint index2 = SbIndexBuffer[3 * triangleIdx + 2];
 
-	StructuredBuffer<VSInput> SbVertexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.SbVertexBuffer[meshIdx]];
+	StructuredBuffer<VSInput> SbVertexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.Indices[SbVertexBufferBaseIdx + meshIdx]];
 	VSInput vertex0 = SbVertexBuffer[index0];
 	VSInput vertex1 = SbVertexBuffer[index1];
 	VSInput vertex2 = SbVertexBuffer[index2];
 
-	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbDescHeapIndices.CbMesh[meshIdx]];
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbMeshBaseIdx + meshIdx]];
 	// TODO: 思うに、Triangleの3点がわかるならddx(uv)、ddy(uv)、すなわちDuvDpx、DuvDpyは求まるのでは？ピクセル座標で3頂点のUVからヤコビ案計算でわかりそうなものだ
 	// 方法こそ違えど、CalcFullBaryでやっていることと同じでは？
 #if 0
@@ -561,7 +600,7 @@ PSOutput main(VSOutput input)
 	RayIntersectPlane(float3(0, 0, 0), normalize(viewPos - cameraPos), viewPos, triNormal, hitT);
 #endif
 
-	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[CbDescHeapIndices.CbTransform[meshIdx]];
+	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbTransformBaseIdx + meshIdx]];
 	float4 clipPos0 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
 	float4 clipPos1 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
 	float4 clipPos2 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
@@ -597,29 +636,29 @@ PSOutput main(VSOutput input)
 	BaryInterpolateDeriv2(barycentricDeriv, vertex0.TexCoord, vertex1.TexCoord, vertex2.TexCoord, texCoord, texCoordDdx, texCoordDdy);
 
 	// GBuffer描画に必要なリソースを取得
-	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbDescHeapIndices.CbCamera];
-	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial[meshIdx]];
+	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbCameraIdx]];
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbMaterialBaseIdx + meshIdx]];
 
-	ConstantBuffer<DirectionalLight> CbDirectionalLight = ResourceDescriptorHeap[CbDescHeapIndices.CbDirLight];
+	ConstantBuffer<DirectionalLight> CbDirectionalLight = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbDirLightIdx]];
 
-	ConstantBuffer<PointLight> CbPointLight1 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight[0]];
-	ConstantBuffer<PointLight> CbPointLight2 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight[1]];
-	ConstantBuffer<PointLight> CbPointLight3 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight[2]];
-	ConstantBuffer<PointLight> CbPointLight4 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight[3]];
+	ConstantBuffer<PointLight> CbPointLight1 = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbPointLightBaseIdx + 0]];
+	ConstantBuffer<PointLight> CbPointLight2 = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbPointLightBaseIdx + 1]];
+	ConstantBuffer<PointLight> CbPointLight3 = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbPointLightBaseIdx + 2]];
+	ConstantBuffer<PointLight> CbPointLight4 = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbPointLightBaseIdx + 3]];
 
-	ConstantBuffer<SpotLight> CbSpotLight1 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight[0]];
-	ConstantBuffer<SpotLight> CbSpotLight2 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight[1]];
-	ConstantBuffer<SpotLight> CbSpotLight3 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight[2]];
+	ConstantBuffer<SpotLight> CbSpotLight1 = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbSpotLightBaseIdx + 0]];
+	ConstantBuffer<SpotLight> CbSpotLight2 = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbSpotLightBaseIdx + 1]];
+	ConstantBuffer<SpotLight> CbSpotLight3 = ResourceDescriptorHeap[CbDescHeapIndices.Indices[CbSpotLightBaseIdx + 2]];
 
-	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap[meshIdx]];
-	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[CbDescHeapIndices.MetallicRoughnessMap[meshIdx]];
-	Texture2D NormalMap = ResourceDescriptorHeap[CbDescHeapIndices.NormalMap[meshIdx]];
-	Texture2D EmissiveMap = ResourceDescriptorHeap[CbDescHeapIndices.EmissiveMap[meshIdx]];
-	Texture2D AOMap = ResourceDescriptorHeap[CbDescHeapIndices.AOMap[meshIdx]];
-	Texture2D DirLightShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.DirLightShadowMap];
-	Texture2D SpotLight1ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLightShadowMap[0]];
-	Texture2D SpotLight2ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLightShadowMap[1]];
-	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLightShadowMap[2]];
+	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.Indices[BaseColorMapBaseIdx + meshIdx]];
+	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[CbDescHeapIndices.Indices[MetallicRoughnessMapBaseIdx + meshIdx]];
+	Texture2D NormalMap = ResourceDescriptorHeap[CbDescHeapIndices.Indices[NormalMapBaseIdx + meshIdx]];
+	Texture2D EmissiveMap = ResourceDescriptorHeap[CbDescHeapIndices.Indices[EmissiveMapBaseIdx + meshIdx]];
+	Texture2D AOMap = ResourceDescriptorHeap[CbDescHeapIndices.Indices[AOMapBaseIdx + meshIdx]];
+	Texture2D DirLightShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.Indices[DirLightShadowMapIdx]];
+	Texture2D SpotLight1ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.Indices[SpotLightShadowMapBaseIdx + 0]];
+	Texture2D SpotLight2ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.Indices[SpotLightShadowMapBaseIdx + 1]];
+	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.Indices[SpotLightShadowMapBaseIdx + 2]];
 
 	PSOutput output = (PSOutput)0;
 
