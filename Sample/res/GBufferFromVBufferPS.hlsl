@@ -565,10 +565,9 @@ PSOutput main(VSOutput input)
 		discard;
 	}
 
-	//uint materialId = visibility.x >> 16;
-	//uint meshIdx = visibility.x & 0xffff;
-	uint materialId = 0;
-	uint meshIdx = 0;
+	//TODO:現在VBufferが正しくDescHeapからとれてないのでクラッシュさせないための措置
+	uint materialId = visibility.x >> 16;
+	uint meshIdx = visibility.x & 0xffff;
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
