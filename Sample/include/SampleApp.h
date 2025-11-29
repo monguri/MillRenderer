@@ -49,11 +49,11 @@ private:
 		uint32_t CbGBufferFromVBuffer;
 
 		// Sponza—p
-		uint32_t CbDirectionalLight;
 		uint32_t CbPointLight[NUM_POINT_LIGHTS];
 		uint32_t CbSpotLight[NUM_SPOT_LIGHTS];
-		uint32_t DirLightShadowMap;
+		uint32_t CbDirectionalLight;
 		uint32_t SpotLightShadowMap[NUM_SPOT_LIGHTS];
+		uint32_t DirLightShadowMap;
 
 		// IBL—p
 		uint32_t CbIBL;

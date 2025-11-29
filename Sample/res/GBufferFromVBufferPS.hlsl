@@ -74,11 +74,11 @@ struct CbDrawGBufferDescHeapIndices
 	uint CbGBufferFromVBuffer;
 
 	// Sponza—p
-	uint CbDirLight;
 	uint CbPointLight[NUM_POINT_LIGHTS];
 	uint CbSpotLight[NUM_SPOT_LIGHTS];
-	uint DirLightShadowMap;
+	uint CbDirLight;
 	uint SpotLightShadowMap[NUM_SPOT_LIGHTS];
+	uint DirLightShadowMap;
 
 	// IBL—p
 	uint CbIBL;
