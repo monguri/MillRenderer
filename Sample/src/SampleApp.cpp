@@ -1172,7 +1172,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 		}
 
-		if (!m_GBufferFromVBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbGBufferFromVBuffer)))
+		if (!m_GBufferFromVBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbGBufferFromVBuffer), L"CbGBufferFromVBuffer"))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -1192,7 +1192,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 			{
-				if (!m_DirectionalLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDirectionalLight)))
+				if (!m_DirectionalLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDirectionalLight), L"CbDirectionalLight"))
 				{
 					ELOG("Error : ConstantBuffer::Init() Failed.");
 					return false;
@@ -1204,7 +1204,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 			{
-				if (!m_PointLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbPointLight)))
+				if (!m_PointLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbPointLight), L"CbPointLight"))
 				{
 					ELOG("Error : ConstantBuffer::Init() Failed.");
 					return false;
@@ -1238,7 +1238,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 			{
-				if (!m_SpotLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSpotLight)))
+				if (!m_SpotLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSpotLight), L"CbSpotLight"))
 				{
 					ELOG("Error : ConstantBuffer::Init() Failed.");
 					return false;
@@ -1321,7 +1321,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCamera)))
+			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCamera), L"CbCamera"))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -1342,7 +1342,8 @@ bool SampleApp::OnInit(HWND hWnd)
 				DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE,
 				DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
 				1.0f,
-				0
+				0,
+				L"DirLightShadowMap"
 			))
 			{
 				ELOG("Error : DepthTarget::Init() Failed.");
@@ -1385,7 +1386,8 @@ bool SampleApp::OnInit(HWND hWnd)
 					SPOT_LIGHT_SHADOW_MAP_SIZE,
 					DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
 					1.0f,
-					0
+					0,
+					L"SpotLightShadowMap"
 				))
 				{
 					ELOG("Error : DepthTarget::Init() Failed.");
@@ -1610,7 +1612,9 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R32G32_UINT,
-			clearColor
+			clearColor,
+			1,
+			L"SceneVisibility"
 		))
 		{
 			ELOG("Error : ColorTarget::InitRenderTarget() Failed.");
@@ -1629,7 +1633,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_Height,
 			DXGI_FORMAT_D32_FLOAT,
 			0.0f, // SceneDepthはReverseZ
-			0
+			0,
+			L"SceneDepth"
 		))
 		{
 			ELOG("Error : DepthTarget::Init() Failed.");
@@ -5249,7 +5254,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_TransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
+			if (!m_TransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform), L"CbTransform"))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -5419,7 +5424,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// IBLバッファの設定
 		{
-			if (!m_IBL_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbIBL)))
+			if (!m_IBL_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbIBL), L"CbIBL"))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -6677,7 +6682,9 @@ void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 			}
 
 			CbMesh* ptr = pMesh->MapConstantBuffer<CbMesh>(m_FrameIndex);
-			ptr->MeshIdx = meshIdx;
+			//TODO: uint32_t&型のままだと、なぜかこの時点で値の代入が発生せずmeshIdxを遅延して参照が発生するようなので期待した値にならなくなっていた。先に確実にメモリコピーを発生させる
+			uint32_t tmpMeshIdx = meshIdx;
+			ptr->MeshIdx = tmpMeshIdx;
 			pMesh->UnmapConstantBuffer(m_FrameIndex);
 
 			gsDescHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();

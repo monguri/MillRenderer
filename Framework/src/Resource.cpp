@@ -21,7 +21,8 @@ bool Resource::Init
 	DescriptorPool* pPoolSRV,
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc,
 	DescriptorPool* pPoolUAV,
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc,
+	LPCWSTR name
 )
 {
 	if (pDevice == nullptr || size == 0)
@@ -75,6 +76,15 @@ bool Resource::Init
 		return false;
 	}
 
+	if (name != nullptr)
+	{
+		hr = m_pResource->SetName(name);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+	}
+
 	if (m_pHandleSRV != nullptr)
 	{
 		pDevice->CreateShaderResourceView(
@@ -102,7 +112,8 @@ bool Resource::InitAsConstantBuffer
 	ID3D12Device* pDevice,
 	size_t size,
 	D3D12_HEAP_TYPE heapType,
-	DescriptorPool* pPoolCBV
+	DescriptorPool* pPoolCBV,
+	LPCWSTR name
 )
 {
 	if (pDevice == nullptr || pPoolCBV == nullptr)
@@ -161,6 +172,15 @@ bool Resource::InitAsConstantBuffer
 		return false;
 	}
 	
+	if (name != nullptr)
+	{
+		hr = m_pResource->SetName(name);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+	}
+
 	D3D12_CONSTANT_BUFFER_VIEW_DESC descCBV = {};
 	descCBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
 	descCBV.SizeInBytes = static_cast<UINT>(sizeAligned);
@@ -278,7 +298,8 @@ bool Resource::InitAsStructuredBuffer
 	D3D12_RESOURCE_FLAGS flags,
 	D3D12_RESOURCE_STATES state,
 	DescriptorPool* pPoolSRV,
-	DescriptorPool* pPoolUAV
+	DescriptorPool* pPoolUAV,
+	LPCWSTR name
 )
 {
 	size_t size = count * structureSize;
@@ -330,7 +351,8 @@ bool Resource::InitAsStructuredBuffer
 		pPoolSRV,
 		srvDesc,
 		pPoolUAV,
-		uavDesc
+		uavDesc,
+		name
 	);
 }
 
@@ -341,7 +363,8 @@ bool Resource::InitAsByteAddressBuffer
 	D3D12_RESOURCE_FLAGS flags,
 	D3D12_RESOURCE_STATES state,
 	DescriptorPool* pPoolSRV,
-	DescriptorPool* pPoolUAV
+	DescriptorPool* pPoolUAV,
+	LPCWSTR name
 )
 {
 	D3D12_HEAP_PROPERTIES heapProp = {};
@@ -391,7 +414,8 @@ bool Resource::InitAsByteAddressBuffer
 		pPoolSRV,
 		srvDesc,
 		pPoolUAV,
-		uavDesc
+		uavDesc,
+		name
 	);
 }
 

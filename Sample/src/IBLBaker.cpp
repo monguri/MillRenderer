@@ -382,6 +382,12 @@ bool IBLBaker::Init
 			return false;
 		}
 
+		hr = m_TexDFG->SetName(L"DFGMap");
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
 		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 		rtvDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
 		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -458,6 +464,12 @@ bool IBLBaker::Init
 		if (FAILED(hr))
 		{
 			ELOG("Error : ID3D12Device::CreateCommittedResource() Failed. retcode = 0x%x", hr);
+			return false;
+		}
+
+		hr = m_TexDiffuseLD->SetName(L"DiffuseLDMap");
+		if (FAILED(hr))
+		{
 			return false;
 		}
 
@@ -542,6 +554,12 @@ bool IBLBaker::Init
 		if (FAILED(hr))
 		{
 			ELOG("Error : ID3D12Device::CreateCommittedResource() Failed. retcode = 0x%x", hr);
+			return false;
+		}
+
+		hr = m_TexSpecularLD->SetName(L"SpecularLDMap");
+		if (FAILED(hr))
+		{
 			return false;
 		}
 

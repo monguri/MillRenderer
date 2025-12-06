@@ -94,7 +94,8 @@ bool ColorTarget::InitRenderTarget
 	uint32_t height,
 	DXGI_FORMAT format,
 	float clearColor[4],
-	uint32_t mipLevels
+	uint32_t mipLevels,
+	LPCWSTR name
 )
 {
 	if (pDevice == nullptr || pPoolRTV == nullptr || width == 0 || height == 0)
@@ -170,6 +171,15 @@ bool ColorTarget::InitRenderTarget
 	if (FAILED(hr))
 	{
 		return false;
+	}
+
+	if (name != nullptr)
+	{
+		hr = m_pTarget->SetName(name);
+		if (FAILED(hr))
+		{
+			return false;
+		}
 	}
 
 	m_RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;

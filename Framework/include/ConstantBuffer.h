@@ -16,7 +16,8 @@ public:
 	(
 		ID3D12Device* pDevice,
 		DescriptorPool* pPool,
-		size_t size
+		size_t size,
+		LPCWSTR name = nullptr
 	);
 
 	void Term();

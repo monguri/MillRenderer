@@ -22,7 +22,8 @@ public:
 		DescriptorPool* pPoolSRV,
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc,
 		DescriptorPool* pPoolUAV,
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc,
+		LPCWSTR name = nullptr
 	);
 
 	template<typename T>
@@ -30,7 +31,8 @@ public:
 	(
 		ID3D12Device* pDevice,
 		D3D12_HEAP_TYPE heapType,
-		DescriptorPool* pPoolCBV
+		DescriptorPool* pPoolCBV,
+		LPCWSTR name = nullptr
 	)
 	{
 		return InitAsConstantBuffer
@@ -38,7 +40,8 @@ public:
 			pDevice,
 			sizeof(T),
 			heapType,
-			pPoolCBV
+			pPoolCBV,
+			name
 		);
 	}
 
@@ -47,7 +50,8 @@ public:
 		ID3D12Device* pDevice,
 		size_t size,
 		D3D12_HEAP_TYPE heapType,
-		DescriptorPool* pPoolCBV
+		DescriptorPool* pPoolCBV,
+		LPCWSTR name = nullptr
 	);
 
 	template<typename T>
@@ -89,7 +93,8 @@ public:
 		D3D12_RESOURCE_FLAGS flags,
 		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
-		DescriptorPool* pPoolUAV
+		DescriptorPool* pPoolUAV,
+		LPCWSTR name = nullptr
 	)
 	{
 		return InitAsStructuredBuffer
@@ -100,7 +105,8 @@ public:
 			flags,
 			state,
 			pPoolSRV,
-			pPoolUAV
+			pPoolUAV,
+			name
 		);
 	}
 
@@ -111,7 +117,8 @@ public:
 		D3D12_RESOURCE_FLAGS flags,
 		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
-		DescriptorPool* pPoolUAV
+		DescriptorPool* pPoolUAV,
+		LPCWSTR name = nullptr
 	);
 
 	void Term();
@@ -190,7 +197,8 @@ private:
 		D3D12_RESOURCE_FLAGS flags,
 		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
-		DescriptorPool* pPoolUAV
+		DescriptorPool* pPoolUAV,
+		LPCWSTR name = nullptr
 	);
 
 	void* Map() const;

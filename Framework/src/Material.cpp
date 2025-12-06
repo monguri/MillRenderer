@@ -43,7 +43,8 @@ bool Material::Init
 		pDevice,
 		cbSize,
 		D3D12_HEAP_TYPE_DEFAULT,
-		pPool
+		pPool,
+		L"CbMaterial"
 	);
 
 	return true;

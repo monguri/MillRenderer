@@ -60,7 +60,8 @@ bool DepthTarget::Init
 	uint32_t height,
 	DXGI_FORMAT format,
 	float clearDepth,
-	uint8_t clearStencil
+	uint8_t clearStencil,
+	LPCWSTR name
 )
 {
 	if (pDevice == nullptr || pPoolDSV == nullptr || width == 0 || height == 0)
@@ -132,6 +133,15 @@ bool DepthTarget::Init
 	if (FAILED(hr))
 	{
 		return false;
+	}
+
+	if (name != nullptr)
+	{
+		hr = m_pTarget->SetName(name);
+		if (FAILED(hr))
+		{
+			return false;
+		}
 	}
 
 	m_DSVDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;

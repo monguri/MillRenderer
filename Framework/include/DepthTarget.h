@@ -23,7 +23,8 @@ public:
 		uint32_t height,
 		DXGI_FORMAT format,
 		float clearDepth,
-		uint8_t clearStencil
+		uint8_t clearStencil,
+		LPCWSTR name = nullptr
 	);
 
 	void Term();

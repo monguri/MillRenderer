@@ -48,7 +48,8 @@ bool Mesh::Init
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
 			pPool,
-			nullptr
+			nullptr,
+			L"MeshletsSB"
 		))
 		{
 			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
@@ -72,7 +73,8 @@ bool Mesh::Init
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
 			pPool,
-			nullptr
+			nullptr,
+			L"MeshletsVerticesSB"
 		))
 		{
 			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
@@ -104,7 +106,8 @@ bool Mesh::Init
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
 			pPool,
-			nullptr
+			nullptr,
+			L"MeshletsTrianglesBB"
 		))
 		{
 			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
@@ -128,7 +131,8 @@ bool Mesh::Init
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
 			pPool,
-			nullptr
+			nullptr,
+			L"SbVertexBuffer"
 		))
 		{
 			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
@@ -141,7 +145,8 @@ bool Mesh::Init
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
 			pPool,
-			nullptr
+			nullptr,
+			L"SbIndexBuffer"
 		))
 		{
 			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
@@ -201,7 +206,8 @@ bool Mesh::Init
 			pDevice,
 			cbBufferSize,
 			D3D12_HEAP_TYPE_UPLOAD,
-			pPool
+			pPool,
+			L"CbMesh"
 		))
 		{
 			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");

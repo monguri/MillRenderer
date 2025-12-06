@@ -17,7 +17,8 @@ bool ConstantBuffer::Init
 (
 	ID3D12Device* pDevice,
 	DescriptorPool* pPool,
-	size_t size
+	size_t size,
+	LPCWSTR name
 )
 {
 	if (pDevice == nullptr || pPool == nullptr)
@@ -72,6 +73,15 @@ bool ConstantBuffer::Init
 	if (FAILED(hr))
 	{
 		return false;
+	}
+
+	if (name != nullptr)
+	{
+		hr = m_pCB->SetName(name);
+		if (FAILED(hr))
+		{
+			return false;
+		}
 	}
 
 	hr = m_pCB->Map(0, nullptr, &m_pMappedPtr);

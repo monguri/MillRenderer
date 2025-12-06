@@ -24,7 +24,8 @@ public:
 		uint32_t height,
 		DXGI_FORMAT format,
 		float clearColor[4],
-		uint32_t mipLevels = 1
+		uint32_t mipLevels = 1,
+		LPCWSTR name = nullptr
 	);
 
 	bool InitUnorderedAccessTarget
