@@ -6657,17 +6657,12 @@ void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 	std::vector<uint32_t> psDescHeapIndices(2);
 
 	gsDescHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-	drawGBufferDescHeapIndices.CbTransform[meshIdx] = gsDescHeapIndices[0];
 
 	for (const Model* model : m_pModels)
 	{
 		for (size_t m = 0; m < model->GetMeshCount(); m++)
 		{
 			const Mesh* pMesh = model->GetMesh(m);
-
-			CbMesh* ptr = pMesh->MapConstantBuffer<CbMesh>(m_FrameIndex);
-			ptr->MeshIdx = meshIdx;
-			pMesh->UnmapConstantBuffer(m_FrameIndex);
 
 			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
 			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
@@ -6681,12 +6676,17 @@ void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 				continue;
 			}
 
+			CbMesh* ptr = pMesh->MapConstantBuffer<CbMesh>(m_FrameIndex);
+			ptr->MeshIdx = meshIdx;
+			pMesh->UnmapConstantBuffer(m_FrameIndex);
+
 			gsDescHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();
 			gsDescHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
 			gsDescHeapIndices[3] = pMesh->GetMesletsSBHandle().GetDescriptorIndex();
 			gsDescHeapIndices[4] = pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex();
 			gsDescHeapIndices[5] = pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex();
 
+			drawGBufferDescHeapIndices.CbTransform[meshIdx] = gsDescHeapIndices[0];
 			drawGBufferDescHeapIndices.CbMesh[meshIdx] = gsDescHeapIndices[1];
 			drawGBufferDescHeapIndices.SbVertexBuffer[meshIdx] = gsDescHeapIndices[2];
 			drawGBufferDescHeapIndices.SbIndexBuffer[meshIdx] = pMesh->GetIndexBufferSBHandle().GetDescriptorIndex();
