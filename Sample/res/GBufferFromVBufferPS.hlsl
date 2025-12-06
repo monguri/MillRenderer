@@ -565,7 +565,6 @@ PSOutput main(VSOutput input)
 		discard;
 	}
 
-	//TODO:現在VBufferが正しくDescHeapからとれてないのでクラッシュさせないための措置
 	uint materialId = visibility.x >> 16;
 	uint meshIdx = visibility.x & 0xffff;
 
