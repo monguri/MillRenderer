@@ -49,6 +49,7 @@ private:
 		uint32_t VBuffer;
 		uint32_t DepthBuffer;
 		uint32_t CbGBufferFromVBuffer;
+		uint32_t Padding[3];
 
 		// Sponza—p
 		uint32_t CbPointLight[NUM_POINT_LIGHTS];

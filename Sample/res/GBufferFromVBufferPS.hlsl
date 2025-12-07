@@ -73,6 +73,7 @@ struct CbDrawGBufferDescHeapIndices
 	//uint VBuffer;
 	//uint DepthBuffer;
 	//uint CbGBufferFromVBuffer;
+	//uint Padding[3];
 
 	//// Sponza—p
 	//uint CbPointLight[NUM_POINT_LIGHTS];
@@ -96,6 +97,7 @@ struct CbDrawGBufferDescHeapIndices
 		+ 1 // VBuffer
 		+ 1 // DepthBuffer
 		+ 1 // CbGBufferFromVBuffer
+		+ 3 // Padding
 		+ NUM_POINT_LIGHTS // CbPointLight
 		+ NUM_SPOT_LIGHTS // CbSpotLight
 		+ 1 // CbDirLight
@@ -124,7 +126,7 @@ static const uint CbCameraIdx = CbTransformIdx + 1;
 static const uint VBufferIdx = CbCameraIdx + 1;
 static const uint DepthBufferIdx = VBufferIdx + 1;
 static const uint CbGBufferFromVBufferIdx = DepthBufferIdx + 1;
-static const uint CbPointLightBaseIdx = CbGBufferFromVBufferIdx + 1;
+static const uint CbPointLightBaseIdx = CbGBufferFromVBufferIdx + 4;
 static const uint CbSpotLightBaseIdx = CbPointLightBaseIdx + NUM_POINT_LIGHTS;
 static const uint CbDirLightIdx = CbSpotLightBaseIdx + NUM_SPOT_LIGHTS;
 static const uint SpotLightShadowMapBaseIdx = CbDirLightIdx + 1;
