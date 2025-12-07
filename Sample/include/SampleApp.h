@@ -32,10 +32,11 @@ private:
 
 	struct alignas(256) CbDrawGBufferDescHeapIndices
 	{
-		uint32_t CbTransform[MAX_MESH_COUNT];
 		uint32_t CbMesh[MAX_MESH_COUNT];
 		uint32_t SbVertexBuffer[MAX_MESH_COUNT];
-		uint32_t SbIndexBuffer[MAX_MESH_COUNT];
+		uint32_t SbMeshletBuffer[MAX_MESH_COUNT];
+		uint32_t SbMeshletVerticesBuffer[MAX_MESH_COUNT];
+		uint32_t SbMeshletTrianglesBuffer[MAX_MESH_COUNT];
 		uint32_t CbMaterial[MAX_MESH_COUNT];
 		uint32_t BaseColorMap[MAX_MESH_COUNT];
 		uint32_t MetallicRoughnessMap[MAX_MESH_COUNT];
@@ -43,6 +44,7 @@ private:
 		uint32_t EmissiveMap[MAX_MESH_COUNT];
 		uint32_t AOMap[MAX_MESH_COUNT];
 
+		uint32_t CbTransform;
 		uint32_t CbCamera;
 		uint32_t VBuffer;
 		uint32_t DepthBuffer;

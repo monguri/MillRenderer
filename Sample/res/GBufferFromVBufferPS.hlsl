@@ -57,10 +57,11 @@ static const uint NUM_SPOT_LIGHTS = 3;
 
 struct CbDrawGBufferDescHeapIndices
 {
-	//uint CbTransform[MAX_MESH_COUNT];
 	//uint CbMesh[MAX_MESH_COUNT];
 	//uint SbVertexBuffer[MAX_MESH_COUNT];
-	//uint SbIndexBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletVerticesBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletTrianglesBuffer[MAX_MESH_COUNT];
 	//uint CbMaterial[MAX_MESH_COUNT];
 	//uint BaseColorMap[MAX_MESH_COUNT];
 	//uint MetallicRoughnessMap[MAX_MESH_COUNT];
@@ -89,7 +90,8 @@ struct CbDrawGBufferDescHeapIndices
 	//TODO: 配列変数が複数あるとメインメモリとのメモリマッピングがうまくいかないので
 	// ひとつのuint[]にまとめてインデックスは別途ゲッターを用意する
 	uint4 Indices[(
-		MAX_MESH_COUNT * 10 // CbTransform, CbMesh, SbVertexBuffer, SbIndexBuffer, CbMaterial, BaseColorMap, MetallicRoughnessMap, NormalMap, EmissiveMap, AOMap
+		MAX_MESH_COUNT * 11 // CbMesh, SbVertexBuffer, SbMeshletBuffer, SbMeshletVerticesBuffer, SbMeshletTrianglesBuffer, CbMaterial, BaseColorMap, MetallicRoughnessMap, NormalMap, EmissiveMap, AOMap
+		+ 1 // CbTransform
 		+ 1 // CbCamera
 		+ 1 // VBuffer
 		+ 1 // DepthBuffer
@@ -106,17 +108,19 @@ struct CbDrawGBufferDescHeapIndices
 	) / 4];
 };
 
-static const uint CbTransformBaseIdx = 0;
-static const uint CbMeshBaseIdx = CbTransformBaseIdx + MAX_MESH_COUNT;
+static const uint CbMeshBaseIdx = 0;
 static const uint SbVertexBufferBaseIdx = CbMeshBaseIdx  + MAX_MESH_COUNT;
-static const uint SbIndexBufferBaseIdx = SbVertexBufferBaseIdx + MAX_MESH_COUNT;
-static const uint CbMaterialBaseIdx = SbIndexBufferBaseIdx + MAX_MESH_COUNT;
+static const uint SbMeshletBufferBaseIdx = SbVertexBufferBaseIdx + MAX_MESH_COUNT;
+static const uint SbMeshletVerticesBufferBaseIdx = SbMeshletBufferBaseIdx + MAX_MESH_COUNT;
+static const uint SbMeshletTrianglesBufferBaseIdx = SbMeshletVerticesBufferBaseIdx + MAX_MESH_COUNT;
+static const uint CbMaterialBaseIdx = SbMeshletTrianglesBufferBaseIdx + MAX_MESH_COUNT;
 static const uint BaseColorMapBaseIdx = CbMaterialBaseIdx + MAX_MESH_COUNT;
 static const uint MetallicRoughnessMapBaseIdx = BaseColorMapBaseIdx + MAX_MESH_COUNT;
 static const uint NormalMapBaseIdx = MetallicRoughnessMapBaseIdx + MAX_MESH_COUNT;
 static const uint EmissiveMapBaseIdx = NormalMapBaseIdx + MAX_MESH_COUNT;
 static const uint AOMapBaseIdx = EmissiveMapBaseIdx + MAX_MESH_COUNT;
-static const uint CbCameraIdx = MAX_MESH_COUNT * 10;
+static const uint CbTransformIdx = MAX_MESH_COUNT * 11;
+static const uint CbCameraIdx = CbTransformIdx + 1;
 static const uint VBufferIdx = CbCameraIdx + 1;
 static const uint DepthBufferIdx = VBufferIdx + 1;
 static const uint CbGBufferFromVBufferIdx = DepthBufferIdx + 1;
@@ -172,6 +176,14 @@ struct Mesh
 {
 	float4x4 World;
 	uint MeshIdx;
+};
+
+struct meshopt_Meshlet
+{
+	uint VertOffset;
+	uint TriOffset;
+	uint VertCount;
+	uint TriCount;
 };
 
 struct Transform
@@ -558,29 +570,39 @@ PSOutput main(VSOutput input)
 {
 	Texture2D<uint2> VBuffer = ResourceDescriptorHeap[GetDescHeapIndex(VBufferIdx)];
 	uint2 visibility = VBuffer.Sample(PointClampSmp, input.TexCoord);
-	uint triangleIdx = visibility.y;
-	// visibilityの初期値はINVALID_VISIBILITY。xとyどちらをチェックしてもいいがとりあえずyでチェック
-	if (triangleIdx == INVALID_VISIBILITY)
+	// visibilityの初期値はINVALID_VISIBILITY。xとyどちらをチェックしてもいいがとりあえずxでチェック
+	if (visibility.x == INVALID_VISIBILITY)
 	{
 		discard;
 	}
 
 	uint materialId = visibility.x >> 16;
 	uint meshIdx = visibility.x & 0xffff;
+	uint meshletIdx = visibility.y >> 7;
+	uint triangleIdx = visibility.y & 0x7f;
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
-	ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer = ResourceDescriptorHeap[GetDescHeapIndex(CbGBufferFromVBufferIdx)];
 
-	StructuredBuffer<uint> SbIndexBuffer = ResourceDescriptorHeap[GetDescHeapIndex(SbIndexBufferBaseIdx + meshIdx)];
-	uint index0 = SbIndexBuffer[3 * triangleIdx + 0];
-	uint index1 = SbIndexBuffer[3 * triangleIdx + 1];
-	uint index2 = SbIndexBuffer[3 * triangleIdx + 2];
+	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[GetDescHeapIndex(SbMeshletBufferBaseIdx + meshIdx)];
+	meshopt_Meshlet meshlet = meshlets[meshletIdx];
+
+	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[GetDescHeapIndex(SbMeshletTrianglesBufferBaseIdx + meshIdx)];
+
+	uint triBaseIdx = meshlet.TriOffset + triangleIdx * 3;
+	uint index0 = meshletsTriangles[triBaseIdx];
+	uint index1 = meshletsTriangles[triBaseIdx + 1];
+	uint index2 = meshletsTriangles[triBaseIdx + 2];
+
+	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[GetDescHeapIndex(SbMeshletVerticesBufferBaseIdx + meshIdx)];
+	uint vertIdx0 = meshletsVertices[meshlet.VertOffset + index0];
+	uint vertIdx1 = meshletsVertices[meshlet.VertOffset + index1];
+	uint vertIdx2 = meshletsVertices[meshlet.VertOffset + index2];
 
 	StructuredBuffer<VSInput> SbVertexBuffer = ResourceDescriptorHeap[GetDescHeapIndex(SbVertexBufferBaseIdx + meshIdx)];
-	VSInput vertex0 = SbVertexBuffer[index0];
-	VSInput vertex1 = SbVertexBuffer[index1];
-	VSInput vertex2 = SbVertexBuffer[index2];
+	VSInput vertex0 = SbVertexBuffer[vertIdx0];
+	VSInput vertex1 = SbVertexBuffer[vertIdx1];
+	VSInput vertex2 = SbVertexBuffer[vertIdx2];
 
 	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[GetDescHeapIndex(CbMeshBaseIdx + meshIdx)];
 	// TODO: 思うに、Triangleの3点がわかるならddx(uv)、ddy(uv)、すなわちDuvDpx、DuvDpyは求まるのでは？ピクセル座標で3頂点のUVからヤコビ案計算でわかりそうなものだ
@@ -609,10 +631,12 @@ PSOutput main(VSOutput input)
 	RayIntersectPlane(float3(0, 0, 0), normalize(viewPos - cameraPos), viewPos, triNormal, hitT);
 #endif
 
-	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[GetDescHeapIndex(CbTransformBaseIdx + meshIdx)];
+	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[GetDescHeapIndex(CbTransformIdx)];
 	float4 clipPos0 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
 	float4 clipPos1 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
 	float4 clipPos2 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
+
+	ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer = ResourceDescriptorHeap[GetDescHeapIndex(CbGBufferFromVBufferIdx)];
 
 	BarycentricDeriv barycentricDeriv = CalcFullBary(clipPos0, clipPos1, clipPos2, screenPos, float2(CbGBufferFromVBuffer.Width, CbGBufferFromVBuffer.Height));
 	//TODO: SponzaVS.hlslおよびSponzaPS.hlsliの処理と重複するので共通化が必要

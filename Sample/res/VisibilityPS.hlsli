@@ -2,8 +2,9 @@ struct MSOutput
 {
 	float4 Position : SV_Position;
 	float2 TexCoord : TEXCOORD;
-	uint PrimitiveID : SV_PrimitiveID;
 	uint MeshIdx : MESH_INDEX;
+	uint MeshletIdx : MESHLET_INDEX;
+	uint TriangleIdx : SV_PrimitiveID;
 };
 
 struct Camera
@@ -48,5 +49,7 @@ uint2 main(MSOutput input) : SV_TARGET
 #endif
 
 	// MaterialID‚ÆMeshID‚Í16bit‚¸‚Â‚ÉŽû‚Ü‚é‘z’è
-	return uint2((CbMaterial.MaterialID << 16) | (input.MeshIdx & 0xffff), input.PrimitiveID);
+	return uint2((CbMaterial.MaterialID << 16) | (input.MeshIdx & 0xffff),
+	// TriangleIdx‚ÍMeshlet“à‚ÅÅ‘å126ŒÂ‚È‚Ì‚Å7bitB MeshletIdx‚ÍŽc‚è25bit—^‚¦‚é
+	(input.MeshletIdx << 7) | (input.TriangleIdx & 0x7f));
 }

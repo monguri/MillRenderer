@@ -41,8 +41,9 @@ struct VertexData
 
 struct PrimitiveData
 {
-	uint PrimitiveID : SV_PrimitiveID;
 	uint MeshIdx : MESH_INDEX;
+	uint MeshletIdx : MESHLET_INDEX;
+	uint TriangleIdx : SV_PrimitiveID;
 };
 
 struct meshopt_Meshlet
@@ -117,18 +118,20 @@ void main
 
 	if (gtid < 126)
 	{
+		uint triBaseIdx = meshlet.TriOffset + gtid * 3;
 		outTriIndices[gtid] = uint3(
-			meshletsTriangles[meshlet.TriOffset + gtid * 3 + 0],
-			meshletsTriangles[meshlet.TriOffset + gtid * 3 + 1],
-			meshletsTriangles[meshlet.TriOffset + gtid * 3 + 2]
+			meshletsTriangles[triBaseIdx],
+			meshletsTriangles[triBaseIdx + 1],
+			meshletsTriangles[triBaseIdx + 2]
 		);
 	}
 
-	if (gtid < 126)
+	if (gtid < meshlet.TriCount)
 	{
 		PrimitiveData p;
-		p.PrimitiveID = meshlet.TriOffset / 3 + gtid;
 		p.MeshIdx = CbMesh.MeshIdx;
+		p.MeshletIdx = gid;
+		p.TriangleIdx = gtid;
 		outPrims[gtid] = p;
 	}
 }

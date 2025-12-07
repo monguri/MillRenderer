@@ -6662,6 +6662,7 @@ void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 	std::vector<uint32_t> psDescHeapIndices(2);
 
 	gsDescHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.CbTransform = gsDescHeapIndices[0];
 
 	for (const Model* model : m_pModels)
 	{
@@ -6693,10 +6694,11 @@ void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 			gsDescHeapIndices[4] = pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex();
 			gsDescHeapIndices[5] = pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex();
 
-			drawGBufferDescHeapIndices.CbTransform[meshIdx] = gsDescHeapIndices[0];
 			drawGBufferDescHeapIndices.CbMesh[meshIdx] = gsDescHeapIndices[1];
 			drawGBufferDescHeapIndices.SbVertexBuffer[meshIdx] = gsDescHeapIndices[2];
-			drawGBufferDescHeapIndices.SbIndexBuffer[meshIdx] = pMesh->GetIndexBufferSBHandle().GetDescriptorIndex();
+			drawGBufferDescHeapIndices.SbMeshletBuffer[meshIdx] = gsDescHeapIndices[3];
+			drawGBufferDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = gsDescHeapIndices[4];
+			drawGBufferDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = gsDescHeapIndices[5];
 
 			psDescHeapIndices[0] = pMaterial->GetCBHandle().GetDescriptorIndex();
 			psDescHeapIndices[1] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
