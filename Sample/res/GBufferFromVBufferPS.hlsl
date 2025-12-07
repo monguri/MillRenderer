@@ -888,21 +888,19 @@ PSOutput main(VSOutput input)
 		AO = AOMap.SampleGrad(AnisotropicWrapSmp, texCoord, texCoordDdx, texCoordDdy).r;
 	}
 
-	//TODO: MeshletでなくVB/IBを使ってるので無理。VBufferを使う場合は別途実装方法を考える必要がある
-	//if (CbCamera.bDebugViewMeshletCluster == 0)
-	//{
+	if (CbCamera.bDebugViewMeshletCluster == 0)
+	{
 		output.Color.rgb = lit * AO + emissive;
-	//}
-	//else
-	//{
-	//	output.Color.rgb = float3
-	//	(
-	//		float((input.MeshletID & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
-	//		float((input.MeshletID & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
-	//		float((input.MeshletID & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
-	//	);
-	//}
-	output.Color.rgb = lit * AO + emissive;
+	}
+	else
+	{
+		output.Color.rgb = float3
+		(
+			float((meshletIdx & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
+			float((meshletIdx & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
+			float((meshletIdx & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
+		);
+	}
 	output.Color.a = 1.0f;
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;
