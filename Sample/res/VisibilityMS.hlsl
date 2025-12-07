@@ -43,7 +43,7 @@ struct PrimitiveData
 {
 	uint MeshIdx : MESH_INDEX;
 	uint MeshletIdx : MESHLET_INDEX;
-	uint TriangleIdx : SV_PrimitiveID;
+	uint TriangleIdx : TRIANGLE_INDEX;
 };
 
 struct meshopt_Meshlet
@@ -116,7 +116,7 @@ void main
 		outVerts[gtid] = v;
 	}
 
-	if (gtid < 126)
+	if (gtid < meshlet.TriCount)
 	{
 		uint triBaseIdx = meshlet.TriOffset + gtid * 3;
 		outTriIndices[gtid] = uint3(

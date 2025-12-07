@@ -4,7 +4,7 @@ struct MSOutput
 	float2 TexCoord : TEXCOORD;
 	uint MeshIdx : MESH_INDEX;
 	uint MeshletIdx : MESHLET_INDEX;
-	uint TriangleIdx : SV_PrimitiveID;
+	uint TriangleIdx : TRIANGLE_INDEX;
 };
 
 struct Camera
