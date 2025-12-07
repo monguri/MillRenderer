@@ -6338,7 +6338,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
-	// 定数バッファ更新
+	// GBufferFromVBuffer専用の定数バッファ更新
 	{
 		{
 			CbDrawGBufferDescHeapIndices* ptr = m_DrawGBufferDescHeapIndicesCB[m_FrameIndex].GetPtr<CbDrawGBufferDescHeapIndices>();
@@ -6349,6 +6349,38 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 			CbGBufferFromVBuffer* ptr = m_GBufferFromVBufferCB.GetPtr<CbGBufferFromVBuffer>();
 			ptr->ViewMatrix = view;
 			ptr->InvProjMatrix = proj.Invert();
+		}
+	}
+
+	// カメラバッファの更新
+	{
+		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+		ptr->CameraPosition = m_CameraManipulator.GetPosition();
+		ptr->bDebugViewMeshletCluster = (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_CLUSTER) ? 1 : 0;
+	}
+
+	// ライトバッファの更新
+	if (m_drawSponza)
+	{
+		{
+			const Vector3& transmittanceTowardSun = GetTransmittanceAtGroundLevel(m_CameraManipulator.GetPosition(), -m_DirLightManipulator.GetForward());
+
+			CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
+			ptr->LightColor = transmittanceTowardSun * GetSunLightOuterSpaceIlluminance(m_directionalLightIntensity, Vector3::One); // 白色光源
+			ptr->LightForward = lightForward;
+			ptr->ShadowMapSize = Vector2((float)DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE, 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE);
+		}
+
+		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+		{
+			CbPointLight* ptr = m_PointLightCB[i].GetPtr<CbPointLight>();
+			ptr->LightIntensity = m_pointLightIntensity;
+		}
+
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			CbSpotLight* ptr = m_SpotLightCB[i].GetPtr<CbSpotLight>();
+			ptr->LightIntensity = m_spotLightIntensity;
 		}
 	}
 
@@ -6704,7 +6736,7 @@ void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 			psDescHeapIndices[1] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
 			drawGBufferDescHeapIndices.CbMaterial[meshIdx] = psDescHeapIndices[0];
 			drawGBufferDescHeapIndices.BaseColorMap[meshIdx] = psDescHeapIndices[1];
-			drawGBufferDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
+			drawGBufferDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
 			drawGBufferDescHeapIndices.NormalMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
 			drawGBufferDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
 			drawGBufferDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
