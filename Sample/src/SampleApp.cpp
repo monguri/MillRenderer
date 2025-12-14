@@ -52,7 +52,7 @@ enum class DEBUG_VIEW_MODE : int
 	SSAO_FULL_RES,
 	SSAO_HALF_RES,
 	SSGI,
-	MESHLET_CLUSTER,
+	MESHLET_INDEX,
 };
 
 namespace
@@ -6356,7 +6356,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
 		ptr->CameraPosition = m_CameraManipulator.GetPosition();
-		ptr->bDebugViewMeshletCluster = (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_CLUSTER) ? 1 : 0;
+		ptr->bDebugViewMeshletCluster = (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_INDEX) ? 1 : 0;
 	}
 
 	// ライトバッファの更新
@@ -6479,7 +6479,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
 		ptr->CameraPosition = m_CameraManipulator.GetPosition();
-		ptr->bDebugViewMeshletCluster = (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_CLUSTER) ? 1 : 0;
+		ptr->bDebugViewMeshletCluster = (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_INDEX) ? 1 : 0;
 	}
 
 	// ライトバッファの更新
@@ -7875,7 +7875,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		case VELOCITY:
 			renderTargetName = L"Velocity";
 			break;
-		case MESHLET_CLUSTER:
+		case MESHLET_INDEX:
 			renderTargetName = L"SceneColor";
 			break;
 		default:
@@ -7894,7 +7894,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			using enum DEBUG_VIEW_MODE;
 			case NONE:
 			case SSGI:
-			case MESHLET_CLUSTER:
+			case MESHLET_INDEX:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 1.0f;
 				ptr->Bias = 0.0f;
@@ -7960,7 +7960,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		case VELOCITY:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 			break;
-		case MESHLET_CLUSTER:
+		case MESHLET_INDEX:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 			break;
 		default:
@@ -8032,7 +8032,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		ImGui::RadioButton("SSGI", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSGI));
 		if (m_useMeshlet)
 		{
-			ImGui::RadioButton("Meshlet Cluster", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_CLUSTER));
+			ImGui::RadioButton("Meshlet Index", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_INDEX));
 		}
 		ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	}
