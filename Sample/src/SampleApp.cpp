@@ -53,7 +53,7 @@ enum class DEBUG_VIEW_MODE : int
 	SSAO_HALF_RES,
 	SSGI,
 	DEBUG_VIEW_TYPE_NONE,
-	TRIANLGLE_INDEX,
+	TRIANGLE_INDEX,
 	MESHLET_INDEX,
 };
 
@@ -2469,6 +2469,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			L"-Od"
 #endif
 		};
+		if (m_useMeshlet)
+		{
+			compileArgs.push_back(L"-D USE_MESHLET");
+		}
 		if (m_useDynamicResources)
 		{
 			compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
@@ -2803,6 +2807,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			L"-Od"
 #endif
 		};
+		if (m_useMeshlet)
+		{
+			compileArgs.push_back(L"-D USE_MESHLET");
+		}
 		if (m_useDynamicResources)
 		{
 			compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
@@ -7877,6 +7885,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		case VELOCITY:
 			renderTargetName = L"Velocity";
 			break;
+		case TRIANGLE_INDEX:
 		case MESHLET_INDEX:
 			renderTargetName = L"SceneColor";
 			break;
@@ -7896,6 +7905,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			using enum DEBUG_VIEW_MODE;
 			case NONE:
 			case SSGI:
+			case TRIANGLE_INDEX:
 			case MESHLET_INDEX:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 1.0f;
@@ -7962,6 +7972,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		case VELOCITY:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 			break;
+		case TRIANGLE_INDEX:
 		case MESHLET_INDEX:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 			break;
@@ -8025,6 +8036,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SeparatorText("Debug View");
 	{
 		using enum DEBUG_VIEW_MODE;
+		// TODO:ラジオボタンだと面積を大きく撮るのでドロップダウンリストにしたい
 		ImGui::RadioButton("No Debug View", reinterpret_cast<int*>(& m_debugViewMode), static_cast<int>(NONE));
 		ImGui::RadioButton("Depth", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(DEPTH));
 		ImGui::RadioButton("Normal", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(NORMAL));
@@ -8032,6 +8044,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		ImGui::RadioButton("SSAO FullRes", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSAO_FULL_RES));
 		ImGui::RadioButton("SSAO HalfRes", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSAO_HALF_RES));
 		ImGui::RadioButton("SSGI", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSGI));
+		ImGui::RadioButton("Triangle Index", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(TRIANGLE_INDEX));
 		if (m_useMeshlet)
 		{
 			ImGui::RadioButton("Meshlet Index", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_INDEX));
@@ -8080,6 +8093,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::SeparatorText("Tonemap");
 	{
 		using enum TONE_MAP;
+		// TODO:ラジオボタンだと面積を大きく撮るのでドロップダウンリストにしたい
 		ImGui::RadioButton("No Tonemap", reinterpret_cast<int*>(&m_ToneMapType), static_cast<int>(NONE));
 		ImGui::RadioButton("Reinhard", reinterpret_cast<int*>(&m_ToneMapType), static_cast<int>(REINHARD));
 		ImGui::RadioButton("Gran Turismo", reinterpret_cast<int*>(&m_ToneMapType), static_cast<int>(GRAN_TURISMO));

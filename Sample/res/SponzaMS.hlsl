@@ -243,6 +243,11 @@ struct VSOutput
 	uint MeshletID : MESHLET_ID;
 };
 
+struct PrimitiveOutput
+{
+	uint primitiveID : SV_PrimitiveID;
+};
+
 struct meshopt_Meshlet
 {
 	uint VertOffset;
@@ -297,7 +302,8 @@ void main
 	uint gid : SV_GroupID,
 	uint gtid : SV_GroupThreadID,
 	out vertices VSOutput outVerts[64],
-	out indices uint3 outTriIndices[126]
+	out indices uint3 outTriIndices[126],
+	out primitives PrimitiveOutput outPrims[126]
 )
 {
 #ifdef USE_DYNAMIC_RESOURCE
@@ -354,13 +360,15 @@ void main
 
 	if (gtid < meshlet.TriCount)
 	{
+		uint triBaseIndex = meshlet.TriOffset + gtid * 3;
+		outPrims[gtid].primitiveID = triBaseIndex / 3;
 #if 0
 		outTriIndices[gtid] = meshletsTriangles.Load3(meshlet.TriOffset + gtid * 3);
 #else
 		outTriIndices[gtid] = uint3(
-			meshletsTriangles[meshlet.TriOffset + gtid * 3 + 0],
-			meshletsTriangles[meshlet.TriOffset + gtid * 3 + 1],
-			meshletsTriangles[meshlet.TriOffset + gtid * 3 + 2]
+			meshletsTriangles[triBaseIndex + 0],
+			meshletsTriangles[triBaseIndex + 1],
+			meshletsTriangles[triBaseIndex + 2]
 		);
 #endif
 	}

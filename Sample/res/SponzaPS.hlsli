@@ -335,7 +335,7 @@ float3 EvaluateSpotLightReflection
 	return brdf * light * shadow;
 }
 
-PSOutput main(VSOutput input)
+PSOutput main(VSOutput input , uint primitiveID : SV_PrimitiveID)
 {
 #ifdef USE_DYNAMIC_RESOURCE
 	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbDescHeapIndices.CbCamera];
@@ -558,20 +558,28 @@ PSOutput main(VSOutput input)
 
 	switch (CbCamera.DebugViewType)
 	{
-	case DEBUG_VIEW_TYPE_NONE:
-	default:
-		output.Color.rgb = lit * AO + emissive;
-		break;
-	case DEBUG_VIEW_TYPE_TRIANGLE_INDEX:
-		break;
-	case DEBUG_VIEW_TYPE_MESHLET_INDEX:
-		output.Color.rgb = float3
-		(
-			float((input.MeshletID & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
-			float((input.MeshletID & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
-			float((input.MeshletID & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
-		);
-		break;
+		case DEBUG_VIEW_TYPE_NONE:
+		default:
+			output.Color.rgb = lit * AO + emissive;
+			break;
+		case DEBUG_VIEW_TYPE_TRIANGLE_INDEX:
+		{
+			output.Color.rgb = float3
+			(
+				float((primitiveID & 1) + 1) * 0.5f, // (primitiveID % 2 + 1) / 2.0
+				float((primitiveID & 3) + 1) * 0.25f, // (primitiveID % 4 + 1) / 4.0
+				float((primitiveID & 7) + 1) * 0.125f // (primitiveID % 8 + 1) / 8.0
+			);
+		}
+			break;
+		case DEBUG_VIEW_TYPE_MESHLET_INDEX:
+			output.Color.rgb = float3
+			(
+				float((input.MeshletID & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
+				float((input.MeshletID & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
+				float((input.MeshletID & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
+			);
+			break;
 	}
 	output.Color.a = 1.0f;
 
