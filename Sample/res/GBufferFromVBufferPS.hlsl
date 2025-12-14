@@ -200,7 +200,7 @@ struct Transform
 struct Camera
 {
 	float3 CameraPosition;
-	int bDebugViewMeshletCluster;
+	uint DebugViewType;
 };
 
 struct Material
@@ -888,18 +888,22 @@ PSOutput main(VSOutput input)
 		AO = AOMap.SampleGrad(AnisotropicWrapSmp, texCoord, texCoordDdx, texCoordDdy).r;
 	}
 
-	if (CbCamera.bDebugViewMeshletCluster == 0)
+	switch (CbCamera.DebugViewType)
 	{
+	case DEBUG_VIEW_TYPE_NONE:
+	default:
 		output.Color.rgb = lit * AO + emissive;
-	}
-	else
-	{
+		break;
+	case DEBUG_VIEW_TYPE_TRIANGLE_INDEX:
+		break;
+	case DEBUG_VIEW_TYPE_MESHLET_INDEX:
 		output.Color.rgb = float3
 		(
 			float((meshletIdx & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
 			float((meshletIdx & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
 			float((meshletIdx & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
 		);
+		break;
 	}
 	output.Color.a = 1.0f;
 

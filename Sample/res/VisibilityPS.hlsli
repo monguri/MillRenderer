@@ -10,7 +10,7 @@ struct MSOutput
 struct Camera
 {
 	float3 CameraPosition;
-	int bDebugViewMeshletCluster;
+	uint DebugViewType;
 };
 
 struct Material

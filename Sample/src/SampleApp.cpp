@@ -52,6 +52,8 @@ enum class DEBUG_VIEW_MODE : int
 	SSAO_FULL_RES,
 	SSAO_HALF_RES,
 	SSGI,
+	DEBUG_VIEW_TYPE_NONE,
+	TRIANLGLE_INDEX,
 	MESHLET_INDEX,
 };
 
@@ -191,7 +193,7 @@ namespace
 	{
 		Vector3 CameraPosition;
 		// TODO: 新規にCBを作りたくないので間借り。増えたら新規CBを作る。
-		int bDebugViewMeshletCluster;
+		unsigned int DebugViewType;
 	};
 
 	struct alignas(256) CbMaterial
@@ -6356,7 +6358,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
 		ptr->CameraPosition = m_CameraManipulator.GetPosition();
-		ptr->bDebugViewMeshletCluster = (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_INDEX) ? 1 : 0;
+		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
 	}
 
 	// ライトバッファの更新
@@ -6479,7 +6481,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
 		ptr->CameraPosition = m_CameraManipulator.GetPosition();
-		ptr->bDebugViewMeshletCluster = (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_INDEX) ? 1 : 0;
+		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
 	}
 
 	// ライトバッファの更新

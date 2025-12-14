@@ -16,6 +16,10 @@
 #define DEVICE_Z_MIN_VALUE 1e-7f
 #endif //DEVICE_Z_FURTHEST
 
+static const uint DEBUG_VIEW_TYPE_NONE = 0;
+static const uint DEBUG_VIEW_TYPE_TRIANGLE_INDEX = 1;
+static const uint DEBUG_VIEW_TYPE_MESHLET_INDEX = 2;
+
 /**
  * Returns near intersection in x, far intersection in y, or both -1 if no intersection.
  * RayDirection does not need to be unit length.
