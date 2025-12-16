@@ -41,6 +41,7 @@ namespace
 		(
 			const wchar_t* filename,
 			bool buildMeshlet,
+			bool useMetis,
 			std::vector<ResMesh>& meshes,
 			std::vector<ResMaterial>& materials
 		);
@@ -63,6 +64,7 @@ namespace
 	(
 		const wchar_t* filename,
 		bool buildMeshlet,
+		bool useMetis,
 		std::vector<ResMesh>& meshes,
 		std::vector<ResMaterial>& materials
 	)
@@ -504,10 +506,11 @@ bool LoadMesh
 (
 	const wchar_t* filename,
 	bool buildMeshlet,
+	bool useMetis,
 	std::vector<ResMesh>& meshes,
 	std::vector<ResMaterial>& materials
 )
 {
 	MeshLoader loader;
-	return loader.Load(filename, buildMeshlet, meshes, materials);
+	return loader.Load(filename, buildMeshlet, useMetis, meshes, materials);
 }

@@ -80,19 +80,11 @@ struct ResMesh
 	uint32_t MaterialId;
 };
 
-//-----------------------------------------------------------------------------
-//! @brief      メッシュをロードします.
-//!
-//! @param[in]      filename        ファイルパス.
-//! @param[out]     meshes          メッシュの格納先です.
-//! @param[out]     materials       マテリアルの格納先です.
-//! @retval true    ロードに成功.
-//! @retval false   ロードに失敗.
-//-----------------------------------------------------------------------------
 bool LoadMesh
 (
 	const wchar_t* filename,
 	bool buildMeshlet,
+	bool useMetis,
 	std::vector<ResMesh>& meshes,
 	std::vector<ResMaterial>& materials
 );
