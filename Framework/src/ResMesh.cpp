@@ -49,7 +49,7 @@ namespace
 	private:
 		void ParseMesh(ResMesh& dstMesh, const aiMesh* pSrcMesh);
 		void ParseMaterial(ResMaterial& dstMaterial, const aiMaterial* pSrcMaterial);
-		void BuildMeshlet(ResMesh& dstMesh);
+		void BuildMeshlet(ResMesh& dstMesh, bool useMetis);
 	};
 
 	MeshLoader::MeshLoader()
@@ -109,7 +109,7 @@ namespace
 		{
 			for (ResMesh& mesh : meshes)
 			{
-				BuildMeshlet(mesh);
+				BuildMeshlet(mesh, useMetis);
 			}
 		}
 
@@ -439,8 +439,10 @@ namespace
 		}
 	}
 
-	void MeshLoader::BuildMeshlet(ResMesh& dstMesh)
+	void MeshLoader::BuildMeshlet(ResMesh& dstMesh, bool useMetis)
 	{
+		// TODO: useMetis‘Î‰
+
 		// NVIDIA‚Ì„§’l
 		static constexpr uint32_t MAX_VERTS = 64;
 		static constexpr uint32_t MAX_TRIS = 126;
