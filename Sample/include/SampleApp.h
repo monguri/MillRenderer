@@ -68,8 +68,10 @@ private:
 	// true:IBL下でのモデルビューワ
 	// false:ハードコーディングで配置した解析的ライトやとSkyBoxを使ってSponzaを描画
 	bool m_drawSponza = false;
-	// true:MeshletとMSでのジオメトリ処理、false:VSでのジオメトリ処理
+	// true:meshletとmsでのジオメトリ処理、false:vsでのジオメトリ処理
 	bool m_useMeshlet = false;
+	// true:meshlet分割にMetisを使用、false:meshlet分割にmeshOptimizerのみを使用
+	bool m_useMetis = false;
 	// true:動的リソース割り当て、false:静的リソース割り当て
 	bool m_useDynamicResources = true;
 	// Visibility Bufferを使った描画をやるかどうか

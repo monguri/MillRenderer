@@ -778,6 +778,10 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		{
 			m_useMeshlet = true;
 		}
+		else if (wcscmp(argv[a], L"--metis") == 0)
+		{
+			m_useMetis = true;
+		}
 		else if (wcscmp(argv[a], L"--dynamicresources") == 0)
 		{
 			m_useDynamicResources = true;
