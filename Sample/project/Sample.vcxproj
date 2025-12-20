@@ -67,6 +67,7 @@
       <AdditionalLibraryDirectories>$(ProjectDir)..\..\assimp\lib\$(Configuration);$(ProjectDir)..\..\metis\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
+      <AdditionalDependencies>metis.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <ShaderModel>6.6</ShaderModel>
@@ -93,6 +94,7 @@
       <AdditionalLibraryDirectories>$(ProjectDir)..\..\assimp\lib\$(Configuration);$(ProjectDir)..\..\metis\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
+      <AdditionalDependencies>metis.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <ShaderModel>6.6</ShaderModel>
