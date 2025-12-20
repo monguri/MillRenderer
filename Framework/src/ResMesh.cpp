@@ -522,7 +522,7 @@ namespace
 			idx_t nCon = 1;
 			idx_t nParts = (triangleCount + MAX_TRIS - 1) / MAX_TRIS;
 			std::vector<idx_t> vwgt(triangleCount, 1);
-			std::vector<idx_t> adjwgt(triangleCount, 1);
+			std::vector<idx_t> adjwgt(adjTriTableOffsets.back(), 1);
 			std::vector<idx_t> options(METIS_NOPTIONS);
 			int result = METIS_SetDefaultOptions(options.data());
 			assert(result == METIS_OK);
