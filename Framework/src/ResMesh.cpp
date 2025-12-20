@@ -444,6 +444,10 @@ namespace
 
 	void MeshLoader::BuildMeshlet(ResMesh& dstMesh, bool useMetis)
 	{
+		// NVIDIAÇÃêÑèßíl
+		static constexpr uint32_t MAX_VERTS = 64;
+		static constexpr uint32_t MAX_TRIS = 126;
+
 		if (useMetis)
 		{
 			using Edge = std::pair<uint32_t, uint32_t>;
@@ -499,8 +503,8 @@ namespace
 				}
 			}
 
-			std::vector<uint32_t> adjTriTable;
-			std::vector<uint32_t> adjTriTableOffsets;
+			std::vector<idx_t> adjTriTable;
+			std::vector<idx_t> adjTriTableOffsets;
 			adjTriTableOffsets.reserve(triangleCount + 1);
 			adjTriTableOffsets.emplace_back(0u);
 
@@ -509,17 +513,43 @@ namespace
 				// append_range()ÇÕC++23Ç©ÇÁÇ»ÇÃÇ≈éËìÆÇ≈é¿ëï
 				for (uint32_t adjTri : adjTriList)
 				{
-					adjTriTable.emplace_back(adjTri);
+					adjTriTable.emplace_back(static_cast<idx_t>(adjTri));
 				}
 
-				adjTriTableOffsets.emplace_back(adjTriList.back() + static_cast<uint32_t>(adjTriList.size()));
+				adjTriTableOffsets.emplace_back(static_cast<idx_t>(adjTriTableOffsets.back()) + static_cast<idx_t>(adjTriList.size()));
 			}
+
+			idx_t nCon = 1;
+			idx_t nParts = (triangleCount + MAX_TRIS - 1) / MAX_TRIS;
+			std::vector<idx_t> vwgt(triangleCount, 1);
+			std::vector<idx_t> adjwgt(triangleCount, 1);
+			std::vector<idx_t> options(METIS_NOPTIONS);
+			int result = METIS_SetDefaultOptions(options.data());
+			assert(result == METIS_OK);
+			idx_t edgecut = 0;
+			std::vector<idx_t> part(triangleCount);
+
+			result = METIS_PartGraphKway
+			(
+				reinterpret_cast<idx_t*>(&triangleCount),
+				&nCon,
+				reinterpret_cast<idx_t*>(adjTriTableOffsets.data()),
+				reinterpret_cast<idx_t*>(adjTriTable.data()),
+				vwgt.data(),
+				nullptr, // vsize
+				adjwgt.data(),
+				&nParts,
+				nullptr, // tpwgts
+				nullptr, // ubvec
+				options.data(),
+				&edgecut,
+				part.data()  // part
+			);
+			assert(result == METIS_OK);
+
 		}
 		else
 		{
-			// NVIDIAÇÃêÑèßíl
-			static constexpr uint32_t MAX_VERTS = 64;
-			static constexpr uint32_t MAX_TRIS = 126;
 			size_t indexCount = dstMesh.Indices.size();
 			size_t vertexCount = dstMesh.Vertices.size();
 
