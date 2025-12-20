@@ -6,6 +6,9 @@
 #include <metis.h>
 #include <codecvt>
 #include <cassert>
+#include <functional>
+#include <set>
+#include <map>
 
 namespace
 {
@@ -441,52 +444,124 @@ namespace
 
 	void MeshLoader::BuildMeshlet(ResMesh& dstMesh, bool useMetis)
 	{
-		// TODO: useMetis対応
-
-		// NVIDIAの推奨値
-		static constexpr uint32_t MAX_VERTS = 64;
-		static constexpr uint32_t MAX_TRIS = 126;
-		size_t indexCount = dstMesh.Indices.size();
-		size_t vertexCount = dstMesh.Vertices.size();
-
-		size_t maxMeshletCount = meshopt_buildMeshletsBound(indexCount, MAX_VERTS, MAX_TRIS);
-
-		dstMesh.Meshlets.resize(maxMeshletCount);
-		dstMesh.MeshletsVertices.resize(indexCount);
-		dstMesh.MeshletsTriangles.resize(indexCount);
-
-		static_assert(sizeof(float) * 3 == sizeof(DirectX::XMFLOAT3));
-		std::vector<float> vertexPositions(vertexCount * 3);
-		for (size_t i = 0; i < vertexCount; i++)
+		if (useMetis)
 		{
-			const MeshVertex& vert = dstMesh.Vertices[i];
-			memcpy(&vertexPositions[3 * i], &vert.Position, sizeof(DirectX::XMFLOAT3));
+			using Edge = std::pair<uint32_t, uint32_t>;
+
+			// 比較ができるように昇順にしておく
+			const auto& generateEdge = [](uint32_t idxA, uint32_t idxB)
+			{
+				return Edge(
+					std::min(idxA, idxB),
+					std::max(idxA, idxB)
+				);
+			};
+
+			std::vector<std::set<Edge>> triangleEdgeList;
+			std::map<Edge, std::set<uint32_t>> edgeTrianglesMap;
+			uint32_t triangleCount = static_cast<uint32_t>(dstMesh.Indices.size() / 3);
+
+			triangleEdgeList.reserve(triangleCount);
+
+			for (uint32_t triIdx = 0; triIdx < triangleCount; triIdx++)
+			{
+				uint32_t idx0 = dstMesh.Indices[triIdx * 3 + 0];
+				uint32_t idx1 = dstMesh.Indices[triIdx * 3 + 1];
+				uint32_t idx2 = dstMesh.Indices[triIdx * 3 + 2];
+
+				const Edge& edge0 = generateEdge(idx0, idx1);
+				const Edge& edge1 = generateEdge(idx1, idx2);
+				const Edge& edge2 = generateEdge(idx2, idx0);
+
+				triangleEdgeList.push_back({edge0, edge1, edge2});
+
+				edgeTrianglesMap[edge0].insert(triIdx);
+				edgeTrianglesMap[edge1].insert(triIdx);
+				edgeTrianglesMap[edge2].insert(triIdx);
+			}
+
+			std::vector<std::vector<uint32_t>> triAdjTriList;
+			triAdjTriList.resize(triangleCount);
+			for (const std::pair<Edge, std::set<uint32_t>>& edgeTrianglesPair : edgeTrianglesMap)
+			{
+				for (uint32_t triIdx : edgeTrianglesPair.second)
+				{
+					std::vector<uint32_t>& adjTriList = triAdjTriList[triIdx];
+
+					for (uint32_t triIdx2 : edgeTrianglesPair.second)
+					{
+						if (triIdx != triIdx2)
+						{
+							// 重複はないはず
+							adjTriList.push_back(triIdx2);
+						}
+					}
+				}
+			}
+
+			std::vector<uint32_t> adjTriTable;
+			std::vector<uint32_t> adjTriTableOffsets;
+			adjTriTableOffsets.reserve(triangleCount + 1);
+			adjTriTableOffsets.emplace_back(0u);
+
+			for (const std::vector<uint32_t>& adjTriList : triAdjTriList)
+			{
+				// append_range()はC++23からなので手動で実装
+				for (uint32_t adjTri : adjTriList)
+				{
+					adjTriTable.emplace_back(adjTri);
+				}
+
+				adjTriTableOffsets.emplace_back(adjTriList.back() + static_cast<uint32_t>(adjTriList.size()));
+			}
 		}
+		else
+		{
+			// NVIDIAの推奨値
+			static constexpr uint32_t MAX_VERTS = 64;
+			static constexpr uint32_t MAX_TRIS = 126;
+			size_t indexCount = dstMesh.Indices.size();
+			size_t vertexCount = dstMesh.Vertices.size();
 
-		// MeshletsVerticesとMeshletsTrianglesの型がuint32_tとuint8_tなのでstatic_assertで確認しておく
-		static_assert(sizeof(unsigned int) == sizeof(uint32_t));
-		static_assert(sizeof(unsigned char) == sizeof(uint8_t));
+			size_t maxMeshletCount = meshopt_buildMeshletsBound(indexCount, MAX_VERTS, MAX_TRIS);
 
-		size_t meshletCount = meshopt_buildMeshlets(
-			dstMesh.Meshlets.data(),
-			dstMesh.MeshletsVertices.data(),
-			dstMesh.MeshletsTriangles.data(),
-			dstMesh.Indices.data(),
-			indexCount,
-			vertexPositions.data(),
-			vertexCount,
-			sizeof(float) * 3,
-			MAX_VERTS,
-			MAX_TRIS,
-			0.0f // cone cullingを使わない
-		);
+			dstMesh.Meshlets.resize(maxMeshletCount);
+			dstMesh.MeshletsVertices.resize(indexCount);
+			dstMesh.MeshletsTriangles.resize(indexCount);
 
-		// shrink to fit
-		const meshopt_Meshlet& lastMeshlet = dstMesh.Meshlets[meshletCount - 1];
-		dstMesh.MeshletsVertices.resize(lastMeshlet.vertex_offset + lastMeshlet.vertex_count);
-		dstMesh.MeshletsTriangles.resize(lastMeshlet.triangle_offset + lastMeshlet.triangle_count * 3);
+			static_assert(sizeof(float) * 3 == sizeof(DirectX::XMFLOAT3));
+			std::vector<float> vertexPositions(vertexCount * 3);
+			for (size_t i = 0; i < vertexCount; i++)
+			{
+				const MeshVertex& vert = dstMesh.Vertices[i];
+				memcpy(&vertexPositions[3 * i], &vert.Position, sizeof(DirectX::XMFLOAT3));
+			}
 
-		dstMesh.Meshlets.resize(meshletCount);
+			// MeshletsVerticesとMeshletsTrianglesの型がuint32_tとuint8_tなのでstatic_assertで確認しておく
+			static_assert(sizeof(unsigned int) == sizeof(uint32_t));
+			static_assert(sizeof(unsigned char) == sizeof(uint8_t));
+
+			size_t meshletCount = meshopt_buildMeshlets(
+				dstMesh.Meshlets.data(),
+				dstMesh.MeshletsVertices.data(),
+				dstMesh.MeshletsTriangles.data(),
+				dstMesh.Indices.data(),
+				indexCount,
+				vertexPositions.data(),
+				vertexCount,
+				sizeof(float) * 3,
+				MAX_VERTS,
+				MAX_TRIS,
+				0.0f // cone cullingを使わない
+			);
+
+			// shrink to fit
+			const meshopt_Meshlet& lastMeshlet = dstMesh.Meshlets[meshletCount - 1];
+			dstMesh.MeshletsVertices.resize(lastMeshlet.vertex_offset + lastMeshlet.vertex_count);
+			dstMesh.MeshletsTriangles.resize(lastMeshlet.triangle_offset + lastMeshlet.triangle_count * 3);
+
+			dstMesh.Meshlets.resize(meshletCount);
+		}
 	}
 }
 
