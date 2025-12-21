@@ -450,103 +450,215 @@ namespace
 
 		if (useMetis)
 		{
-			using Edge = std::pair<uint32_t, uint32_t>;
-
-			// 比較ができるように昇順にしておく
-			const auto& generateEdge = [](uint32_t idxA, uint32_t idxB)
+			if (dstMesh.Indices.size() / 3 <= MAX_TRIS)
 			{
-				return Edge(
-					std::min(idxA, idxB),
-					std::max(idxA, idxB)
-				);
-			};
-
-			std::vector<std::set<Edge>> triangleEdgeList;
-			std::map<Edge, std::set<uint32_t>> edgeTrianglesMap;
-			uint32_t triangleCount = static_cast<uint32_t>(dstMesh.Indices.size() / 3);
-
-			triangleEdgeList.reserve(triangleCount);
-
-			for (uint32_t triIdx = 0; triIdx < triangleCount; triIdx++)
-			{
-				uint32_t idx0 = dstMesh.Indices[triIdx * 3 + 0];
-				uint32_t idx1 = dstMesh.Indices[triIdx * 3 + 1];
-				uint32_t idx2 = dstMesh.Indices[triIdx * 3 + 2];
-
-				const Edge& edge0 = generateEdge(idx0, idx1);
-				const Edge& edge1 = generateEdge(idx1, idx2);
-				const Edge& edge2 = generateEdge(idx2, idx0);
-
-				triangleEdgeList.push_back({edge0, edge1, edge2});
-
-				edgeTrianglesMap[edge0].insert(triIdx);
-				edgeTrianglesMap[edge1].insert(triIdx);
-				edgeTrianglesMap[edge2].insert(triIdx);
+				// Metisは入力されたノード数が分割数以下の場合クラッシュするのでガードする
 			}
-
-			std::vector<std::vector<uint32_t>> triAdjTriList;
-			triAdjTriList.resize(triangleCount);
-			for (const std::pair<Edge, std::set<uint32_t>>& edgeTrianglesPair : edgeTrianglesMap)
+			else
 			{
-				for (uint32_t triIdx : edgeTrianglesPair.second)
-				{
-					std::vector<uint32_t>& adjTriList = triAdjTriList[triIdx];
+				//
+				// METIS_PartGraphKway()用にメッシュのTriangleをノードとし、エッジでの隣接をリンクとして捉えたグラフデータを構築する
+				//
 
-					for (uint32_t triIdx2 : edgeTrianglesPair.second)
+				using Edge = std::pair<uint32_t, uint32_t>;
+				// 比較ができるように昇順にしておく
+				const auto& generateEdge = [](uint32_t idxA, uint32_t idxB)
+				{
+					return Edge(
+						std::min(idxA, idxB),
+						std::max(idxA, idxB)
+					);
+				};
+
+				// Triangleごとのエッジリストと、エッジごとのTriangleリストを構築
+				std::vector<std::set<Edge>> triangleEdgeList;
+				std::map<Edge, std::set<uint32_t>> edgeTrianglesMap;
+				uint32_t triangleCount = static_cast<uint32_t>(dstMesh.Indices.size() / 3);
+
+				triangleEdgeList.reserve(triangleCount);
+
+				for (uint32_t triIdx = 0; triIdx < triangleCount; triIdx++)
+				{
+					uint32_t idx0 = dstMesh.Indices[triIdx * 3 + 0];
+					uint32_t idx1 = dstMesh.Indices[triIdx * 3 + 1];
+					uint32_t idx2 = dstMesh.Indices[triIdx * 3 + 2];
+
+					const Edge& edge0 = generateEdge(idx0, idx1);
+					const Edge& edge1 = generateEdge(idx1, idx2);
+					const Edge& edge2 = generateEdge(idx2, idx0);
+
+					triangleEdgeList.push_back({edge0, edge1, edge2});
+
+					edgeTrianglesMap[edge0].insert(triIdx);
+					edgeTrianglesMap[edge1].insert(triIdx);
+					edgeTrianglesMap[edge2].insert(triIdx);
+				}
+
+				// Triangleごとの隣接Triangleリストを構築
+				std::vector<std::vector<uint32_t>> triAdjTriList;
+				triAdjTriList.resize(triangleCount);
+				for (const std::pair<Edge, std::set<uint32_t>>& edgeTrianglesPair : edgeTrianglesMap)
+				{
+					for (uint32_t triIdx : edgeTrianglesPair.second)
 					{
-						if (triIdx != triIdx2)
+						std::vector<uint32_t>& adjTriList = triAdjTriList[triIdx];
+
+						for (uint32_t triIdx2 : edgeTrianglesPair.second)
 						{
-							// 重複はないはず
-							adjTriList.push_back(triIdx2);
+							if (triIdx != triIdx2)
+							{
+								// 重複はないはず
+								adjTriList.push_back(triIdx2);
+							}
 						}
 					}
 				}
-			}
 
-			std::vector<idx_t> adjTriTable;
-			std::vector<idx_t> adjTriTableOffsets;
-			adjTriTableOffsets.reserve(triangleCount + 1);
-			adjTriTableOffsets.emplace_back(0u);
+				// Metis用のデータに変換
+				std::vector<idx_t> adjTriTable;
+				std::vector<idx_t> adjTriTableOffsets;
+				adjTriTableOffsets.reserve(triangleCount + 1);
+				adjTriTableOffsets.emplace_back(0u);
 
-			for (const std::vector<uint32_t>& adjTriList : triAdjTriList)
-			{
-				// append_range()はC++23からなので手動で実装
-				for (uint32_t adjTri : adjTriList)
+				for (const std::vector<uint32_t>& adjTriList : triAdjTriList)
 				{
-					adjTriTable.emplace_back(static_cast<idx_t>(adjTri));
+					// append_range()はC++23からなので手動で実装
+					for (uint32_t adjTri : adjTriList)
+					{
+						adjTriTable.emplace_back(static_cast<idx_t>(adjTri));
+					}
+
+					adjTriTableOffsets.emplace_back(static_cast<idx_t>(adjTriTableOffsets.back()) + static_cast<idx_t>(adjTriList.size()));
 				}
 
-				adjTriTableOffsets.emplace_back(static_cast<idx_t>(adjTriTableOffsets.back()) + static_cast<idx_t>(adjTriList.size()));
+				// Metisでグラフ分割を実行。TriangleをMeshlet分割するのと等価。
+				idx_t nCon = 1;
+				// MeshOptimiezerと違い、最大頂点数や最大Triangle数を指定できず分割数を指定する方式。
+				// 各分割のTriangle数がMAX_TRIS以下になる保証はないので(MAX_TRIS - 4)を上限として分割数を計算し余裕を持たせている。
+				idx_t nParts = (triangleCount + (MAX_TRIS - 4) - 1) / (MAX_TRIS - 4);
+				std::vector<idx_t> vwgt(triangleCount, 1);
+				std::vector<idx_t> adjwgt(adjTriTableOffsets.back(), 1);
+				std::vector<idx_t> options(METIS_NOPTIONS);
+				int result = METIS_SetDefaultOptions(options.data());
+				assert(result == METIS_OK);
+				idx_t edgecut = 0;
+				std::vector<idx_t> part(triangleCount);
+
+				result = METIS_PartGraphKway
+				(
+					reinterpret_cast<idx_t*>(&triangleCount),
+					&nCon,
+					reinterpret_cast<idx_t*>(adjTriTableOffsets.data()),
+					reinterpret_cast<idx_t*>(adjTriTable.data()),
+					vwgt.data(),
+					nullptr, // vsize
+					adjwgt.data(),
+					&nParts,
+					nullptr, // tpwgts
+					nullptr, // ubvec
+					options.data(),
+					&edgecut,
+					part.data()  // part
+				);
+				assert(result == METIS_OK);
+
+				//
+				// partに格納された分割情報を元にMeshOptimizer形式のMeshletデータを構築する
+				//
+
+				// 各Meshletの頂点インデックス集合を構築
+				// std::setを使っているので自動的に重複は排除され昇順にソートされている
+				std::vector<std::set<uint32_t>> meshletVertexSets(nParts);
+				for (uint32_t triIdx = 0; triIdx < triangleCount; triIdx++)
+				{
+					std::set<uint32_t>& vertexSet = meshletVertexSets[part[triIdx]];
+					vertexSet.insert(dstMesh.Indices[triIdx * 3 + 0]);
+					vertexSet.insert(dstMesh.Indices[triIdx * 3 + 1]);
+					vertexSet.insert(dstMesh.Indices[triIdx * 3 + 2]);
+				}
+
+				// 各Meshletのローカルインデックスバッファを構築
+				std::vector<std::vector<uint8_t>> meshletTriangleLists(nParts);
+				for (uint32_t triIdx = 0; triIdx < triangleCount; triIdx++)
+				{
+					const std::set<uint32_t>& vertexSet = meshletVertexSets[part[triIdx]];
+
+					std::vector<uint8_t>& triangleList = meshletTriangleLists[part[triIdx]];
+
+					// triangleListに入る3頂点のローカルインデックスの挿入順が重要なのでループを分離している
+					// 順序が変わるとTriangleの向きが変わってしまう
+					uint32_t localIdx0 = 0;
+					for (uint32_t vertex : vertexSet)
+					{
+						if (dstMesh.Indices[triIdx * 3 + 0] == vertex)
+						{
+							assert(localIdx0 < 256); // uint8_tに収まるはず
+							triangleList.emplace_back(localIdx0);
+							break;
+						}
+
+						localIdx0++;
+					}
+
+					uint32_t localIdx1 = 0;
+					for (uint32_t vertex : vertexSet)
+					{
+						if (dstMesh.Indices[triIdx * 3 + 1] == vertex)
+						{
+							assert(localIdx1 < 256); // uint8_tに収まるはず
+							triangleList.emplace_back(localIdx1);
+							break;
+						}
+
+						localIdx1++;
+					}
+
+					uint32_t localIdx2 = 0;
+					for (uint32_t vertex : vertexSet)
+					{
+						if (dstMesh.Indices[triIdx * 3 + 2] == vertex)
+						{
+							assert(localIdx2 < 256); // uint8_tに収まるはず
+							triangleList.emplace_back(localIdx2);
+							break;
+						}
+
+						localIdx2++;
+					}
+				}
+
+				dstMesh.Meshlets.resize(nParts);
+
+				unsigned int vertexOffset = 0;
+				unsigned int triangleOffset = 0;
+				for (uint32_t meshletIdx = 0; meshletIdx < static_cast<uint32_t>(nParts); meshletIdx++)
+				{
+					meshopt_Meshlet& meshlet = dstMesh.Meshlets[meshletIdx];
+
+					const std::set<uint32_t>& vertexSet = meshletVertexSets[meshletIdx];
+					meshlet.vertex_count = static_cast<unsigned int>(vertexSet.size());
+					meshlet.vertex_offset = vertexOffset;
+					vertexOffset += meshlet.vertex_count;
+
+					dstMesh.MeshletsVertices.reserve(dstMesh.MeshletsVertices.size() + vertexSet.size());
+					for (uint32_t vertex : vertexSet)
+					{
+						dstMesh.MeshletsVertices.emplace_back(vertex);
+					}
+
+					const std::vector<uint8_t>& triangleList = meshletTriangleLists[meshletIdx];
+					assert(triangleList.size() % 3 == 0);
+					meshlet.triangle_count = static_cast<unsigned int>(triangleList.size() / 3);
+					meshlet.triangle_offset = triangleOffset;
+					triangleOffset += meshlet.triangle_count;
+
+					dstMesh.MeshletsTriangles.reserve(dstMesh.MeshletsTriangles.size() + triangleList.size());
+					for (uint8_t localIdx : triangleList)
+					{
+						dstMesh.MeshletsTriangles.emplace_back(localIdx);
+					}
+				}
 			}
-
-			idx_t nCon = 1;
-			idx_t nParts = (triangleCount + MAX_TRIS - 1) / MAX_TRIS;
-			std::vector<idx_t> vwgt(triangleCount, 1);
-			std::vector<idx_t> adjwgt(adjTriTableOffsets.back(), 1);
-			std::vector<idx_t> options(METIS_NOPTIONS);
-			int result = METIS_SetDefaultOptions(options.data());
-			assert(result == METIS_OK);
-			idx_t edgecut = 0;
-			std::vector<idx_t> part(triangleCount);
-
-			result = METIS_PartGraphKway
-			(
-				reinterpret_cast<idx_t*>(&triangleCount),
-				&nCon,
-				reinterpret_cast<idx_t*>(adjTriTableOffsets.data()),
-				reinterpret_cast<idx_t*>(adjTriTable.data()),
-				vwgt.data(),
-				nullptr, // vsize
-				adjwgt.data(),
-				&nParts,
-				nullptr, // tpwgts
-				nullptr, // ubvec
-				options.data(),
-				&edgecut,
-				part.data()  // part
-			);
-			assert(result == METIS_OK);
-
 		}
 		else
 		{
