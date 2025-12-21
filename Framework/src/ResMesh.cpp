@@ -450,9 +450,37 @@ namespace
 
 		if (useMetis)
 		{
-			if (dstMesh.Indices.size() / 3 <= MAX_TRIS)
+			// 各分割のTriangle数がMAX_TRIS以下になる保証はないので(MAX_TRIS - 4)を上限として分割数を計算し余裕を持たせている。
+			static constexpr uint32_t MAX_TRIS_FOR_METIS = MAX_TRIS - 4;
+
+			if (dstMesh.Indices.size() / 3 <= MAX_TRIS_FOR_METIS)
 			{
 				// Metisは入力されたノード数が分割数以下の場合クラッシュするのでガードする
+				// この場合は1つのMeshlet扱いにする
+				dstMesh.Meshlets.resize(1);
+				dstMesh.MeshletsVertices.resize(dstMesh.Vertices.size());
+				dstMesh.MeshletsTriangles.resize(dstMesh.Indices.size());
+
+				meshopt_Meshlet& meshlet = dstMesh.Meshlets[0];
+				meshlet.vertex_count = static_cast<unsigned int>(dstMesh.Vertices.size());
+				meshlet.vertex_offset = 0;
+				meshlet.triangle_count = static_cast<unsigned int>(dstMesh.Indices.size() / 3);
+				meshlet.triangle_offset = 0;
+
+				for (uint32_t i = 0; i < dstMesh.Vertices.size(); i++)
+				{
+					dstMesh.MeshletsVertices[i] = i;
+				}
+
+				// uint8_tに収まるはず
+				assert(dstMesh.Vertices.size() < 256);
+
+				for (uint32_t i = 0; i < dstMesh.Indices.size(); i++)
+				{
+					// uint8_tに収まるはず
+					assert(dstMesh.Indices[i] < 256);
+					dstMesh.MeshletsTriangles[i] = static_cast<uint8_t>(dstMesh.Indices[i]);
+				}
 			}
 			else
 			{
@@ -534,8 +562,7 @@ namespace
 				// Metisでグラフ分割を実行。TriangleをMeshlet分割するのと等価。
 				idx_t nCon = 1;
 				// MeshOptimiezerと違い、最大頂点数や最大Triangle数を指定できず分割数を指定する方式。
-				// 各分割のTriangle数がMAX_TRIS以下になる保証はないので(MAX_TRIS - 4)を上限として分割数を計算し余裕を持たせている。
-				idx_t nParts = (triangleCount + (MAX_TRIS - 4) - 1) / (MAX_TRIS - 4);
+				idx_t nParts = (triangleCount + MAX_TRIS_FOR_METIS - 1) / MAX_TRIS_FOR_METIS;
 				std::vector<idx_t> vwgt(triangleCount, 1);
 				std::vector<idx_t> adjwgt(adjTriTableOffsets.back(), 1);
 				std::vector<idx_t> options(METIS_NOPTIONS);
