@@ -499,11 +499,8 @@ namespace
 				};
 
 				// Triangleごとのエッジリストと、エッジごとのTriangleリストを構築
-				std::vector<std::set<Edge>> triangleEdgeList;
 				std::map<Edge, std::set<uint32_t>> edgeTrianglesMap;
 				uint32_t triangleCount = static_cast<uint32_t>(dstMesh.Indices.size() / 3);
-
-				triangleEdgeList.reserve(triangleCount);
 
 				for (uint32_t triIdx = 0; triIdx < triangleCount; triIdx++)
 				{
@@ -515,8 +512,6 @@ namespace
 					const Edge& edge1 = generateEdge(idx1, idx2);
 					const Edge& edge2 = generateEdge(idx2, idx0);
 
-					triangleEdgeList.push_back({edge0, edge1, edge2});
-
 					edgeTrianglesMap[edge0].insert(triIdx);
 					edgeTrianglesMap[edge1].insert(triIdx);
 					edgeTrianglesMap[edge2].insert(triIdx);
@@ -527,16 +522,18 @@ namespace
 				triAdjTriList.resize(triangleCount);
 				for (const std::pair<Edge, std::set<uint32_t>>& edgeTrianglesPair : edgeTrianglesMap)
 				{
+					assert(edgeTrianglesPair.second.size() == 2 || edgeTrianglesPair.second.size() == 1);
+
+					// std::setなのでインデックスでは取り出せずイテレータで取り出すしかない
 					for (uint32_t triIdx : edgeTrianglesPair.second)
 					{
-						std::vector<uint32_t>& adjTriList = triAdjTriList[triIdx];
-
 						for (uint32_t triIdx2 : edgeTrianglesPair.second)
 						{
 							if (triIdx != triIdx2)
 							{
-								// 重複はないはず
-								adjTriList.push_back(triIdx2);
+								assert(edgeTrianglesPair.second.size() == 2);
+								// 2つのTriangleの双方向で2つ登録される
+								triAdjTriList[triIdx].push_back(triIdx2);
 							}
 						}
 					}
@@ -550,6 +547,8 @@ namespace
 
 				for (const std::vector<uint32_t>& adjTriList : triAdjTriList)
 				{
+					assert(adjTriList.size() >= 1 || adjTriList.size() <= 3);
+
 					// append_range()はC++23からなので手動で実装
 					for (uint32_t adjTri : adjTriList)
 					{
