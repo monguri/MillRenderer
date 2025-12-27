@@ -3563,22 +3563,13 @@ bool SampleApp::OnInit(HWND hWnd)
 	// VBufferからのGBuffer描画パス用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring vsPath;
-		std::wstring psPath;
 
 		if (!SearchFilePath(L"QuadVS.cso", vsPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;
 		}
-
-		if (!SearchFilePath(L"GBufferFromVBufferPS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
 		ComPtr<ID3DBlob> pVSBlob;
-		ComPtr<ID3DBlob> pPSBlob;
 
 		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
 		if (FAILED(hr))
@@ -3587,10 +3578,32 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
+		std::wstring psPath;
+		if (!SearchFilePath(L"GBufferFromVBufferPS.hlsl", psPath))
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		std::vector<const wchar_t*> compileArgs =
+		{
+			L"-T ps_6_7",
+			L"-I", L"../res",
+#if defined(DEBUG) || defined(_DEBUG)
+			L"-Zi",
+			L"-Qembed_debug",
+			L"-Od"
+#endif
+		};
+		if (m_drawSponza)
+		{
+			compileArgs.push_back(L"-D DRAW_SPONZA");
+		}
+
+		ComPtr<IDxcBlob> pPSBlob;
+		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pPSBlob))
+		{
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
