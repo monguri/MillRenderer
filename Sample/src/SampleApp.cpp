@@ -828,14 +828,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		DescriptorHandle* pHandleSRV = m_pPool[POOL_TYPE_RES]->AllocHandle();
+		DescriptorHandle* pHandleSRV = m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->AllocHandle();
 		if (pHandleSRV == nullptr)
 		{
 			ELOG("Error : DescriptorPool::AllocHandle() Failed.");
 			return false;
 		}
 
-		if (!ImGui_ImplDX12_Init(m_pDevice.Get(), 1, m_BackBufferFormat, m_pPool[POOL_TYPE_RES]->GetHeap(), pHandleSRV->HandleCPU, pHandleSRV->HandleGPU))
+		if (!ImGui_ImplDX12_Init(m_pDevice.Get(), 1, m_BackBufferFormat, m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->GetHeap(), pHandleSRV->HandleCPU, pHandleSRV->HandleGPU))
 		{
 			ELOG("Error : ImGui_ImplDX12_Init() Failed.");
 			return false;
@@ -849,7 +849,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		// 法線マップのデフォルトテクスチャとして使えるように(0.5,0.5,1)にする
 		// TODO:いずれ種類ごとに別のデフォルトテクスチャが必要になったら対応する
 		uint32_t normalBlue = 0x00FF8080;
-		if (!m_DummyTexture.InitFromData(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &normalBlue))
+		if (!m_DummyTexture.InitFromData(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &normalBlue))
 		{
 			ELOG("Error : Texture::Init() Failed.");
 			return false;
@@ -904,7 +904,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i], m_useMeshlet))
+			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], resMesh[i], m_useMeshlet))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
@@ -953,7 +953,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], &m_DummyTexture))
+			if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], &m_DummyTexture))
 			{
 				ELOG("Error : Material Initialize Failed.");
 				delete material;
@@ -1058,7 +1058,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES], resMesh[i], m_useMeshlet))
+			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], resMesh[i], m_useMeshlet))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
@@ -1104,7 +1104,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], &m_DummyTexture))
+			if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], &m_DummyTexture))
 			{
 				ELOG("Error : Material::Init() Failed.");
 				delete material;
@@ -1171,14 +1171,14 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_DrawGBufferDescHeapIndicesCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDrawGBufferDescHeapIndices)))
+			if (!m_DrawGBufferDescHeapIndicesCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDrawGBufferDescHeapIndices)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
 		}
 
-		if (!m_GBufferFromVBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbGBufferFromVBuffer), L"CbGBufferFromVBuffer"))
+		if (!m_GBufferFromVBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbGBufferFromVBuffer), L"CbGBufferFromVBuffer"))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -1198,7 +1198,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 			{
-				if (!m_DirectionalLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDirectionalLight), L"CbDirectionalLight"))
+				if (!m_DirectionalLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDirectionalLight), L"CbDirectionalLight"))
 				{
 					ELOG("Error : ConstantBuffer::Init() Failed.");
 					return false;
@@ -1210,7 +1210,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 			{
-				if (!m_PointLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbPointLight), L"CbPointLight"))
+				if (!m_PointLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbPointLight), L"CbPointLight"))
 				{
 					ELOG("Error : ConstantBuffer::Init() Failed.");
 					return false;
@@ -1244,13 +1244,13 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 			{
-				if (!m_SpotLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSpotLight), L"CbSpotLight"))
+				if (!m_SpotLightCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSpotLight), L"CbSpotLight"))
 				{
 					ELOG("Error : ConstantBuffer::Init() Failed.");
 					return false;
 				}
 
-				if (!m_SpotLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
+				if (!m_SpotLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbTransform)))
 				{
 					ELOG("Error : ConstantBuffer::Init() Failed.");
 					return false;
@@ -1289,7 +1289,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_SkyAtmosphereCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSkyAtmosphere)))
+			if (!m_SkyAtmosphereCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSkyAtmosphere)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -1312,7 +1312,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// 雲のレイマーチング用のバッファの設定
 	{
-		if (!m_VolumetricCloudCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbVolumetricCloud)))
+		if (!m_VolumetricCloudCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbVolumetricCloud)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -1327,7 +1327,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCamera), L"CbCamera"))
+			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbCamera), L"CbCamera"))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -1343,7 +1343,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_DSV],
-				m_pPool[POOL_TYPE_RES], // シャドウマップなのでSRVも作る
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE], // シャドウマップなのでSRVも作る
 				DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE,
 				DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE,
 				DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
@@ -1387,7 +1387,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				(
 					m_pDevice.Get(),
 					m_pPool[POOL_TYPE_DSV],
-					m_pPool[POOL_TYPE_RES], // シャドウマップなのでSRVも作る
+					m_pPool[POOL_TYPE_RES_GPU_VISIBLE], // シャドウマップなのでSRVも作る
 					SPOT_LIGHT_SHADOW_MAP_SIZE,
 					SPOT_LIGHT_SHADOW_MAP_SIZE,
 					DXGI_FORMAT_D16_UNORM, // TODO:ModelViewerを参考にした
@@ -1432,9 +1432,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_SkyTransmittanceLUT_Target.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			SKY_TRANSMITTANCE_LUT_WIDTH,
 			SKY_TRANSMITTANCE_LUT_HEIGHT,
 			DXGI_FORMAT_R11G11B10_FLOAT,
@@ -1453,9 +1454,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_SkyMultiScatteringLUT_Target.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			SKY_MULTI_SCATTERING_LUT_WIDTH,
 			SKY_MULTI_SCATTERING_LUT_HEIGHT,
 			DXGI_FORMAT_R11G11B10_FLOAT,
@@ -1474,9 +1476,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_SkyViewLUT_Target.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			SKY_VIEW_LUT_WIDTH,
 			SKY_VIEW_LUT_HEIGHT,
 			DXGI_FORMAT_R11G11B10_FLOAT,
@@ -1495,9 +1498,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_CloudTracingTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
 			m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
 			DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -1511,9 +1515,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_CloudSecondaryTracingTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
 			m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
 			DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -1529,9 +1534,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_CloudTracingDepthTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
 			m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
 			DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -1551,7 +1557,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R10G10B10A2_UNORM,
@@ -1571,7 +1577,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R10G10B10A2_UNORM,
@@ -1591,7 +1597,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R8G8_UNORM,
@@ -1606,19 +1612,21 @@ bool SampleApp::OnInit(HWND hWnd)
 	// VisibilyBufferの生成
 	if (m_useVBuffer)
 	{
-		// シェーダ側の定義と値の一致が必要
-		const float INVALID_VISIBILITY = static_cast<float>(UINT32_MAX);
-		float clearColor[4] = {INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY};
+		// クリアはfloatではR32G32_Uintに対応してないため後で行う
+		float clearColor[4] = {0, 0, 0, 0};
 
-		if (!m_SceneVisibilityTarget.InitRenderTarget
+		if (!m_SceneVisibilityTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R32G32_UINT,
 			clearColor,
+			1,
 			1,
 			L"SceneVisibility"
 		))
@@ -1634,7 +1642,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_DSV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_D32_FLOAT,
@@ -1659,9 +1667,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_HCB_Target.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			mip0SizeX,
 			mip0SizeY,
 			m_SceneColorTarget.GetDesc().Format,
@@ -1686,9 +1695,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_HZB_Target.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			mip0SizeX,
 			mip0SizeY,
 			DXGI_FORMAT_R16_FLOAT,
@@ -1719,7 +1729,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			srvDesc.Texture2D.PlaneSlice = 0;
 			srvDesc.Texture2D.ResourceMinLODClamp = 0;
 
-			DescriptorHandle* pHandleSRV = m_pPool[POOL_TYPE_RES]->AllocHandle();
+			DescriptorHandle* pHandleSRV = m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->AllocHandle();
 			if (pHandleSRV == nullptr)
 			{
 				ELOG("Error : DescriptorPool::AllocHandle() Failed.");
@@ -1744,7 +1754,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R32G32_FLOAT,
@@ -1764,7 +1774,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R32G32_FLOAT,
@@ -1784,7 +1794,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			DivideAndRoundUp(m_Width, 2),
 			DivideAndRoundUp(m_Height, 2),
 			DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -1807,7 +1817,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			width,
 			height,
 			DXGI_FORMAT_R8_UNORM,
@@ -1827,7 +1837,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R8_UNORM,
@@ -1881,7 +1891,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			pCmd,
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			SSAO_RANDOMIZATIN_TEXTURE_SIZE,
 			SSAO_RANDOMIZATIN_TEXTURE_SIZE,
 			DXGI_FORMAT_R8G8_UNORM,
@@ -1912,9 +1922,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_SSGI_Target.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			width,
 			height,
 			m_SceneColorTarget.GetDesc().Format,
@@ -1933,9 +1944,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_SSGI_DenoiseTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			(uint32_t)m_SSGI_Target.GetDesc().Width,
 			m_SSGI_Target.GetDesc().Height,
 			m_SceneColorTarget.GetDesc().Format,
@@ -1956,9 +1968,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			if (!m_SSGI_TemporalAccumulationTarget[i].InitUnorderedAccessTarget
 			(
 				m_pDevice.Get(),
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				nullptr,
 				nullptr, // RTVは作らない。クリアする必要がないので
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				(uint32_t)m_SSGI_Target.GetDesc().Width,
 				m_SSGI_Target.GetDesc().Height,
 				m_SceneColorTarget.GetDesc().Format,
@@ -1979,7 +1992,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R10G10B10A2_UNORM,
@@ -1999,7 +2012,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R10G10B10A2_UNORM,
@@ -2023,9 +2036,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			if (!m_VolumetricFogScatteringTarget[i].InitUnorderedAccessTarget
 			(
 				m_pDevice.Get(),
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				nullptr,
 				nullptr, // RTVは作らない。クリアする必要がないので
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				volumetricFogGridSizeX,
 				volumetricFogGridSizeY,
 				DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -2047,9 +2061,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_VolumetricFogIntegrationTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			volumetricFogGridSizeX,
 			volumetricFogGridSizeY,
 			DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -2071,7 +2086,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R10G10B10A2_UNORM,
@@ -2092,9 +2107,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			if (!m_TemporalAA_Target[i].InitUnorderedAccessTarget
 			(
 				m_pDevice.Get(),
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				nullptr,
 				nullptr, // RTVは作らない。クリアする必要がないので
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				m_Width,
 				m_Height,
 				DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -2115,7 +2131,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
@@ -2143,7 +2159,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RTV],
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				width,
 				height,
 				DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
@@ -2172,7 +2188,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RTV],
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				width,
 				height,
 				DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
@@ -2187,7 +2203,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RTV],
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				width,
 				height,
 				DXGI_FORMAT_R11G11B10_FLOAT, // Aは必要ない
@@ -2208,7 +2224,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			m_ColorTarget[0].GetRTVDesc().Format,
@@ -2228,7 +2244,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			m_ColorTarget[0].GetRTVDesc().Format,
@@ -4830,7 +4846,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// HCB作成パス用定数バッファの作成
 	{
-		if (!m_HCB_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbHZB))) // HZBと同じ構造体
+		if (!m_HCB_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbHZB))) // HZBと同じ構造体
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -4863,7 +4879,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!cb->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbHZB)))
+			if (!cb->Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbHZB)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -4894,7 +4910,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	// ObjectVelocity用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
-		if (!m_ObjectVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbObjectVelocity)))
+		if (!m_ObjectVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbObjectVelocity)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -4909,7 +4925,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	// CameraVelocity用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
-		if (!m_CameraVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCameraVelocity)))
+		if (!m_CameraVelocityCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbCameraVelocity)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -4921,7 +4937,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// SSAO準備パス用定数バッファの作成
 	{
-		if (!m_SSAOSetupCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAOSetup)))
+		if (!m_SSAOSetupCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSSAOSetup)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -4936,7 +4952,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	// SSAO半解像度用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
-		if (!m_SSAO_HalfResCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAO)))
+		if (!m_SSAO_HalfResCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSSAO)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -4959,7 +4975,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	// SSAOフル解像度用定数バッファの作成 // TODO: 上の半解像度と設定処理が冗長
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
-		if (!m_SSAO_FullResCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSAO)))
+		if (!m_SSAO_FullResCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSSAO)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -4981,7 +4997,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// SSGIパス用定数バッファの作成
 	{
-		if (!m_SSGI_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSGI)))
+		if (!m_SSGI_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSSGI)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5000,7 +5016,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// SSGI_Denoiseパス用定数バッファの作成
 	{
-		if (!m_SSGI_DenoiseCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSGI)))
+		if (!m_SSGI_DenoiseCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSSGI)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5013,7 +5029,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// SSR用定数バッファの作成
 	{
-		if (!m_SSR_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSSR)))
+		if (!m_SSR_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSSR)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5033,7 +5049,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// VolumetricFog用定数バッファの作成
 	{
-		if (!m_VolumetricFogCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbVolumetricFog)))
+		if (!m_VolumetricFogCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbVolumetricFog)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5055,7 +5071,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	// TemporalAA用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
-		if (!m_TemporalAA_CB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTemporalAA)))
+		if (!m_TemporalAA_CB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbTemporalAA)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5108,7 +5124,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// MotionBlur用定数バッファの作成
 	{
-		if (!m_MotionBlurCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbMotionBlur)))
+		if (!m_MotionBlurCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbMotionBlur)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5137,7 +5153,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		// 高解像度から定義している
 
 		{
-			if (!m_BloomHorizontalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbFilter)))
+			if (!m_BloomHorizontalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbFilter)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -5159,7 +5175,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		{
-			if (!m_BloomVerticalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbFilter)))
+			if (!m_BloomVerticalCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbFilter)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -5184,7 +5200,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	// トーンマップ用定数バッファの作成
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
-		if (!m_TonemapCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTonemap)))
+		if (!m_TonemapCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbTonemap)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5196,7 +5212,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// FXAA用定数バッファの作成
 	{
-		if (!m_FXAA_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbFXAA)))
+		if (!m_FXAA_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbFXAA)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5212,7 +5228,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	// 汎用ダウンサンプルパス用定数バッファの作成
 	for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++) // ドローコールの数だけ用意する
 	{
-		if (!m_DownsampleCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbDownsample)))
+		if (!m_DownsampleCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDownsample)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5225,7 +5241,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	// バックバッファ描画用の定数バッファの作成
 	{
-		if (!m_BackBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbSampleTexture)))
+		if (!m_BackBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSampleTexture)))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
@@ -5256,7 +5272,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_DirLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform)))
+			if (!m_DirLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbTransform)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -5268,7 +5284,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_TransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbTransform), L"CbTransform"))
+			if (!m_TransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbTransform), L"CbTransform"))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -5303,7 +5319,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 			ID3D12DescriptorHeap* const pHeaps[] = {
-				m_pPool[POOL_TYPE_RES]->GetHeap()
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->GetHeap()
 			};
 
 			pCmd->SetDescriptorHeaps(1, pHeaps);
@@ -5341,7 +5357,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			if (!m_SkyBox.InitSkyAtmosphere
 			(
 				m_pDevice.Get(),
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				m_SceneColorTarget.GetRTVDesc().Format,
 				m_SceneNormalTarget.GetRTVDesc().Format,
 				m_SceneMetallicRoughnessTarget.GetRTVDesc().Format,
@@ -5373,7 +5389,7 @@ bool SampleApp::OnInit(HWND hWnd)
 					return false;
 				}
 
-				if (!m_SphereMap.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sphereMapPath.c_str(), false, batch))
+				if (!m_SphereMap.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sphereMapPath.c_str(), false, batch))
 				{
 					ELOG("Error : Texture::Init() Failed.");
 					return false;
@@ -5390,7 +5406,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RTV],
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				m_SphereMap.GetResource()->GetDesc()
 			))
 			{
@@ -5401,7 +5417,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// IBLベイカーの生成
 		{
-			if (!m_IBLBaker.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], m_pPool[POOL_TYPE_RTV]))
+			if (!m_IBLBaker.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RTV]))
 			{
 				ELOG("Error : IBLBaker::Init() Failed.");
 				return false;
@@ -5413,7 +5429,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 			ID3D12DescriptorHeap* const pHeaps[] = {
-				m_pPool[POOL_TYPE_RES]->GetHeap()
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->GetHeap()
 			};
 
 			pCmd->SetDescriptorHeaps(1, pHeaps);
@@ -5438,7 +5454,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// IBLバッファの設定
 		{
-			if (!m_IBL_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbIBL), L"CbIBL"))
+			if (!m_IBL_CB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbIBL), L"CbIBL"))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -5455,7 +5471,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			if (!m_SkyBox.InitEnvironmentCubeMap
 			(
 				m_pDevice.Get(),
-				m_pPool[POOL_TYPE_RES],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				m_SceneColorTarget.GetRTVDesc().Format,
 				m_SceneNormalTarget.GetRTVDesc().Format,
 				m_SceneMetallicRoughnessTarget.GetRTVDesc().Format,
@@ -5563,9 +5579,9 @@ void SampleApp::OnTerm()
 
 	for (DescriptorHandle* handle : m_pHZB_ParentMipSRVs)
 	{
-		if (handle != nullptr && m_pPool[POOL_TYPE_RES] != nullptr)
+		if (handle != nullptr && m_pPool[POOL_TYPE_RES_GPU_VISIBLE] != nullptr)
 		{
-			m_pPool[POOL_TYPE_RES]->FreeHandle(handle);
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->FreeHandle(handle);
 		}
 	}
 	m_pHZB_ParentMipSRVs.clear();
@@ -5853,7 +5869,7 @@ void SampleApp::OnRender()
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 	ID3D12DescriptorHeap* const pHeaps[] = {
-		m_pPool[POOL_TYPE_RES]->GetHeap()
+		m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->GetHeap()
 	};
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
@@ -6264,14 +6280,24 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		ptr->ViewProj = viewProj;
 	}
 
-	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	// VBufferクリア
+	{
+
+		// シェーダ側の定義と値の一致が必要
+		const uint32_t INVALID_VISIBILITY = UINT32_MAX;
+		uint32_t clearValue[4] = {INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY};
+		m_SceneVisibilityTarget.ClearUavWithUintValue(pCmdList, clearValue);
+	}
+
+	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_SceneVisibilityTarget.GetHandleRTV()->HandleCPU;
 	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
 	pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
 
-	m_SceneVisibilityTarget.ClearView(pCmdList);
 	m_SceneDepthTarget.ClearView(pCmdList);
 
 	pCmdList->RSSetViewports(1, &m_Viewport);

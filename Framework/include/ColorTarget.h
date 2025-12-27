@@ -31,7 +31,9 @@ public:
 	bool InitUnorderedAccessTarget
 	(
 		ID3D12Device* pDevice,
-		DescriptorPool* pPoolUAV,
+		DescriptorPool* pPoolUAVGpuVisible,
+		// ClearUavWithUintValue()をするならこのタイプのディスクリプタヒープのディスクリプタが必要
+		DescriptorPool* pPoolUAVCpuVisible,
 		DescriptorPool* pPoolRTV,
 		DescriptorPool* pPoolSRV,
 		uint32_t width,
@@ -39,7 +41,8 @@ public:
 		DXGI_FORMAT format,
 		float clearColor[4],
 		uint32_t mipLevels = 1,
-		uint32_t depth = 1
+		uint32_t depth = 1,
+		LPCWSTR name = nullptr
 	);
 
 	bool InitFromBackBuffer
@@ -101,14 +104,17 @@ public:
 	D3D12_SHADER_RESOURCE_VIEW_DESC GetSRVDesc() const;
 
 	void ClearView(ID3D12GraphicsCommandList* pCmdList);
+	void ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32_t value[4]);
 
 private:
 	ComPtr<ID3D12Resource> m_pTarget;
 	DescriptorHandle* m_pHandleRTV;
-	std::vector<DescriptorHandle*> m_pHandleMipUAVs;
+	std::vector<DescriptorHandle*> m_pHandleMipUAVsGpuVisible;
+	std::vector<DescriptorHandle*> m_pHandleMipUAVsCpuVisible;
 	DescriptorHandle* m_pHandleSRV;
 	DescriptorPool* m_pPoolRTV;
-	DescriptorPool* m_pPoolUAV;
+	DescriptorPool* m_pPoolUAVGpuVisible;
+	DescriptorPool* m_pPoolUAVCpuVisible;
 	DescriptorPool* m_pPoolSRV;
 	D3D12_RENDER_TARGET_VIEW_DESC m_RTVDesc;
 	std::vector<D3D12_UNORDERED_ACCESS_VIEW_DESC> m_MipUAVDescs;

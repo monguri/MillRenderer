@@ -257,7 +257,13 @@ bool App::InitD3D()
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		desc.NumDescriptors = 512;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_RES]))
+		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_RES_GPU_VISIBLE]))
+		{
+			return false;
+		}
+
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_RES_CPU_VISIBLE]))
 		{
 			return false;
 		}

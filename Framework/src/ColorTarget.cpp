@@ -70,7 +70,8 @@ ColorTarget::ColorTarget()
 : m_pTarget(nullptr)
 , m_pHandleRTV(nullptr)
 , m_pPoolRTV(nullptr)
-, m_pPoolUAV(nullptr)
+, m_pPoolUAVGpuVisible(nullptr)
+, m_pPoolUAVCpuVisible(nullptr)
 , m_pHandleSRV(nullptr)
 , m_pPoolSRV(nullptr)
 {
@@ -216,7 +217,8 @@ bool ColorTarget::InitRenderTarget
 bool ColorTarget::InitUnorderedAccessTarget
 (
 	ID3D12Device* pDevice,
-	DescriptorPool* pPoolUAV,
+	DescriptorPool* pPoolUAVGpuVisible,
+	DescriptorPool* pPoolUAVCpuVisible,
 	DescriptorPool* pPoolRTV,
 	DescriptorPool* pPoolSRV,
 	uint32_t width,
@@ -224,31 +226,52 @@ bool ColorTarget::InitUnorderedAccessTarget
 	DXGI_FORMAT format,
 	float clearColor[4],
 	uint32_t mipLevels,
-	uint32_t depth
+	uint32_t depth,
+	LPCWSTR name
 )
 {
-	if (pDevice == nullptr || pPoolUAV == nullptr || width == 0 || height == 0)
+	if (pDevice == nullptr || pPoolUAVGpuVisible == nullptr || width == 0 || height == 0)
 	{
 		return false;
 	}
 
-	assert(m_pPoolUAV == nullptr);
-	assert(m_pHandleMipUAVs.size() == 0);
+	assert(m_pPoolUAVGpuVisible == nullptr);
+	assert(m_pHandleMipUAVsGpuVisible.size() == 0);
 
-	m_pPoolUAV = pPoolUAV;
-	m_pPoolUAV->AddRef();
+	m_pPoolUAVGpuVisible = pPoolUAVGpuVisible;
+	m_pPoolUAVGpuVisible->AddRef();
 
-	m_pHandleMipUAVs.reserve(mipLevels);
+	m_pHandleMipUAVsGpuVisible.reserve(mipLevels);
 
 	for (uint32_t mip = 0; mip < mipLevels; mip++)
 	{
-		DescriptorHandle* pHandle = pPoolUAV->AllocHandle();
+		DescriptorHandle* pHandle = pPoolUAVGpuVisible->AllocHandle();
 		if (pHandle == nullptr)
 		{
 			return false;
 		}
 
-		m_pHandleMipUAVs.push_back(pHandle);
+		m_pHandleMipUAVsGpuVisible.push_back(pHandle);
+	}
+
+	assert(m_pHandleMipUAVsCpuVisible.size() == 0);
+	if (pPoolUAVCpuVisible != nullptr)
+	{
+		m_pPoolUAVCpuVisible = pPoolUAVCpuVisible;
+		m_pPoolUAVCpuVisible->AddRef();
+
+		m_pHandleMipUAVsCpuVisible.reserve(mipLevels);
+
+		for (uint32_t mip = 0; mip < mipLevels; mip++)
+		{
+			DescriptorHandle* pHandle = pPoolUAVCpuVisible->AllocHandle();
+			if (pHandle == nullptr)
+			{
+				return false;
+			}
+
+			m_pHandleMipUAVsCpuVisible.push_back(pHandle);
+		}
 	}
 
 	assert(m_pPoolRTV == nullptr);
@@ -358,8 +381,18 @@ bool ColorTarget::InitUnorderedAccessTarget
 			m_pTarget.Get(),
 			nullptr,
 			&mipUAVDesc,
-			m_pHandleMipUAVs[mip]->HandleCPU
+			m_pHandleMipUAVsGpuVisible[mip]->HandleCPU
 		);
+
+		if (pPoolUAVCpuVisible != nullptr)
+		{
+			pDevice->CreateUnorderedAccessView(
+				m_pTarget.Get(),
+				nullptr,
+				&mipUAVDesc,
+				m_pHandleMipUAVsCpuVisible[mip]->HandleCPU
+			);
+		}
 	}
 
 	if (pPoolRTV != nullptr)
@@ -411,6 +444,15 @@ bool ColorTarget::InitUnorderedAccessTarget
 			&m_SRVDesc,
 			m_pHandleSRV->HandleCPU
 		);
+	}
+
+	if (name != nullptr)
+	{
+		hr = m_pTarget->SetName(name);
+		if (FAILED(hr))
+		{
+			return false;
+		}
 	}
 
 	return true;
@@ -487,20 +529,36 @@ void ColorTarget::Term()
 		m_pPoolRTV = nullptr;
 	}
 
-	for (DescriptorHandle* pHandleUAV : m_pHandleMipUAVs)
+	for (DescriptorHandle* pHandleUAV : m_pHandleMipUAVsGpuVisible)
 	{
-		if (pHandleUAV != nullptr && m_pPoolUAV != nullptr)
+		if (pHandleUAV != nullptr && m_pPoolUAVGpuVisible != nullptr)
 		{
-			m_pPoolUAV->FreeHandle(pHandleUAV);
+			m_pPoolUAVGpuVisible->FreeHandle(pHandleUAV);
 		}
 	}
 
-	m_pHandleMipUAVs.clear();
+	m_pHandleMipUAVsGpuVisible.clear();
 
-	if (m_pPoolUAV != nullptr)
+	if (m_pPoolUAVGpuVisible != nullptr)
 	{
-		m_pPoolUAV->Release();
-		m_pPoolUAV = nullptr;
+		m_pPoolUAVGpuVisible->Release();
+		m_pPoolUAVGpuVisible = nullptr;
+	}
+
+	for (DescriptorHandle* pHandleUAV : m_pHandleMipUAVsCpuVisible)
+	{
+		if (pHandleUAV != nullptr && m_pPoolUAVCpuVisible != nullptr)
+		{
+			m_pPoolUAVCpuVisible->FreeHandle(pHandleUAV);
+		}
+	}
+
+	m_pHandleMipUAVsCpuVisible.clear();
+
+	if (m_pPoolUAVCpuVisible != nullptr)
+	{
+		m_pPoolUAVCpuVisible->Release();
+		m_pPoolUAVCpuVisible = nullptr;
 	}
 
 	if (m_pHandleSRV != nullptr && m_pPoolSRV != nullptr)
@@ -523,7 +581,7 @@ DescriptorHandle* ColorTarget::GetHandleRTV() const
 
 const std::vector<DescriptorHandle*>& ColorTarget::GetHandleUAVs() const
 {
-	return m_pHandleMipUAVs;
+	return m_pHandleMipUAVsGpuVisible;
 }
 
 DescriptorHandle* ColorTarget::GetHandleSRV() const
@@ -568,5 +626,25 @@ void ColorTarget::ClearView(ID3D12GraphicsCommandList* pCmdList)
 	if (m_pHandleRTV != nullptr)
 	{
 		pCmdList->ClearRenderTargetView(m_pHandleRTV->HandleCPU, m_ClearColor, 0, nullptr);
+	}
+}
+
+void ColorTarget::ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32_t value[4])
+{
+	assert(m_pHandleMipUAVsGpuVisible.size() == m_pHandleMipUAVsCpuVisible.size());
+
+	for (size_t i = 0; i < m_pHandleMipUAVsGpuVisible.size(); i++)
+	{
+		DescriptorHandle* uavGpuVisibleHandle = m_pHandleMipUAVsGpuVisible[i];
+		DescriptorHandle* uavCpuVisibleHandle = m_pHandleMipUAVsCpuVisible[i];
+
+		pCmdList->ClearUnorderedAccessViewUint(
+			m_pHandleMipUAVsGpuVisible[i]->HandleGPU,
+			m_pHandleMipUAVsCpuVisible[i]->HandleCPU,
+			m_pTarget.Get(),
+			value,
+			0,
+			nullptr
+		);
 	}
 }
