@@ -40,6 +40,18 @@
 ", StaticSampler"\
 "("\
 "s2"\
+", filter = FILTER_MIN_MAG_MIP_LINEAR"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+", StaticSampler"\
+"("\
+"s3"\
 ", filter = FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT"\
 ", addressU = TEXTURE_ADDRESS_CLAMP"\
 ", addressV = TEXTURE_ADDRESS_CLAMP"\
@@ -131,6 +143,10 @@ static const uint CbSpotLightBaseIdx = CbPointLightBaseIdx + NUM_POINT_LIGHTS;
 static const uint CbDirLightIdx = CbSpotLightBaseIdx + NUM_SPOT_LIGHTS;
 static const uint SpotLightShadowMapBaseIdx = CbDirLightIdx + 1;
 static const uint DirLightShadowMapIdx = SpotLightShadowMapBaseIdx + NUM_SPOT_LIGHTS;
+static const uint CbIBLIdx = DirLightShadowMapIdx + 1;
+static const uint DFGMapIdx = CbIBLIdx + 1;
+static const uint DiffuseLDMapIdx = DFGMapIdx + 1;
+static const uint SpecularLDMapIdx = DiffuseLDMapIdx + 1;
 
 ConstantBuffer<CbDrawGBufferDescHeapIndices> CbDescHeapIndices : register(b0);
 
@@ -145,10 +161,11 @@ uint GetDescHeapIndex(uint idx)
 
 SamplerState PointClampSmp : register(s0);
 SamplerState AnisotropicWrapSmp : register(s1);
+SamplerState LinearWrapSmp : register(s2);
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-SamplerComparisonState ShadowSmp : register(s2);
+SamplerComparisonState ShadowSmp : register(s3);
 #else
-SamplerState ShadowSmp : register(s2);
+SamplerState ShadowSmp : register(s3);
 #endif
 
 // TODO:冗長
@@ -250,6 +267,13 @@ struct SpotLight
 	float SpotLightAngleOffset;
 	int SpotLightType;
 	float2 SpotLightShadowMapSize; // x is pixel size, y is texel size on UV.
+};
+
+struct IBL
+{
+	float TextureSize;
+	float MipCount;
+	float LightIntensity;
 };
 
 // C++側の定義と値の一致が必要
@@ -567,6 +591,55 @@ float3 EvaluateSpotLightReflection
 	return brdf * light * shadow;
 }
 
+//TODO: BasePassPS.hlsliのコピペなので共通化が必要
+// Referenced glTF-Sample-Viewer ibl.glsl
+float3 GetIBLRadianceLambertian(float3 N, float3 NdotV, float roughness, float3 diffuseColor, float3 F0, float3 Fr, float2 f_ab)
+{
+	TextureCube DiffuseLDMap = ResourceDescriptorHeap[GetDescHeapIndex(DiffuseLDMapIdx)];
+	float3 irradiance = DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
+
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+
+	float3 k_S = F0 + Fr * pow(1.0f - NdotV, 5.0f);
+	float3 FssEss = k_S * f_ab.x + f_ab.y; // <--- GGX / specular light contribution (scale it down if the specularWeight is low)
+
+    // Multiple scattering, from Fdez-Aguera
+	float Ems = (1.0f - (f_ab.x + f_ab.y));
+	float3 F_avg = (F0 + (1.0f - F0) / 21.0f);
+	float3 FmsEms = Ems * FssEss * F_avg / (1.0f - F_avg * Ems);
+	float3 k_D = diffuseColor * (1.0f - FssEss + FmsEms); // we use +FmsEms as indicated by the formula in the blog post (might be a typo in the implementation)
+
+	return (FmsEms + k_D) * irradiance;
+}
+
+//TODO: BasePassPS.hlsliのコピペなので共通化が必要
+float RoughnessToMipLevel(float linearRoughness, float mipCount)
+{
+	return (mipCount - 1) * linearRoughness;
+}
+
+//TODO: BasePassPS.hlsliのコピペなので共通化が必要
+// Referenced glTF-Sample-Viewer ibl.glsl
+float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, float3 F0, float3 Fr, float2 f_ab, float mipCount)
+{
+	TextureCube SpecularLDMap = ResourceDescriptorHeap[GetDescHeapIndex(SpecularLDMapIdx)];
+
+	// TODO: float3 dominantR = GetSpecularDominantDir(N, R, a);なし
+	float mipLevel = RoughnessToMipLevel(roughness, mipCount);
+
+	// TODO: NdotV = max(NdotV, 0.5f / textureSize);なし
+	// glTF-Sample-Viewer is not using GetSpecularDominantDir()
+	float3 specularLight = SpecularLDMap.SampleLevel(LinearWrapSmp, R, mipLevel).xyz;
+	
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+	float3 k_S = F0 + Fr * pow(1.0f - NdotV, 5.0f);
+	float3 FssEss = k_S * f_ab.x + f_ab.y;
+
+	return specularLight * FssEss;
+}
+
 [RootSignature(ROOT_SIGNATURE)]
 PSOutput main(VSOutput input)
 {
@@ -694,10 +767,6 @@ PSOutput main(VSOutput input)
 	Texture2D NormalMap = ResourceDescriptorHeap[GetDescHeapIndex(NormalMapBaseIdx + meshIdx)];
 	Texture2D EmissiveMap = ResourceDescriptorHeap[GetDescHeapIndex(EmissiveMapBaseIdx + meshIdx)];
 	Texture2D AOMap = ResourceDescriptorHeap[GetDescHeapIndex(AOMapBaseIdx + meshIdx)];
-	Texture2D DirLightShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(DirLightShadowMapIdx)];
-	Texture2D SpotLight1ShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(SpotLightShadowMapBaseIdx + 0)];
-	Texture2D SpotLight2ShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(SpotLightShadowMapBaseIdx + 1)];
-	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(SpotLightShadowMapBaseIdx + 2)];
 
 	PSOutput output = (PSOutput)0;
 
@@ -721,7 +790,13 @@ PSOutput main(VSOutput input)
 
 	N = mul(invTangentBasis, N);
 	float3 V = normalize(CbCamera.CameraPosition - worldPos.xyz);
+
+#ifdef DRAW_SPONZA
 	float NV = saturate(dot(N, V));
+	Texture2D DirLightShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(DirLightShadowMapIdx)];
+	Texture2D SpotLight1ShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(SpotLightShadowMapBaseIdx + 0)];
+	Texture2D SpotLight2ShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(SpotLightShadowMapBaseIdx + 1)];
+	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(SpotLightShadowMapBaseIdx + 2)];
 
 	// directional light
 	float3 dirLightL = normalize(-CbDirectionalLight.DirLightForward);
@@ -874,6 +949,25 @@ PSOutput main(VSOutput input)
 		+ spotLight1Reflection
 		+ spotLight2Reflection
 		+ spotLight3Reflection;
+#else // #ifdef DRAW_SPONZA
+	float3 R = normalize(reflect(-V, N));
+	float NdotV = saturate(dot(N, V));
+
+	Texture2D DirLightShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(DirLightShadowMapIdx)];
+	Texture2D DFGMap = ResourceDescriptorHeap[GetDescHeapIndex(DFGMapIdx)];
+	ConstantBuffer<IBL> CbIBL = ResourceDescriptorHeap[GetDescHeapIndex(CbIBLIdx)];
+
+	float3 cDiff = lerp(baseColor.rgb, 0.0f, metallic);;
+	float3 F0 = ComputeF0(baseColor.rgb, metallic);
+	float3 Fr = max(1.0f - roughness, F0) - F0;
+	
+	float2 f_ab = DFGMap.SampleLevel(LinearWrapSmp, float2(NdotV, roughness), 0).xy;
+
+
+	float3 diffuse = GetIBLRadianceLambertian(N, NdotV, roughness, cDiff, F0, Fr, f_ab);
+	float3 specular = GetIBLRadianceGGX(N, R, NdotV, roughness, F0, Fr, f_ab, CbIBL.MipCount);
+	float3 lit = (diffuse + specular) * CbIBL.LightIntensity;
+#endif // #ifdef DRAW_SPONZA
 
 	float3 emissive = 0;
 	if (CbMaterial.bExistEmissiveTex)
