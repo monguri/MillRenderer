@@ -667,6 +667,7 @@ namespace
 					meshopt_Meshlet& meshlet = dstMesh.Meshlets[meshletIdx];
 
 					const std::set<uint32_t>& vertexSet = meshletVertexSets[meshletIdx];
+					assert(vertexSet.size() <= MAX_VERTS);
 					meshlet.vertex_count = static_cast<unsigned int>(vertexSet.size());
 					meshlet.vertex_offset = vertexOffset;
 					vertexOffset += meshlet.vertex_count;
@@ -679,9 +680,10 @@ namespace
 
 					const std::vector<uint8_t>& triangleList = meshletTriangleLists[meshletIdx];
 					assert(triangleList.size() % 3 == 0);
+					assert(triangleList.size() / 3 <= MAX_TRIS);
 					meshlet.triangle_count = static_cast<unsigned int>(triangleList.size() / 3);
 					meshlet.triangle_offset = triangleOffset;
-					triangleOffset += meshlet.triangle_count;
+					triangleOffset += meshlet.triangle_count * 3;
 
 					dstMesh.MeshletsTriangles.reserve(dstMesh.MeshletsTriangles.size() + triangleList.size());
 					for (uint8_t localIdx : triangleList)
