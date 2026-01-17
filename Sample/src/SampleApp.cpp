@@ -1619,7 +1619,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		// クリアはfloatではR32G32_Uintに対応してないため後で行う
 		float clearColor[4] = {0, 0, 0, 0};
 
-		if (!m_SceneVisibilityTarget.InitUnorderedAccessTarget
+		if (!m_VBufferTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
@@ -3184,7 +3184,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!m_VisibilityRootSig.Init(m_pDevice.Get(), pRSBlob))
+			if (!m_DrawVBufferHWRasRootSig.Init(m_pDevice.Get(), pRSBlob))
 			{
 				ELOG("Error : RootSignature::Init() Failed.");
 				return false;
@@ -3212,14 +3212,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
 			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-			desc.pRootSignature = m_VisibilityRootSig.GetPtr();
+			desc.pRootSignature = m_DrawVBufferHWRasRootSig.GetPtr();
 			desc.BlendState = DirectX::CommonStates::Opaque;
 			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 			desc.SampleMask = UINT_MAX;
 			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 			desc.NumRenderTargets = 1;
-			desc.RTVFormats[0] = m_SceneVisibilityTarget.GetRTVDesc().Format;
+			desc.RTVFormats[0] = m_VBufferTarget.GetRTVDesc().Format;
 			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 			desc.SampleDesc.Count = 1;
 			desc.SampleDesc.Quality = 0;
@@ -3235,7 +3235,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreatePipelineState(
 				&streamDesc,
-				IID_PPV_ARGS(m_pVisibilityOpaquePSO.GetAddressOf())
+				IID_PPV_ARGS(m_pDrawVBufferHWRasOpaquePSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -3267,7 +3267,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreatePipelineState(
 				&streamDesc,
-				IID_PPV_ARGS(m_pVisibilityMaskPSO.GetAddressOf())
+				IID_PPV_ARGS(m_pDrawVBufferHWRasMaskPSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -5628,7 +5628,7 @@ void SampleApp::OnTerm()
 	m_SceneColorTarget.Term();
 	m_SceneNormalTarget.Term();
 	m_SceneMetallicRoughnessTarget.Term();
-	m_SceneVisibilityTarget.Term();
+	m_VBufferTarget.Term();
 	m_SceneDepthTarget.Term();
 
 	m_HCB_Target.Term();
@@ -5707,9 +5707,9 @@ void SampleApp::OnTerm()
 
 	m_SceneRootSig.Term();
 
-	m_pVisibilityOpaquePSO.Reset();
-	m_pVisibilityMaskPSO.Reset();
-	m_VisibilityRootSig.Term();
+	m_pDrawVBufferHWRasOpaquePSO.Reset();
+	m_pDrawVBufferHWRasMaskPSO.Reset();
+	m_DrawVBufferHWRasRootSig.Term();
 
 	m_pGBufferFromVBufferPSO.Reset();
 	m_GBufferFromVBufferRootSig.Term();
@@ -6304,7 +6304,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		ptr->ViewProj = viewProj;
 	}
 
-	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	// VBufferクリア
 	{
@@ -6312,7 +6312,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		// シェーダ側の定義と値の一致が必要
 		const uint32_t INVALID_VISIBILITY = UINT32_MAX;
 		uint32_t clearValue[4] = {INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY};
-		m_SceneVisibilityTarget.ClearUavWithUintValue(pCmdList, clearValue);
+		m_VBufferTarget.ClearUavWithUintValue(pCmdList, clearValue);
 	}
 
 	if (m_useSWRasterizer)
@@ -6321,10 +6321,10 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	}
 	else
 	{
-		DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_SceneVisibilityTarget.GetHandleRTV()->HandleCPU;
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_VBufferTarget.GetHandleRTV()->HandleCPU;
 		const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
 		pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
 
@@ -6333,18 +6333,18 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		pCmdList->RSSetViewports(1, &m_Viewport);
 		pCmdList->RSSetScissorRects(1, &m_Scissor);
 		
-		pCmdList->SetGraphicsRootSignature(m_VisibilityRootSig.GetPtr());
+		pCmdList->SetGraphicsRootSignature(m_DrawVBufferHWRasRootSig.GetPtr());
 
 		uint32_t meshIdx = 0;
 
-		pCmdList->SetPipelineState(m_pVisibilityOpaquePSO.Get());
+		pCmdList->SetPipelineState(m_pDrawVBufferHWRasOpaquePSO.Get());
 		DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, drawGBufferDescHeapIndices);
 
-		pCmdList->SetPipelineState(m_pVisibilityMaskPSO.Get());
+		pCmdList->SetPipelineState(m_pDrawVBufferHWRasMaskPSO.Get());
 		DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
 
 		drawGBufferDescHeapIndices.CbCamera = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-		drawGBufferDescHeapIndices.VBuffer = m_SceneVisibilityTarget.GetHandleSRV()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.VBuffer = m_VBufferTarget.GetHandleSRV()->GetDescriptorIndex();
 		drawGBufferDescHeapIndices.DepthBuffer = m_SceneDepthTarget.GetHandleSRV()->GetDescriptorIndex();
 		drawGBufferDescHeapIndices.CbGBufferFromVBuffer = m_GBufferFromVBufferCB.GetHandle()->GetDescriptorIndex();
 
@@ -6375,7 +6375,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 			drawGBufferDescHeapIndices.SpecularLDMap = m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex();
 		}
 
-		DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 }

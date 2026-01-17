@@ -101,9 +101,9 @@ private:
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;
-	ComPtr<ID3D12PipelineState> m_pVisibilityOpaquePSO;
-	ComPtr<ID3D12PipelineState> m_pVisibilityMaskPSO;
-	RootSignature m_VisibilityRootSig;
+	ComPtr<ID3D12PipelineState> m_pDrawVBufferHWRasOpaquePSO;
+	ComPtr<ID3D12PipelineState> m_pDrawVBufferHWRasMaskPSO;
+	RootSignature m_DrawVBufferHWRasRootSig;
 	ComPtr<ID3D12PipelineState> m_pGBufferFromVBufferPSO;
 	RootSignature m_GBufferFromVBufferRootSig;
 	ComPtr<ID3D12PipelineState> m_pHCB_PSO;
@@ -161,7 +161,7 @@ private:
 	ColorTarget m_SceneColorTarget;
 	ColorTarget m_SceneNormalTarget;
 	ColorTarget m_SceneMetallicRoughnessTarget;
-	ColorTarget m_SceneVisibilityTarget;
+	ColorTarget m_VBufferTarget;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_HCB_Target;
 	ColorTarget m_HZB_Target;
