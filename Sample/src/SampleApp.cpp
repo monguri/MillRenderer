@@ -790,6 +790,10 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		{
 			m_useVBuffer = true;
 		}
+		else if (wcscmp(argv[a], L"--swrasterizer") == 0)
+		{
+			m_useSWRasterizer = true;
+		}
 	}
 
 	if (m_useMeshlet)
@@ -3149,120 +3153,127 @@ bool SampleApp::OnInit(HWND hWnd)
 	// Visibilityパス用ルートシグニチャとパイプラインステートの生成
 	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
 	{
-		std::wstring msPath;
-
-		if (!SearchFilePath(L"VisibilityMS.cso", msPath))
+		if (m_useSWRasterizer)
 		{
-			ELOG("Error : Mesh Shader Not Found");
-			return false;
+			// TODO: 実装
 		}
-
-		ComPtr<ID3DBlob> pMSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
-		if (FAILED(hr))
+		else
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
-			return false;
-		}
+			std::wstring msPath;
 
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
-			return false;
-		}
+			if (!SearchFilePath(L"VisibilityMS.cso", msPath))
+			{
+				ELOG("Error : Mesh Shader Not Found");
+				return false;
+			}
 
-		if (!m_VisibilityRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
+			ComPtr<ID3DBlob> pMSBlob;
 
-		std::wstring psPath;
+			HRESULT hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
+				return false;
+			}
 
-		if (!SearchFilePath(L"VisibilityOpaquePS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
+			ComPtr<ID3DBlob> pRSBlob;
+			hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
+				return false;
+			}
 
-		ComPtr<ID3DBlob> pPSBlob;
+			if (!m_VisibilityRootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
 
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
+			std::wstring psPath;
 
-		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
-		desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
-		desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.pRootSignature = m_VisibilityRootSig.GetPtr();
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
-		desc.SampleMask = UINT_MAX;
-		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_SceneVisibilityTarget.GetRTVDesc().Format;
-		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
+			if (!SearchFilePath(L"VisibilityOpaquePS.cso", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
 
-		// TODO:SponzaRendererの数字を何も考えずに使っている
-		desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-		desc.RasterizerState.DepthBias = 100;
+			ComPtr<ID3DBlob> pPSBlob;
 
-		CD3DX12_PIPELINE_MESH_STATE_STREAM psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
-		D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
-		streamDesc.pPipelineStateSubobjectStream = &psoStream;
-		streamDesc.SizeInBytes = sizeof(psoStream);
+			hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+				return false;
+			}
 
-		hr = m_pDevice->CreatePipelineState(
-			&streamDesc,
-			IID_PPV_ARGS(m_pVisibilityOpaquePSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
+			D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
+			desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
+			desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
+			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+			desc.pRootSignature = m_VisibilityRootSig.GetPtr();
+			desc.BlendState = DirectX::CommonStates::Opaque;
+			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
+			desc.SampleMask = UINT_MAX;
+			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			desc.NumRenderTargets = 1;
+			desc.RTVFormats[0] = m_SceneVisibilityTarget.GetRTVDesc().Format;
+			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
 
-		if (!SearchFilePath(L"VisibilityMaskPS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
+			// TODO:SponzaRendererの数字を何も考えずに使っている
+			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+			desc.RasterizerState.DepthBias = 100;
 
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
+			CD3DX12_PIPELINE_MESH_STATE_STREAM psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+			D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
+			streamDesc.pPipelineStateSubobjectStream = &psoStream;
+			streamDesc.SizeInBytes = sizeof(psoStream);
 
-		//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RasterizerState = DirectX::CommonStates::CullNone;
+			hr = m_pDevice->CreatePipelineState(
+				&streamDesc,
+				IID_PPV_ARGS(m_pVisibilityOpaquePSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 
-		psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
-		streamDesc.pPipelineStateSubobjectStream = &psoStream;
-		streamDesc.SizeInBytes = sizeof(psoStream);
+			if (!SearchFilePath(L"VisibilityMaskPS.cso", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
 
-		hr = m_pDevice->CreatePipelineState(
-			&streamDesc,
-			IID_PPV_ARGS(m_pVisibilityMaskPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-			return false;
+			hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+				return false;
+			}
+
+			//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
+			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+			desc.RasterizerState = DirectX::CommonStates::CullNone;
+
+			psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+			streamDesc.pPipelineStateSubobjectStream = &psoStream;
+			streamDesc.SizeInBytes = sizeof(psoStream);
+
+			hr = m_pDevice->CreatePipelineState(
+				&streamDesc,
+				IID_PPV_ARGS(m_pVisibilityMaskPSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 	}
 
@@ -6285,7 +6296,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 {
 	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
 
-	::PIXScopedEvent(pCmdList, 0, L"VBuffer");
+	::PIXScopedEvent(pCmdList, 0, L"DrawVBuffer");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -6304,62 +6315,69 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		m_SceneVisibilityTarget.ClearUavWithUintValue(pCmdList, clearValue);
 	}
 
-	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_SceneVisibilityTarget.GetHandleRTV()->HandleCPU;
-	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
-	pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
-
-	m_SceneDepthTarget.ClearView(pCmdList);
-
-	pCmdList->RSSetViewports(1, &m_Viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
-	
-	pCmdList->SetGraphicsRootSignature(m_VisibilityRootSig.GetPtr());
-
-	uint32_t meshIdx = 0;
-
-	pCmdList->SetPipelineState(m_pVisibilityOpaquePSO.Get());
-	DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, drawGBufferDescHeapIndices);
-
-	pCmdList->SetPipelineState(m_pVisibilityMaskPSO.Get());
-	DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
-
-	drawGBufferDescHeapIndices.CbCamera = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-	drawGBufferDescHeapIndices.VBuffer = m_SceneVisibilityTarget.GetHandleSRV()->GetDescriptorIndex();
-	drawGBufferDescHeapIndices.DepthBuffer = m_SceneDepthTarget.GetHandleSRV()->GetDescriptorIndex();
-	drawGBufferDescHeapIndices.CbGBufferFromVBuffer = m_GBufferFromVBufferCB.GetHandle()->GetDescriptorIndex();
-
-	if (m_drawSponza)
+	if (m_useSWRasterizer)
 	{
-		drawGBufferDescHeapIndices.CbDirectionalLight = m_DirectionalLightCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-		{
-			drawGBufferDescHeapIndices.CbPointLight[i] = m_PointLightCB[i].GetHandle()->GetDescriptorIndex();
-		}
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			drawGBufferDescHeapIndices.CbSpotLight[i] = m_SpotLightCB[i].GetHandle()->GetDescriptorIndex();
-		}
-
-		drawGBufferDescHeapIndices.DirLightShadowMap = m_DirLightShadowMapTarget.GetHandleSRV()->GetDescriptorIndex();
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			drawGBufferDescHeapIndices.SpotLightShadowMap[i] = m_SpotLightShadowMapTarget[i].GetHandleSRV()->GetDescriptorIndex();
-		}
+		//TODO:実装
 	}
 	else
 	{
-		drawGBufferDescHeapIndices.CbIBL = m_IBL_CB.GetHandle()->GetDescriptorIndex();
-		drawGBufferDescHeapIndices.DFGMap = m_IBLBaker.GetHandleSRV_DFG()->GetDescriptorIndex();
-		drawGBufferDescHeapIndices.DiffuseLDMap = m_IBLBaker.GetHandleSRV_DiffuseLD()->GetDescriptorIndex();
-		drawGBufferDescHeapIndices.SpecularLDMap = m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex();
-	}
+		DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-	DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_SceneVisibilityTarget.GetHandleRTV()->HandleCPU;
+		const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+		pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
+
+		m_SceneDepthTarget.ClearView(pCmdList);
+
+		pCmdList->RSSetViewports(1, &m_Viewport);
+		pCmdList->RSSetScissorRects(1, &m_Scissor);
+		
+		pCmdList->SetGraphicsRootSignature(m_VisibilityRootSig.GetPtr());
+
+		uint32_t meshIdx = 0;
+
+		pCmdList->SetPipelineState(m_pVisibilityOpaquePSO.Get());
+		DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, drawGBufferDescHeapIndices);
+
+		pCmdList->SetPipelineState(m_pVisibilityMaskPSO.Get());
+		DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
+
+		drawGBufferDescHeapIndices.CbCamera = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.VBuffer = m_SceneVisibilityTarget.GetHandleSRV()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.DepthBuffer = m_SceneDepthTarget.GetHandleSRV()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.CbGBufferFromVBuffer = m_GBufferFromVBufferCB.GetHandle()->GetDescriptorIndex();
+
+		if (m_drawSponza)
+		{
+			drawGBufferDescHeapIndices.CbDirectionalLight = m_DirectionalLightCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+			{
+				drawGBufferDescHeapIndices.CbPointLight[i] = m_PointLightCB[i].GetHandle()->GetDescriptorIndex();
+			}
+
+			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+			{
+				drawGBufferDescHeapIndices.CbSpotLight[i] = m_SpotLightCB[i].GetHandle()->GetDescriptorIndex();
+			}
+
+			drawGBufferDescHeapIndices.DirLightShadowMap = m_DirLightShadowMapTarget.GetHandleSRV()->GetDescriptorIndex();
+			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+			{
+				drawGBufferDescHeapIndices.SpotLightShadowMap[i] = m_SpotLightShadowMapTarget[i].GetHandleSRV()->GetDescriptorIndex();
+			}
+		}
+		else
+		{
+			drawGBufferDescHeapIndices.CbIBL = m_IBL_CB.GetHandle()->GetDescriptorIndex();
+			drawGBufferDescHeapIndices.DFGMap = m_IBLBaker.GetHandleSRV_DFG()->GetDescriptorIndex();
+			drawGBufferDescHeapIndices.DiffuseLDMap = m_IBLBaker.GetHandleSRV_DiffuseLD()->GetDescriptorIndex();
+			drawGBufferDescHeapIndices.SpecularLDMap = m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex();
+		}
+
+		DirectX::TransitionResource(pCmdList, m_SceneVisibilityTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
 }
 
 void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)

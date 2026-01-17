@@ -76,6 +76,8 @@ private:
 	bool m_useDynamicResources = true;
 	// Visibility Buffer‚ðŽg‚Á‚½•`‰æ‚ð‚â‚é‚©‚Ç‚¤‚©
 	bool m_useVBuffer = false;
+	// Visibility Buffer‚ðSW Rasterize‚·‚é‚©‚Ç‚¤‚©
+	bool m_useSWRasterizer = false;
 
 	uint32_t m_meshletRootParamCount = 0;
 
