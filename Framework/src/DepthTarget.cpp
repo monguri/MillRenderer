@@ -3,38 +3,168 @@
 
 namespace
 {
-	DXGI_FORMAT GetSRVFormat(DXGI_FORMAT DSVFormat) // referenced PixelBuffer::GetDepthFormat() of Model Viewer.
+	//
+	// referenced PixelBuffer::GetDSVFormat() of Model Viewer.
+	//
+
+	DXGI_FORMAT GetBaseFormat(DXGI_FORMAT defaultFormat)
 	{
-		switch (DSVFormat)
+		switch (defaultFormat)
 		{
-			// 32-bit Z w/ Stencil
-			case DXGI_FORMAT_R32G8X24_TYPELESS:
-			case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-			case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
-			case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
-				return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			return DXGI_FORMAT_R8G8B8A8_TYPELESS;
 
-			// No Stencil
-			case DXGI_FORMAT_R32_TYPELESS:
-			case DXGI_FORMAT_D32_FLOAT:
-			case DXGI_FORMAT_R32_FLOAT:
-				return DXGI_FORMAT_R32_FLOAT;
+		case DXGI_FORMAT_B8G8R8A8_UNORM:
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+			return DXGI_FORMAT_B8G8R8A8_TYPELESS;
 
-			// 24-bit Z
-			case DXGI_FORMAT_R24G8_TYPELESS:
-			case DXGI_FORMAT_D24_UNORM_S8_UINT:
-			case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
-			case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
-				return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		case DXGI_FORMAT_B8G8R8X8_UNORM:
+		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+			return DXGI_FORMAT_B8G8R8X8_TYPELESS;
 
-			// 16-bit Z w/o Stencil
-			case DXGI_FORMAT_R16_TYPELESS:
-			case DXGI_FORMAT_D16_UNORM:
-			case DXGI_FORMAT_R16_UNORM:
-				return DXGI_FORMAT_R16_UNORM;
+		// 32-bit Z w/ Stencil
+		case DXGI_FORMAT_R32G8X24_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+		case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+			return DXGI_FORMAT_R32G8X24_TYPELESS;
 
-			default:
-				return DXGI_FORMAT_UNKNOWN;
+		// No Stencil
+		case DXGI_FORMAT_R32_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT:
+		case DXGI_FORMAT_R32_FLOAT:
+			return DXGI_FORMAT_R32_TYPELESS;
+
+		// 24-bit Z
+		case DXGI_FORMAT_R24G8_TYPELESS:
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+		case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+			return DXGI_FORMAT_R24G8_TYPELESS;
+
+		// 16-bit Z w/o Stencil
+		case DXGI_FORMAT_R16_TYPELESS:
+		case DXGI_FORMAT_D16_UNORM:
+		case DXGI_FORMAT_R16_UNORM:
+			return DXGI_FORMAT_R16_TYPELESS;
+
+		default:
+			return defaultFormat;
+		}
+	}
+
+	DXGI_FORMAT GetUAVFormat(DXGI_FORMAT defaultFormat)
+	{
+		switch (defaultFormat)
+		{
+		case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			return DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+		case DXGI_FORMAT_B8G8R8A8_UNORM:
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+			return DXGI_FORMAT_B8G8R8A8_UNORM;
+
+		case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+		case DXGI_FORMAT_B8G8R8X8_UNORM:
+		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+			return DXGI_FORMAT_B8G8R8X8_UNORM;
+
+		case DXGI_FORMAT_R32_TYPELESS:
+		case DXGI_FORMAT_R32_FLOAT:
+			return DXGI_FORMAT_R32_FLOAT;
+
+	#ifdef _DEBUG
+		case DXGI_FORMAT_R32G8X24_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+		case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+		case DXGI_FORMAT_D32_FLOAT:
+		case DXGI_FORMAT_R24G8_TYPELESS:
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+		case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+		case DXGI_FORMAT_D16_UNORM:
+
+			// Requested a UAV Format for a depth stencil Format.
+			assert(false);
+	#endif
+
+		default:
+			return defaultFormat;
+		}
+	}
+
+	DXGI_FORMAT GetDSVFormat(DXGI_FORMAT defaultFormat)
+	{
+		switch (defaultFormat)
+		{
+		// 32-bit Z w/ Stencil
+		case DXGI_FORMAT_R32G8X24_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+		case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+			return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+
+		// No Stencil
+		case DXGI_FORMAT_R32_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT:
+		case DXGI_FORMAT_R32_FLOAT:
+			return DXGI_FORMAT_D32_FLOAT;
+
+		// 24-bit Z
+		case DXGI_FORMAT_R24G8_TYPELESS:
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+		case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+			return DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		// 16-bit Z w/o Stencil
+		case DXGI_FORMAT_R16_TYPELESS:
+		case DXGI_FORMAT_D16_UNORM:
+		case DXGI_FORMAT_R16_UNORM:
+			return DXGI_FORMAT_D16_UNORM;
+
+		default:
+			return defaultFormat;
+		}
+	}
+
+	DXGI_FORMAT GetDepthFormat(DXGI_FORMAT defaultFormat)
+	{
+		switch (defaultFormat)
+		{
+		// 32-bit Z w/ Stencil
+		case DXGI_FORMAT_R32G8X24_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+		case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+			return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+
+		// No Stencil
+		case DXGI_FORMAT_R32_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT:
+		case DXGI_FORMAT_R32_FLOAT:
+			return DXGI_FORMAT_R32_FLOAT;
+
+		// 24-bit Z
+		case DXGI_FORMAT_R24G8_TYPELESS:
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+		case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+			return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+
+		// 16-bit Z w/o Stencil
+		case DXGI_FORMAT_R16_TYPELESS:
+		case DXGI_FORMAT_D16_UNORM:
+		case DXGI_FORMAT_R16_UNORM:
+			return DXGI_FORMAT_R16_UNORM;
+
+		default:
+			return DXGI_FORMAT_UNKNOWN;
 		}
 	}
 }
@@ -107,7 +237,7 @@ bool DepthTarget::Init
 	desc.Height = height;
 	desc.DepthOrArraySize = 1;
 	desc.MipLevels = 1;
-	desc.Format = format;
+	desc.Format = GetBaseFormat(format);
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -117,7 +247,7 @@ bool DepthTarget::Init
 	m_ClearStencil = clearStencil;
 
 	D3D12_CLEAR_VALUE clearValue;
-	clearValue.Format = format;
+	clearValue.Format = GetDSVFormat(format);
 	clearValue.DepthStencil.Depth = clearDepth;
 	clearValue.DepthStencil.Stencil = clearStencil;
 
@@ -145,7 +275,7 @@ bool DepthTarget::Init
 	}
 
 	m_DSVDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	m_DSVDesc.Format = format;
+	m_DSVDesc.Format = GetDSVFormat(format);
 	m_DSVDesc.Texture2D.MipSlice = 0;
 	m_DSVDesc.Flags = D3D12_DSV_FLAG_NONE;
 
@@ -159,7 +289,7 @@ bool DepthTarget::Init
 	if (pPoolSRV != nullptr)
 	{
 		m_SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		m_SRVDesc.Format = GetSRVFormat(format);
+		m_SRVDesc.Format = GetDepthFormat(format);
 		m_SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		m_SRVDesc.Texture2D.MostDetailedMip = 0;
 		m_SRVDesc.Texture2D.MipLevels = 1;
