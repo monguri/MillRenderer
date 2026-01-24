@@ -35,7 +35,6 @@ public:
 	D3D12_RESOURCE_DESC GetDesc() const;
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC GetDSVDesc() const;
-	D3D12_SHADER_RESOURCE_VIEW_DESC GetSRVDesc() const;
 
 	void ClearView(ID3D12GraphicsCommandList* pCmdList);
 
@@ -46,7 +45,6 @@ private:
 	DescriptorPool* m_pPoolDSV;
 	DescriptorPool* m_pPoolSRV;
 	D3D12_DEPTH_STENCIL_VIEW_DESC m_DSVDesc;
-	D3D12_SHADER_RESOURCE_VIEW_DESC m_SRVDesc;
 	float m_ClearDepth;
 	uint8_t m_ClearStencil;
 

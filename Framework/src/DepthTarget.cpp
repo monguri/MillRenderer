@@ -54,50 +54,6 @@ namespace
 		}
 	}
 
-	DXGI_FORMAT GetUAVFormat(DXGI_FORMAT defaultFormat)
-	{
-		switch (defaultFormat)
-		{
-		case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-			return DXGI_FORMAT_R8G8B8A8_UNORM;
-
-		case DXGI_FORMAT_B8G8R8A8_TYPELESS:
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			return DXGI_FORMAT_B8G8R8A8_UNORM;
-
-		case DXGI_FORMAT_B8G8R8X8_TYPELESS:
-		case DXGI_FORMAT_B8G8R8X8_UNORM:
-		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
-			return DXGI_FORMAT_B8G8R8X8_UNORM;
-
-		case DXGI_FORMAT_R32_TYPELESS:
-		case DXGI_FORMAT_R32_FLOAT:
-			return DXGI_FORMAT_R32_FLOAT;
-
-	#ifdef _DEBUG
-		case DXGI_FORMAT_R32G8X24_TYPELESS:
-		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
-		case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
-		case DXGI_FORMAT_D32_FLOAT:
-		case DXGI_FORMAT_R24G8_TYPELESS:
-		case DXGI_FORMAT_D24_UNORM_S8_UINT:
-		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
-		case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
-		case DXGI_FORMAT_D16_UNORM:
-
-			// Requested a UAV Format for a depth stencil Format.
-			assert(false);
-	#endif
-
-		default:
-			return defaultFormat;
-		}
-	}
-
 	DXGI_FORMAT GetDSVFormat(DXGI_FORMAT defaultFormat)
 	{
 		switch (defaultFormat)
@@ -172,7 +128,9 @@ namespace
 DepthTarget::DepthTarget()
 : m_pTarget(nullptr)
 , m_pHandleDSV(nullptr)
+, m_pHandleSRV(nullptr)
 , m_pPoolDSV(nullptr)
+, m_pPoolSRV(nullptr)
 {
 }
 
@@ -288,17 +246,18 @@ bool DepthTarget::Init
 
 	if (pPoolSRV != nullptr)
 	{
-		m_SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		m_SRVDesc.Format = GetDepthFormat(format);
-		m_SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		m_SRVDesc.Texture2D.MostDetailedMip = 0;
-		m_SRVDesc.Texture2D.MipLevels = 1;
-		m_SRVDesc.Texture2D.PlaneSlice = 0;
-		m_SRVDesc.Texture2D.ResourceMinLODClamp = 0;
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Format = GetDepthFormat(format);
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Texture2D.PlaneSlice = 0;
+		srvDesc.Texture2D.ResourceMinLODClamp = 0;
 
 		pDevice->CreateShaderResourceView(
 			m_pTarget.Get(),
-			&m_SRVDesc,
+			&srvDesc,
 			m_pHandleSRV->HandleCPU
 		);
 	}
@@ -320,6 +279,18 @@ void DepthTarget::Term()
 	{
 		m_pPoolDSV->Release();
 		m_pPoolDSV = nullptr;
+	}
+
+	if (m_pHandleSRV != nullptr && m_pPoolSRV != nullptr)
+	{
+		m_pPoolSRV->FreeHandle(m_pHandleSRV);
+		m_pHandleSRV = nullptr;
+	}
+
+	if (m_pPoolSRV != nullptr)
+	{
+		m_pPoolSRV->Release();
+		m_pPoolSRV = nullptr;
 	}
 }
 
@@ -353,11 +324,6 @@ D3D12_RESOURCE_DESC DepthTarget::GetDesc() const
 D3D12_DEPTH_STENCIL_VIEW_DESC DepthTarget::GetDSVDesc() const
 {
 	return m_DSVDesc;
-}
-
-D3D12_SHADER_RESOURCE_VIEW_DESC DepthTarget::GetSRVDesc() const
-{
-	return m_SRVDesc;
 }
 
 void DepthTarget::ClearView(ID3D12GraphicsCommandList* pCmdList)
