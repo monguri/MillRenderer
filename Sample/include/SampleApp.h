@@ -101,6 +101,9 @@ private:
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;
+	ComPtr<ID3D12PipelineState> m_pDrawVBufferSWRasOpaquePSO;
+	ComPtr<ID3D12PipelineState> m_pDrawVBufferSWRasMaskPSO;
+	RootSignature m_DrawVBufferSWRasRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferHWRasOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferHWRasMaskPSO;
 	RootSignature m_DrawVBufferHWRasRootSig;
