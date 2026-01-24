@@ -1649,7 +1649,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
-			DXGI_FORMAT_R32_TYPELESS,
+			DXGI_FORMAT_D32_FLOAT,
 			0.0f, // SceneDepthはReverseZ
 			0,
 			L"SceneDepth"
