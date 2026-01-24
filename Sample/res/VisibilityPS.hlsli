@@ -7,12 +7,6 @@ struct MSOutput
 	uint TriangleIdx : TRIANGLE_INDEX;
 };
 
-struct Camera
-{
-	float3 CameraPosition;
-	uint DebugViewType;
-};
-
 struct Material
 {
 	float3 BaseColorFactor;
