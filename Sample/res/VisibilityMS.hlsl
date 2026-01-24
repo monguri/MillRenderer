@@ -24,7 +24,8 @@
 ", visibility = SHADER_VISIBILITY_PIXEL"\
 ")"\
 
-// TODO: VisibiligyBufferの段階ではPosition以外はVBに必要ないので削れる
+// TODO: VisibiligyBufferの段階ではPositionとTexCoord以外はVBに必要ないので削れる
+// TexCoordはPSでMaskTextureによるOpacityMaskのために必要になっている
 struct VSInput
 {
 	float3 Position : POSITION;
