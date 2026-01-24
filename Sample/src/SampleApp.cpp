@@ -3197,7 +3197,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreateComputePipelineState(
 				&desc,
-				IID_PPV_ARGS(m_pDrawVBufferHWRasOpaquePSO.GetAddressOf())
+				IID_PPV_ARGS(m_pDrawVBufferSWRasOpaquePSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -3224,7 +3224,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreateComputePipelineState(
 				&desc,
-				IID_PPV_ARGS(m_pDrawVBufferHWRasMaskPSO.GetAddressOf())
+				IID_PPV_ARGS(m_pDrawVBufferSWRasMaskPSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -6392,7 +6392,15 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 	if (m_useSWRasterizer)
 	{
-		//TODO:実装
+		pCmdList->SetComputeRootSignature(m_DrawVBufferSWRasRootSig.GetPtr());
+
+		uint32_t meshIdx = 0;
+
+		pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
+		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, drawGBufferDescHeapIndices);
+
+		pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
+		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
 	}
 	else
 	{
@@ -6407,49 +6415,56 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 		pCmdList->RSSetViewports(1, &m_Viewport);
 		pCmdList->RSSetScissorRects(1, &m_Scissor);
-		
+
 		pCmdList->SetGraphicsRootSignature(m_DrawVBufferHWRasRootSig.GetPtr());
 
 		uint32_t meshIdx = 0;
 
 		pCmdList->SetPipelineState(m_pDrawVBufferHWRasOpaquePSO.Get());
-		DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, drawGBufferDescHeapIndices);
+		DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, drawGBufferDescHeapIndices);
 
 		pCmdList->SetPipelineState(m_pDrawVBufferHWRasMaskPSO.Get());
-		DrawMeshToVBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
+		DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
+	}
 
-		drawGBufferDescHeapIndices.CbCamera = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-		drawGBufferDescHeapIndices.VBuffer = m_VBufferTarget.GetHandleSRV()->GetDescriptorIndex();
-		drawGBufferDescHeapIndices.DepthBuffer = m_SceneDepthTarget.GetHandleSRV()->GetDescriptorIndex();
-		drawGBufferDescHeapIndices.CbGBufferFromVBuffer = m_GBufferFromVBufferCB.GetHandle()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.CbCamera = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.VBuffer = m_VBufferTarget.GetHandleSRV()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.DepthBuffer = m_SceneDepthTarget.GetHandleSRV()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.CbGBufferFromVBuffer = m_GBufferFromVBufferCB.GetHandle()->GetDescriptorIndex();
 
-		if (m_drawSponza)
+	if (m_drawSponza)
+	{
+		drawGBufferDescHeapIndices.CbDirectionalLight = m_DirectionalLightCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 		{
-			drawGBufferDescHeapIndices.CbDirectionalLight = m_DirectionalLightCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-			{
-				drawGBufferDescHeapIndices.CbPointLight[i] = m_PointLightCB[i].GetHandle()->GetDescriptorIndex();
-			}
-
-			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-			{
-				drawGBufferDescHeapIndices.CbSpotLight[i] = m_SpotLightCB[i].GetHandle()->GetDescriptorIndex();
-			}
-
-			drawGBufferDescHeapIndices.DirLightShadowMap = m_DirLightShadowMapTarget.GetHandleSRV()->GetDescriptorIndex();
-			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-			{
-				drawGBufferDescHeapIndices.SpotLightShadowMap[i] = m_SpotLightShadowMapTarget[i].GetHandleSRV()->GetDescriptorIndex();
-			}
-		}
-		else
-		{
-			drawGBufferDescHeapIndices.CbIBL = m_IBL_CB.GetHandle()->GetDescriptorIndex();
-			drawGBufferDescHeapIndices.DFGMap = m_IBLBaker.GetHandleSRV_DFG()->GetDescriptorIndex();
-			drawGBufferDescHeapIndices.DiffuseLDMap = m_IBLBaker.GetHandleSRV_DiffuseLD()->GetDescriptorIndex();
-			drawGBufferDescHeapIndices.SpecularLDMap = m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex();
+			drawGBufferDescHeapIndices.CbPointLight[i] = m_PointLightCB[i].GetHandle()->GetDescriptorIndex();
 		}
 
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			drawGBufferDescHeapIndices.CbSpotLight[i] = m_SpotLightCB[i].GetHandle()->GetDescriptorIndex();
+		}
+
+		drawGBufferDescHeapIndices.DirLightShadowMap = m_DirLightShadowMapTarget.GetHandleSRV()->GetDescriptorIndex();
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			drawGBufferDescHeapIndices.SpotLightShadowMap[i] = m_SpotLightShadowMapTarget[i].GetHandleSRV()->GetDescriptorIndex();
+		}
+	}
+	else
+	{
+		drawGBufferDescHeapIndices.CbIBL = m_IBL_CB.GetHandle()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.DFGMap = m_IBLBaker.GetHandleSRV_DFG()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.DiffuseLDMap = m_IBLBaker.GetHandleSRV_DiffuseLD()->GetDescriptorIndex();
+		drawGBufferDescHeapIndices.SpecularLDMap = m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex();
+	}
+
+	if (m_useSWRasterizer)
+	{
+		// TODO:実装
+	}
+	else
+	{
 		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
@@ -6832,7 +6847,11 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawMeshToVBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+{
+}
+
+void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
 	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
 
