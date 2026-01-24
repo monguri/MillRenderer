@@ -177,7 +177,10 @@
     <FxCompile Include="..\res\GBufferFromVBufferPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\VisibilityCS.hlsl">
+    <FxCompile Include="..\res\VisibilityMaskCS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="..\res\VisibilityOpaqueCS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>
@@ -205,6 +208,9 @@
       <Filter>リソース ファイル</Filter>
     </None>
     <None Include="..\res\SkyLutCommon.hlsli">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="..\res\VisibilityCS.hlsli">
       <Filter>リソース ファイル</Filter>
     </None>
   </ItemGroup>
