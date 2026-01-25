@@ -34,7 +34,7 @@ SamplerState PointClampSmp : register(s0);
 [RootSignature(ROOT_SIGNATURE)]
 float main(const VSOutput input) : SV_Depth
 {
-	uint2 visibility = VBuffer.Sample(PointClampSmp, input.TexCoord).xy;
-	float depth = asfloat(visibility.x);
+	uint visibilityX = VBuffer.Sample(PointClampSmp, input.TexCoord).x;
+	float depth = asfloat(visibilityX);
 	return depth;
 }
