@@ -651,10 +651,9 @@ PSOutput main(VSOutput input)
 		discard;
 	}
 
-	uint materialId = visibility.x >> 16;
-	uint meshIdx = visibility.x & 0xffff;
-	uint meshletIdx = visibility.y >> 7;
-	uint triangleIdx = visibility.y & 0x7f;
+	uint meshIdx = visibility.y >> 23; // 9bit
+	uint meshletIdx = (visibility.y >> 7) & 0xffff; // 16bit
+	uint triangleIdx = visibility.y & 0x7f; // 7bit
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);

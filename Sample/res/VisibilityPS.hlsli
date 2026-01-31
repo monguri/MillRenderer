@@ -42,8 +42,14 @@ uint2 main(MSOutput input) : SV_TARGET
 	}
 #endif
 
-	// MaterialIDとMeshIDは16bitずつに収まる想定
-	return uint2((CbMaterial.MaterialID << 16) | (input.MeshIdx & 0xffff),
-	// TriangleIdxはMeshlet内で最大126個なので7bit。 MeshletIdxは残り25bit与える
-	(input.MeshletIdx << 7) | (input.TriangleIdx & 0x7f));
+	// マテリアルは現在はMaskedとOpaqueの2種類のみでそれも後段では使わないので
+	// VBufferには記録しない
+	return uint2(0,
+		// TriangleIdxはMeshlet内で最大126個なので7bit。 MeshletIdxは残り25bitのうち16bit与える。
+		// MeshIdxは残り9bitで512個まで。
+		// TODO:本来はグローバルにMeshletをDB管理することでMeshのMeshlet数の不均等を吸収したい
+		(input.MeshIdx << 23)
+		| ((input.MeshletIdx << 7) & 0xffff)
+		| (input.TriangleIdx & 0x7f)
+	);
 }
