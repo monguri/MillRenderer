@@ -46,6 +46,7 @@ uint2 main(MSOutput input) : SV_TARGET
 	// VBufferには記録しない
 	return uint2(
 		// HW Rasterizerではデプステストはデプスバッファで行うのでxには何も入れない
+		// TODO: HWRas版でも64bit使っているのは無駄
 		0,
 		// TriangleIdxはMeshlet内で最大126個なので7bit。 MeshletIdxは残り25bitのうち16bit与える。
 		// MeshIdxは残り9bitで512個まで。
