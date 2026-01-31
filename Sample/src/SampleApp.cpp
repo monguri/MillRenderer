@@ -3694,7 +3694,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_GBufferFromVBufferRootSig.GetPtr();
+		desc.pRootSignature = m_DepthBufferFromVBufferRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
@@ -3707,7 +3707,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pGBufferFromVBufferPSO.GetAddressOf())
+			IID_PPV_ARGS(m_pDepthBufferFromVBufferPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
