@@ -91,6 +91,12 @@ struct Material
 
 ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
 
+groupshared VertexData outVerts[64];
+
+void softwareRasterize(float4 csPos0, float4 csPos1, float4 csPos2, PrimitiveData primData)
+{
+}
+
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
 void main
@@ -112,4 +118,37 @@ void main
 #endif
 
 	meshopt_Meshlet meshlet = meshlets[gid];
+
+	if (gtid < meshlet.VertCount)
+	{
+		uint vertexIndex = meshletsVertices[meshlet.VertOffset + gtid];
+		VSInput input = vertexBuffer[vertexIndex];
+
+		float4 localPos = float4(input.Position, 1.0f);
+		float4 worldPos = mul(CbMesh.World, localPos);
+		float4 projPos = mul(CbTransform.ViewProj, worldPos);
+
+		VertexData v;
+		v.Position = projPos;
+		v.TexCoord = input.TexCoord;
+		outVerts[gtid] = v;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (gtid < meshlet.TriCount)
+	{
+		uint triBaseIdx = meshlet.TriOffset + gtid * 3;
+
+		float4 csPos0 = outVerts[meshletsTriangles[triBaseIdx + 0]].Position;
+		float4 csPos1 = outVerts[meshletsTriangles[triBaseIdx + 1]].Position;
+		float4 csPos2 = outVerts[meshletsTriangles[triBaseIdx + 2]].Position;
+
+		PrimitiveData primData;
+		primData.MeshIdx = CbMesh.MeshIdx;
+		primData.MeshletIdx = gid;
+		primData.TriangleIdx = gtid;
+
+		softwareRasterize(csPos0, csPos1, csPos2, primData);
+	}
 }
