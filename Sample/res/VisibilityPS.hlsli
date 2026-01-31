@@ -44,7 +44,9 @@ uint2 main(MSOutput input) : SV_TARGET
 
 	// マテリアルは現在はMaskedとOpaqueの2種類のみでそれも後段では使わないので
 	// VBufferには記録しない
-	return uint2(0,
+	return uint2(
+		// HW Rasterizerではデプステストはデプスバッファで行うのでxには何も入れない
+		0,
 		// TriangleIdxはMeshlet内で最大126個なので7bit。 MeshletIdxは残り25bitのうち16bit与える。
 		// MeshIdxは残り9bitで512個まで。
 		// TODO:本来はグローバルにMeshletをDB管理することでMeshのMeshlet数の不均等を吸収したい
