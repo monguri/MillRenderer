@@ -11,7 +11,7 @@
 " | DENY_MESH_SHADER_ROOT_ACCESS"\
 " | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
 ")"\
-", RootConstants(num32BitConstants=8, b0)"\
+", RootConstants(num32BitConstants=10, b0, visibility = SHADER_VISIBILITY_ALL)"\
 ", StaticSampler"\
 "("\
 "s0"\
@@ -22,7 +22,7 @@
 ", maxAnisotropy = 16"\
 ", comparisonFunc = COMPARISON_NEVER"\
 ", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-", visibility = SHADER_VISIBILITY_PIXEL"\
+", visibility = SHADER_VISIBILITY_ALL"\
 ")"\
 
 struct VSInput
@@ -64,6 +64,8 @@ struct DescHeapIndices
 	uint SbMeshletTriangles;
 	uint CbMaterial;
 	uint BaseColorMap;
+	uint CbDrawVBufferSWRas;
+	uint VBuffer;
 };
 
 struct Transform
@@ -89,12 +91,94 @@ struct Material
 	uint MaterialID;
 };
 
+struct DrawVBufferSWRas
+{
+	int Width;
+	int Height;
+};
+
 ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
+SamplerState AnisotropicWrapSmp : register(s0);
 
 groupshared VertexData outVerts[64];
 
-void softwareRasterize(float4 csPos0, float4 csPos1, float4 csPos2, PrimitiveData primData)
+// 外積のz成分にあたる
+// 符号はA-Bのエッジに対しA-Cが時計回りなら正、反時計回りなら負
+// 絶対値はA-BとA-Cのベクトルの成す平行四辺形の面積。三角形の面積の2倍。
+int area2D(uint2 a, uint2 b, uint2 c)
 {
+	return ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
+}
+
+void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData)
+{
+	float2 texCoord = v0.TexCoord * baryCentricCrd.x + v1.TexCoord * baryCentricCrd.y + v2.TexCoord * baryCentricCrd.z;
+	// TODO: ここだけグローバルなリソースにアクセスしているしこの中でdiscardしている
+#ifdef ALPHA_MODE_MASK
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
+	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
+	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, texCoord);
+	if (baseColor.a < CbMaterial.AlphaCutoff)
+	{
+		return;
+	}
+#endif
+
+	float4 csPos = v0.Position * baryCentricCrd.x + v1.Position * baryCentricCrd.y + v2.Position * baryCentricCrd.z;
+	float SV_PositionZ = csPos.z / csPos.w;
+
+	RWTexture2D<uint64_t> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
+	uint64_t value = 
+	(
+		(asuint(SV_PositionZ) << 32)
+		| (primData.MeshIdx << 23)
+		| ((primData.MeshletIdx << 7) & 0xffff)
+		| (primData.TriangleIdx & 0x7f)
+	);
+
+	// ReverseZなのでMaxをとる
+	InterlockedMax(VBuffer[pixelPos], value);
+}
+void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData, uint screenWidth, uint screenHeight)
+{
+	// https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
+	// を参考にしている
+	//TODO: AlphaMaskが必要
+
+	float3 ndcPos0 = v0.Position.xyz / v0.Position.w;
+	float3 ndcPos1 = v1.Position.xyz / v1.Position.w;
+	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
+
+	uint2 pixelPos0 = uint2(((ndcPos0.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+	uint2 pixelPos1 = uint2(((ndcPos1.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+	uint2 pixelPos2 = uint2(((ndcPos2.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+
+	uint2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
+	uint2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
+	
+	minBB = clamp(minBB, uint2(0, 0), uint2(screenWidth - 1, screenHeight - 1));
+	maxBB = clamp(maxBB, uint2(0, 0), uint2(screenWidth - 1, screenHeight - 1));
+	
+	for (uint y = minBB.y; y <= maxBB.y; y++)
+	{
+		for (uint x = minBB.x; x <= maxBB.x; x++)
+		{
+			uint2 pixelPos = uint2(x, y);
+			int area0 = area2D(pixelPos1, pixelPos2, pixelPos);
+			int area1 = area2D(pixelPos2, pixelPos0, pixelPos);
+			int area2 = area2D(pixelPos0, pixelPos1, pixelPos);
+
+			// ピクセルが三角形の内側にあれば書き込む
+			if (area0 >= 0 && area1 >= 0 && area2 >= 0)
+			{
+				//TODO: ラスタライザの重心座標ってこんな風に2Dから決めるのが本当に正しいのか？
+				// Perspectiveも入ってるのに
+				float totalArea = float(area0 + area1 + area2);
+				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
+				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
+			}
+		}
+	}
 }
 
 [RootSignature(ROOT_SIGNATURE)]
@@ -113,9 +197,7 @@ void main
 	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletVertices];
 	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletTriangles];
 	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
-#ifdef ALPHA_MODE_MASK
-	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
-#endif
+	ConstantBuffer<DrawVBufferSWRas> CbDrawVBufferSWRas = ResourceDescriptorHeap[CbDescHeapIndices.CbDrawVBufferSWRas];
 
 	meshopt_Meshlet meshlet = meshlets[gid];
 
@@ -140,15 +222,15 @@ void main
 	{
 		uint triBaseIdx = meshlet.TriOffset + gtid * 3;
 
-		float4 csPos0 = outVerts[meshletsTriangles[triBaseIdx + 0]].Position;
-		float4 csPos1 = outVerts[meshletsTriangles[triBaseIdx + 1]].Position;
-		float4 csPos2 = outVerts[meshletsTriangles[triBaseIdx + 2]].Position;
+		VertexData v0 = outVerts[meshletsTriangles[triBaseIdx + 0]];
+		VertexData v1 = outVerts[meshletsTriangles[triBaseIdx + 1]];
+		VertexData v2 = outVerts[meshletsTriangles[triBaseIdx + 2]];
 
 		PrimitiveData primData;
 		primData.MeshIdx = CbMesh.MeshIdx;
 		primData.MeshletIdx = gid;
 		primData.TriangleIdx = gtid;
 
-		softwareRasterize(csPos0, csPos1, csPos2, primData);
+		softwareRasterize(v0, v1, v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
 	}
 }
