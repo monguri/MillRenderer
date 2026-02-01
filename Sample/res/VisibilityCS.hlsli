@@ -112,11 +112,11 @@ int area2D(uint2 a, uint2 b, uint2 c)
 
 void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData)
 {
-	float2 texCoord = v0.TexCoord * baryCentricCrd.x + v1.TexCoord * baryCentricCrd.y + v2.TexCoord * baryCentricCrd.z;
 	// TODO: ここだけグローバルなリソースにアクセスしているしこの中でdiscardしている
 #ifdef ALPHA_MODE_MASK
 	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
 	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
+	float2 texCoord = v0.TexCoord * baryCentricCrd.x + v1.TexCoord * baryCentricCrd.y + v2.TexCoord * baryCentricCrd.z;
 	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, texCoord);
 	if (baseColor.a < CbMaterial.AlphaCutoff)
 	{
