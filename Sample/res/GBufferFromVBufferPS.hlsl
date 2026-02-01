@@ -646,7 +646,7 @@ PSOutput main(VSOutput input)
 	Texture2D<uint2> VBuffer = ResourceDescriptorHeap[GetDescHeapIndex(VBufferIdx)];
 	uint2 visibility = VBuffer.Sample(PointClampSmp, input.TexCoord);
 	// visibilityの初期値はINVALID_VISIBILITY。xとyどちらをチェックしてもいいがとりあえずxでチェック
-	if (visibility.x == INVALID_VISIBILITY)
+	if (visibility.y == INVALID_VISIBILITY)
 	{
 		discard;
 	}

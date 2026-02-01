@@ -6084,11 +6084,19 @@ void SampleApp::OnRender()
 		if (m_enableTemporalAA)
 		{
 			DrawVBuffer(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, drawGBufferDescHeapIndices);
+			if (m_useSWRasterizer)
+			{
+				DrawDepthBufferFromVBuffer(pCmd);
+			}
 			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential, drawGBufferDescHeapIndices);
 		}
 		else
 		{
 			DrawVBuffer(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, drawGBufferDescHeapIndices);
+			if (m_useSWRasterizer)
+			{
+				DrawDepthBufferFromVBuffer(pCmd);
+			}
 			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential, drawGBufferDescHeapIndices);
 		}
 
@@ -6476,7 +6484,8 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 		// シェーダ側の定義と値の一致が必要
 		const uint32_t INVALID_VISIBILITY = UINT32_MAX;
-		uint32_t clearValue[4] = {INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY};
+		// depthのxチャンネルは無限遠の0。ジオメトリ情報ののyチャンネルは0xffffffffで埋める
+		uint32_t clearValue[4] = {0, INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY};
 		m_VBufferTarget.ClearUavWithUintValue(pCmdList, clearValue);
 	}
 
@@ -6493,8 +6502,6 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
 
 		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-		DrawDepthBufferFromVBuffer(pCmdList);
 	}
 	else
 	{
@@ -7164,6 +7171,29 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 
 void SampleApp::DrawDepthBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
+	::PIXScopedEvent(pCmdList, 0, L"DrawDepthBufferFromVBuffer");
+
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+	pCmdList->OMSetRenderTargets(0, nullptr, FALSE, &handleDSV->HandleCPU);
+
+	m_SceneDepthTarget.ClearView(pCmdList);
+
+	pCmdList->SetGraphicsRootSignature(m_DepthBufferFromVBufferRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetPipelineState(m_pDepthBufferFromVBufferPSO.Get());
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
