@@ -30,14 +30,12 @@ SamplerState AnisotropicWrapSmp : register(s0);
 
 uint2 main(MSOutput input) : SV_TARGET
 {
-	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
-
 #ifdef ALPHA_MODE_MASK
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
 	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
 	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, input.TexCoord);
 	if (baseColor.a < CbMaterial.AlphaCutoff)
 	{
-		// 毎フレームINVALID_VISIBILITYでVisibilityはクリアしてるのでその値のままになる
 		discard;
 	}
 #endif
