@@ -210,6 +210,14 @@ namespace
 	};
 
 	// TODO: SS系のパスの多くで同じ変数を別のCBに入れているので共通化したい
+	struct alignas(256) CbDrawVBufferSWRas
+	{
+		int Width;
+		int Height;
+		float Padding[2];
+	};
+
+	// TODO: SS系のパスの多くで同じ変数を別のCBに入れているので共通化したい
 	struct alignas(256) CbGBufferFromVBuffer
 	{
 		Matrix ViewMatrix;
@@ -1171,7 +1179,20 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	m_pModels.shrink_to_fit();
 
-	if (m_useVBuffer)
+	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer && m_useSWRasterizer)
+	{
+		if (!m_DrawVBufferSWRas.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDrawVBufferSWRas), L"CbDrawVBufferSWRas"))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbDrawVBufferSWRas* ptr = m_GBufferFromVBufferCB.GetPtr<CbDrawVBufferSWRas>();
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+	}
+
+	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
 	{
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
