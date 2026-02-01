@@ -244,7 +244,7 @@ void Mesh::Term()
 	}
 }
 
-void Mesh::Draw(ID3D12GraphicsCommandList6* pCmdList) const
+void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	if (m_IsMeshlet)
 	{
@@ -260,6 +260,12 @@ void Mesh::Draw(ID3D12GraphicsCommandList6* pCmdList) const
 		pCmdList->IASetIndexBuffer(&IBV);
 		pCmdList->DrawIndexedInstanced(static_cast<UINT>(m_IndexCount), 1, 0, 0, 0);
 	}
+}
+
+void Mesh::DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
+{
+	assert(m_IsMeshlet);
+	pCmdList->Dispatch(static_cast<UINT>(m_MeshletCount), 1, 1);
 }
 
 void Mesh::UnmapConstantBuffer(uint32_t frameIndex) const

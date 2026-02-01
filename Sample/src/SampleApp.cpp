@@ -1653,7 +1653,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			clearColor,
 			1,
 			1,
-			L"SceneVisibility"
+			L"VBuffer"
 		))
 		{
 			ELOG("Error : ColorTarget::InitRenderTarget() Failed.");
@@ -6470,10 +6470,9 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		ptr->ViewProj = viewProj;
 	}
 
-	DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 	// VBufferクリア
 	{
+		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		// シェーダ側の定義と値の一致が必要
 		const uint32_t INVALID_VISIBILITY = UINT32_MAX;
@@ -6492,6 +6491,10 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 		pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
 		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
+
+		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+		DrawDepthBufferFromVBuffer(pCmdList);
 	}
 	else
 	{
@@ -6550,11 +6553,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		drawGBufferDescHeapIndices.SpecularLDMap = m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex();
 	}
 
-	if (m_useSWRasterizer)
-	{
-		// TODO:実装
-	}
-	else
+	if (!m_useSWRasterizer)
 	{
 		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -6995,10 +6994,9 @@ void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdL
 			drawGBufferDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
 			drawGBufferDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
 
-			pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(descHeapIndices.size()), descHeapIndices.data(), 0);
+			pCmdList->SetComputeRoot32BitConstants(0, static_cast<UINT>(descHeapIndices.size()), descHeapIndices.data(), 0);
 
-			// TODO: SW Rasterizer用のDraw関数をMeshに追加する
-			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			pMesh->DrawBySWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 
 			meshIdx++;
 		}
@@ -7063,7 +7061,7 @@ void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdL
 			pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(gsDescHeapIndices.size()), gsDescHeapIndices.data(), 0);
 			pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
 
-			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 
 			meshIdx++;
 		}
@@ -7159,9 +7157,13 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 				pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
 			}
 
-			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}
 	}
+}
+
+void SampleApp::DrawDepthBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList)
+{
 }
 
 void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
@@ -7362,7 +7364,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMesletsTrianglesBBHandle().HandleGPU);
 			}
 
-			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}
 	}
 
