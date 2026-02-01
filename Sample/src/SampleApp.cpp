@@ -1181,13 +1181,13 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer && m_useSWRasterizer)
 	{
-		if (!m_DrawVBufferSWRas.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDrawVBufferSWRas), L"CbDrawVBufferSWRas"))
+		if (!m_DrawVBufferSWRasCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDrawVBufferSWRas), L"CbDrawVBufferSWRas"))
 		{
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
 		}
 
-		CbDrawVBufferSWRas* ptr = m_GBufferFromVBufferCB.GetPtr<CbDrawVBufferSWRas>();
+		CbDrawVBufferSWRas* ptr = m_DrawVBufferSWRasCB.GetPtr<CbDrawVBufferSWRas>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 	}
@@ -6940,11 +6940,74 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
+	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer && m_useSWRasterizer);
+
+	std::vector<uint32_t> descHeapIndices(6 + m_meshletRootParamCount);
+
+	descHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
+	drawGBufferDescHeapIndices.CbTransform = descHeapIndices[0];
+
+	for (const Model* model : m_pModels)
+	{
+		for (size_t m = 0; m < model->GetMeshCount(); m++)
+		{
+			const Mesh* pMesh = model->GetMesh(m);
+
+			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
+			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
+
+			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
+			{
+				continue;
+			}
+			else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
+			{
+				continue;
+			}
+
+			CbMesh* ptr = pMesh->MapConstantBuffer<CbMesh>(m_FrameIndex);
+			//TODO: uint32_t&型のままだと、なぜかこの時点で値の代入が発生せずmeshIdxを遅延して参照が発生するようなので期待した値にならなくなっていた。先に確実にメモリコピーを発生させる
+			uint32_t tmpMeshIdx = meshIdx;
+			ptr->MeshIdx = tmpMeshIdx;
+			pMesh->UnmapConstantBuffer(m_FrameIndex);
+
+			descHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();
+			descHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
+			descHeapIndices[3] = pMesh->GetMesletsSBHandle().GetDescriptorIndex();
+			descHeapIndices[4] = pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex();
+			descHeapIndices[5] = pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex();
+
+			drawGBufferDescHeapIndices.CbMesh[meshIdx] = descHeapIndices[1];
+			drawGBufferDescHeapIndices.SbVertexBuffer[meshIdx] = descHeapIndices[2];
+			drawGBufferDescHeapIndices.SbMeshletBuffer[meshIdx] = descHeapIndices[3];
+			drawGBufferDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = descHeapIndices[4];
+			drawGBufferDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = descHeapIndices[5];
+
+			descHeapIndices[6] = pMaterial->GetCBHandle().GetDescriptorIndex();
+			descHeapIndices[7] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
+			descHeapIndices[8] = m_DrawVBufferSWRasCB.GetHandle()->GetDescriptorIndex();
+			descHeapIndices[9] = m_VBufferTarget.GetHandleUAVs()[0]->GetDescriptorIndex();
+
+			drawGBufferDescHeapIndices.CbMaterial[meshIdx] = descHeapIndices[6];
+			drawGBufferDescHeapIndices.BaseColorMap[meshIdx] = descHeapIndices[7];
+			drawGBufferDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
+			drawGBufferDescHeapIndices.NormalMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
+			drawGBufferDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
+			drawGBufferDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
+
+			pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(descHeapIndices.size()), descHeapIndices.data(), 0);
+
+			// TODO: SW Rasterizer用のDraw関数をMeshに追加する
+			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+
+			meshIdx++;
+		}
+	}
 }
 
 void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
-	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
+	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer && !m_useSWRasterizer);
 
 	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
 	std::vector<uint32_t> psDescHeapIndices(2);
