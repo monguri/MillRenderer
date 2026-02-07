@@ -129,24 +129,22 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 
 #if 1
 	RWTexture2D<uint64_t> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
-	uint64_t value = 
-	(
-		(asuint(SV_PositionZ) << 32)
-		| (primData.MeshIdx << 23)
-		| ((primData.MeshletIdx << 7) & 0xffff)
-		| (primData.TriangleIdx & 0x7f)
-	);
+	uint2 value;
+	value.x = (primData.MeshIdx << 23) | ((primData.MeshletIdx << 7) & 0xffff) | (primData.TriangleIdx & 0x7f);
+	value.y = asuint(SV_PositionZ);
+
+	uint64_t packedValue = (uint64_t(value.y) << 32) | uint64_t(value.x);
 
 	// ReverseZ‚È‚Ì‚ÅMax‚ð‚Æ‚é
-	InterlockedMax(VBuffer[pixelPos], value);
+	InterlockedMax(VBuffer[pixelPos], packedValue);
 #else
 	RWTexture2D<uint2> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
 	uint2 value;
-	value.x = asuint(SV_PositionZ);
-	value.y = 
+	value.x = 
 		(primData.MeshIdx << 23)
 		| ((primData.MeshletIdx << 7) & 0xffff)
 		| (primData.TriangleIdx & 0x7f);
+	value.y = asuint(SV_PositionZ);
 	VBuffer[pixelPos] = value;
 #endif
 }
@@ -161,9 +159,9 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	float3 ndcPos1 = v1.Position.xyz / v1.Position.w;
 	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
 
-	uint2 pixelPos0 = uint2(((ndcPos0.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
-	uint2 pixelPos1 = uint2(((ndcPos1.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
-	uint2 pixelPos2 = uint2(((ndcPos2.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+	uint2 pixelPos0 = uint2(((ndcPos0.xy * float2(0.5f, -0.5f)) + 0.5f) * uint2(screenWidth, screenHeight));
+	uint2 pixelPos1 = uint2(((ndcPos1.xy * float2(0.5f, -0.5f)) + 0.5f) * uint2(screenWidth, screenHeight));
+	uint2 pixelPos2 = uint2(((ndcPos2.xy * float2(0.5f, -0.5f)) + 0.5f) * uint2(screenWidth, screenHeight));
 
 	uint2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
 	uint2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
