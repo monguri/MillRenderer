@@ -6484,8 +6484,8 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 		// シェーダ側の定義と値の一致が必要
 		const uint32_t INVALID_VISIBILITY = UINT32_MAX;
-		// depthのxチャンネルは無限遠の0。ジオメトリ情報ののyチャンネルは0xffffffffで埋める
-		uint32_t clearValue[4] = {0, INVALID_VISIBILITY, INVALID_VISIBILITY, INVALID_VISIBILITY};
+		// ジオメトリ情報ののxチャンネルは0xffffffffで埋める。depthのyチャンネルは無限遠の0。
+		uint32_t clearValue[4] = {INVALID_VISIBILITY, 0, INVALID_VISIBILITY, INVALID_VISIBILITY};
 		m_VBufferTarget.ClearUavWithUintValue(pCmdList, clearValue);
 	}
 

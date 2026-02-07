@@ -645,15 +645,15 @@ PSOutput main(VSOutput input)
 {
 	Texture2D<uint2> VBuffer = ResourceDescriptorHeap[GetDescHeapIndex(VBufferIdx)];
 	uint2 visibility = VBuffer.Sample(PointClampSmp, input.TexCoord);
-	// visibilityの初期値はINVALID_VISIBILITY。xとyどちらをチェックしてもいいがとりあえずxでチェック
-	if (visibility.y == INVALID_VISIBILITY)
+	// visibility.xの初期値はINVALID_VISIBILITY
+	if (visibility.x == INVALID_VISIBILITY)
 	{
 		discard;
 	}
 
-	uint meshIdx = visibility.y >> 23; // 9bit
-	uint meshletIdx = (visibility.y >> 7) & 0xffff; // 16bit
-	uint triangleIdx = visibility.y & 0x7f; // 7bit
+	uint meshIdx = visibility.x >> 23; // 9bit
+	uint meshletIdx = (visibility.x >> 7) & 0xffff; // 16bit
+	uint triangleIdx = visibility.x & 0x7f; // 7bit
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
