@@ -126,9 +126,15 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 
 	float4 csPos = v0.Position * baryCentricCrd.x + v1.Position * baryCentricCrd.y + v2.Position * baryCentricCrd.z;
 	float SV_PositionZ = csPos.z / csPos.w;
+	if (SV_PositionZ > 1)
+	{
+		// NearClipより手前は書き込まない
+		// FarはReverseZなので無限遠が0なのでガードは不要
+		return;
+	}
 
 #if 1
-	RWTexture2D<uint64_t> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
+		RWTexture2D<uint64_t> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
 	uint2 value;
 	value.x = (primData.MeshIdx << 23) | ((primData.MeshletIdx << 7) & 0xffff) | (primData.TriangleIdx & 0x7f);
 	value.y = asuint(SV_PositionZ);
