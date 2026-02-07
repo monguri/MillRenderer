@@ -156,8 +156,9 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	uint2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
 	uint2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
 	
-	minBB = clamp(minBB, uint2(0, 0), uint2(screenWidth - 1, screenHeight - 1));
-	maxBB = clamp(maxBB, uint2(0, 0), uint2(screenWidth - 1, screenHeight - 1));
+	// clampではダメ。Triangleが画面範囲外のときにループが回らないように
+	minBB = max(minBB, uint2(0, 0));
+	maxBB = min(maxBB, uint2(screenWidth - 1, screenHeight - 1));
 	
 	for (uint y = minBB.y; y <= maxBB.y; y++)
 	{
