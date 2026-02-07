@@ -159,9 +159,10 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	float3 ndcPos1 = v1.Position.xyz / v1.Position.w;
 	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
 
-	uint2 pixelPos0 = uint2(((ndcPos0.xy * float2(0.5f, -0.5f)) + 0.5f) * uint2(screenWidth, screenHeight));
-	uint2 pixelPos1 = uint2(((ndcPos1.xy * float2(0.5f, -0.5f)) + 0.5f) * uint2(screenWidth, screenHeight));
-	uint2 pixelPos2 = uint2(((ndcPos2.xy * float2(0.5f, -0.5f)) + 0.5f) * uint2(screenWidth, screenHeight));
+	// ピクセル座標はNDCとはY軸が逆になるが、重心座標計算をシンプルにしたいので後で逆にする
+	uint2 pixelPos0 = uint2(((ndcPos0.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+	uint2 pixelPos1 = uint2(((ndcPos1.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+	uint2 pixelPos2 = uint2(((ndcPos2.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
 
 	uint2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
 	uint2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
@@ -182,6 +183,9 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 			// ピクセルが三角形の内側にあれば書き込む
 			if (area0 >= 0 && area1 >= 0 && area2 >= 0)
 			{
+				// Y軸反転
+				pixelPos = uint2(pixelPos.x, screenHeight - 1 - pixelPos.y);
+
 				if (area0 == 0 && area1 == 0 && area2 == 0)
 				{
 					// 1ピクセルだけの三角形の場合
