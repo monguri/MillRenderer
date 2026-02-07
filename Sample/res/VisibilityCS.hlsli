@@ -105,7 +105,7 @@ groupshared VertexData outVerts[64];
 // 外積のz成分にあたる
 // 符号はA-Bのエッジに対しA-Cが時計回りなら正、反時計回りなら負
 // 絶対値はA-BとA-Cのベクトルの成す平行四辺形の面積。三角形の面積の2倍。
-int area2D(uint2 a, uint2 b, uint2 c)
+int area2D(int2 a, int2 b, int2 c)
 {
 	return ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
 }
@@ -139,6 +139,7 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 	// ReverseZなのでMaxをとる
 	InterlockedMax(VBuffer[pixelPos], value);
 }
+
 void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData, uint screenWidth, uint screenHeight)
 {
 	// https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
@@ -172,11 +173,20 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 			// ピクセルが三角形の内側にあれば書き込む
 			if (area0 >= 0 && area1 >= 0 && area2 >= 0)
 			{
-				//TODO: ラスタライザの重心座標ってこんな風に2Dから決めるのが本当に正しいのか？
-				// Perspectiveも入ってるのに
-				float totalArea = float(area0 + area1 + area2);
-				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
-				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
+				if (area0 == 0 && area1 == 0 && area2 == 0)
+				{
+					// 1ピクセルだけの三角形の場合
+					float3 baryCentricCrd = float3(1, 0, 0);
+					renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
+				}
+				else
+				{
+					//TODO: ラスタライザの重心座標ってこんな風に2Dから決めるのが本当に正しいのか？
+					// Perspectiveも入ってるのに
+					float totalArea = float(area0 + area1 + area2);
+					float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
+					renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
+				}
 			}
 		}
 	}
