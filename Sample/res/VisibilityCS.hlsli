@@ -126,22 +126,23 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 
 	float4 csPos = v0.Position * baryCentricCrd.x + v1.Position * baryCentricCrd.y + v2.Position * baryCentricCrd.z;
 	float SV_PositionZ = csPos.z / csPos.w;
-	if (SV_PositionZ > 1)
+	if (!(SV_PositionZ >= 0 && SV_PositionZ <= 1))
 	{
-		// NearClipより手前は書き込まない
-		// FarはReverseZなので無限遠が0なのでガードは不要
+		// Inverse Z、Infinite Far Planeによるクリッピング
+		// InterlockedMaxは負になるとasuint(float)が正の値に勝ってしまうので正の値前提というのもある
 		return;
 	}
 
 #if 1
-		RWTexture2D<uint64_t> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
+	RWTexture2D<uint64_t> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
+
 	uint2 value;
 	value.x = (primData.MeshIdx << 23) | ((primData.MeshletIdx << 7) & 0xffff) | (primData.TriangleIdx & 0x7f);
 	value.y = asuint(SV_PositionZ);
 
 	uint64_t packedValue = (uint64_t(value.y) << 32) | uint64_t(value.x);
 
-	// ReverseZなのでMaxをとる
+	// InverseZなのでMaxをとる
 	InterlockedMax(VBuffer[pixelPos], packedValue);
 #else
 	RWTexture2D<uint2> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
@@ -202,8 +203,7 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 				{
 					//TODO: ラスタライザの重心座標ってこんな風に2Dから決めるのが本当に正しいのか？
 					// Perspectiveも入ってるのに
-					float totalArea = float(area0 + area1 + area2);
-					float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
+					float3 baryCentricCrd = float3(area0, area1, area2) / (area0 + area1 + area2);
 					renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
 				}
 			}
