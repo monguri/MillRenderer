@@ -159,10 +159,12 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 	float4 csPos = v0.Position * baryCentricCrd.x + v1.Position * baryCentricCrd.y + v2.Position * baryCentricCrd.z;
 	float SV_PositionZ = csPos.z / csPos.w;
 #else
-	float3 ndcPos0 = v0.Position.xyz / v0.Position.w;
-	float3 ndcPos1 = v1.Position.xyz / v1.Position.w;
-	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
-	float SV_PositionZ = ndcPos0.z * baryCentricCrd.x + ndcPos1.z * baryCentricCrd.y + ndcPos2.z * baryCentricCrd.z;
+	float invW0 = 1.0f / v0.Position.w;
+	float invW1 = 1.0f / v1.Position.w;
+	float invW2 = 1.0f / v2.Position.w;
+	float3 ndcPosZ = float3(v0.Position.z * invW0, v1.Position.z * invW1, v2.Position.z * invW2);
+	//float SV_PositionZ = (ndcPos0.z * baryCentricCrd.x + ndcPos1.z * baryCentricCrd.y + ndcPos2.z * baryCentricCrd.z) / (invW0 * baryCentricCrd.x + invW1 * baryCentricCrd.y + invW2 * baryCentricCrd.z);
+	float SV_PositionZ = dot(ndcPosZ, baryCentricCrd);
 #endif
 	if (!(SV_PositionZ >= 0 && SV_PositionZ <= 1))
 	{
@@ -225,25 +227,15 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 			int area0 = area2D(pixelPos1, pixelPos2, pixelPos);
 			int area1 = area2D(pixelPos2, pixelPos0, pixelPos);
 			int area2 = area2D(pixelPos0, pixelPos1, pixelPos);
+			int totalArea = area2D(pixelPos0, pixelPos1, pixelPos2);
 
-			if (area0 >= 0 && area1 >= 0 && area2 >= 0)
+			// TODO: とりあえず3頂点が同じピクセルにある場合は除外している
+			if (area0 >= 0 && area1 >= 0 && area2 >= 0 && totalArea > 0)
 			{
 				// Y軸反転
 				pixelPos = uint2(pixelPos.x, screenHeight - 1 - pixelPos.y);
-
-				if (area0 == 0 && area1 == 0 && area2 == 0)
-				{
-					// 1ピクセルだけの三角形の場合
-					float3 baryCentricCrd = float3(1, 0, 0);
-					renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
-				}
-				else
-				{
-					//TODO: ラスタライザの重心座標ってこんな風に2Dから決めるのが本当に正しいのか？
-					// Perspectiveも入ってるのに
-					float3 baryCentricCrd = float3(area0, area1, area2) / (area0 + area1 + area2);
-					renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
-				}
+				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
+				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
 			}
 #else
 			// [-1,1]x[-1,1]
