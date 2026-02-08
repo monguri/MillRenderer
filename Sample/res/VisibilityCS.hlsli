@@ -154,18 +154,15 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 	}
 #endif
 
-	//TODO:このfloat4を重心座標で補間するのは正しいのか？
-#if 0
-	float4 csPos = v0.Position * baryCentricCrd.x + v1.Position * baryCentricCrd.y + v2.Position * baryCentricCrd.z;
-	float SV_PositionZ = csPos.z / csPos.w;
-#else
-	float invW0 = 1.0f / v0.Position.w;
-	float invW1 = 1.0f / v1.Position.w;
-	float invW2 = 1.0f / v2.Position.w;
-	float3 ndcPosZ = float3(v0.Position.z * invW0, v1.Position.z * invW1, v2.Position.z * invW2);
-	//float SV_PositionZ = (ndcPos0.z * baryCentricCrd.x + ndcPos1.z * baryCentricCrd.y + ndcPos2.z * baryCentricCrd.z) / (invW0 * baryCentricCrd.x + invW1 * baryCentricCrd.y + invW2 * baryCentricCrd.z);
+	// 重心座標補間は以下を参考にした
+	// https://shikihuiku.wordpress.com/2017/05/23/barycentric-coordinates%E3%81%AE%E8%A8%88%E7%AE%97%E3%81%A8perspective-correction-partial-derivative%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/
+	float3 ndcPosZ = float3(
+		v0.Position.z * rcp(v0.Position.w),
+		v1.Position.z * rcp(v1.Position.w),
+		v2.Position.z * rcp(v2.Position.w)
+	);
 	float SV_PositionZ = dot(ndcPosZ, baryCentricCrd);
-#endif
+
 	if (!(SV_PositionZ >= 0 && SV_PositionZ <= 1))
 	{
 		// Inverse Z、Infinite Far Planeによるクリッピング
