@@ -102,6 +102,36 @@ SamplerState AnisotropicWrapSmp : register(s0);
 
 groupshared VertexData outVerts[64];
 
+// http://filmicworlds.com/blog/visibility-buffer-rendering-with-material-graphs/
+// からコードをとってきた
+// TODO: GBufferFromVBufferPS>hlslにも同じ関数があるので共通化したい
+float3 CalcFullBary(float4 pt0, float4 pt1, float4 pt2, float2 pixelNdc, float2 winSize)
+{
+	float3 ret = 0;
+
+	float3 invW = rcp(float3(pt0.w, pt1.w, pt2.w));
+
+	float2 ndc0 = pt0.xy * invW.x;
+	float2 ndc1 = pt1.xy * invW.y;
+	float2 ndc2 = pt2.xy * invW.z;
+
+	float invDet = rcp(determinant(float2x2(ndc2 - ndc1, ndc0 - ndc1)));
+	float3 m_ddx = float3(ndc1.y - ndc2.y, ndc2.y - ndc0.y, ndc0.y - ndc1.y) * invDet * invW;
+	float3 m_ddy = float3(ndc2.x - ndc1.x, ndc0.x - ndc2.x, ndc1.x - ndc0.x) * invDet * invW;
+	float ddxSum = dot(m_ddx, float3(1,1,1));
+	float ddySum = dot(m_ddy, float3(1,1,1));
+
+	float2 deltaVec = pixelNdc - ndc0;
+	float interpInvW = invW.x + deltaVec.x*ddxSum + deltaVec.y*ddySum;
+	float interpW = rcp(interpInvW);
+
+	ret.x = interpW * (invW[0] + deltaVec.x*m_ddx.x + deltaVec.y*m_ddy.x);
+	ret.y = interpW * (0.0f    + deltaVec.x*m_ddx.y + deltaVec.y*m_ddy.y);
+	ret.z = interpW * (0.0f    + deltaVec.x*m_ddx.z + deltaVec.y*m_ddy.z);
+
+	return ret;
+}
+
 // 外積のz成分にあたる
 // 符号はA-Bのエッジに対しA-Cが時計回りなら正、反時計回りなら負
 // 絶対値はA-BとA-Cのベクトルの成す平行四辺形の面積。三角形の面積の2倍。
@@ -124,8 +154,16 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 	}
 #endif
 
+	//TODO:このfloat4を重心座標で補間するのは正しいのか？
+#if 0
 	float4 csPos = v0.Position * baryCentricCrd.x + v1.Position * baryCentricCrd.y + v2.Position * baryCentricCrd.z;
 	float SV_PositionZ = csPos.z / csPos.w;
+#else
+	float3 ndcPos0 = v0.Position.xyz / v0.Position.w;
+	float3 ndcPos1 = v1.Position.xyz / v1.Position.w;
+	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
+	float SV_PositionZ = ndcPos0.z * baryCentricCrd.x + ndcPos1.z * baryCentricCrd.y + ndcPos2.z * baryCentricCrd.z;
+#endif
 	if (!(SV_PositionZ >= 0 && SV_PositionZ <= 1))
 	{
 		// Inverse Z、Infinite Far Planeによるクリッピング
@@ -166,7 +204,7 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	float3 ndcPos1 = v1.Position.xyz / v1.Position.w;
 	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
 
-	// ピクセル座標はNDCとはY軸が逆になるが、重心座標計算をシンプルにしたいので後で逆にする
+	// ピクセル座標は本来はNDCとはY軸が逆だが今回は後で調整する
 	uint2 pixelPos0 = uint2(((ndcPos0.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
 	uint2 pixelPos1 = uint2(((ndcPos1.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
 	uint2 pixelPos2 = uint2(((ndcPos2.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
@@ -183,11 +221,11 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 		for (uint x = minBB.x; x <= maxBB.x; x++)
 		{
 			uint2 pixelPos = uint2(x, y);
+#if 1
 			int area0 = area2D(pixelPos1, pixelPos2, pixelPos);
 			int area1 = area2D(pixelPos2, pixelPos0, pixelPos);
 			int area2 = area2D(pixelPos0, pixelPos1, pixelPos);
 
-			// ピクセルが三角形の内側にあれば書き込む
 			if (area0 >= 0 && area1 >= 0 && area2 >= 0)
 			{
 				// Y軸反転
@@ -207,6 +245,17 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 					renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
 				}
 			}
+#else
+			// [-1,1]x[-1,1]
+			float2 screenPos = (float2(pixelPos) + 0.5f) / float2(screenWidth, screenHeight) * 2 - 1;
+
+			float3 baryCentricCrd = CalcFullBary(v0.Position, v1.Position, v2.Position, screenPos, float2(screenWidth, screenHeight));
+			// ピクセルが三角形の内側にあれば書き込む
+			if (all(baryCentricCrd) >= 0)
+			{
+				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
+			}
+#endif
 		}
 	}
 }
