@@ -142,11 +142,20 @@ int area2D(int2 a, int2 b, int2 c)
 
 void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData)
 {
-	// TODO: ここだけグローバルなリソースにアクセスしているしこの中でdiscardしている
+	// Inverse Z、Infinite Far PlaneだとClipSpaceW = ViewZである。
+	float3 invViewZs = float3(
+		rcp(v0.Position.w),
+		rcp(v1.Position.w),
+		rcp(v2.Position.w)
+	);
+
+	float viewZ = rcp(dot(invViewZs, baryCentricCrd));
+
 #ifdef ALPHA_MODE_MASK
+	// TODO: ここだけグローバルなリソースにアクセスしているしこの中でdiscardしている
 	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
 	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
-	float2 texCoord = v0.TexCoord * baryCentricCrd.x + v1.TexCoord * baryCentricCrd.y + v2.TexCoord * baryCentricCrd.z;
+	float2 texCoord = (v0.TexCoord * invViewZs.x * baryCentricCrd.x + v1.TexCoord * invViewZs.y * baryCentricCrd.y + v2.TexCoord * invViewZs.z * baryCentricCrd.z) * viewZ;
 	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, texCoord);
 	if (baseColor.a < CbMaterial.AlphaCutoff)
 	{
@@ -156,12 +165,11 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 
 	// 重心座標補間は以下を参考にした
 	// https://shikihuiku.wordpress.com/2017/05/23/barycentric-coordinates%E3%81%AE%E8%A8%88%E7%AE%97%E3%81%A8perspective-correction-partial-derivative%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/
-	// Inverse Z、Infinite Far PlaneなのでClipSpaceZは実はNear固定である。
-	// ClipSpaceW = ViewZである。
+	// Inverse Z、Infinite Far Planeなので全頂点のClipSpaceZはNear固定である。
 	float3 ndcPosZs = float3(
-		v0.Position.z * rcp(v0.Position.w),
-		v1.Position.z * rcp(v1.Position.w),
-		v2.Position.z * rcp(v2.Position.w)
+		v0.Position.z * invViewZs.x,
+		v1.Position.z * invViewZs.y,
+		v2.Position.z * invViewZs.z
 	);
 	float deviceZ = dot(ndcPosZs, baryCentricCrd);
 
