@@ -167,7 +167,7 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 
 	if (!(deviceZ >= 0 && deviceZ <= 1))
 	{
-		// Inverse Z、Infinite Far Planeによるクリッピング
+		// Inverse Z、Near Plane、Infinite Far Planeによるクリッピング
 		// InterlockedMaxは負になるとasuint(float)が正の値に勝ってしまうので正の値前提というのもある
 		return;
 	}
