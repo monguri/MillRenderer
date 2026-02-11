@@ -156,14 +156,16 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 
 	// 重心座標補間は以下を参考にした
 	// https://shikihuiku.wordpress.com/2017/05/23/barycentric-coordinates%E3%81%AE%E8%A8%88%E7%AE%97%E3%81%A8perspective-correction-partial-derivative%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/
-	float3 ndcPosZ = float3(
+	// Inverse Z、Infinite Far PlaneなのでClipSpaceZは実はNear固定である。
+	// ClipSpaceW = ViewZである。
+	float3 ndcPosZs = float3(
 		v0.Position.z * rcp(v0.Position.w),
 		v1.Position.z * rcp(v1.Position.w),
 		v2.Position.z * rcp(v2.Position.w)
 	);
-	float SV_PositionZ = dot(ndcPosZ, baryCentricCrd);
+	float deviceZ = dot(ndcPosZs, baryCentricCrd);
 
-	if (!(SV_PositionZ >= 0 && SV_PositionZ <= 1))
+	if (!(deviceZ >= 0 && deviceZ <= 1))
 	{
 		// Inverse Z、Infinite Far Planeによるクリッピング
 		// InterlockedMaxは負になるとasuint(float)が正の値に勝ってしまうので正の値前提というのもある
@@ -175,7 +177,7 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 
 	uint2 value;
 	value.x = (primData.MeshIdx << 23) | ((primData.MeshletIdx << 7) & 0xffff) | (primData.TriangleIdx & 0x7f);
-	value.y = asuint(SV_PositionZ);
+	value.y = asuint(deviceZ);
 
 	uint64_t packedValue = (uint64_t(value.y) << 32) | uint64_t(value.x);
 
@@ -188,7 +190,7 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 		(primData.MeshIdx << 23)
 		| ((primData.MeshletIdx << 7) & 0xffff)
 		| (primData.TriangleIdx & 0x7f);
-	value.y = asuint(SV_PositionZ);
+	value.y = asuint(deviceZ);
 	VBuffer[pixelPos] = value;
 #endif
 }
