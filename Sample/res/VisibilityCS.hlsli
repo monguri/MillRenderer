@@ -205,9 +205,17 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 
 void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData, uint screenWidth, uint screenHeight)
 {
+	//TODO: v0/1/2Position.wは-ViewZなのでその時点でNearClipはできる。NearをCBで渡してなくても>=0でそれなりの判定ができる
+
 	// https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
 	// を参考にしている
 	//TODO: AlphaMaskが必要
+
+	// TODO: カメラの後ろの頂点がある場合はどう扱うべきかわからないのでとりあえず描画しないようにしているが、正しい処理はクリッピングしてからラスタライズすることだと思う
+	if (v0.Position.w < 0 || v1.Position.w < 0 || v2.Position.w < 0)
+	{
+		return;
+	}
 
 	float3 ndcPos0 = v0.Position.xyz / v0.Position.w;
 	float3 ndcPos1 = v1.Position.xyz / v1.Position.w;
@@ -236,8 +244,10 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 			int area2 = area2D(pixelPos0, pixelPos1, pixelPos);
 			int totalArea = area2D(pixelPos0, pixelPos1, pixelPos2);
 
-			// TODO: とりあえず3頂点が同じピクセルにある場合は除外している
-			if (area0 >= 0 && area1 >= 0 && area2 >= 0 && totalArea > 0)
+			if (area0 >= 0 && area1 >= 0 && area2 >= 0
+				// バックフェイスカリング
+				// TODO: とりあえず3頂点が同じピクセルにある場合は除外している
+				&& totalArea > 0)
 			{
 				// Y軸反転
 				pixelPos = uint2(pixelPos.x, screenHeight - 1 - pixelPos.y);
