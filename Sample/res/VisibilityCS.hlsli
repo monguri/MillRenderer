@@ -203,6 +203,24 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 #endif
 }
 
+static const uint CLIP_RESULT_OUTSIDE = 0;
+static const uint CLIP_RESULT_INSIDE_1_VERTEX = 1;
+static const uint CLIP_RESULT_INSIDE_2_VERTEX = 2;
+static const uint CLIP_RESULT_INSIDE_3_VERTEX = 3;
+
+struct ClipSpaceTriangle
+{
+	float3 pos0;
+	float3 pos1;
+	float3 pos2;
+};
+
+uint nearClip(in ClipSpaceTriangle origTri, in float near, out ClipSpaceTriangle newTri1, out ClipSpaceTriangle newTri2)
+{
+	//TODO:ŽÀ‘•
+	return CLIP_RESULT_OUTSIDE;
+}
+
 void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData, uint screenWidth, uint screenHeight)
 {
 	// https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
