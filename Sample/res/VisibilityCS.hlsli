@@ -203,6 +203,72 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 #endif
 }
 
+void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData, uint screenWidth, uint screenHeight)
+{
+	// https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
+	// を参考にしている
+
+	// Inverse ZなのでzはNear固定
+	float near = v0.Position.z;
+
+	// TODO: カメラの後ろの頂点がある場合はどう扱うべきかわからないのでとりあえずnearクリップより後ろに頂点がある場合は描画しないようにしているが、正しい処理はクリッピングして新しい三角形を作ってラスタライズすることだと思う
+	if (v0.Position.w < near || v1.Position.w < near || v2.Position.w < near)
+	{
+		return;
+	}
+
+	float3 ndcPos0 = v0.Position.xyz / abs(v0.Position.w);
+	float3 ndcPos1 = v1.Position.xyz / abs(v1.Position.w);
+	float3 ndcPos2 = v2.Position.xyz / abs(v2.Position.w);
+
+	// ピクセル座標は本来はNDCとはY軸が逆だが今回は後で調整する
+	uint2 pixelPos0 = uint2(((ndcPos0.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+	uint2 pixelPos1 = uint2(((ndcPos1.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+	uint2 pixelPos2 = uint2(((ndcPos2.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+
+	uint2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
+	uint2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
+	
+	// clampではダメ。Triangleが画面範囲外のときにループが回らないように
+	minBB = max(minBB, uint2(0, 0));
+	maxBB = min(maxBB, uint2(screenWidth - 1, screenHeight - 1));
+	
+	for (uint y = minBB.y; y <= maxBB.y; y++)
+	{
+		for (uint x = minBB.x; x <= maxBB.x; x++)
+		{
+			uint2 pixelPos = uint2(x, y);
+#if 1
+			int area0 = area2D(pixelPos1, pixelPos2, pixelPos);
+			int area1 = area2D(pixelPos2, pixelPos0, pixelPos);
+			int area2 = area2D(pixelPos0, pixelPos1, pixelPos);
+			int totalArea = area2D(pixelPos0, pixelPos1, pixelPos2);
+
+			if (area0 >= 0 && area1 >= 0 && area2 >= 0
+				// バックフェイスカリング
+				// TODO: とりあえず3頂点が同じピクセルにある場合は除外している
+				&& totalArea > 0)
+			{
+				// Y軸反転
+				pixelPos = uint2(pixelPos.x, screenHeight - 1 - pixelPos.y);
+				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
+				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
+			}
+#else
+			// [-1,1]x[-1,1]
+			float2 screenPos = (float2(pixelPos) + 0.5f) / float2(screenWidth, screenHeight) * 2 - 1;
+
+			float3 baryCentricCrd = CalcFullBary(v0.Position, v1.Position, v2.Position, screenPos, float2(screenWidth, screenHeight));
+			// ピクセルが三角形の内側にあれば書き込む
+			if (all(baryCentricCrd) >= 0)
+			{
+				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
+			}
+#endif
+		}
+	}
+}
+
 static const uint CLIP_RESULT_OUTSIDE = 0;
 static const uint CLIP_RESULT_INSIDE_1_VERTEX = 1;
 static const uint CLIP_RESULT_INSIDE_2_VERTEX = 2;
@@ -306,73 +372,6 @@ uint nearClip(in ClipSpaceTriangle origTri, in float near, out ClipSpaceTriangle
 	}
 
 	return CLIP_RESULT_OUTSIDE;
-}
-
-void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData, uint screenWidth, uint screenHeight)
-{
-	// https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
-	// を参考にしている
-	//TODO: AlphaMaskが必要
-
-	// Inverse ZなのでzはNear固定
-	float near = v0.Position.z;
-
-	// TODO: カメラの後ろの頂点がある場合はどう扱うべきかわからないのでとりあえずnearクリップより後ろに頂点がある場合は描画しないようにしているが、正しい処理はクリッピングして新しい三角形を作ってラスタライズすることだと思う
-	if (v0.Position.w < near || v1.Position.w < near || v2.Position.w < near)
-	{
-		return;
-	}
-
-	float3 ndcPos0 = v0.Position.xyz / abs(v0.Position.w);
-	float3 ndcPos1 = v1.Position.xyz / abs(v1.Position.w);
-	float3 ndcPos2 = v2.Position.xyz / abs(v2.Position.w);
-
-	// ピクセル座標は本来はNDCとはY軸が逆だが今回は後で調整する
-	uint2 pixelPos0 = uint2(((ndcPos0.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
-	uint2 pixelPos1 = uint2(((ndcPos1.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
-	uint2 pixelPos2 = uint2(((ndcPos2.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
-
-	uint2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
-	uint2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
-	
-	// clampではダメ。Triangleが画面範囲外のときにループが回らないように
-	minBB = max(minBB, uint2(0, 0));
-	maxBB = min(maxBB, uint2(screenWidth - 1, screenHeight - 1));
-	
-	for (uint y = minBB.y; y <= maxBB.y; y++)
-	{
-		for (uint x = minBB.x; x <= maxBB.x; x++)
-		{
-			uint2 pixelPos = uint2(x, y);
-#if 1
-			int area0 = area2D(pixelPos1, pixelPos2, pixelPos);
-			int area1 = area2D(pixelPos2, pixelPos0, pixelPos);
-			int area2 = area2D(pixelPos0, pixelPos1, pixelPos);
-			int totalArea = area2D(pixelPos0, pixelPos1, pixelPos2);
-
-			if (area0 >= 0 && area1 >= 0 && area2 >= 0
-				// バックフェイスカリング
-				// TODO: とりあえず3頂点が同じピクセルにある場合は除外している
-				&& totalArea > 0)
-			{
-				// Y軸反転
-				pixelPos = uint2(pixelPos.x, screenHeight - 1 - pixelPos.y);
-				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
-				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
-			}
-#else
-			// [-1,1]x[-1,1]
-			float2 screenPos = (float2(pixelPos) + 0.5f) / float2(screenWidth, screenHeight) * 2 - 1;
-
-			float3 baryCentricCrd = CalcFullBary(v0.Position, v1.Position, v2.Position, screenPos, float2(screenWidth, screenHeight));
-			// ピクセルが三角形の内側にあれば書き込む
-			if (all(baryCentricCrd) >= 0)
-			{
-				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
-			}
-#endif
-		}
-	}
 }
 
 [RootSignature(ROOT_SIGNATURE)]
