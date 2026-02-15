@@ -340,6 +340,7 @@ uint nearClip(in ClipSpaceTriangle origTri, in float near, out ClipSpaceTriangle
 		newTri2.v0 = insideVtx0;
 		newTri2.v1 = newVtx0;
 		newTri2.v2 = newVtx1;
+		return CLIP_RESULT_INSIDE_2_VERTEX;
 	}
 	else if (insideCount == 1)
 	{
@@ -371,9 +372,12 @@ uint nearClip(in ClipSpaceTriangle origTri, in float near, out ClipSpaceTriangle
 		newTri1.v0 = insideVtx;
 		newTri1.v1 = newVtx0;
 		newTri1.v2 = newVtx1;
+		return CLIP_RESULT_INSIDE_1_VERTEX;
 	}
-
-	return CLIP_RESULT_OUTSIDE;
+	else // insideCount == 0
+	{
+		return CLIP_RESULT_OUTSIDE;
+	}
 }
 
 [RootSignature(ROOT_SIGNATURE)]
