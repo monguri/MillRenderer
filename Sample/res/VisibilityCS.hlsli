@@ -219,9 +219,9 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	}
 #endif
 
-	float3 ndcPos0 = v0.Position.xyz / abs(v0.Position.w);
-	float3 ndcPos1 = v1.Position.xyz / abs(v1.Position.w);
-	float3 ndcPos2 = v2.Position.xyz / abs(v2.Position.w);
+	float3 ndcPos0 = v0.Position.xyz / v0.Position.w;
+	float3 ndcPos1 = v1.Position.xyz / v1.Position.w;
+	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
 
 	// ピクセル座標は本来はNDCとはY軸が逆だが今回は後で調整する
 	uint2 pixelPos0 = uint2(((ndcPos0.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
