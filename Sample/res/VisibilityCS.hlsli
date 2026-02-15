@@ -149,12 +149,12 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 		rcp(v2.Position.w)
 	);
 
-	float viewZ = rcp(dot(invViewZs, baryCentricCrd));
-
 #ifdef ALPHA_MODE_MASK
 	// TODO: ここだけグローバルなリソースにアクセスしているしこの中でdiscardしている
 	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
 	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
+
+	float viewZ = rcp(dot(invViewZs, baryCentricCrd));
 	float2 texCoord = (v0.TexCoord * invViewZs.x * baryCentricCrd.x + v1.TexCoord * invViewZs.y * baryCentricCrd.y + v2.TexCoord * invViewZs.z * baryCentricCrd.z) * viewZ;
 	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, texCoord);
 	if (baseColor.a < CbMaterial.AlphaCutoff)
@@ -173,12 +173,16 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 	);
 	float deviceZ = dot(ndcPosZs, baryCentricCrd);
 
+#if 0
 	if (!(deviceZ >= 0 && deviceZ <= 1))
 	{
 		// Inverse Z、Near Plane、Infinite Far Planeによるクリッピング
 		// InterlockedMaxは負になるとasuint(float)が正の値に勝ってしまうので正の値前提というのもある
 		return;
 	}
+#else
+	//assert(deviceZ >= 0 && deviceZ <= 1);
+#endif
 
 #if 1
 	RWTexture2D<uint64_t> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
@@ -217,6 +221,8 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	{
 		return;
 	}
+#else
+	//assert(v0.Position.w >= near && v1.Position.w >= near && v2.Position.w < near);
 #endif
 
 	float3 ndcPos0 = v0.Position.xyz / v0.Position.w;
