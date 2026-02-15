@@ -208,6 +208,7 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	// https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
 	// ÇéQçlÇ…ÇµÇƒÇ¢ÇÈ
 
+#if 0
 	// Inverse ZÇ»ÇÃÇ≈zÇÕNearå≈íË
 	float near = v0.Position.z;
 
@@ -216,6 +217,7 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	{
 		return;
 	}
+#endif
 
 	float3 ndcPos0 = v0.Position.xyz / abs(v0.Position.w);
 	float3 ndcPos1 = v1.Position.xyz / abs(v1.Position.w);
@@ -415,15 +417,40 @@ void main
 	{
 		uint triBaseIdx = meshlet.TriOffset + gtid * 3;
 
-		VertexData v0 = outVerts[meshletsTriangles[triBaseIdx + 0]];
-		VertexData v1 = outVerts[meshletsTriangles[triBaseIdx + 1]];
-		VertexData v2 = outVerts[meshletsTriangles[triBaseIdx + 2]];
+		ClipSpaceTriangle origTri;
+		origTri.v0 = outVerts[meshletsTriangles[triBaseIdx + 0]];
+		origTri.v1 = outVerts[meshletsTriangles[triBaseIdx + 1]];
+		origTri.v2 = outVerts[meshletsTriangles[triBaseIdx + 2]];
 
 		PrimitiveData primData;
 		primData.MeshIdx = CbMesh.MeshIdx;
 		primData.MeshletIdx = gid;
 		primData.TriangleIdx = gtid;
 
-		softwareRasterize(v0, v1, v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
+		// Inverse ZÇ»ÇÃÇ≈zÇÕNearå≈íË
+		float near = origTri.v0.Position.z;
+
+		ClipSpaceTriangle newTri1, newTri2;
+		uint clipResult = nearClip(origTri, near, newTri1, newTri2);
+
+		switch (clipResult)
+		{
+		case CLIP_RESULT_OUTSIDE:
+			return;
+		case CLIP_RESULT_INSIDE_1_VERTEX:
+			softwareRasterize(newTri1.v0, newTri1.v1, newTri1.v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
+			return;
+		case CLIP_RESULT_INSIDE_2_VERTEX:
+			softwareRasterize(newTri1.v0, newTri1.v1, newTri1.v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
+			softwareRasterize(newTri2.v0, newTri2.v1, newTri2.v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
+			return;
+		case CLIP_RESULT_INSIDE_3_VERTEX:
+			softwareRasterize(origTri.v0, origTri.v1, origTri.v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
+			return;
+		default:
+			// Ç±Ç±Ç…ÇÕóàÇ»Ç¢ÇÕÇ∏
+			// assert(false);
+			return;
+		}
 	}
 }
