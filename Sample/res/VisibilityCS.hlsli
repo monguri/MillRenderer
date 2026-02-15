@@ -210,14 +210,101 @@ static const uint CLIP_RESULT_INSIDE_3_VERTEX = 3;
 
 struct ClipSpaceTriangle
 {
-	float3 pos0;
-	float3 pos1;
-	float3 pos2;
+	VertexData v0;
+	VertexData v1;
+	VertexData v2;
 };
+
+VertexData calculateNewVertexDataOnNearPlane(VertexData insideVtx, VertexData outsideVertex, float near)
+{
+	float t = (near - insideVtx.Position.w) / (outsideVertex.Position.w - insideVtx.Position.w);
+
+	VertexData result;
+	result.Position.xyw = insideVtx.Position.xyw + t * (outsideVertex.Position.xyw - insideVtx.Position.xyw);
+	result.Position.z = near;
+
+	result.TexCoord = insideVtx.TexCoord + t * (outsideVertex.TexCoord - insideVtx.TexCoord);
+	return result;
+}
 
 uint nearClip(in ClipSpaceTriangle origTri, in float near, out ClipSpaceTriangle newTri1, out ClipSpaceTriangle newTri2)
 {
-	//TODO:実装
+	bool isV0Inside = origTri.v0.Position.w >= near;
+	bool isV1Inside = origTri.v1.Position.w >= near;
+	bool isV2Inside = origTri.v2.Position.w >= near;
+
+	uint insideCount = (isV0Inside ? 1 : 0) + (isV1Inside ? 1 : 0) + (isV2Inside ? 1 : 0);
+	if (insideCount == 3)
+	{
+		newTri1 = origTri;
+		return CLIP_RESULT_INSIDE_3_VERTEX;
+	}
+	else if (insideCount == 2)
+	{
+		VertexData insideVtx0, insideVtx1, outsideVtx;
+
+		if (!isV2Inside) // isV0Inside && isV1Inside
+		{
+			insideVtx0 = origTri.v0;
+			insideVtx1 = origTri.v1;
+			outsideVtx = origTri.v2;
+		}
+		else if (!isV0Inside) // isV1Inside && isV2Inside
+		{
+			insideVtx0 = origTri.v1;
+			insideVtx1 = origTri.v2;
+			outsideVtx = origTri.v0;
+		}
+		else // if (isV2Inside && isV0Inside) i.e. !isV1Inside
+		{
+			insideVtx0 = origTri.v2;
+			insideVtx1 = origTri.v0;
+			outsideVtx = origTri.v1;
+		}
+
+		VertexData newVtx0 = calculateNewVertexDataOnNearPlane(insideVtx1, outsideVtx, near);
+		VertexData newVtx1 = calculateNewVertexDataOnNearPlane(insideVtx0, outsideVtx, near);
+
+		newTri1.v0 = insideVtx0;
+		newTri1.v1 = insideVtx1;
+		newTri1.v2 = newVtx0;
+
+		newTri2.v0 = insideVtx0;
+		newTri2.v1 = newVtx0;
+		newTri2.v2 = newVtx1;
+	}
+	else if (insideCount == 1)
+	{
+		// クリップして新しい三角形を作る
+		VertexData insideVtx, outsideVtx0, outsideVtx1;
+
+		if (isV0Inside)
+		{
+			insideVtx = origTri.v0;
+			outsideVtx0 = origTri.v1;
+			outsideVtx1 = origTri.v2;
+		}
+		else if (isV1Inside)
+		{
+			insideVtx = origTri.v1;
+			outsideVtx0 = origTri.v2;
+			outsideVtx1 = origTri.v0;
+		}
+		else // if (isV2Inside)
+		{
+			insideVtx = origTri.v2;
+			outsideVtx0 = origTri.v0;
+			outsideVtx1 = origTri.v1;
+		}
+
+		VertexData newVtx0 = calculateNewVertexDataOnNearPlane(insideVtx, outsideVtx0, near);
+		VertexData newVtx1 = calculateNewVertexDataOnNearPlane(insideVtx, outsideVtx1, near);
+
+		newTri1.v0 = insideVtx;
+		newTri1.v1 = newVtx0;
+		newTri1.v2 = newVtx1;
+	}
+
 	return CLIP_RESULT_OUTSIDE;
 }
 
