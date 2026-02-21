@@ -182,12 +182,12 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	// https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
 	// を参考にしている
 
-#if 0
+#if 1
 	// Inverse ZなのでzはNear固定
 	float near = v0.Position.z;
 
 	// TODO: カメラの後ろの頂点がある場合はどう扱うべきかわからないのでとりあえずnearクリップより後ろに頂点がある場合は描画しないようにしているが、正しい処理はクリッピングして新しい三角形を作ってラスタライズすることだと思う
-	if (v0.Position.w < near || v1.Position.w < near || v2.Position.w < near)
+	if (v0.Position.w < near && v1.Position.w < near && v2.Position.w < near)
 	{
 		return;
 	}
@@ -200,22 +200,22 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
 
 	// ピクセル座標は本来はNDCとはY軸が逆だが今回は後で調整する
-	uint2 pixelPos0 = uint2(((ndcPos0.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
-	uint2 pixelPos1 = uint2(((ndcPos1.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
-	uint2 pixelPos2 = uint2(((ndcPos2.xy * 0.5f) + 0.5f) * uint2(screenWidth, screenHeight));
+	int2 pixelPos0 = int2(((ndcPos0.xy * 0.5f) + 0.5f) * int2(screenWidth, screenHeight));
+	int2 pixelPos1 = int2(((ndcPos1.xy * 0.5f) + 0.5f) * int2(screenWidth, screenHeight));
+	int2 pixelPos2 = int2(((ndcPos2.xy * 0.5f) + 0.5f) * int2(screenWidth, screenHeight));
 
-	uint2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
-	uint2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
+	int2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
+	int2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
 	
 	// clampではダメ。Triangleが画面範囲外のときにループが回らないように
-	minBB = max(minBB, uint2(0, 0));
-	maxBB = min(maxBB, uint2(screenWidth - 1, screenHeight - 1));
+	minBB = max(minBB, int2(0, 0));
+	maxBB = min(maxBB, int2(screenWidth - 1, screenHeight - 1));
 	
-	for (uint y = minBB.y; y <= maxBB.y; y++)
+	for (int y = minBB.y; y <= maxBB.y; y++)
 	{
-		for (uint x = minBB.x; x <= maxBB.x; x++)
+		for (int x = minBB.x; x <= maxBB.x; x++)
 		{
-			uint2 pixelPos = uint2(x, y);
+			int2 pixelPos = int2(x, y);
 			int area0 = area2D(pixelPos1, pixelPos2, pixelPos);
 			int area1 = area2D(pixelPos2, pixelPos0, pixelPos);
 			int area2 = area2D(pixelPos0, pixelPos1, pixelPos);
@@ -227,7 +227,17 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 				&& totalArea > 0)
 			{
 				// Y軸反転
-				pixelPos = uint2(pixelPos.x, screenHeight - 1 - pixelPos.y);
+				pixelPos = int2(pixelPos.x, screenHeight - 1 - pixelPos.y);
+				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
+				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
+			}
+			else if (area0 <= 0 && area1 <= 0 && area2 <= 0
+				// twoside
+				// TODO: とりあえず3頂点が同じピクセルにある場合は除外している
+				&& totalArea < 0)
+			{
+				// Y軸反転
+				pixelPos = int2(pixelPos.x, screenHeight - 1 - pixelPos.y);
 				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
 				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
 			}
