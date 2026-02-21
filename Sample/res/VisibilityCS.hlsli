@@ -192,7 +192,7 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 		return;
 	}
 #else
-	//assert(v0.Position.w >= near && v1.Position.w >= near && v2.Position.w < near);
+	//assert(v0.Position.w >= near && v1.Position.w >= near && v2.Position.w >= near);
 #endif
 
 	float3 ndcPos0 = v0.Position.xyz / v0.Position.w;
@@ -231,6 +231,7 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
 				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
 			}
+#if 0
 			else if (area0 <= 0 && area1 <= 0 && area2 <= 0
 				// twoside
 				// TODO: とりあえず3頂点が同じピクセルにある場合は除外している
@@ -241,6 +242,7 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
 				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
 			}
+#endif
 		}
 	}
 }
