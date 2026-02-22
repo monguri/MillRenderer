@@ -200,9 +200,9 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
 
 	// ピクセル座標は本来はNDCとはY軸が逆だが今回は後で調整する
-	int2 pixelPos0 = int2(((ndcPos0.xy * 0.5f) + 0.5f) * int2(screenWidth, screenHeight));
-	int2 pixelPos1 = int2(((ndcPos1.xy * 0.5f) + 0.5f) * int2(screenWidth, screenHeight));
-	int2 pixelPos2 = int2(((ndcPos2.xy * 0.5f) + 0.5f) * int2(screenWidth, screenHeight));
+	int2 pixelPos0 = int2(((ndcPos0.xy * 0.5f) + 0.5f) * float2(screenWidth, screenHeight));
+	int2 pixelPos1 = int2(((ndcPos1.xy * 0.5f) + 0.5f) * float2(screenWidth, screenHeight));
+	int2 pixelPos2 = int2(((ndcPos2.xy * 0.5f) + 0.5f) * float2(screenWidth, screenHeight));
 
 	int2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
 	int2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
