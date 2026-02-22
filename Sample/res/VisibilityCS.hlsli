@@ -158,7 +158,7 @@ void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexDat
 	RWTexture2D<uint64_t> VBuffer = ResourceDescriptorHeap[CbDescHeapIndices.VBuffer];
 
 	uint2 value;
-	value.x = (primData.MeshIdx << 23) | ((primData.MeshletIdx << 7) & 0xffff) | (primData.TriangleIdx & 0x7f);
+	value.x = (primData.MeshIdx << 23) | ((primData.MeshletIdx & 0xffff) << 7) | (primData.TriangleIdx & 0x7f);
 	value.y = asuint(deviceZ);
 
 	uint64_t packedValue = (uint64_t(value.y) << 32) | uint64_t(value.x);

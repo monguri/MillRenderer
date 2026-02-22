@@ -47,7 +47,7 @@ uint2 main(MSOutput input) : SV_TARGET
 		// MeshIdxは残り9bitで512個まで。
 		// TODO:本来はグローバルにMeshletをDB管理することでMeshのMeshlet数の不均等を吸収したい
 		(input.MeshIdx << 23)
-		| ((input.MeshletIdx << 7) & 0xffff)
+		| ((input.MeshletIdx & 0xffff) << 7)
 		| (input.TriangleIdx & 0x7f),
 		// HW Rasterizerではデプステストはデプスバッファで行うのでyには何も入れない
 		// TODO: HWRas版でも64bit使っているのは無駄
