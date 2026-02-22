@@ -221,28 +221,21 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 			int area2 = area2D(pixelPos0, pixelPos1, pixelPos);
 			int totalArea = area2D(pixelPos0, pixelPos1, pixelPos2);
 
-			if (area0 >= 0 && area1 >= 0 && area2 >= 0
-				// バックフェイスカリング
-				// TODO: とりあえず3頂点が同じピクセルにある場合は除外している
-				&& totalArea > 0)
-			{
-				// Y軸反転
-				pixelPos = int2(pixelPos.x, screenHeight - 1 - pixelPos.y);
-				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
-				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
-			}
-#if 0
-			else if (area0 <= 0 && area1 <= 0 && area2 <= 0
-				// twoside
-				// TODO: とりあえず3頂点が同じピクセルにある場合は除外している
+			if (
+				(area0 >= 0 && area1 >= 0 && area2 >= 0	// バックフェイスカリング
+				&& totalArea > 0) // TODO: 0除算になるので3頂点が同じピクセルにある場合は除外している
+#ifdef ALPHA_MODE_MASK //TODO: MaskマテリアルはDoubleSidedであるという前提にしている
+				||
+				(area0 <= 0 && area1 <= 0 && area2 <= 0
 				&& totalArea < 0)
+#endif
+			)
 			{
 				// Y軸反転
 				pixelPos = int2(pixelPos.x, screenHeight - 1 - pixelPos.y);
 				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
 				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
 			}
-#endif
 		}
 	}
 }
