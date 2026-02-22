@@ -264,8 +264,9 @@ VertexData calculateNewVertexDataOnNearPlane(VertexData insideVtx, VertexData ou
 	float t = (near - insideVtx.Position.w) / (outsideVertex.Position.w - insideVtx.Position.w);
 
 	VertexData result;
-	result.Position.xyw = insideVtx.Position.xyw + t * (outsideVertex.Position.xyw - insideVtx.Position.xyw);
+	result.Position.xy = insideVtx.Position.xy + t * (outsideVertex.Position.xy - insideVtx.Position.xy);
 	result.Position.z = near;
+	result.Position.w = near;
 
 	result.TexCoord = insideVtx.TexCoord + t * (outsideVertex.TexCoord - insideVtx.TexCoord);
 	return result;
