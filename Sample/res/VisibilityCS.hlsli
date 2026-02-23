@@ -110,6 +110,42 @@ float area2D(float2 a, float2 b, float2 c)
 	return ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
 }
 
+bool isRenderTargePixel(float2 pixelPos0, float2 pixelPos1, float2 pixelPos2, float area0, float area1, float area2, float totalArea)
+{
+	if (!
+		(area0 >= 0 && area1 >= 0 && area2 >= 0 // Triangleの外側のピクセルはカリングする
+			&& totalArea >= 1) // TODO: 1ピクセル以下のTriangleおよびバックフェイスはカリングする。重心座標の0除算回避にもなる
+	)
+	{
+		return false;
+	}
+
+	// 左上ルール
+	// https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/rasterization-stage.html
+
+	float ok = true;
+
+	if (area0 == 0)
+	{
+		float2 edge = pixelPos2 - pixelPos1;
+		ok = ok && ((edge.y == 0 && edge.x < 0) || (edge.y < 0));
+	}
+
+	if (area1 == 0)
+	{
+		float2 edge = pixelPos0 - pixelPos2;
+		ok = ok && ((edge.y == 0 && edge.x < 0) || (edge.y < 0));
+	}
+
+	if (area2 == 0)
+	{
+		float2 edge = pixelPos1 - pixelPos0;
+		ok = ok && ((edge.y == 0 && edge.x < 0) || (edge.y < 0));
+	}
+
+	return ok;
+}
+
 void renderPixel(int2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData)
 {
 	// Inverse Z、Infinite Far PlaneだとClipSpaceW = ViewZである。
@@ -192,12 +228,10 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 			float totalArea = area2D(pixelPos0, pixelPos1, pixelPos2);
 
 			if (
-				(area0 >= 0 && area1 >= 0 && area2 >= 0	// バックフェイスカリング
-				&& totalArea >= 1) // TODO: 0除算回避と1ピクセル以下のTriangleはカリングする
+				isRenderTargePixel(pixelPos0, pixelPos1, pixelPos2, area0, area1, area2, totalArea)
 #ifdef ALPHA_MODE_MASK //TODO: MaskマテリアルはDoubleSidedであるという前提にしている
 				||
-				(area0 <= 0 && area1 <= 0 && area2 <= 0
-				&& totalArea <= -1)
+				isRenderTargePixel(float2(-pixelPos0.x, pixelPos0.y), float2(-pixelPos2.x, pixelPos2.y), float2(-pixelPos1.x, pixelPos1.y), -area0, -area1, -area2, -totalArea)
 #endif
 			)
 			{
