@@ -76,6 +76,7 @@ struct ResMesh
 	std::vector<meshopt_Meshlet> Meshlets;
 	std::vector<uint32_t> MeshletsVertices;
 	std::vector<uint8_t> MeshletsTriangles;
+	std::vector<meshopt_Bounds> Bounds;
 
 	uint32_t MaterialId;
 };

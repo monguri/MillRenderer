@@ -448,6 +448,15 @@ namespace
 		static constexpr uint32_t MAX_VERTS = 64;
 		static constexpr uint32_t MAX_TRIS = 126;
 
+		size_t vertexCount = dstMesh.Vertices.size();
+		static_assert(sizeof(float) * 3 == sizeof(DirectX::XMFLOAT3));
+		std::vector<float> vertexPositions(vertexCount * 3);
+		for (size_t i = 0; i < vertexCount; i++)
+		{
+			const MeshVertex& vert = dstMesh.Vertices[i];
+			memcpy(&vertexPositions[3 * i], &vert.Position, sizeof(DirectX::XMFLOAT3));
+		}
+
 		if (useMetis)
 		{
 			// Metisは分割数を指定して分割する形なので、各分割のVertex数やTriangle数がMAX_VERTSとMAX_TRIS以下になる保証はない
@@ -698,21 +707,12 @@ namespace
 		else
 		{
 			size_t indexCount = dstMesh.Indices.size();
-			size_t vertexCount = dstMesh.Vertices.size();
 
 			size_t maxMeshletCount = meshopt_buildMeshletsBound(indexCount, MAX_VERTS, MAX_TRIS);
 
 			dstMesh.Meshlets.resize(maxMeshletCount);
 			dstMesh.MeshletsVertices.resize(indexCount);
 			dstMesh.MeshletsTriangles.resize(indexCount);
-
-			static_assert(sizeof(float) * 3 == sizeof(DirectX::XMFLOAT3));
-			std::vector<float> vertexPositions(vertexCount * 3);
-			for (size_t i = 0; i < vertexCount; i++)
-			{
-				const MeshVertex& vert = dstMesh.Vertices[i];
-				memcpy(&vertexPositions[3 * i], &vert.Position, sizeof(DirectX::XMFLOAT3));
-			}
 
 			// MeshletsVerticesとMeshletsTrianglesの型がuint32_tとuint8_tなのでstatic_assertで確認しておく
 			static_assert(sizeof(unsigned int) == sizeof(uint32_t));
@@ -738,6 +738,20 @@ namespace
 			dstMesh.MeshletsTriangles.resize(lastMeshlet.triangle_offset + lastMeshlet.triangle_count * 3);
 
 			dstMesh.Meshlets.resize(meshletCount);
+		}
+
+		size_t meshletCount = dstMesh.Meshlets.size();
+		dstMesh.Bounds.resize(meshletCount);
+		for (size_t i = 0; i < meshletCount; i++)
+		{
+			dstMesh.Bounds[i] = meshopt_computeMeshletBounds(
+				dstMesh.MeshletsVertices.data() + dstMesh.Meshlets[i].vertex_offset,
+				dstMesh.MeshletsTriangles.data() + dstMesh.Meshlets[i].triangle_offset,
+				dstMesh.Meshlets[i].triangle_count,
+				vertexPositions.data(),
+				vertexCount,
+				sizeof(float) * 3
+			);
 		}
 	}
 }
