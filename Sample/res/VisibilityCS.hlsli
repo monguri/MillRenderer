@@ -105,12 +105,12 @@ groupshared VertexData outVerts[64];
 // 外積のz成分にあたる
 // 符号はA-Bのエッジに対しA-Cが時計回りなら正、反時計回りなら負
 // 絶対値はA-BとA-Cのベクトルの成す平行四辺形の面積。三角形の面積の2倍。
-int area2D(int2 a, int2 b, int2 c)
+float area2D(float2 a, float2 b, float2 c)
 {
 	return ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
 }
 
-void renderPixel(uint2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData)
+void renderPixel(int2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexData v1, VertexData v2, PrimitiveData primData)
 {
 	// Inverse Z、Infinite Far PlaneだとClipSpaceW = ViewZである。
 	float3 invViewZs = float3(
@@ -200,41 +200,42 @@ void softwareRasterize(VertexData v0, VertexData v1, VertexData v2, PrimitiveDat
 	float3 ndcPos2 = v2.Position.xyz / v2.Position.w;
 
 	// ピクセル座標は本来はNDCとはY軸が逆だが今回は後で調整する
-	int2 pixelPos0 = int2(((ndcPos0.xy * 0.5f) + 0.5f) * float2(screenWidth, screenHeight));
-	int2 pixelPos1 = int2(((ndcPos1.xy * 0.5f) + 0.5f) * float2(screenWidth, screenHeight));
-	int2 pixelPos2 = int2(((ndcPos2.xy * 0.5f) + 0.5f) * float2(screenWidth, screenHeight));
+	float2 pixelPos0 = ((ndcPos0.xy * 0.5f) + 0.5f) * float2(screenWidth, screenHeight);
+	float2 pixelPos1 = ((ndcPos1.xy * 0.5f) + 0.5f) * float2(screenWidth, screenHeight);
+	float2 pixelPos2 = ((ndcPos2.xy * 0.5f) + 0.5f) * float2(screenWidth, screenHeight);
 
-	int2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
-	int2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
+	float2 minBB = min(pixelPos0, min(pixelPos1, pixelPos2));
+	float2 maxBB = max(pixelPos0, max(pixelPos1, pixelPos2));
 	
 	// clampではダメ。Triangleが画面範囲外のときにループが回らないように
-	minBB = max(minBB, int2(0, 0));
-	maxBB = min(maxBB, int2(screenWidth - 1, screenHeight - 1));
+	// 例えばminBBが(-1, -1)でmaxBBが(0.5, 0.5)のとき、clampしてしまうとminBBもmaxBBも(0, 0)になってしまい、ループが回ってしまう
+	int2 minIntBB = max(int2(floor(minBB)), int2(0, 0));
+	int2 maxIntBB = min(int2(floor(maxBB)), int2(screenWidth - 1, screenHeight - 1));
 	
-	for (int y = minBB.y; y <= maxBB.y; y++)
+	for (int y = minIntBB.y; y <= maxIntBB.y; y++)
 	{
-		for (int x = minBB.x; x <= maxBB.x; x++)
+		for (int x = minIntBB.x; x <= maxIntBB.x; x++)
 		{
-			int2 pixelPos = int2(x, y);
-			int area0 = area2D(pixelPos1, pixelPos2, pixelPos);
-			int area1 = area2D(pixelPos2, pixelPos0, pixelPos);
-			int area2 = area2D(pixelPos0, pixelPos1, pixelPos);
-			int totalArea = area2D(pixelPos0, pixelPos1, pixelPos2);
+			float2 pixelPos = float2(x + 0.5f, y + 0.5f);
+			float area0 = area2D(pixelPos1, pixelPos2, pixelPos);
+			float area1 = area2D(pixelPos2, pixelPos0, pixelPos);
+			float area2 = area2D(pixelPos0, pixelPos1, pixelPos);
+			float totalArea = area2D(pixelPos0, pixelPos1, pixelPos2);
 
 			if (
 				(area0 >= 0 && area1 >= 0 && area2 >= 0	// バックフェイスカリング
-				&& totalArea > 0) // TODO: 0除算になるので3頂点が同じピクセルにある場合は除外している
+				&& totalArea >= 1) // TODO: 0除算回避と1ピクセル以下のTriangleはカリングする
 #ifdef ALPHA_MODE_MASK //TODO: MaskマテリアルはDoubleSidedであるという前提にしている
 				||
 				(area0 <= 0 && area1 <= 0 && area2 <= 0
-				&& totalArea < 0)
+				&& totalArea <= -1)
 #endif
 			)
 			{
-				// Y軸反転
-				pixelPos = int2(pixelPos.x, screenHeight - 1 - pixelPos.y);
 				float3 baryCentricCrd = float3(area0, area1, area2) / totalArea;
-				renderPixel(pixelPos, baryCentricCrd, v0, v1, v2, primData);
+				// Y軸反転
+				int2 renderPixelPos = int2(x, screenHeight - 1 - y);
+				renderPixel(renderPixelPos, baryCentricCrd, v0, v1, v2, primData);
 			}
 		}
 	}
