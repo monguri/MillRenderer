@@ -1,6 +1,7 @@
 #include "Mesh.h"
 #include "Logger.h"
 #include "DescriptorPool.h"
+#include <DirectXMath.h>
 
 Mesh::Mesh()
 : m_MaterialId(UINT32_MAX)
@@ -152,6 +153,34 @@ bool Mesh::Init
 			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
 			return false;
 		}
+
+		if (!m_BoundingSphereVB.InitAsStructuredBuffer<DirectX::XMFLOAT3>(
+			pDevice,
+			vertexCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr,
+			L"SbVertexBuffer"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_BoundingSphereIB.InitAsStructuredBuffer<uint32_t>(
+			pDevice,
+			m_IndexCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr,
+			L"SbIndexBuffer"
+		))
+		{
+			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+			return false;
+		}
 	}
 	else
 	{
@@ -233,6 +262,9 @@ void Mesh::Term()
 	m_MeshletsSB.Term();
 	m_MeshletsVerticesSB.Term();
 	m_MeshletsTrianglesBB.Term();
+
+	m_BoundingSphereVB.Term();
+	m_BoundingSphereIB.Term();
 
 	m_MaterialId = UINT32_MAX;
 	m_IndexCount = 0;
