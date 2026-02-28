@@ -158,6 +158,7 @@ bool Mesh::Init
 		m_BoundingSphereVBs.resize(m_MeshletCount);
 		m_BoundingSphereIBs.resize(m_MeshletCount);
 
+		// CreateBoundingSphere()で使う一時変数だが毎回確保と解放をしないようにスコープを上げておく
 		std::vector<DirectX::XMFLOAT3> boundingSphereVertices;
 		std::vector<uint32_t> boundingSphereIndices;
 
