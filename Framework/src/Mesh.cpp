@@ -157,33 +157,54 @@ bool Mesh::Init
 		assert(resource.Bounds.size() == m_MeshletCount);
 		m_BoundingSphereVBs.resize(m_MeshletCount);
 		m_BoundingSphereIBs.resize(m_MeshletCount);
+
+		std::vector<DirectX::XMFLOAT3> boundingSphereVertices;
+		std::vector<uint32_t> boundingSphereIndices;
+
 		for (uint32_t i = 0; i < m_MeshletCount; i++)
 		{
-			if (!m_BoundingSphereVBs[i].InitAsStructuredBuffer<DirectX::XMFLOAT3>(
+			//TODO: とりあえず一個ずつcenterとradiusをずらしたものを作る
+			// 本来は一個作ってインスタンス描画したい
+			CreateBoundingSphere(resource.Bounds[i], boundingSphereVertices, boundingSphereIndices);
+
+			if (!m_BoundingSphereVBs[i].InitAsVertexBuffer<DirectX::XMFLOAT3>(
 				pDevice,
-				vertexCount,
-				D3D12_RESOURCE_FLAG_NONE,
-				D3D12_RESOURCE_STATE_COMMON,
-				pPool,
-				nullptr,
-				L"BoundingSphereVB"
+				boundingSphereVertices.size()
 			))
 			{
 				ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
 				return false;
 			}
 
-			if (!m_BoundingSphereIBs[i].InitAsStructuredBuffer<uint32_t>(
+			if (!m_BoundingSphereIBs[i].InitAsIndexBuffer<uint32_t>(
 				pDevice,
-				m_IndexCount,
-				D3D12_RESOURCE_FLAG_NONE,
-				D3D12_RESOURCE_STATE_COMMON,
-				pPool,
-				nullptr,
-				L"BoundingSphereIB"
+				DXGI_FORMAT_R32_UINT,
+				boundingSphereIndices.size()
 			))
 			{
 				ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+				return false;
+			}
+
+			if (!m_BoundingSphereVBs[i].UploadBufferTypeData<DirectX::XMFLOAT3>(
+				pDevice,
+				pCmdList,
+				boundingSphereVertices.size(),
+				boundingSphereVertices.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
+
+			if (!m_BoundingSphereIBs[i].UploadBufferTypeData<uint32_t>(
+				pDevice,
+				pCmdList,
+				boundingSphereIndices.size(),
+				boundingSphereIndices.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 				return false;
 			}
 		}
@@ -287,19 +308,19 @@ void Mesh::Term()
 
 //TODO: とりあえず一個ずつcenterとradiusをずらしたものを作る
 // DirectXTK12、Geometry.cpp/hのDirectX::ComputeSphereを参考にしている
-void Mesh::CreateBoundingSphere(const meshopt_Bounds& meshletBounds, std::vector<DirectX::XMFLOAT3> vertices, std::vector<uint32_t>& indices)
+void Mesh::CreateBoundingSphere(const meshopt_Bounds& meshletBounds, std::vector<DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
 {
 	using namespace DirectX;
 
-    vertices.clear();
-    indices.clear();
+    outVertices.clear();
+    outIndices.clear();
 
-    const size_t verticalSegments = 4;
-    const size_t horizontalSegments = 4 * 2;
+    const uint32_t verticalSegments = 4;
+    const uint32_t horizontalSegments = 4 * 2;
 
-    // Create rings of vertices at progressively higher latitudes.
-	vertices.reserve((verticalSegments + 1) * (horizontalSegments + 1));
-    for (size_t i = 0; i <= verticalSegments; i++)
+    // Create rings of outVertices at progressively higher latitudes.
+	outVertices.reserve((verticalSegments + 1) * (horizontalSegments + 1));
+    for (uint32_t i = 0; i <= verticalSegments; i++)
     {
         const float latitude = (float(i) * XM_PI / float(verticalSegments)) - XM_PIDIV2;
         float dy, dxz;
@@ -311,8 +332,8 @@ void Mesh::CreateBoundingSphere(const meshopt_Bounds& meshletBounds, std::vector
 
 		dxz *= meshletBounds.radius;
 
-        // Create a single ring of vertices at this latitude.
-        for (size_t j = 0; j <= horizontalSegments; j++)
+        // Create a single ring of outVertices at this latitude.
+        for (uint32_t j = 0; j <= horizontalSegments; j++)
         {
             const float longitude = float(j) * XM_2PI / float(horizontalSegments);
             float dx, dz;
@@ -325,28 +346,28 @@ void Mesh::CreateBoundingSphere(const meshopt_Bounds& meshletBounds, std::vector
 			dx += meshletBounds.center[0];
 			dz += meshletBounds.center[2];
 
-            vertices.emplace_back(dx, dy, dz);
+            outVertices.emplace_back(dx, dy, dz);
         }
     }
 
     // Fill the index buffer with triangles joining each pair of latitude rings.
-    const size_t stride = horizontalSegments + 1;
+    const uint32_t stride = horizontalSegments + 1;
 
-	indices.reserve(verticalSegments * horizontalSegments * 6);
-    for (size_t i = 0; i < verticalSegments; i++)
+	outIndices.reserve(verticalSegments * horizontalSegments * 6);
+    for (uint32_t i = 0; i < verticalSegments; i++)
     {
-        for (size_t j = 0; j <= horizontalSegments; j++)
+        for (uint32_t j = 0; j <= horizontalSegments; j++)
         {
-            const size_t nextI = i + 1;
-            const size_t nextJ = (j + 1) % stride;
+            const uint32_t nextI = i + 1;
+            const uint32_t nextJ = (j + 1) % stride;
 
-            indices.emplace_back(i * stride + j);
-            indices.emplace_back(nextI * stride + j);
-            indices.emplace_back(i * stride + nextJ);
+            outIndices.emplace_back(i * stride + j);
+            outIndices.emplace_back(nextI * stride + j);
+            outIndices.emplace_back(i * stride + nextJ);
 
-            indices.emplace_back(i * stride + nextJ);
-            indices.emplace_back(nextI * stride + j);
-            indices.emplace_back(nextI * stride + nextJ);
+            outIndices.emplace_back(i * stride + nextJ);
+            outIndices.emplace_back(nextI * stride + j);
+            outIndices.emplace_back(nextI * stride + nextJ);
         }
     }
 }
