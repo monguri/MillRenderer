@@ -276,6 +276,72 @@ void Mesh::Term()
 	}
 }
 
+//TODO: ‚Æ‚è‚ ‚¦‚¸ˆêŒÂ‚¸‚Âcenter‚Æradius‚ğ‚¸‚ç‚µ‚½‚à‚Ì‚ğì‚é
+// DirectXTK12AGeometry.cpp/h‚ÌDirectX::ComputeSphere‚ğQl‚É‚µ‚Ä‚¢‚é
+void Mesh::CreateBoundingSphere(const meshopt_Bounds& meshletBounds, std::vector<DirectX::XMFLOAT3> vertices, std::vector<uint32_t>& indices)
+{
+	using namespace DirectX;
+
+    vertices.clear();
+    indices.clear();
+
+    const size_t verticalSegments = 4;
+    const size_t horizontalSegments = 4 * 2;
+
+    // Create rings of vertices at progressively higher latitudes.
+	vertices.reserve((verticalSegments + 1) * (horizontalSegments + 1));
+    for (size_t i = 0; i <= verticalSegments; i++)
+    {
+        const float latitude = (float(i) * XM_PI / float(verticalSegments)) - XM_PIDIV2;
+        float dy, dxz;
+
+        XMScalarSinCos(&dy, &dxz, latitude);
+
+		dy *= meshletBounds.radius;
+		dy += meshletBounds.center[1];
+
+		dxz *= meshletBounds.radius;
+
+        // Create a single ring of vertices at this latitude.
+        for (size_t j = 0; j <= horizontalSegments; j++)
+        {
+            const float longitude = float(j) * XM_2PI / float(horizontalSegments);
+            float dx, dz;
+
+            XMScalarSinCos(&dx, &dz, longitude);
+
+            dx *= dxz;
+            dz *= dxz;
+
+			dx += meshletBounds.center[0];
+			dz += meshletBounds.center[2];
+
+            vertices.emplace_back(dx, dy, dz);
+        }
+    }
+
+    // Fill the index buffer with triangles joining each pair of latitude rings.
+    const size_t stride = horizontalSegments + 1;
+
+	indices.reserve(verticalSegments * horizontalSegments * 6);
+    for (size_t i = 0; i < verticalSegments; i++)
+    {
+        for (size_t j = 0; j <= horizontalSegments; j++)
+        {
+            const size_t nextI = i + 1;
+            const size_t nextJ = (j + 1) % stride;
+
+            indices.emplace_back(i * stride + j);
+            indices.emplace_back(nextI * stride + j);
+            indices.emplace_back(i * stride + nextJ);
+
+            indices.emplace_back(i * stride + nextJ);
+            indices.emplace_back(nextI * stride + j);
+            indices.emplace_back(nextI * stride + nextJ);
+        }
+    }
+}
+
 void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	if (m_IsMeshlet)

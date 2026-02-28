@@ -80,6 +80,8 @@ private:
 		bool isMeshlet
 	);
 
+	static void CreateBoundingSphere(const meshopt_Bounds& meshletBounds, std::vector<struct DirectX::XMFLOAT3> vertices, std::vector<uint32_t>& indices);
+
 	Mesh(const Mesh&) = delete;
 	void operator=(const Mesh&) = delete;
 };
