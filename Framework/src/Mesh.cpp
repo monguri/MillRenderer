@@ -154,32 +154,38 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_BoundingSphereVB.InitAsStructuredBuffer<DirectX::XMFLOAT3>(
-			pDevice,
-			vertexCount,
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
-			nullptr,
-			L"SbVertexBuffer"
-		))
+		assert(resource.Bounds.size() == m_MeshletCount);
+		m_BoundingSphereVBs.resize(m_MeshletCount);
+		m_BoundingSphereIBs.resize(m_MeshletCount);
+		for (uint32_t i = 0; i < m_MeshletCount; i++)
 		{
-			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
-			return false;
-		}
+			if (!m_BoundingSphereVBs[i].InitAsStructuredBuffer<DirectX::XMFLOAT3>(
+				pDevice,
+				vertexCount,
+				D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATE_COMMON,
+				pPool,
+				nullptr,
+				L"BoundingSphereVB"
+			))
+			{
+				ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+				return false;
+			}
 
-		if (!m_BoundingSphereIB.InitAsStructuredBuffer<uint32_t>(
-			pDevice,
-			m_IndexCount,
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
-			nullptr,
-			L"SbIndexBuffer"
-		))
-		{
-			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
-			return false;
+			if (!m_BoundingSphereIBs[i].InitAsStructuredBuffer<uint32_t>(
+				pDevice,
+				m_IndexCount,
+				D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATE_COMMON,
+				pPool,
+				nullptr,
+				L"BoundingSphereIB"
+			))
+			{
+				ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+				return false;
+			}
 		}
 	}
 	else
@@ -263,8 +269,11 @@ void Mesh::Term()
 	m_MeshletsVerticesSB.Term();
 	m_MeshletsTrianglesBB.Term();
 
-	m_BoundingSphereVB.Term();
-	m_BoundingSphereIB.Term();
+	for (uint32_t i = 0; i < m_MeshletCount; i++)
+	{
+		m_BoundingSphereVBs[i].Term();
+		m_BoundingSphereIBs[i].Term();
+	}
 
 	m_MaterialId = UINT32_MAX;
 	m_IndexCount = 0;

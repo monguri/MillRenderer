@@ -62,8 +62,8 @@ private:
 	Resource m_MeshletsSB;
 	Resource m_MeshletsVerticesSB;
 	Resource m_MeshletsTrianglesBB;
-	Resource m_BoundingSphereVB;
-	Resource m_BoundingSphereIB;
+	std::vector<Resource> m_BoundingSphereVBs;
+	std::vector<Resource> m_BoundingSphereIBs;
 	uint32_t m_MaterialId;
 	size_t m_IndexCount;
 	size_t m_MeshletCount;
