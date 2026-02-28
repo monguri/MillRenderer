@@ -84,4 +84,12 @@ private:
 
 	Mesh(const Mesh&) = delete;
 	void operator=(const Mesh&) = delete;
+
+public:
+	static const D3D12_INPUT_LAYOUT_DESC WireframeInputLayout;
+
+private:
+	static const int WireframeInputElementCount = 1;
+	static const D3D12_INPUT_ELEMENT_DESC WireframeInputElements[WireframeInputElementCount];
+
 };

@@ -31,7 +31,7 @@ public:
 
 private:
 	static const int InputElementCount = 4;
-	static const D3D12_INPUT_ELEMENT_DESC  InputElements[InputElementCount];
+	static const D3D12_INPUT_ELEMENT_DESC InputElements[InputElementCount];
 };
 
 enum ALPHA_MODE
