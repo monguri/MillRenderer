@@ -161,7 +161,7 @@ bool Mesh::Init
 		assert(resource.Bounds.size() == m_MeshletCount);
 		std::vector<DirectX::XMFLOAT3> boundingSphereVertices;
 		std::vector<uint32_t> boundingSphereIndices;
-		const uint32_t SPHERE_SEGMENT_COUNT = 4;
+		const uint32_t SPHERE_SEGMENT_COUNT = 16;
 		CreateSphere(SPHERE_SEGMENT_COUNT, boundingSphereVertices, boundingSphereIndices);
 
 		m_SphereIndexCount = boundingSphereIndices.size();
