@@ -103,8 +103,6 @@ private:
 	RootSignature m_SceneRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferSWRasOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferSWRasMaskPSO;
-	RootSignature m_WireframeRootSig;
-	ComPtr<ID3D12PipelineState> m_pWireframePSO;
 	RootSignature m_DrawVBufferSWRasRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferHWRasOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferHWRasMaskPSO;
@@ -151,6 +149,8 @@ private:
 	RootSignature m_TonemapRootSig;
 	ComPtr<ID3D12PipelineState> m_pFXAA_PSO;
 	RootSignature m_FXAA_RootSig;
+	ComPtr<ID3D12PipelineState> m_MeshletBoundingSpherePSO;
+	RootSignature m_MeshletBoundingSphereRootSig;
 	ComPtr<ID3D12PipelineState> m_pDownsamplePSO;
 	RootSignature m_DownsampleRootSig;
 	ComPtr<ID3D12PipelineState> m_pFilterPSO;

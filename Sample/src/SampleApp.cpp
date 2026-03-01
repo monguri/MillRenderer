@@ -4809,7 +4809,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-	// Wireframe表示用ルートシグニチャとパイプラインステートの生成
+	// Meshlet Bounding Sphere表示用ルートシグニチャとパイプラインステートの生成
+	if (m_useMeshlet)
 	{
 		std::wstring vsPath;
 		if (!SearchFilePath(L"WireframeVS.cso", vsPath))
@@ -4849,7 +4850,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!m_WireframeRootSig.Init(m_pDevice.Get(), pRSBlob))
+		if (!m_MeshletBoundingSphereRootSig.Init(m_pDevice.Get(), pRSBlob))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
@@ -4874,14 +4875,14 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-		desc.pRootSignature = m_WireframeRootSig.GetPtr();
+		desc.pRootSignature = m_MeshletBoundingSphereRootSig.GetPtr();
 
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pWireframePSO.GetAddressOf())
+			IID_PPV_ARGS(m_MeshletBoundingSpherePSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
