@@ -272,7 +272,6 @@ private:
 	bool m_enableFXAA;
 	bool m_enableFXAA_HighQuality;
 	enum class DEBUG_VIEW_MODE m_debugViewMode;
-	bool m_showMeshletBoundingSphere;
 	bool m_isLightManipulateMode;
 
 	virtual bool OnInit(HWND hWnd) override;
