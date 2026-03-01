@@ -49,6 +49,7 @@ public:
 	const DescriptorHandle& GetMesletsSBHandle() const;
 	const DescriptorHandle& GetMesletsVerticesSBHandle() const;
 	const DescriptorHandle& GetMesletsTrianglesBBHandle() const;
+	const DescriptorHandle& GetMeshletsBoundingSphereInfosSBHandle() const;
 
 	uint32_t GetMaterialId() const;
 	Mobility GetMobility() const;
@@ -65,8 +66,12 @@ private:
 	Resource m_MeshletsTrianglesBB;
 	std::vector<Resource> m_BoundingSphereVBs;
 	std::vector<Resource> m_BoundingSphereIBs;
+	Resource m_SphereVB;
+	Resource m_SphereIB;
+	Resource m_BoundingSphereInfosSB;
 	uint32_t m_MaterialId;
 	size_t m_IndexCount;
+	size_t m_SphereIndexCount;
 	size_t m_MeshletCount;
 	Mobility m_Mobility;
 	class DescriptorPool* m_pPool;
@@ -81,6 +86,7 @@ private:
 		bool isMeshlet
 	);
 
+	static void CreateSphere(uint32_t segmentCount, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices);
 	static void CreateBoundingSphere(const meshopt_Bounds& meshletBounds, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices);
 
 	Mesh(const Mesh&) = delete;

@@ -2,11 +2,15 @@
 #include "Logger.h"
 #include "DescriptorPool.h"
 #include <DirectXMath.h>
+#include <SimpleMath.h>
+
+using namespace DirectX::SimpleMath;
 
 Mesh::Mesh()
 : m_MaterialId(UINT32_MAX)
 , m_MeshletCount(0)
 , m_IndexCount(0)
+, m_SphereIndexCount(0)
 , m_Mobility(Mobility::Static)
 , m_pPool(nullptr)
 {
@@ -155,6 +159,7 @@ bool Mesh::Init
 		}
 
 		assert(resource.Bounds.size() == m_MeshletCount);
+#if 0
 		m_BoundingSphereVBs.resize(m_MeshletCount);
 		m_BoundingSphereIBs.resize(m_MeshletCount);
 
@@ -173,7 +178,7 @@ bool Mesh::Init
 				boundingSphereVertices.size()
 			))
 			{
-				ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+				ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
 				return false;
 			}
 
@@ -209,6 +214,94 @@ bool Mesh::Init
 				return false;
 			}
 		}
+#else
+		std::vector<DirectX::XMFLOAT3> boundingSphereVertices;
+		std::vector<uint32_t> boundingSphereIndices;
+		const uint32_t SPHERE_SEGMENT_COUNT = 4;
+		CreateSphere(SPHERE_SEGMENT_COUNT, boundingSphereVertices, boundingSphereIndices);
+
+		m_SphereIndexCount = boundingSphereIndices.size();
+
+		if (!m_SphereVB.InitAsVertexBuffer<DirectX::XMFLOAT3>(
+			pDevice,
+			boundingSphereVertices.size()
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_SphereIB.InitAsIndexBuffer<uint32_t>(
+			pDevice,
+			DXGI_FORMAT_R32_UINT,
+			boundingSphereIndices.size()
+		))
+		{
+			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_SphereVB.UploadBufferTypeData<DirectX::XMFLOAT3>(
+			pDevice,
+			pCmdList,
+			boundingSphereVertices.size(),
+			boundingSphereVertices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		if (!m_SphereIB.UploadBufferTypeData<uint32_t>(
+			pDevice,
+			pCmdList,
+			boundingSphereIndices.size(),
+			boundingSphereIndices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		struct SphereInfo
+		{
+			Vector3 center;
+			float radius;
+		};
+
+		std::vector<SphereInfo> infos(m_MeshletCount);
+
+		for (uint32_t i = 0; i < m_MeshletCount; i++)
+		{
+			infos[i].center = Vector3(resource.Bounds[i].center);
+			infos[i].radius = resource.Bounds[i].radius;
+		}
+
+		if (!m_BoundingSphereInfosSB.InitAsStructuredBuffer<SphereInfo>(
+			pDevice,
+			m_MeshletCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr,
+			L"BoundingSphereInfoSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_BoundingSphereInfosSB.UploadBufferTypeData<SphereInfo>(
+			pDevice,
+			pCmdList,
+			infos.size(),
+			infos.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+#endif
 	}
 	else
 	{
@@ -297,14 +390,75 @@ void Mesh::Term()
 		m_BoundingSphereIBs[i].Term();
 	}
 
+	m_SphereVB.Term();
+	m_SphereIB.Term();
+	m_BoundingSphereInfosSB.Term();
+
 	m_MaterialId = UINT32_MAX;
 	m_IndexCount = 0;
+	m_SphereIndexCount = 0;
 
 	if (m_pPool != nullptr)
 	{
 		m_pPool->Release();
 		m_pPool = nullptr;
 	}
+}
+
+void Mesh::CreateSphere(uint32_t segmentCount, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
+{
+	using namespace DirectX;
+
+    outVertices.clear();
+    outIndices.clear();
+
+    const uint32_t verticalSegments = segmentCount;
+    const uint32_t horizontalSegments = segmentCount * 2;
+
+    // Create rings of outVertices at progressively higher latitudes.
+	outVertices.reserve((verticalSegments + 1) * (horizontalSegments + 1));
+    for (uint32_t i = 0; i <= verticalSegments; i++)
+    {
+        const float latitude = (float(i) * XM_PI / float(verticalSegments)) - XM_PIDIV2;
+        float dy, dxz;
+
+        XMScalarSinCos(&dy, &dxz, latitude);
+
+        // Create a single ring of outVertices at this latitude.
+        for (uint32_t j = 0; j <= horizontalSegments; j++)
+        {
+            const float longitude = float(j) * XM_2PI / float(horizontalSegments);
+            float dx, dz;
+
+            XMScalarSinCos(&dx, &dz, longitude);
+
+            dx *= dxz;
+            dz *= dxz;
+
+            outVertices.emplace_back(dx, dy, dz);
+        }
+    }
+
+    // Fill the index buffer with triangles joining each pair of latitude rings.
+    const uint32_t stride = horizontalSegments + 1;
+
+	outIndices.reserve(verticalSegments * horizontalSegments * 6);
+    for (uint32_t i = 0; i < verticalSegments; i++)
+    {
+        for (uint32_t j = 0; j <= horizontalSegments; j++)
+        {
+            const uint32_t nextI = i + 1;
+            const uint32_t nextJ = (j + 1) % stride;
+
+            outIndices.emplace_back(i * stride + j);
+            outIndices.emplace_back(nextI * stride + j);
+            outIndices.emplace_back(i * stride + nextJ);
+
+            outIndices.emplace_back(i * stride + nextJ);
+            outIndices.emplace_back(nextI * stride + j);
+            outIndices.emplace_back(nextI * stride + nextJ);
+        }
+    }
 }
 
 //TODO: ‚Æ‚è‚ ‚¦‚¸ˆêŒÂ‚¸‚Âcenter‚Æradius‚ð‚¸‚ç‚µ‚½‚à‚Ì‚ðì‚é
@@ -401,6 +555,7 @@ void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	assert(m_IsMeshlet);
 
+#if 0
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	for (uint32_t i = 0; i < m_MeshletCount; i++)
@@ -416,6 +571,15 @@ void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
 		const uint32_t horizontalSegments = 4 * 2;
 		pCmdList->DrawIndexedInstanced(verticalSegments * horizontalSegments * 6, 1, 0, 0, 0);
 	}
+#else
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_SphereVB.GetVBV();
+	const D3D12_INDEX_BUFFER_VIEW& IBV = m_SphereIB.GetIBV();
+
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+	pCmdList->IASetIndexBuffer(&IBV);
+
+	pCmdList->DrawIndexedInstanced(static_cast<UINT>(m_SphereIndexCount), static_cast<UINT>(m_MeshletCount), 0, 0, 0);
+#endif
 }
 
 void Mesh::UnmapConstantBuffer(uint32_t frameIndex) const
@@ -456,6 +620,12 @@ const DescriptorHandle& Mesh::GetMesletsTrianglesBBHandle() const
 {
 	assert(m_IsMeshlet);
 	return *m_MeshletsTrianglesBB.GetHandleSRV();
+}
+
+const DescriptorHandle& Mesh::GetMeshletsBoundingSphereInfosSBHandle() const
+{
+	assert(m_IsMeshlet);
+	return *m_BoundingSphereInfosSB.GetHandleSRV();
 }
 
 uint32_t Mesh::GetMaterialId() const

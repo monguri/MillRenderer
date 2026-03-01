@@ -4813,7 +4813,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	if (m_useMeshlet)
 	{
 		std::wstring vsPath;
-		if (!SearchFilePath(L"WireframeVS.cso", vsPath))
+		if (!SearchFilePath(L"SpheresVS.cso", vsPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;
@@ -4828,7 +4828,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		std::wstring psPath;
-		if (!SearchFilePath(L"WireframePS.cso", psPath))
+		if (!SearchFilePath(L"PaintInstanceIDColorPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -4861,7 +4861,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 		desc.SampleMask = UINT_MAX;
-		desc.RasterizerState = DirectX::CommonStates::Wireframe;
+		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
@@ -8209,6 +8209,7 @@ void SampleApp::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList* pCmdList, c
 
 			pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsBoundingSphereInfosSBHandle().HandleGPU);
 
 			pMesh->DrawMeshletBoundingSphere(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}
