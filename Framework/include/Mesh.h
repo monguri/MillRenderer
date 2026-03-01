@@ -64,8 +64,6 @@ private:
 	Resource m_MeshletsSB;
 	Resource m_MeshletsVerticesSB;
 	Resource m_MeshletsTrianglesBB;
-	std::vector<Resource> m_BoundingSphereVBs;
-	std::vector<Resource> m_BoundingSphereIBs;
 	Resource m_SphereVB;
 	Resource m_SphereIB;
 	Resource m_BoundingSphereInfosSB;
@@ -87,16 +85,15 @@ private:
 	);
 
 	static void CreateSphere(uint32_t segmentCount, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices);
-	static void CreateBoundingSphere(const meshopt_Bounds& meshletBounds, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices);
 
 	Mesh(const Mesh&) = delete;
 	void operator=(const Mesh&) = delete;
 
 public:
-	static const D3D12_INPUT_LAYOUT_DESC WireframeInputLayout;
+	static const D3D12_INPUT_LAYOUT_DESC PosOnlyInputLayout;
 
 private:
-	static const int WireframeInputElementCount = 1;
-	static const D3D12_INPUT_ELEMENT_DESC WireframeInputElements[WireframeInputElementCount];
+	static const int PosOnlyInputElementCount = 1;
+	static const D3D12_INPUT_ELEMENT_DESC PosOnlyInputElements[PosOnlyInputElementCount];
 
 };

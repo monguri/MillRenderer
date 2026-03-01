@@ -203,8 +203,6 @@ private:
 
 	void* Map() const;
 
-#if 0 // std::vectorで使いたいのでコメントアウト
 	Resource(const Resource&) = delete;
-#endif
 	void operator=(const Resource&) = delete;
 };

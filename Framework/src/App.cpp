@@ -255,9 +255,7 @@ bool App::InitD3D()
 
 		desc.NodeMask = 1;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		//TODO: BoundingSphereópÇÃSBÇ™ëΩÇ¢ÇÃÇ≈àÍéûìIÇ…ëùÇ‚Ç∑
-		//desc.NumDescriptors = 512;
-		desc.NumDescriptors = 1024;
+		desc.NumDescriptors = 512;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_RES_GPU_VISIBLE]))
 		{

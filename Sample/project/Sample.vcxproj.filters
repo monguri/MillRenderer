@@ -186,12 +186,6 @@
     <FxCompile Include="..\res\DepthBufferFromVBufferPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\WireframeVS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
-    <FxCompile Include="..\res\WireframePS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
     <FxCompile Include="..\res\SpheresVS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>

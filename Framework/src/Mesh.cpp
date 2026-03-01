@@ -159,62 +159,6 @@ bool Mesh::Init
 		}
 
 		assert(resource.Bounds.size() == m_MeshletCount);
-#if 0
-		m_BoundingSphereVBs.resize(m_MeshletCount);
-		m_BoundingSphereIBs.resize(m_MeshletCount);
-
-		// CreateBoundingSphere()で使う一時変数だが毎回確保と解放をしないようにスコープを上げておく
-		std::vector<DirectX::XMFLOAT3> boundingSphereVertices;
-		std::vector<uint32_t> boundingSphereIndices;
-
-		for (uint32_t i = 0; i < m_MeshletCount; i++)
-		{
-			//TODO: とりあえず一個ずつcenterとradiusをずらしたものを作る
-			// 本来は一個作ってインスタンス描画したい
-			CreateBoundingSphere(resource.Bounds[i], boundingSphereVertices, boundingSphereIndices);
-
-			if (!m_BoundingSphereVBs[i].InitAsVertexBuffer<DirectX::XMFLOAT3>(
-				pDevice,
-				boundingSphereVertices.size()
-			))
-			{
-				ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
-				return false;
-			}
-
-			if (!m_BoundingSphereIBs[i].InitAsIndexBuffer<uint32_t>(
-				pDevice,
-				DXGI_FORMAT_R32_UINT,
-				boundingSphereIndices.size()
-			))
-			{
-				ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
-				return false;
-			}
-
-			if (!m_BoundingSphereVBs[i].UploadBufferTypeData<DirectX::XMFLOAT3>(
-				pDevice,
-				pCmdList,
-				boundingSphereVertices.size(),
-				boundingSphereVertices.data()
-			))
-			{
-				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-				return false;
-			}
-
-			if (!m_BoundingSphereIBs[i].UploadBufferTypeData<uint32_t>(
-				pDevice,
-				pCmdList,
-				boundingSphereIndices.size(),
-				boundingSphereIndices.data()
-			))
-			{
-				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-				return false;
-			}
-		}
-#else
 		std::vector<DirectX::XMFLOAT3> boundingSphereVertices;
 		std::vector<uint32_t> boundingSphereIndices;
 		const uint32_t SPHERE_SEGMENT_COUNT = 4;
@@ -301,7 +245,6 @@ bool Mesh::Init
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
-#endif
 	}
 	else
 	{
@@ -384,12 +327,6 @@ void Mesh::Term()
 	m_MeshletsVerticesSB.Term();
 	m_MeshletsTrianglesBB.Term();
 
-	for (uint32_t i = 0; i < m_MeshletCount; i++)
-	{
-		m_BoundingSphereVBs[i].Term();
-		m_BoundingSphereIBs[i].Term();
-	}
-
 	m_SphereVB.Term();
 	m_SphereIB.Term();
 	m_BoundingSphereInfosSB.Term();
@@ -405,6 +342,7 @@ void Mesh::Term()
 	}
 }
 
+// DirectXTK12、Geometry.cpp/hのDirectX::ComputeSphereを参考にしている
 void Mesh::CreateSphere(uint32_t segmentCount, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
 {
 	using namespace DirectX;
@@ -461,72 +399,6 @@ void Mesh::CreateSphere(uint32_t segmentCount, std::vector<struct DirectX::XMFLO
     }
 }
 
-//TODO: とりあえず一個ずつcenterとradiusをずらしたものを作る
-// DirectXTK12、Geometry.cpp/hのDirectX::ComputeSphereを参考にしている
-void Mesh::CreateBoundingSphere(const meshopt_Bounds& meshletBounds, std::vector<DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
-{
-	using namespace DirectX;
-
-    outVertices.clear();
-    outIndices.clear();
-
-    const uint32_t verticalSegments = 4;
-    const uint32_t horizontalSegments = 4 * 2;
-
-    // Create rings of outVertices at progressively higher latitudes.
-	outVertices.reserve((verticalSegments + 1) * (horizontalSegments + 1));
-    for (uint32_t i = 0; i <= verticalSegments; i++)
-    {
-        const float latitude = (float(i) * XM_PI / float(verticalSegments)) - XM_PIDIV2;
-        float dy, dxz;
-
-        XMScalarSinCos(&dy, &dxz, latitude);
-
-		dy *= meshletBounds.radius;
-		dy += meshletBounds.center[1];
-
-		dxz *= meshletBounds.radius;
-
-        // Create a single ring of outVertices at this latitude.
-        for (uint32_t j = 0; j <= horizontalSegments; j++)
-        {
-            const float longitude = float(j) * XM_2PI / float(horizontalSegments);
-            float dx, dz;
-
-            XMScalarSinCos(&dx, &dz, longitude);
-
-            dx *= dxz;
-            dz *= dxz;
-
-			dx += meshletBounds.center[0];
-			dz += meshletBounds.center[2];
-
-            outVertices.emplace_back(dx, dy, dz);
-        }
-    }
-
-    // Fill the index buffer with triangles joining each pair of latitude rings.
-    const uint32_t stride = horizontalSegments + 1;
-
-	outIndices.reserve(verticalSegments * horizontalSegments * 6);
-    for (uint32_t i = 0; i < verticalSegments; i++)
-    {
-        for (uint32_t j = 0; j <= horizontalSegments; j++)
-        {
-            const uint32_t nextI = i + 1;
-            const uint32_t nextJ = (j + 1) % stride;
-
-            outIndices.emplace_back(i * stride + j);
-            outIndices.emplace_back(nextI * stride + j);
-            outIndices.emplace_back(i * stride + nextJ);
-
-            outIndices.emplace_back(i * stride + nextJ);
-            outIndices.emplace_back(nextI * stride + j);
-            outIndices.emplace_back(nextI * stride + nextJ);
-        }
-    }
-}
-
 void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	if (m_IsMeshlet)
@@ -555,23 +427,6 @@ void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	assert(m_IsMeshlet);
 
-#if 0
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	for (uint32_t i = 0; i < m_MeshletCount; i++)
-	{
-		const D3D12_VERTEX_BUFFER_VIEW& VBV = m_BoundingSphereVBs[i].GetVBV();
-		const D3D12_INDEX_BUFFER_VIEW& IBV = m_BoundingSphereIBs[i].GetIBV();
-
-		pCmdList->IASetVertexBuffers(0, 1, &VBV);
-		pCmdList->IASetIndexBuffer(&IBV);
-
-		// TODO: とりあえず
-		const uint32_t verticalSegments = 4;
-		const uint32_t horizontalSegments = 4 * 2;
-		pCmdList->DrawIndexedInstanced(verticalSegments * horizontalSegments * 6, 1, 0, 0, 0);
-	}
-#else
 	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_SphereVB.GetVBV();
 	const D3D12_INDEX_BUFFER_VIEW& IBV = m_SphereIB.GetIBV();
 
@@ -579,7 +434,6 @@ void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
 	pCmdList->IASetIndexBuffer(&IBV);
 
 	pCmdList->DrawIndexedInstanced(static_cast<UINT>(m_SphereIndexCount), static_cast<UINT>(m_MeshletCount), 0, 0, 0);
-#endif
 }
 
 void Mesh::UnmapConstantBuffer(uint32_t frameIndex) const
@@ -643,11 +497,11 @@ void Mesh::SetMobility(Mobility mobility)
 	m_Mobility = mobility;
 }
 
-const D3D12_INPUT_ELEMENT_DESC Mesh::WireframeInputElements[] = {
+const D3D12_INPUT_ELEMENT_DESC Mesh::PosOnlyInputElements[] = {
 	{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
 };
 
-const D3D12_INPUT_LAYOUT_DESC Mesh::WireframeInputLayout = {
-	Mesh::WireframeInputElements,
-	Mesh::WireframeInputElementCount
+const D3D12_INPUT_LAYOUT_DESC Mesh::PosOnlyInputLayout = {
+	Mesh::PosOnlyInputElements,
+	Mesh::PosOnlyInputElementCount
 };

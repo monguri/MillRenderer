@@ -4857,7 +4857,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout = Mesh::WireframeInputLayout;
+		desc.InputLayout = Mesh::PosOnlyInputLayout;
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 		desc.SampleMask = UINT_MAX;
