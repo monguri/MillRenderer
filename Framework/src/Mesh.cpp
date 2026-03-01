@@ -458,19 +458,19 @@ const DescriptorHandle& Mesh::GetIndexBufferSBHandle() const
 	return *m_IB.GetHandleSRV();
 }
 
-const DescriptorHandle& Mesh::GetMesletsSBHandle() const
+const DescriptorHandle& Mesh::GetMeshletsSBHandle() const
 {
 	assert(m_IsMeshlet);
 	return *m_MeshletsSB.GetHandleSRV();
 }
 
-const DescriptorHandle& Mesh::GetMesletsVerticesSBHandle() const
+const DescriptorHandle& Mesh::GetMeshletsVerticesSBHandle() const
 {
 	assert(m_IsMeshlet);
 	return *m_MeshletsVerticesSB.GetHandleSRV();
 }
 
-const DescriptorHandle& Mesh::GetMesletsTrianglesBBHandle() const
+const DescriptorHandle& Mesh::GetMeshletsTrianglesBBHandle() const
 {
 	assert(m_IsMeshlet);
 	return *m_MeshletsTrianglesBB.GetHandleSRV();

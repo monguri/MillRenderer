@@ -46,9 +46,9 @@ public:
 	const DescriptorHandle& GetConstantBufferHandle(uint32_t frameIndex) const;
 	const DescriptorHandle& GetVertexBufferSBHandle() const;
 	const DescriptorHandle& GetIndexBufferSBHandle() const;
-	const DescriptorHandle& GetMesletsSBHandle() const;
-	const DescriptorHandle& GetMesletsVerticesSBHandle() const;
-	const DescriptorHandle& GetMesletsTrianglesBBHandle() const;
+	const DescriptorHandle& GetMeshletsSBHandle() const;
+	const DescriptorHandle& GetMeshletsVerticesSBHandle() const;
+	const DescriptorHandle& GetMeshletsTrianglesBBHandle() const;
 	const DescriptorHandle& GetMeshletsBoundingSphereInfosSBHandle() const;
 
 	uint32_t GetMaterialId() const;

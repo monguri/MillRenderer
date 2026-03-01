@@ -7067,9 +7067,9 @@ void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdL
 
 			descHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();
 			descHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
-			descHeapIndices[3] = pMesh->GetMesletsSBHandle().GetDescriptorIndex();
-			descHeapIndices[4] = pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex();
-			descHeapIndices[5] = pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex();
+			descHeapIndices[3] = pMesh->GetMeshletsSBHandle().GetDescriptorIndex();
+			descHeapIndices[4] = pMesh->GetMeshletsVerticesSBHandle().GetDescriptorIndex();
+			descHeapIndices[5] = pMesh->GetMeshletsTrianglesBBHandle().GetDescriptorIndex();
 
 			drawGBufferDescHeapIndices.CbMesh[meshIdx] = descHeapIndices[1];
 			drawGBufferDescHeapIndices.SbVertexBuffer[meshIdx] = descHeapIndices[2];
@@ -7134,9 +7134,9 @@ void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdL
 
 			gsDescHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();
 			gsDescHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
-			gsDescHeapIndices[3] = pMesh->GetMesletsSBHandle().GetDescriptorIndex();
-			gsDescHeapIndices[4] = pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex();
-			gsDescHeapIndices[5] = pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex();
+			gsDescHeapIndices[3] = pMesh->GetMeshletsSBHandle().GetDescriptorIndex();
+			gsDescHeapIndices[4] = pMesh->GetMeshletsVerticesSBHandle().GetDescriptorIndex();
+			gsDescHeapIndices[5] = pMesh->GetMeshletsTrianglesBBHandle().GetDescriptorIndex();
 
 			drawGBufferDescHeapIndices.CbMesh[meshIdx] = gsDescHeapIndices[1];
 			drawGBufferDescHeapIndices.SbVertexBuffer[meshIdx] = gsDescHeapIndices[2];
@@ -7190,9 +7190,9 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 				if (m_useMeshlet)
 				{
 					gsDescHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
-					gsDescHeapIndices[3] = pMesh->GetMesletsSBHandle().GetDescriptorIndex();
-					gsDescHeapIndices[4] = pMesh->GetMesletsVerticesSBHandle().GetDescriptorIndex();
-					gsDescHeapIndices[5] = pMesh->GetMesletsTrianglesBBHandle().GetDescriptorIndex();
+					gsDescHeapIndices[3] = pMesh->GetMeshletsSBHandle().GetDescriptorIndex();
+					gsDescHeapIndices[4] = pMesh->GetMeshletsVerticesSBHandle().GetDescriptorIndex();
+					gsDescHeapIndices[5] = pMesh->GetMeshletsTrianglesBBHandle().GetDescriptorIndex();
 				}
 
 				psDescHeapIndices[1] = pMaterial->GetCBHandle().GetDescriptorIndex();
@@ -7221,9 +7221,9 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 				if (m_useMeshlet)
 				{
 					pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMesletsSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMesletsVerticesSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMesletsTrianglesBBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMeshletsSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
 				}
 
 				pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
@@ -7477,9 +7477,9 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 			if (m_useMeshlet)
 			{
 				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetVertexBufferSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMesletsSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMesletsVerticesSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMesletsTrianglesBBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
 			}
 
 			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
