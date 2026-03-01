@@ -55,6 +55,7 @@ enum class DEBUG_VIEW_MODE : int
 	DEBUG_VIEW_TYPE_NONE,
 	TRIANGLE_INDEX,
 	MESHLET_INDEX,
+	MESHLET_BOUNDING_SPHERE,
 };
 
 namespace
@@ -774,7 +775,6 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 , m_enableFXAA(false)
 , m_enableFXAA_HighQuality(true)
 , m_debugViewMode(DEBUG_VIEW_MODE::NONE)
-, m_showMeshletBoundingSphere(false)
 , m_isLightManipulateMode(false)
 {
 	for (int a = 0; a < argc; a++)
@@ -6315,7 +6315,7 @@ void SampleApp::OnRender()
 
 	DrawFXAA(pCmd);
 
-	if (m_useMeshlet && m_showMeshletBoundingSphere)
+	if (m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE))
 	{
 		DrawMeshletBoundingSphere(pCmd, viewProjNoJitter);
 	}
@@ -8331,6 +8331,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
+		case MESHLET_BOUNDING_SPHERE:
 			renderTargetName = L"Final Result";
 			break;
 		case DEPTH:
@@ -8373,6 +8374,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			case SSGI:
 			case TRIANGLE_INDEX:
 			case MESHLET_INDEX:
+			case MESHLET_BOUNDING_SPHERE:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 1.0f;
 				ptr->Bias = 0.0f;
@@ -8418,6 +8420,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
+		case MESHLET_BOUNDING_SPHERE:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
 		case DEPTH:
@@ -8514,7 +8517,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		if (m_useMeshlet)
 		{
 			ImGui::RadioButton("Meshlet Index", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_INDEX));
-			ImGui::Checkbox("Meshlet Bounging Sphere", &m_showMeshletBoundingSphere);
+			ImGui::RadioButton("Meshlet Bounding Sphere", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_BOUNDING_SPHERE));
 		}
 		ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	}
