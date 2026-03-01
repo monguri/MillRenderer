@@ -149,7 +149,7 @@ private:
 	RootSignature m_TonemapRootSig;
 	ComPtr<ID3D12PipelineState> m_pFXAA_PSO;
 	RootSignature m_FXAA_RootSig;
-	ComPtr<ID3D12PipelineState> m_MeshletBoundingSpherePSO;
+	ComPtr<ID3D12PipelineState> m_pMeshletBoundingSpherePSO;
 	RootSignature m_MeshletBoundingSphereRootSig;
 	ComPtr<ID3D12PipelineState> m_pDownsamplePSO;
 	RootSignature m_DownsampleRootSig;

@@ -4861,10 +4861,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 		desc.SampleMask = UINT_MAX;
-		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+		desc.RasterizerState = DirectX::CommonStates::Wireframe;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
@@ -4882,7 +4882,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_MeshletBoundingSpherePSO.GetAddressOf())
+			IID_PPV_ARGS(m_pMeshletBoundingSpherePSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -6314,6 +6314,11 @@ void SampleApp::OnRender()
 	DrawTonemap(pCmd);
 
 	DrawFXAA(pCmd);
+
+	if (m_useMeshlet && m_showMeshletBoundingSphere)
+	{
+		DrawMeshletBoundingSphere(pCmd, viewProjNoJitter);
+	}
 
 	DrawBackBuffer(pCmd);
 
@@ -8183,39 +8188,33 @@ void SampleApp::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList* pCmdList, c
 
 	assert(m_useMeshlet);
 
-	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_SceneColorTarget.GetHandleRTV()->HandleCPU;
+	D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_FXAA_Target.GetHandleRTV()->HandleCPU;
 	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
 	pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 
-	// TODO: 実装中
-	//pCmdList->SetGraphicsRootSignature(m_DrawVBufferHWRasRootSig.GetPtr());
+	pCmdList->SetGraphicsRootSignature(m_MeshletBoundingSphereRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pMeshletBoundingSpherePSO.Get());
 
-	// TODO: 実装中
 	for (const Model* model : m_pModels)
 	{
 		for (size_t i = 0; i < model->GetMeshCount(); i++)
 		{
 			const Mesh* pMesh = model->GetMesh(i);
 
-			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
 			pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMesletsSBHandle().HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMesletsVerticesSBHandle().HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMesletsTrianglesBBHandle().HandleGPU);
 
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			pMesh->DrawMeshletBoundingSphere(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}
 	}
 
-	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 

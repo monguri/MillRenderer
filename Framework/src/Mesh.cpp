@@ -397,6 +397,27 @@ void Mesh::DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 	pCmdList->Dispatch(static_cast<UINT>(m_MeshletCount), 1, 1);
 }
 
+void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
+{
+	assert(m_IsMeshlet);
+
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	for (uint32_t i = 0; i < m_MeshletCount; i++)
+	{
+		const D3D12_VERTEX_BUFFER_VIEW& VBV = m_BoundingSphereVBs[i].GetVBV();
+		const D3D12_INDEX_BUFFER_VIEW& IBV = m_BoundingSphereIBs[i].GetIBV();
+
+		pCmdList->IASetVertexBuffers(0, 1, &VBV);
+		pCmdList->IASetIndexBuffer(&IBV);
+
+		// TODO: ‚Æ‚è‚ ‚¦‚¸
+		const uint32_t verticalSegments = 4;
+		const uint32_t horizontalSegments = 4 * 2;
+		pCmdList->DrawIndexedInstanced(verticalSegments * horizontalSegments * 6, 1, 0, 0, 0);
+	}
+}
+
 void Mesh::UnmapConstantBuffer(uint32_t frameIndex) const
 {
 	m_CB[frameIndex].Unmap();
