@@ -103,6 +103,8 @@ private:
 	RootSignature m_SceneRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferSWRasOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferSWRasMaskPSO;
+	RootSignature m_WireframeRootSig;
+	ComPtr<ID3D12PipelineState> m_pWireframePSO;
 	RootSignature m_DrawVBufferSWRasRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferHWRasOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferHWRasMaskPSO;
