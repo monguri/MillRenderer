@@ -50,6 +50,7 @@ public:
 	const DescriptorHandle& GetMeshletsVerticesSBHandle() const;
 	const DescriptorHandle& GetMeshletsTrianglesBBHandle() const;
 	const DescriptorHandle& GetMeshletsBoundingSphereInfosSBHandle() const;
+	const DescriptorHandle& GetMeshletsAABBInfosSBHandle() const;
 
 	uint32_t GetMaterialId() const;
 	Mobility GetMobility() const;
@@ -67,6 +68,9 @@ private:
 	Resource m_UnitSphereVB;
 	Resource m_UnitSphereIB;
 	Resource m_BoundingSphereInfosSB;
+	Resource m_UnitCubeVB;
+	Resource m_UnitCubeIB;
+	Resource m_AABBInfosSB;
 	uint32_t m_MaterialId;
 	size_t m_IndexCount;
 	size_t m_SphereIndexCount;

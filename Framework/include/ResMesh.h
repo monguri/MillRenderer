@@ -1,7 +1,7 @@
 #pragma once
 
 #include "d3d12.h"
-#include "DirectXMath.h"
+#include <SimpleMath.h>
 #include <meshoptimizer.h>
 #include <string>
 #include <vector>
@@ -69,8 +69,8 @@ struct ResMaterial
 
 struct AABB
 {
-	DirectX::XMFLOAT3 Center;
-	DirectX::XMFLOAT3 HalfExtent;
+	DirectX::SimpleMath::Vector3 Center;
+	DirectX::SimpleMath::Vector3 HalfExtent;
 };
 
 struct ResMesh

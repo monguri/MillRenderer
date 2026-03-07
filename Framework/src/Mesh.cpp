@@ -66,7 +66,7 @@ namespace
 	}
 
 	// DirectXTK12ÅAGeometry.cpp/hÇÃDirectX::ComputeBoxÇéQçlÇ…ÇµÇƒÇ¢ÇÈ
-	void CreateUnitBoxMesh(std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
+	void CreateUnitCubeMesh(std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
 	{
 		using namespace DirectX;
 
@@ -337,12 +337,12 @@ bool Mesh::Init
 			float radius;
 		};
 
-		std::vector<SphereInfo> infos(m_MeshletCount);
+		std::vector<SphereInfo> sphereInfos(m_MeshletCount);
 
 		for (uint32_t i = 0; i < m_MeshletCount; i++)
 		{
-			infos[i].center = Vector3(resource.Bounds[i].center);
-			infos[i].radius = resource.Bounds[i].radius;
+			sphereInfos[i].center = Vector3(resource.Bounds[i].center);
+			sphereInfos[i].radius = resource.Bounds[i].radius;
 		}
 
 		if (!m_BoundingSphereInfosSB.InitAsStructuredBuffer<SphereInfo>(
@@ -352,7 +352,7 @@ bool Mesh::Init
 			D3D12_RESOURCE_STATE_COMMON,
 			pPool,
 			nullptr,
-			L"BoundingSphereInfoSB"
+			L"BoundingSpheresphereInfosB"
 		))
 		{
 			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
@@ -362,8 +362,79 @@ bool Mesh::Init
 		if (!m_BoundingSphereInfosSB.UploadBufferTypeData<SphereInfo>(
 			pDevice,
 			pCmdList,
-			infos.size(),
-			infos.data()
+			sphereInfos.size(),
+			sphereInfos.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		assert(resource.AABBs.size() == m_MeshletCount);
+		std::vector<DirectX::XMFLOAT3> cubeVertices;
+		std::vector<uint32_t> cubeIndices;
+		CreateUnitCubeMesh(cubeVertices, cubeIndices);
+
+		if (!m_UnitCubeVB.InitAsVertexBuffer<DirectX::XMFLOAT3>(
+			pDevice,
+			cubeVertices.size()
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_UnitCubeIB.InitAsIndexBuffer<uint32_t>(
+			pDevice,
+			DXGI_FORMAT_R32_UINT,
+			cubeIndices.size()
+		))
+		{
+			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_UnitCubeVB.UploadBufferTypeData<DirectX::XMFLOAT3>(
+			pDevice,
+			pCmdList,
+			cubeVertices.size(),
+			cubeVertices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		if (!m_UnitCubeIB.UploadBufferTypeData<uint32_t>(
+			pDevice,
+			pCmdList,
+			cubeIndices.size(),
+			cubeIndices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		if (!m_AABBInfosSB.InitAsStructuredBuffer<AABB>(
+			pDevice,
+			m_MeshletCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPool,
+			nullptr,
+			L"AABBInfosSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_AABBInfosSB.UploadBufferTypeData<AABB>(
+			pDevice,
+			pCmdList,
+			resource.AABBs.size(),
+			resource.AABBs.data()
 		))
 		{
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
@@ -547,6 +618,12 @@ const DescriptorHandle& Mesh::GetMeshletsBoundingSphereInfosSBHandle() const
 {
 	assert(m_IsMeshlet);
 	return *m_BoundingSphereInfosSB.GetHandleSRV();
+}
+
+const DescriptorHandle& Mesh::GetMeshletsAABBInfosSBHandle() const
+{
+	assert(m_IsMeshlet);
+	return *m_AABBInfosSB.GetHandleSRV();
 }
 
 uint32_t Mesh::GetMaterialId() const
