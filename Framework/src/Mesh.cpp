@@ -6,6 +6,66 @@
 
 using namespace DirectX::SimpleMath;
 
+namespace
+{
+	// DirectXTK12、Geometry.cpp/hのDirectX::ComputeSphereを参考にしている
+	void CreateUnitSphereMesh(uint32_t segmentCount, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
+	{
+		using namespace DirectX;
+
+		outVertices.clear();
+		outIndices.clear();
+
+		const uint32_t verticalSegments = segmentCount;
+		const uint32_t horizontalSegments = segmentCount * 2;
+
+		// Create rings of outVertices at progressively higher latitudes.
+		outVertices.reserve((verticalSegments + 1) * (horizontalSegments + 1));
+		for (uint32_t i = 0; i <= verticalSegments; i++)
+		{
+			const float latitude = (float(i) * XM_PI / float(verticalSegments)) - XM_PIDIV2;
+			float dy, dxz;
+
+			XMScalarSinCos(&dy, &dxz, latitude);
+
+			// Create a single ring of outVertices at this latitude.
+			for (uint32_t j = 0; j <= horizontalSegments; j++)
+			{
+				const float longitude = float(j) * XM_2PI / float(horizontalSegments);
+				float dx, dz;
+
+				XMScalarSinCos(&dx, &dz, longitude);
+
+				dx *= dxz;
+				dz *= dxz;
+
+				outVertices.emplace_back(dx, dy, dz);
+			}
+		}
+
+		// Fill the index buffer with triangles joining each pair of latitude rings.
+		const uint32_t stride = horizontalSegments + 1;
+
+		outIndices.reserve(verticalSegments * horizontalSegments * 6);
+		for (uint32_t i = 0; i < verticalSegments; i++)
+		{
+			for (uint32_t j = 0; j <= horizontalSegments; j++)
+			{
+				const uint32_t nextI = i + 1;
+				const uint32_t nextJ = (j + 1) % stride;
+
+				outIndices.emplace_back(i * stride + j);
+				outIndices.emplace_back(nextI * stride + j);
+				outIndices.emplace_back(i * stride + nextJ);
+
+				outIndices.emplace_back(i * stride + nextJ);
+				outIndices.emplace_back(nextI * stride + j);
+				outIndices.emplace_back(nextI * stride + nextJ);
+			}
+		}
+	}
+}
+
 Mesh::Mesh()
 : m_MaterialId(UINT32_MAX)
 , m_MeshletCount(0)
@@ -162,7 +222,7 @@ bool Mesh::Init
 		std::vector<DirectX::XMFLOAT3> boundingSphereVertices;
 		std::vector<uint32_t> boundingSphereIndices;
 		const uint32_t SPHERE_SEGMENT_COUNT = 16;
-		CreateSphere(SPHERE_SEGMENT_COUNT, boundingSphereVertices, boundingSphereIndices);
+		CreateUnitSphereMesh(SPHERE_SEGMENT_COUNT, boundingSphereVertices, boundingSphereIndices);
 
 		m_SphereIndexCount = boundingSphereIndices.size();
 
@@ -340,63 +400,6 @@ void Mesh::Term()
 		m_pPool->Release();
 		m_pPool = nullptr;
 	}
-}
-
-// DirectXTK12、Geometry.cpp/hのDirectX::ComputeSphereを参考にしている
-void Mesh::CreateSphere(uint32_t segmentCount, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
-{
-	using namespace DirectX;
-
-    outVertices.clear();
-    outIndices.clear();
-
-    const uint32_t verticalSegments = segmentCount;
-    const uint32_t horizontalSegments = segmentCount * 2;
-
-    // Create rings of outVertices at progressively higher latitudes.
-	outVertices.reserve((verticalSegments + 1) * (horizontalSegments + 1));
-    for (uint32_t i = 0; i <= verticalSegments; i++)
-    {
-        const float latitude = (float(i) * XM_PI / float(verticalSegments)) - XM_PIDIV2;
-        float dy, dxz;
-
-        XMScalarSinCos(&dy, &dxz, latitude);
-
-        // Create a single ring of outVertices at this latitude.
-        for (uint32_t j = 0; j <= horizontalSegments; j++)
-        {
-            const float longitude = float(j) * XM_2PI / float(horizontalSegments);
-            float dx, dz;
-
-            XMScalarSinCos(&dx, &dz, longitude);
-
-            dx *= dxz;
-            dz *= dxz;
-
-            outVertices.emplace_back(dx, dy, dz);
-        }
-    }
-
-    // Fill the index buffer with triangles joining each pair of latitude rings.
-    const uint32_t stride = horizontalSegments + 1;
-
-	outIndices.reserve(verticalSegments * horizontalSegments * 6);
-    for (uint32_t i = 0; i < verticalSegments; i++)
-    {
-        for (uint32_t j = 0; j <= horizontalSegments; j++)
-        {
-            const uint32_t nextI = i + 1;
-            const uint32_t nextJ = (j + 1) % stride;
-
-            outIndices.emplace_back(i * stride + j);
-            outIndices.emplace_back(nextI * stride + j);
-            outIndices.emplace_back(i * stride + nextJ);
-
-            outIndices.emplace_back(i * stride + nextJ);
-            outIndices.emplace_back(nextI * stride + j);
-            outIndices.emplace_back(nextI * stride + nextJ);
-        }
-    }
 }
 
 void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const

@@ -84,8 +84,6 @@ private:
 		bool isMeshlet
 	);
 
-	static void CreateSphere(uint32_t segmentCount, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices);
-
 	Mesh(const Mesh&) = delete;
 	void operator=(const Mesh&) = delete;
 
