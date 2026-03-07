@@ -34,6 +34,7 @@ public:
 	void DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const;
 	void DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const;
 	void DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const;
+	void DrawMeshletAABB(ID3D12GraphicsCommandList6* pCmdList) const;
 
 	template<typename T>
 	T* MapConstantBuffer(uint32_t frameIndex) const

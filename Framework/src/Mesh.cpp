@@ -574,6 +574,20 @@ void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
 	pCmdList->DrawIndexedInstanced(static_cast<UINT>(m_SphereIndexCount), static_cast<UINT>(m_MeshletCount), 0, 0, 0);
 }
 
+void Mesh::DrawMeshletAABB(ID3D12GraphicsCommandList6* pCmdList) const
+{
+	assert(m_IsMeshlet);
+
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_UnitCubeVB.GetVBV();
+	const D3D12_INDEX_BUFFER_VIEW& IBV = m_UnitCubeIB.GetIBV();
+
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+	pCmdList->IASetIndexBuffer(&IBV);
+
+	// Cubeは6面12トライアングル36インデックス
+	pCmdList->DrawIndexedInstanced(36, static_cast<UINT>(m_MeshletCount), 0, 0, 0);
+}
+
 void Mesh::UnmapConstantBuffer(uint32_t frameIndex) const
 {
 	m_CB[frameIndex].Unmap();
