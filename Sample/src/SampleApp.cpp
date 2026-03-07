@@ -4862,7 +4862,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.BlendState = DirectX::CommonStates::Opaque;
 		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 		desc.SampleMask = UINT_MAX;
-		desc.RasterizerState = DirectX::CommonStates::CullCounterClockwise;
+		desc.RasterizerState = DirectX::CommonStates::Wireframe;
 		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		desc.NumRenderTargets = 1;
 		desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
@@ -6318,7 +6318,7 @@ void SampleApp::OnRender()
 
 	if (m_useMeshlet && ((m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE) || (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)))
 	{
-		DrawMeshletBoundingSphere(pCmd, viewProjNoJitter);
+		DrawMeshletAABB(pCmd, viewProjNoJitter);
 	}
 
 	DrawBackBuffer(pCmd);
@@ -6704,6 +6704,12 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
 		ptr->CameraPosition = m_CameraManipulator.GetPosition();
 		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
+
+		// Bounding Sphere/AABB表示のときはMeshlet Index表示も同時に行う
+		if ((m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE) || (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB))
+		{
+			ptr->DebugViewType = static_cast<int>(DEBUG_VIEW_MODE::MESHLET_INDEX) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE);
+		}
 	}
 
 	// ライトバッファの更新
@@ -8183,7 +8189,7 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter)
+void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter)
 {
 	assert(m_useMeshlet && ((m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE) || (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)));
 
@@ -8210,22 +8216,24 @@ void SampleApp::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList* pCmdList, c
 	pCmdList->SetGraphicsRootSignature(m_MeshletAABBRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pMeshletAABB_PSO.Get());
 
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+
 	for (const Model* model : m_pModels)
 	{
 		for (size_t i = 0; i < model->GetMeshCount(); i++)
 		{
 			const Mesh* pMesh = model->GetMesh(i);
 
-			pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsBoundingSphereInfosSBHandle().HandleGPU);
 
 			if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE)
 			{
+				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsBoundingSphereInfosSBHandle().HandleGPU);
 				pMesh->DrawMeshletBoundingSphere(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 			}
 			else // m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB
 			{
+				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
 				pMesh->DrawMeshletAABB(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 			}
 		}

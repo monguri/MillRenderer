@@ -311,7 +311,7 @@ private:
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
 	void DrawFXAA(ID3D12GraphicsCommandList* pCmdList);
-	void DrawMeshletBoundingSphere(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter);
+	void DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter);
 	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx);
 	void DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer);
 	void DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList);
