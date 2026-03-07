@@ -64,8 +64,8 @@ private:
 	Resource m_MeshletsSB;
 	Resource m_MeshletsVerticesSB;
 	Resource m_MeshletsTrianglesBB;
-	Resource m_SphereVB;
-	Resource m_SphereIB;
+	Resource m_UnitSphereVB;
+	Resource m_UnitSphereIB;
 	Resource m_BoundingSphereInfosSB;
 	uint32_t m_MaterialId;
 	size_t m_IndexCount;

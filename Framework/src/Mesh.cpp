@@ -290,7 +290,7 @@ bool Mesh::Init
 
 		m_SphereIndexCount = boundingSphereIndices.size();
 
-		if (!m_SphereVB.InitAsVertexBuffer<DirectX::XMFLOAT3>(
+		if (!m_UnitSphereVB.InitAsVertexBuffer<DirectX::XMFLOAT3>(
 			pDevice,
 			boundingSphereVertices.size()
 		))
@@ -299,7 +299,7 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_SphereIB.InitAsIndexBuffer<uint32_t>(
+		if (!m_UnitSphereIB.InitAsIndexBuffer<uint32_t>(
 			pDevice,
 			DXGI_FORMAT_R32_UINT,
 			boundingSphereIndices.size()
@@ -309,7 +309,7 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_SphereVB.UploadBufferTypeData<DirectX::XMFLOAT3>(
+		if (!m_UnitSphereVB.UploadBufferTypeData<DirectX::XMFLOAT3>(
 			pDevice,
 			pCmdList,
 			boundingSphereVertices.size(),
@@ -320,7 +320,7 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_SphereIB.UploadBufferTypeData<uint32_t>(
+		if (!m_UnitSphereIB.UploadBufferTypeData<uint32_t>(
 			pDevice,
 			pCmdList,
 			boundingSphereIndices.size(),
@@ -451,8 +451,8 @@ void Mesh::Term()
 	m_MeshletsVerticesSB.Term();
 	m_MeshletsTrianglesBB.Term();
 
-	m_SphereVB.Term();
-	m_SphereIB.Term();
+	m_UnitSphereVB.Term();
+	m_UnitSphereIB.Term();
 	m_BoundingSphereInfosSB.Term();
 
 	m_MaterialId = UINT32_MAX;
@@ -494,8 +494,8 @@ void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	assert(m_IsMeshlet);
 
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_SphereVB.GetVBV();
-	const D3D12_INDEX_BUFFER_VIEW& IBV = m_SphereIB.GetIBV();
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_UnitSphereVB.GetVBV();
+	const D3D12_INDEX_BUFFER_VIEW& IBV = m_UnitSphereIB.GetIBV();
 
 	pCmdList->IASetVertexBuffers(0, 1, &VBV);
 	pCmdList->IASetIndexBuffer(&IBV);
