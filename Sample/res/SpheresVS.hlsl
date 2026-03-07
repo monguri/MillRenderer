@@ -27,10 +27,10 @@ struct Mesh
 	uint MeshIdx;
 };
 
-struct SphereInfo
+struct AABB
 {
 	float3 Center;
-	float Radius;
+	float3 HalfExtent;
 };
 
 struct VSOutput
@@ -41,14 +41,14 @@ struct VSOutput
 
 ConstantBuffer<Transform> CbTransform : register(b0);
 ConstantBuffer<Mesh> CbMesh : register(b1);
-StructuredBuffer<SphereInfo> SbBoundingSphereInfos : register(t0);
+StructuredBuffer<AABB> SbAABBInfos : register(t0);
 
 [RootSignature(ROOT_SIGNATURE)]
 VSOutput main(float3 pos : POSITION, uint instanceID : SV_InstanceID)
 {
 	VSOutput output;
-	pos *= SbBoundingSphereInfos[instanceID].Radius;
-	pos += SbBoundingSphereInfos[instanceID].Center;
+	pos *= SbAABBInfos[instanceID].HalfExtent;
+	pos += SbAABBInfos[instanceID].Center;
 	output.Position = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(pos, 1)));
 	output.InstanceID = instanceID;
 	return output;

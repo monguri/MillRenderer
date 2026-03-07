@@ -6316,7 +6316,7 @@ void SampleApp::OnRender()
 
 	DrawFXAA(pCmd);
 
-	if (m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE))
+	if (m_useMeshlet && ((m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE) || (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)))
 	{
 		DrawMeshletBoundingSphere(pCmd, viewProjNoJitter);
 	}
@@ -8185,9 +8185,17 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter)
 {
-	::PIXScopedEvent(pCmdList, 0, L"Meshlet Bounding Sphere");
+	assert(m_useMeshlet && ((m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE) || (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)));
 
-	assert(m_useMeshlet);
+	if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE)
+	{
+		::PIXScopedEvent(pCmdList, 0, L"Meshlet Bounding Sphere");
+	}
+	else // m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB
+	{
+		::PIXScopedEvent(pCmdList, 0, L"Meshlet AABB");
+	}
+
 
 	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -8212,7 +8220,14 @@ void SampleApp::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList* pCmdList, c
 			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsBoundingSphereInfosSBHandle().HandleGPU);
 
-			pMesh->DrawMeshletBoundingSphere(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE)
+			{
+				pMesh->DrawMeshletBoundingSphere(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			}
+			else // m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB
+			{
+				pMesh->DrawMeshletAABB(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			}
 		}
 	}
 

@@ -331,21 +331,15 @@ bool Mesh::Init
 			return false;
 		}
 
-		struct SphereInfo
-		{
-			Vector3 center;
-			float radius;
-		};
-
-		std::vector<SphereInfo> sphereInfos(m_MeshletCount);
+		std::vector<AABB> sphereInfos(m_MeshletCount);
 
 		for (uint32_t i = 0; i < m_MeshletCount; i++)
 		{
-			sphereInfos[i].center = Vector3(resource.Bounds[i].center);
-			sphereInfos[i].radius = resource.Bounds[i].radius;
+			sphereInfos[i].Center = Vector3(resource.Bounds[i].center);
+			sphereInfos[i].HalfExtent = Vector3(resource.Bounds[i].radius);
 		}
 
-		if (!m_BoundingSphereInfosSB.InitAsStructuredBuffer<SphereInfo>(
+		if (!m_BoundingSphereInfosSB.InitAsStructuredBuffer<AABB>(
 			pDevice,
 			m_MeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
@@ -359,7 +353,7 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_BoundingSphereInfosSB.UploadBufferTypeData<SphereInfo>(
+		if (!m_BoundingSphereInfosSB.UploadBufferTypeData<AABB>(
 			pDevice,
 			pCmdList,
 			sphereInfos.size(),
