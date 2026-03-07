@@ -753,6 +753,35 @@ namespace
 				sizeof(float) * 3
 			);
 		}
+
+		dstMesh.AABBs.resize(meshletCount);
+		for (size_t i = 0; i < meshletCount; i++)
+		{
+			DirectX::XMFLOAT3 min = { FLT_MAX, FLT_MAX, FLT_MAX };
+			DirectX::XMFLOAT3 max = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
+
+			for (size_t vtx = 0; vtx < dstMesh.Meshlets[i].vertex_count; vtx++)
+			{
+				uint32_t vertexIndex = dstMesh.MeshletsVertices[dstMesh.Meshlets[i].vertex_offset + vtx];
+				const DirectX::XMFLOAT3& position = dstMesh.Vertices[vertexIndex].Position;
+
+				min.x = std::min(min.x, position.x);
+				min.y = std::min(min.y, position.y);
+				min.z = std::min(min.z, position.z);
+				
+				max.x = std::max(max.x, position.x);
+				max.y = std::max(max.y, position.y);
+				max.z = std::max(max.z, position.z);
+			}
+
+			dstMesh.AABBs[i].Center.x = (min.x + max.x) * 0.5f;
+			dstMesh.AABBs[i].Center.y = (min.y + max.y) * 0.5f;
+			dstMesh.AABBs[i].Center.z = (min.z + max.z) * 0.5f;
+
+			dstMesh.AABBs[i].HalfExtent.x = (max.x - min.x) * 0.5f;
+			dstMesh.AABBs[i].HalfExtent.y = (max.y - min.y) * 0.5f;
+			dstMesh.AABBs[i].HalfExtent.z = (max.z - min.z) * 0.5f;
+		}
 	}
 }
 

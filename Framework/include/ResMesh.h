@@ -67,6 +67,12 @@ struct ResMaterial
 	bool DoubleSided;
 };
 
+struct AABB
+{
+	DirectX::XMFLOAT3 Center;
+	DirectX::XMFLOAT3 HalfExtent;
+};
+
 struct ResMesh
 {
 	std::vector<MeshVertex> Vertices;
@@ -77,6 +83,7 @@ struct ResMesh
 	std::vector<uint32_t> MeshletsVertices;
 	std::vector<uint8_t> MeshletsTriangles;
 	std::vector<meshopt_Bounds> Bounds;
+	std::vector<AABB> AABBs;
 
 	uint32_t MaterialId;
 };
