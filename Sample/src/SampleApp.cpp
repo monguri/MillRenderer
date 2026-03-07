@@ -4810,11 +4810,11 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-	// Meshlet Bounding Sphere表示用ルートシグニチャとパイプラインステートの生成
+	// Meshlet Bounding Sphere/AABB表示用ルートシグニチャとパイプラインステートの生成
 	if (m_useMeshlet)
 	{
 		std::wstring vsPath;
-		if (!SearchFilePath(L"SpheresVS.cso", vsPath))
+		if (!SearchFilePath(L"AABB_VS.cso", vsPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;
@@ -4851,7 +4851,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!m_MeshletBoundingSphereRootSig.Init(m_pDevice.Get(), pRSBlob))
+		if (!m_MeshletAABBRootSig.Init(m_pDevice.Get(), pRSBlob))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
@@ -4876,14 +4876,14 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-		desc.pRootSignature = m_MeshletBoundingSphereRootSig.GetPtr();
+		desc.pRootSignature = m_MeshletAABBRootSig.GetPtr();
 
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pMeshletBoundingSpherePSO.GetAddressOf())
+			IID_PPV_ARGS(m_pMeshletAABB_PSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -8207,8 +8207,8 @@ void SampleApp::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList* pCmdList, c
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 
-	pCmdList->SetGraphicsRootSignature(m_MeshletBoundingSphereRootSig.GetPtr());
-	pCmdList->SetPipelineState(m_pMeshletBoundingSpherePSO.Get());
+	pCmdList->SetGraphicsRootSignature(m_MeshletAABBRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pMeshletAABB_PSO.Get());
 
 	for (const Model* model : m_pModels)
 	{

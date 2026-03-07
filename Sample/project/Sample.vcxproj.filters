@@ -186,7 +186,7 @@
     <FxCompile Include="..\res\DepthBufferFromVBufferPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\SpheresVS.hlsl">
+    <FxCompile Include="..\res\AABB_VS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\PaintInstanceIDColorPS.hlsl">
