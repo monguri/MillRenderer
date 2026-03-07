@@ -56,6 +56,7 @@ enum class DEBUG_VIEW_MODE : int
 	TRIANGLE_INDEX,
 	MESHLET_INDEX,
 	MESHLET_BOUNDING_SPHERE,
+	MESHLET_AABB,
 };
 
 namespace
@@ -8332,6 +8333,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
 		case MESHLET_BOUNDING_SPHERE:
+		case MESHLET_AABB:
 			renderTargetName = L"Final Result";
 			break;
 		case DEPTH:
@@ -8375,6 +8377,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			case TRIANGLE_INDEX:
 			case MESHLET_INDEX:
 			case MESHLET_BOUNDING_SPHERE:
+			case MESHLET_AABB:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 1.0f;
 				ptr->Bias = 0.0f;
@@ -8421,6 +8424,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
 		case MESHLET_BOUNDING_SPHERE:
+		case MESHLET_AABB:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
 		case DEPTH:
@@ -8518,6 +8522,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		{
 			ImGui::RadioButton("Meshlet Index", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_INDEX));
 			ImGui::RadioButton("Meshlet Bounding Sphere", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_BOUNDING_SPHERE));
+			ImGui::RadioButton("Meshlet AABB", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_AABB));
 		}
 		ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	}
