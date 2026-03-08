@@ -434,6 +434,29 @@ bool Mesh::Init
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
+
+		struct DispatchIndirectArgs
+		{
+			uint32_t ThreadGroupCountX;
+			uint32_t ThreadGroupCountY;
+			uint32_t ThreadGroupCountZ;
+		};
+
+		if (!m_VisibleMeshletCounterSB.InitAsStructuredBuffer<DispatchIndirectArgs>(
+			pDevice,
+			1,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			pPool,
+			L"VisibleMeshletCounterSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		//TODO:m_VisibleMeshletListSBÇçÏÇÁÇÀÇŒ
 	}
 	else
 	{
@@ -523,6 +546,9 @@ void Mesh::Term()
 	m_UnitCubeVB.Term();
 	m_UnitCubeIB.Term();
 	m_AABBInfosSB.Term();
+
+	m_VisibleMeshletCounterSB.Term();
+	m_VisibleMeshletListSB.Term();
 
 	m_MaterialId = UINT32_MAX;
 	m_IndexCount = 0;
