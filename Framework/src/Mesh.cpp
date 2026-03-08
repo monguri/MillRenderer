@@ -520,6 +520,10 @@ void Mesh::Term()
 	m_UnitSphereIB.Term();
 	m_BoundingSphereInfosSB.Term();
 
+	m_UnitCubeVB.Term();
+	m_UnitCubeIB.Term();
+	m_AABBInfosSB.Term();
+
 	m_MaterialId = UINT32_MAX;
 	m_IndexCount = 0;
 	m_SphereIndexCount = 0;
