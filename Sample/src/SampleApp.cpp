@@ -55,7 +55,6 @@ enum class DEBUG_VIEW_MODE : int
 	DEBUG_VIEW_TYPE_NONE,
 	TRIANGLE_INDEX,
 	MESHLET_INDEX,
-	MESHLET_BOUNDING_SPHERE,
 	MESHLET_AABB,
 };
 
@@ -6316,7 +6315,7 @@ void SampleApp::OnRender()
 
 	DrawFXAA(pCmd);
 
-	if (m_useMeshlet && ((m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE) || (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)))
+	if (m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB))
 	{
 		DrawMeshletAABB(pCmd, viewProjNoJitter);
 	}
@@ -6705,8 +6704,8 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		ptr->CameraPosition = m_CameraManipulator.GetPosition();
 		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
 
-		// Bounding Sphere/AABB表示のときはMeshlet Index表示も同時に行う
-		if ((m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE) || (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB))
+		// AABB表示のときはMeshlet Index表示も同時に行う
+		if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)
 		{
 			ptr->DebugViewType = static_cast<int>(DEBUG_VIEW_MODE::MESHLET_INDEX) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE);
 		}
@@ -8191,17 +8190,9 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter)
 {
-	assert(m_useMeshlet && ((m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE) || (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)));
+	assert(m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB));
 
-	if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE)
-	{
-		::PIXScopedEvent(pCmdList, 0, L"Meshlet Bounding Sphere");
-	}
-	else // m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB
-	{
-		::PIXScopedEvent(pCmdList, 0, L"Meshlet AABB");
-	}
-
+	::PIXScopedEvent(pCmdList, 0, L"Meshlet AABB");
 
 	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -8225,17 +8216,9 @@ void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const Direc
 			const Mesh* pMesh = model->GetMesh(i);
 
 			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
 
-			if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_BOUNDING_SPHERE)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsBoundingSphereInfosSBHandle().HandleGPU);
-				pMesh->DrawMeshletBoundingSphere(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
-			}
-			else // m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
-				pMesh->DrawMeshletAABB(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
-			}
+			pMesh->DrawMeshletAABB(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}
 	}
 
@@ -8355,7 +8338,6 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
-		case MESHLET_BOUNDING_SPHERE:
 		case MESHLET_AABB:
 			renderTargetName = L"Final Result";
 			break;
@@ -8399,7 +8381,6 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			case SSGI:
 			case TRIANGLE_INDEX:
 			case MESHLET_INDEX:
-			case MESHLET_BOUNDING_SPHERE:
 			case MESHLET_AABB:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 1.0f;
@@ -8446,7 +8427,6 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
-		case MESHLET_BOUNDING_SPHERE:
 		case MESHLET_AABB:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
@@ -8544,7 +8524,6 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		if (m_useMeshlet)
 		{
 			ImGui::RadioButton("Meshlet Index", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_INDEX));
-			ImGui::RadioButton("Meshlet Bounding Sphere", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_BOUNDING_SPHERE));
 			ImGui::RadioButton("Meshlet AABB", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_AABB));
 		}
 		ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
