@@ -3217,6 +3217,60 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// Meshletカリング用ルートシグニチャとパイプラインステートの生成
+	if (m_useMeshlet)
+	{
+		std::wstring csPath;
+
+		if (!SearchFilePath(L"MeshletCulling.cso", csPath))
+		{
+			ELOG("Error : Mesh Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pCSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_MeshletCullingRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_MeshletCullingRootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pMeshletCullingPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
 	// Visibilityパス用ルートシグニチャとパイプラインステートの生成
 	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
 	{
@@ -3271,7 +3325,6 @@ bool SampleApp::OnInit(HWND hWnd)
 				ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
 				return false;
 			}
-
 
 			if (!SearchFilePath(L"VisibilityMaskCS.cso", csPath))
 			{
