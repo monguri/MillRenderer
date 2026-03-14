@@ -282,6 +282,8 @@ bool Mesh::Init
 			return false;
 		}
 
+#if 0
+		//TODO: BoundingSphere関連はすべて現在未使用でデッドコードになっている。World行列に不均一スケールがあると楕円球になり扱いにくいため
 		assert(resource.Bounds.size() == m_MeshletCount);
 		std::vector<DirectX::XMFLOAT3> boundingSphereVertices;
 		std::vector<uint32_t> boundingSphereIndices;
@@ -363,6 +365,7 @@ bool Mesh::Init
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
+#endif
 
 		assert(resource.AABBs.size() == m_MeshletCount);
 		std::vector<DirectX::XMFLOAT3> cubeVertices;
