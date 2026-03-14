@@ -6262,6 +6262,18 @@ void SampleApp::OnRender()
 
 	DrawVolumetricCloud(pCmd);
 
+	if (m_useMeshlet)
+	{
+		if (m_enableTemporalAA)
+		{
+			DoMeshletCulling(pCmd, viewProjWithJitter);
+		}
+		else
+		{
+			DoMeshletCulling(pCmd, viewProjNoJitter);
+		}
+	}
+
 	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
 	{
 		// Indexは0初期化してシェーダ側で使用するインデックスがずれてもGPUクラッシュさせないようにする
@@ -6271,19 +6283,23 @@ void SampleApp::OnRender()
 		if (m_enableTemporalAA)
 		{
 			DrawVBuffer(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, drawGBufferDescHeapIndices);
+
 			if (m_useSWRasterizer)
 			{
 				DrawDepthBufferFromVBuffer(pCmd);
 			}
+
 			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential, drawGBufferDescHeapIndices);
 		}
 		else
 		{
 			DrawVBuffer(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, drawGBufferDescHeapIndices);
+
 			if (m_useSWRasterizer)
 			{
 				DrawDepthBufferFromVBuffer(pCmd);
 			}
+
 			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential, drawGBufferDescHeapIndices);
 		}
 
@@ -6656,6 +6672,13 @@ void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_CloudTracingTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_CloudSecondaryTracingTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_CloudTracingDepthTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj)
+{
+	assert(m_useMeshlet);
+
+	::PIXScopedEvent(pCmdList, 0, L"MeshletCulling");
 }
 
 void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
