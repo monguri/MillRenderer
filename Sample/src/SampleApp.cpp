@@ -6057,6 +6057,9 @@ void SampleApp::OnTerm()
 
 	m_SceneRootSig.Term();
 
+	m_pMeshletCullingPSO.Reset();
+	m_MeshletCullingRootSig.Term();
+
 	m_pDrawVBufferHWRasOpaquePSO.Reset();
 	m_pDrawVBufferHWRasMaskPSO.Reset();
 	m_DrawVBufferHWRasRootSig.Term();
