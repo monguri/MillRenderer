@@ -77,6 +77,8 @@ namespace
 	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 
+	static constexpr uint32_t MAX_DRAW_MESHLET_COUNT = 1024;
+
 	static constexpr uint32_t SKY_TRANSMITTANCE_LUT_WIDTH = 256; // UEを参考にした
 	static constexpr uint32_t SKY_TRANSMITTANCE_LUT_HEIGHT = 64; // UEを参考にした
 	static constexpr uint32_t SKY_MULTI_SCATTERING_LUT_WIDTH = 32; // UEを参考にした
@@ -2280,6 +2282,49 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : ColorTarget::Init() Failed.");
 			return false;
 		}
+	}
+
+	if (m_useMeshlet)
+	{
+		struct DispatchIndirectArgs
+		{
+			uint32_t ThreadGroupCountX;
+			uint32_t ThreadGroupCountY;
+			uint32_t ThreadGroupCountZ;
+		};
+
+		// DrawVBuffer用のMeshletカウンターのDispatchIndirectArgの生成
+		if (!m_DrawVBufferIndirectArgSB.InitAsStructuredBuffer<DispatchIndirectArgs>
+		(
+			m_pDevice.Get(),
+			1,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_COMMON,
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			L"DrawVBufferIndirectArgSB"
+		))
+		{
+			ELOG("Error : Resource::InitStructuredBuffer() Failed.");
+			return false;
+		}
+
+		// DrawVBuffer用のカリング済みMeshletIdxリストの生成
+		if (!m_DrawVBufferMeshletListSB.InitAsStructuredBuffer<uint32_t>
+		(
+			m_pDevice.Get(),
+			MAX_DRAW_MESHLET_COUNT,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_COMMON,
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			L"DrawVBufferMeshletListSB"
+		))
+		{
+			ELOG("Error : Resource::InitStructuredBuffer() Failed.");
+			return false;
+		}
+
 	}
 
     // 空の透過率LUT用ルートシグニチャとパイプラインステートの生成
@@ -5932,6 +5977,9 @@ void SampleApp::OnTerm()
 	m_TonemapTarget.Term();
 
 	m_FXAA_Target.Term();
+
+	m_DrawVBufferIndirectArgSB.Term();
+	m_DrawVBufferMeshletListSB.Term();
 
 	m_pSkyTransmittanceLUT_PSO.Reset();
 	m_SkyTransmittanceLUT_RootSig.Term();

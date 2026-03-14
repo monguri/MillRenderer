@@ -7,6 +7,7 @@
 #include "ConstantBuffer.h"
 #include "ColorTarget.h"
 #include "DepthTarget.h"
+#include "Resource.h"
 #include "RootSignature.h"
 #include "Texture.h"
 #include "TransformManipulator.h"
@@ -231,6 +232,8 @@ private:
 	SphereMapConverter m_SphereMapConverter;
 	IBLBaker m_IBLBaker;
 	SkyBox m_SkyBox;
+	Resource m_DrawVBufferIndirectArgSB;
+	Resource m_DrawVBufferMeshletListSB;
 
 	std::vector<class Model*> m_pModels;
 	std::vector<DescriptorHandle*> m_pHZB_ParentMipSRVs;
