@@ -455,7 +455,7 @@ bool Mesh::Init
 			L"VisibleMeshletCounterSB"
 		))
 		{
-			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
 			return false;
 		}
 
