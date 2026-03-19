@@ -42,19 +42,12 @@ struct AABB
 	float3 HalfExtent;
 };
 
-struct DispatchIndirectArgs
-{
-	uint ThreadGroupCountX;
-	uint ThreadGroupCountY;
-	uint ThreadGroupCountZ;
-};
-
 ConstantBuffer<RootConstants> CbRootConst : register(b0);
 ConstantBuffer<Transform> CbTransform : register(b1);
 ConstantBuffer<Mesh> CbMesh : register(b2);
 StructuredBuffer<AABB> SbAABBInfos : register(t0);
-RWStructuredBuffer<DispatchIndirectArgs> DrawVBufferIndirectArgSB : register(u0);
-RWStructuredBuffer<uint> DrawVBufferMeshletListSB : register(u1);
+RWByteAddressBuffer DrawVBufferIndirectArgBB : register(u0);
+RWByteAddressBuffer DrawVBufferMeshletListBB : register(u1);
 
 // InverseZÅAInfinitePlane
 bool frustumCull(float3 aabbNdcPos[8])
@@ -121,8 +114,8 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 	if (visible)
 	{
 		uint visibleMeshletIdx;
-		InterlockedAdd(DrawVBufferIndirectArgSB[0].ThreadGroupCountX, 1, visibleMeshletIdx);
+		DrawVBufferIndirectArgBB.InterlockedAdd(0, 1, visibleMeshletIdx);
 
-		DrawVBufferMeshletListSB[visibleMeshletIdx] = meshletIdx;
+		DrawVBufferMeshletListBB.Store(visibleMeshletIdx * 4, meshletIdx);
 	}
 }

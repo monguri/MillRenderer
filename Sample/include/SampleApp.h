@@ -234,8 +234,8 @@ private:
 	SphereMapConverter m_SphereMapConverter;
 	IBLBaker m_IBLBaker;
 	SkyBox m_SkyBox;
-	Resource m_DrawVBufferIndirectArgSB;
-	Resource m_DrawVBufferMeshletListSB;
+	Resource m_DrawVBufferIndirectArgBB;
+	Resource m_DrawVBufferMeshletListBB;
 
 	std::vector<class Model*> m_pModels;
 	std::vector<DescriptorHandle*> m_pHZB_ParentMipSRVs;
