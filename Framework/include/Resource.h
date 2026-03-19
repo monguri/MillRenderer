@@ -1,6 +1,7 @@
 #pragma once
 
 #include <d3d12.h>
+#include <cstdint>
 #include "ComPtr.h"
 
 class DescriptorPool;
@@ -21,7 +22,8 @@ public:
 		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc,
-		DescriptorPool* pPoolUAV,
+		DescriptorPool* pPoolUAVGpuVisible,
+		DescriptorPool* pPoolUAVCpuVisible,
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc,
 		LPCWSTR name = nullptr
 	);
@@ -85,6 +87,8 @@ public:
 		);
 	}
 
+	// StructuredBufferÇÕí èÌÇ≈ÇÕClearUnorderedAccessViewUint()ÇÕégÇ¶Ç»Ç¢ÇΩÇﬂ
+	// CpuVisibleÇ»DescriptorPoolÇ≈UAVÇçÏÇÈà”ñ°Ç™Ç»Ç¢
 	template<typename T>
 	bool InitAsStructuredBuffer
 	(
@@ -93,7 +97,7 @@ public:
 		D3D12_RESOURCE_FLAGS flags,
 		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
-		DescriptorPool* pPoolUAV,
+		DescriptorPool* pPoolUAVGpuVisible,
 		LPCWSTR name = nullptr
 	)
 	{
@@ -105,7 +109,7 @@ public:
 			flags,
 			state,
 			pPoolSRV,
-			pPoolUAV,
+			pPoolUAVGpuVisible,
 			name
 		);
 	}
@@ -117,7 +121,8 @@ public:
 		D3D12_RESOURCE_FLAGS flags,
 		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
-		DescriptorPool* pPoolUAV,
+		DescriptorPool* pPoolUAVGpuVisible,
+		DescriptorPool* pPoolUAVCpuVisible,
 		LPCWSTR name = nullptr
 	);
 
@@ -157,6 +162,8 @@ public:
 
 	void Unmap() const;
 
+	void ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32_t value[4]);
+
 	D3D12_VERTEX_BUFFER_VIEW GetVBV() const;
 	D3D12_INDEX_BUFFER_VIEW GetIBV() const;
 	DescriptorHandle* GetHandleCBV() const;
@@ -171,9 +178,11 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW m_VBV;
 	D3D12_INDEX_BUFFER_VIEW m_IBV;
 	DescriptorHandle* m_pHandleSRV = nullptr;
-	DescriptorHandle* m_pHandleUAV = nullptr;
+	DescriptorHandle* m_pHandleUAVGpuVisible = nullptr;
+	DescriptorHandle* m_pHandleUAVCpuVisible = nullptr;
 	DescriptorPool* m_pPoolSRV = nullptr;
-	DescriptorPool* m_pPoolUAV = nullptr;
+	DescriptorPool* m_pPoolUAVGpuVisible = nullptr;
+	DescriptorPool* m_pPoolUAVCpuVisible = nullptr;
 
 	bool InitAsVertexBuffer
 	(
@@ -197,7 +206,7 @@ private:
 		D3D12_RESOURCE_FLAGS flags,
 		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
-		DescriptorPool* pPoolUAV,
+		DescriptorPool* pPoolUAVGpuVisible,
 		LPCWSTR name = nullptr
 	);
 

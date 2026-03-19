@@ -20,7 +20,8 @@ bool Resource::Init
 	D3D12_RESOURCE_STATES state,
 	DescriptorPool* pPoolSRV,
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc,
-	DescriptorPool* pPoolUAV,
+	DescriptorPool* pPoolUAVGpuVisible,
+	DescriptorPool* pPoolUAVCpuVisible,
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc,
 	LPCWSTR name
 )
@@ -45,16 +46,28 @@ bool Resource::Init
 		}
 	}
 
-	assert(m_pPoolUAV == nullptr);
-	assert(m_pHandleUAV == nullptr);
+	assert(m_pPoolUAVGpuVisible == nullptr);
+	assert(m_pHandleUAVGpuVisible == nullptr);
 
-	if (pPoolUAV != nullptr)
+	if (pPoolUAVGpuVisible != nullptr)
 	{
-		m_pPoolUAV = pPoolUAV;
-		m_pPoolUAV->AddRef();
+		m_pPoolUAVGpuVisible = pPoolUAVGpuVisible;
+		m_pPoolUAVGpuVisible->AddRef();
 
-		m_pHandleUAV = pPoolUAV->AllocHandle();
-		if (m_pHandleUAV == nullptr)
+		m_pHandleUAVGpuVisible = pPoolUAVGpuVisible->AllocHandle();
+		if (m_pHandleUAVGpuVisible == nullptr)
+		{
+			return false;
+		}
+	}
+
+	if (pPoolUAVCpuVisible != nullptr)
+	{
+		m_pPoolUAVCpuVisible = pPoolUAVCpuVisible;
+		m_pPoolUAVCpuVisible->AddRef();
+
+		m_pHandleUAVCpuVisible = pPoolUAVCpuVisible->AllocHandle();
+		if (m_pHandleUAVCpuVisible == nullptr)
 		{
 			return false;
 		}
@@ -94,13 +107,23 @@ bool Resource::Init
 		);
 	}
 
-	if (m_pHandleUAV != nullptr)
+	if (m_pHandleUAVGpuVisible != nullptr)
 	{
 		pDevice->CreateUnorderedAccessView(
 			m_pResource.Get(),
 			nullptr,
 			&uavDesc,
-			m_pHandleUAV->HandleCPU
+			m_pHandleUAVGpuVisible->HandleCPU
+		);
+	}
+
+	if (m_pHandleUAVCpuVisible != nullptr)
+	{
+		pDevice->CreateUnorderedAccessView(
+			m_pResource.Get(),
+			nullptr,
+			&uavDesc,
+			m_pHandleUAVCpuVisible->HandleCPU
 		);
 	}
 
@@ -298,7 +321,7 @@ bool Resource::InitAsStructuredBuffer
 	D3D12_RESOURCE_FLAGS flags,
 	D3D12_RESOURCE_STATES state,
 	DescriptorPool* pPoolSRV,
-	DescriptorPool* pPoolUAV,
+	DescriptorPool* pPoolUAVGpuVisible,
 	LPCWSTR name
 )
 {
@@ -350,7 +373,8 @@ bool Resource::InitAsStructuredBuffer
 		state,
 		pPoolSRV,
 		srvDesc,
-		pPoolUAV,
+		pPoolUAVGpuVisible,
+		nullptr,
 		uavDesc,
 		name
 	);
@@ -363,7 +387,8 @@ bool Resource::InitAsByteAddressBuffer
 	D3D12_RESOURCE_FLAGS flags,
 	D3D12_RESOURCE_STATES state,
 	DescriptorPool* pPoolSRV,
-	DescriptorPool* pPoolUAV,
+	DescriptorPool* pPoolUAVGpuVisible,
+	DescriptorPool* pPoolUAVCpuVisible,
 	LPCWSTR name
 )
 {
@@ -387,23 +412,26 @@ bool Resource::InitAsByteAddressBuffer
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	desc.Flags = flags;
 
+	// ClearUnorderedAccessViewUint()を使うためにRaw Bufferとして扱う形にしておく。
+	// 別のパターンのBBも作るなら引数を増やすこと。
+
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Buffer.FirstElement = 0;
 	srvDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
-	srvDesc.Buffer.StructureByteStride = 4;
-	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	srvDesc.Buffer.StructureByteStride = 0;
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 	uavDesc.Buffer.FirstElement = 0;
 	uavDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
-	uavDesc.Buffer.StructureByteStride = 4;
+	uavDesc.Buffer.StructureByteStride = 0;
 	uavDesc.Buffer.CounterOffsetInBytes = 0;
-	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 
 	return Init(
 		pDevice,
@@ -413,7 +441,8 @@ bool Resource::InitAsByteAddressBuffer
 		state,
 		pPoolSRV,
 		srvDesc,
-		pPoolUAV,
+		pPoolUAVGpuVisible,
+		pPoolUAVCpuVisible,
 		uavDesc,
 		name
 	);
@@ -436,16 +465,28 @@ void Resource::Term()
 		m_pPoolSRV = nullptr;
 	}
 
-	if (m_pHandleUAV != nullptr && m_pPoolUAV != nullptr)
+	if (m_pHandleUAVGpuVisible != nullptr && m_pPoolUAVGpuVisible != nullptr)
 	{
-		m_pPoolUAV->FreeHandle(m_pHandleUAV);
-		m_pHandleUAV = nullptr;
+		m_pPoolUAVGpuVisible->FreeHandle(m_pHandleUAVGpuVisible);
+		m_pHandleUAVGpuVisible = nullptr;
 	}
 
-	if (m_pPoolUAV != nullptr)
+	if (m_pPoolUAVGpuVisible != nullptr)
 	{
-		m_pPoolUAV->Release();
-		m_pPoolUAV = nullptr;
+		m_pPoolUAVGpuVisible->Release();
+		m_pPoolUAVGpuVisible = nullptr;
+	}
+
+	if (m_pHandleUAVCpuVisible != nullptr && m_pPoolUAVCpuVisible != nullptr)
+	{
+		m_pPoolUAVCpuVisible->FreeHandle(m_pHandleUAVCpuVisible);
+		m_pHandleUAVCpuVisible = nullptr;
+	}
+
+	if (m_pPoolUAVCpuVisible != nullptr)
+	{
+		m_pPoolUAVCpuVisible->Release();
+		m_pPoolUAVCpuVisible = nullptr;
 	}
 }
 
@@ -533,6 +574,21 @@ void Resource::Unmap() const
 	m_pResource->Unmap(0, nullptr);
 }
 
+void Resource::ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32_t value[4])
+{
+	assert(m_pHandleUAVGpuVisible != nullptr);
+	assert(m_pHandleUAVCpuVisible != nullptr);
+
+	pCmdList->ClearUnorderedAccessViewUint(
+		m_pHandleUAVGpuVisible->HandleGPU,
+		m_pHandleUAVCpuVisible->HandleCPU,
+		m_pResource.Get(),
+		value,
+		0,
+		nullptr
+	);
+}
+
 D3D12_VERTEX_BUFFER_VIEW Resource::GetVBV() const
 {
 	return m_VBV;
@@ -556,7 +612,7 @@ DescriptorHandle* Resource::GetHandleSRV() const
 
 DescriptorHandle* Resource::GetHandleUAV() const
 {
-	return m_pHandleUAV;
+	return m_pHandleUAVGpuVisible;
 }
 
 ID3D12Resource* Resource::GetResource() const
