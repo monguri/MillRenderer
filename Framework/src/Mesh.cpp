@@ -568,11 +568,13 @@ void Mesh::DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	assert(m_IsMeshlet);
 
+	pCmdList->SetComputeRoot32BitConstant(0, static_cast<UINT>(m_MeshletCount), 0);
+
 	// シェーダ側と合わせている
 	constexpr size_t GROUP_SIZE_X = 64;
 	// グループ数は切り上げ
 	UINT NumGroupX = static_cast<UINT>((m_MeshletCount + GROUP_SIZE_X - 1) / GROUP_SIZE_X);
-	pCmdList->DispatchMesh(NumGroupX, 1, 1);
+	pCmdList->Dispatch(NumGroupX, 1, 1);
 }
 
 void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const

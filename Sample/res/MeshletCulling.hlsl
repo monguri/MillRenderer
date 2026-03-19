@@ -9,12 +9,17 @@
 " | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
 " | DENY_MESH_SHADER_ROOT_ACCESS"\
 ")"\
-", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_ALL)"\
+", RootConstants(num32BitConstants=1, b0, visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_ALL)"\
+", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u1), visibility = SHADER_VISIBILITY_ALL)"\
 
+struct RootConstants
+{
+	uint MeshletCount;
+};
 
 struct Transform
 {
@@ -44,8 +49,9 @@ struct DispatchIndirectArgs
 	uint ThreadGroupCountZ;
 };
 
-ConstantBuffer<Transform> CbTransform : register(b0);
-ConstantBuffer<Mesh> CbMesh : register(b1);
+ConstantBuffer<RootConstants> CbRootConst : register(b0);
+ConstantBuffer<Transform> CbTransform : register(b1);
+ConstantBuffer<Mesh> CbMesh : register(b2);
 StructuredBuffer<AABB> SbAABBInfos : register(t0);
 RWStructuredBuffer<DispatchIndirectArgs> DrawVBufferIndirectArgSB : register(u0);
 RWStructuredBuffer<uint> DrawVBufferMeshletListSB : register(u1);
@@ -84,6 +90,11 @@ bool frustumCull(float3 aabbNdcPos[8])
 [numthreads(64, 1, 1)]
 void main(uint meshletIdx : SV_DispatchThreadID)
 {
+	if (meshletIdx >= CbRootConst.MeshletCount)
+	{
+		return;
+	}
+
 	AABB aabb = SbAABBInfos[meshletIdx];
 
 	float3 vertices[8] =
