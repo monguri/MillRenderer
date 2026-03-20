@@ -74,8 +74,6 @@ private:
 	Resource m_UnitCubeVB;
 	Resource m_UnitCubeIB;
 	Resource m_AABBInfosSB;
-	Resource m_VisibleMeshletCounterSB;
-	Resource m_VisibleMeshletListSB;
 	uint32_t m_MaterialId;
 	size_t m_IndexCount;
 	size_t m_SphereIndexCount;
