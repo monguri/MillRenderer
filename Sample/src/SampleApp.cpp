@@ -2320,6 +2320,16 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+		DirectX::TransitionResource(pCmd, m_DrawVBufferIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmd, m_DrawVBufferMeshletListBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+
+		// Wait command queue finishing.
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
     // 空の透過率LUT用ルートシグニチャとパイプラインステートの生成
@@ -6683,9 +6693,6 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 	// DispatchIndirectArg、VisibleMeshletListクリア
 	{
-		DirectX::TransitionResource(pCmdList, m_DrawVBufferIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		DirectX::TransitionResource(pCmdList, m_DrawVBufferMeshletListBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 		uint32_t clearValue[4] = {0, 0, 0, 0};
 		m_DrawVBufferIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
 		m_DrawVBufferMeshletListBB.ClearUavWithUintValue(pCmdList, clearValue);
