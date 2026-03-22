@@ -162,7 +162,7 @@ public:
 
 	void Unmap() const;
 
-	void ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32_t value[4]);
+	void ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32_t value[4]) const;
 
 	D3D12_VERTEX_BUFFER_VIEW GetVBV() const;
 	D3D12_INDEX_BUFFER_VIEW GetIBV() const;

@@ -1,13 +1,15 @@
 #include "Mesh.h"
 #include "Logger.h"
 #include "DescriptorPool.h"
-#include <DirectXMath.h>
+#include <DirectXHelpers.h>
 #include <SimpleMath.h>
 
 using namespace DirectX::SimpleMath;
 
 namespace
 {
+	static constexpr uint32_t MAX_DRAW_MESHLET_COUNT = 1024;
+
 	// DirectXTK12、Geometry.cpp/hのDirectX::ComputeSphereを参考にしている
 	void CreateUnitSphereMesh(uint32_t segmentCount, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
 	{
@@ -136,7 +138,8 @@ Mesh::Mesh()
 , m_IndexCount(0)
 , m_SphereIndexCount(0)
 , m_Mobility(Mobility::Static)
-, m_pPool(nullptr)
+, m_pPoolGpuVisible(nullptr)
+, m_pPoolCpuVisible(nullptr)
 {
 }
 
@@ -149,7 +152,8 @@ bool Mesh::Init
 (
 	ID3D12Device* pDevice,
 	ID3D12GraphicsCommandList* pCmdList,
-	class DescriptorPool* pPool,
+	class DescriptorPool* pPoolGpuVisible,
+	class DescriptorPool* pPoolCpuVisible,
 	const ResMesh& resource,
 	size_t cbBufferSize,
 	bool isMeshlet
@@ -176,7 +180,7 @@ bool Mesh::Init
 			m_MeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
+			pPoolGpuVisible,
 			nullptr,
 			L"MeshletsSB"
 		))
@@ -201,7 +205,7 @@ bool Mesh::Init
 			resource.MeshletsVertices.size(),
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
+			pPoolGpuVisible,
 			nullptr,
 			L"MeshletsVerticesSB"
 		))
@@ -234,7 +238,7 @@ bool Mesh::Init
 			meshletsTriangles.size(),
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
+			pPoolGpuVisible,
 			nullptr,
 			L"MeshletsTrianglesBB"
 		))
@@ -259,7 +263,7 @@ bool Mesh::Init
 			vertexCount,
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
+			pPoolGpuVisible,
 			nullptr,
 			L"SbVertexBuffer"
 		))
@@ -273,7 +277,7 @@ bool Mesh::Init
 			m_IndexCount,
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
+			pPoolGpuVisible,
 			nullptr,
 			L"SbIndexBuffer"
 		))
@@ -346,7 +350,7 @@ bool Mesh::Init
 			m_MeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
+			pPoolGpuVisible,
 			nullptr,
 			L"BoundingSpheresphereInfosB"
 		))
@@ -418,7 +422,7 @@ bool Mesh::Init
 			m_MeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
-			pPool,
+			pPoolGpuVisible,
 			nullptr,
 			L"AABBInfosSB"
 		))
@@ -438,12 +442,43 @@ bool Mesh::Init
 			return false;
 		}
 
-		struct DispatchIndirectArgs
+		// DrawVBuffer用のMeshletカウンターのDispatchIndirectArgの生成
+		if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
+		(
+			pDevice,
+			3 * sizeof(uint32_t),
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			pPoolGpuVisible,
+			pPoolCpuVisible,
+			L"DrawVBufferIndirectArgBB"
+		))
 		{
-			uint32_t ThreadGroupCountX;
-			uint32_t ThreadGroupCountY;
-			uint32_t ThreadGroupCountZ;
-		};
+			ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		// DrawVBuffer用のカリング済みMeshletIdxリストの生成
+		if (!m_DrawMeshletListBB.InitAsByteAddressBuffer
+		(
+			pDevice,
+			MAX_DRAW_MESHLET_COUNT * sizeof(uint32_t),
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			pPoolGpuVisible,
+			pPoolCpuVisible,
+			L"DrawVBufferMeshletListBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_DrawMeshletListBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	}
 	else
 	{
@@ -489,8 +524,10 @@ bool Mesh::Init
 		return false;
 	}
 
-	m_pPool = pPool;
-	m_pPool->AddRef();
+	m_pPoolGpuVisible = pPoolGpuVisible;
+	m_pPoolGpuVisible->AddRef();
+	m_pPoolCpuVisible = pPoolCpuVisible;
+	m_pPoolCpuVisible->AddRef();
 
 	for (uint32_t i = 0; i < App::FRAME_COUNT; i++)
 	{
@@ -498,7 +535,7 @@ bool Mesh::Init
 			pDevice,
 			cbBufferSize,
 			D3D12_HEAP_TYPE_UPLOAD,
-			pPool,
+			pPoolGpuVisible,
 			L"CbMesh"
 		))
 		{
@@ -534,15 +571,33 @@ void Mesh::Term()
 	m_UnitCubeIB.Term();
 	m_AABBInfosSB.Term();
 
+	m_DrawMeshletIndirectArgBB.Term();
+	m_DrawMeshletListBB.Term();
+
 	m_MaterialId = UINT32_MAX;
 	m_IndexCount = 0;
 	m_SphereIndexCount = 0;
 
-	if (m_pPool != nullptr)
+	if (m_pPoolGpuVisible != nullptr)
 	{
-		m_pPool->Release();
-		m_pPool = nullptr;
+		m_pPoolGpuVisible->Release();
+		m_pPoolGpuVisible = nullptr;
 	}
+
+	if (m_pPoolCpuVisible != nullptr)
+	{
+		m_pPoolCpuVisible->Release();
+		m_pPoolCpuVisible = nullptr;
+	}
+}
+
+void Mesh::ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const
+{
+	assert(m_IsMeshlet);
+
+	uint32_t clearValue[4] = {0, 0, 0, 0};
+	m_DrawMeshletIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
+	m_DrawMeshletListBB.ClearUavWithUintValue(pCmdList, clearValue);
 }
 
 void Mesh::DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const
@@ -659,6 +714,18 @@ const DescriptorHandle& Mesh::GetMeshletsAABBInfosSBHandle() const
 {
 	assert(m_IsMeshlet);
 	return *m_AABBInfosSB.GetHandleSRV();
+}
+
+const DescriptorHandle& Mesh::GetDrawMeshletIndirectArgBBHandle() const
+{
+	assert(m_IsMeshlet);
+	return *m_DrawMeshletIndirectArgBB.GetHandleUAV();
+}
+
+const DescriptorHandle& Mesh::GetDrawMeshletListBBHandle() const
+{
+	assert(m_IsMeshlet);
+	return *m_DrawMeshletListBB.GetHandleUAV();
 }
 
 uint32_t Mesh::GetMaterialId() const

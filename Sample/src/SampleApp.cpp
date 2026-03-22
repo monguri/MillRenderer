@@ -77,8 +77,6 @@ namespace
 	static constexpr uint32_t DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE = 2048; // TODO:ModelViewerを参考にした
 	static constexpr uint32_t SPOT_LIGHT_SHADOW_MAP_SIZE = 512; // TODO:ModelViewerを参考にした
 
-	static constexpr uint32_t MAX_DRAW_MESHLET_COUNT = 1024;
-
 	static constexpr uint32_t SKY_TRANSMITTANCE_LUT_WIDTH = 256; // UEを参考にした
 	static constexpr uint32_t SKY_TRANSMITTANCE_LUT_HEIGHT = 64; // UEを参考にした
 	static constexpr uint32_t SKY_MULTI_SCATTERING_LUT_WIDTH = 32; // UEを参考にした
@@ -919,7 +917,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], resMesh[i], m_useMeshlet))
+			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE], resMesh[i], m_useMeshlet))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
@@ -1073,7 +1071,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], resMesh[i], m_useMeshlet))
+			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE], resMesh[i], m_useMeshlet))
 			{
 				ELOG("Error : Mesh Initialize Failed.");
 				delete mesh;
@@ -2282,54 +2280,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : ColorTarget::Init() Failed.");
 			return false;
 		}
-	}
-
-	if (m_useMeshlet)
-	{
-		// DrawVBuffer用のMeshletカウンターのDispatchIndirectArgの生成
-		if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
-		(
-			m_pDevice.Get(),
-			3 * sizeof(uint32_t),
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			D3D12_RESOURCE_STATE_COMMON,
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
-			L"DrawVBufferIndirectArgBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
-			return false;
-		}
-
-		// DrawVBuffer用のカリング済みMeshletIdxリストの生成
-		if (!m_DrawMeshletListBB.InitAsByteAddressBuffer
-		(
-			m_pDevice.Get(),
-			MAX_DRAW_MESHLET_COUNT * sizeof(uint32_t),
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			D3D12_RESOURCE_STATE_COMMON,
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
-			L"DrawVBufferMeshletListBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
-			return false;
-		}
-
-		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
-		DirectX::TransitionResource(pCmd, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		DirectX::TransitionResource(pCmd, m_DrawMeshletListBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		pCmd->Close();
-
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
-
-		// Wait command queue finishing.
-		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
     // 空の透過率LUT用ルートシグニチャとパイプラインステートの生成
@@ -6036,9 +5986,6 @@ void SampleApp::OnTerm()
 
 	m_FXAA_Target.Term();
 
-	m_DrawMeshletIndirectArgBB.Term();
-	m_DrawMeshletListBB.Term();
-
 	m_pSkyTransmittanceLUT_PSO.Reset();
 	m_SkyTransmittanceLUT_RootSig.Term();
 	m_pSkyMultiScatteringLUT_PSO.Reset();
@@ -6692,17 +6639,18 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	}
 
 	// DispatchIndirectArg、VisibleMeshletListクリア
+	for (const Model* model : m_pModels)
 	{
-		uint32_t clearValue[4] = {0, 0, 0, 0};
-		m_DrawMeshletIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
-		m_DrawMeshletListBB.ClearUavWithUintValue(pCmdList, clearValue);
+		for (size_t m = 0; m < model->GetMeshCount(); m++)
+		{
+			const Mesh* pMesh = model->GetMesh(m);
+			pMesh->ClearDrawMeshletBBs(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+		}
 	}
 
 	pCmdList->SetComputeRootSignature(m_MeshletCullingRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pMeshletCullingPSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(4, m_DrawMeshletIndirectArgBB.GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(5, m_DrawMeshletListBB.GetHandleUAV()->HandleGPU);
 
 	for (const Model* model : m_pModels)
 	{
@@ -6712,6 +6660,8 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 			pCmdList->SetComputeRootDescriptorTable(2, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
 			pCmdList->SetComputeRootDescriptorTable(3, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(4, pMesh->GetDrawMeshletIndirectArgBBHandle().HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(5, pMesh->GetDrawMeshletListBBHandle().HandleGPU);
 
 			pMesh->DoMeshletCulling(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}

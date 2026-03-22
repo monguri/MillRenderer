@@ -255,21 +255,22 @@ bool App::InitD3D()
 
 		desc.NodeMask = 1;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		desc.NumDescriptors = 512;
+		desc.NumDescriptors = 1024;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_RES_GPU_VISIBLE]))
 		{
 			return false;
 		}
 
+		desc.NumDescriptors = 512;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_RES_CPU_VISIBLE]))
 		{
 			return false;
 		}
 
+		desc.NumDescriptors = 128;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-		desc.NumDescriptors = 256;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_SMP]))
 		{
@@ -277,7 +278,7 @@ bool App::InitD3D()
 		}
 
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		desc.NumDescriptors = 512;
+		desc.NumDescriptors = 256;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_RTV]))
 		{
@@ -285,7 +286,7 @@ bool App::InitD3D()
 		}
 
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		desc.NumDescriptors = 512;
+		desc.NumDescriptors = 128;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_DSV]))
 		{

@@ -21,16 +21,18 @@ public:
 	(
 		ID3D12Device* pDevice,
 		ID3D12GraphicsCommandList* pCmdList,
-		class DescriptorPool* pPool,
+		class DescriptorPool* pPoolGpuVisible,
+		class DescriptorPool* pPoolCpuVisible,
 		const ResMesh& resource,
 		bool isMeshlet = false
 	)
 	{
-		return Init(pDevice, pCmdList, pPool, resource, sizeof(CbType), isMeshlet);
+		return Init(pDevice, pCmdList, pPoolGpuVisible, pPoolCpuVisible, resource, sizeof(CbType), isMeshlet);
 	}
 
 	void Term();
 
+	void ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const;
 	void DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const;
 	void DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const;
 	void DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const;
@@ -54,6 +56,8 @@ public:
 	const DescriptorHandle& GetMeshletsTrianglesBBHandle() const;
 	const DescriptorHandle& GetMeshletsBoundingSphereInfosSBHandle() const;
 	const DescriptorHandle& GetMeshletsAABBInfosSBHandle() const;
+	const DescriptorHandle& GetDrawMeshletIndirectArgBBHandle() const;
+	const DescriptorHandle& GetDrawMeshletListBBHandle() const;
 
 	uint32_t GetMaterialId() const;
 	Mobility GetMobility() const;
@@ -74,18 +78,22 @@ private:
 	Resource m_UnitCubeVB;
 	Resource m_UnitCubeIB;
 	Resource m_AABBInfosSB;
+	Resource m_DrawMeshletIndirectArgBB;
+	Resource m_DrawMeshletListBB;
 	uint32_t m_MaterialId;
 	size_t m_IndexCount;
 	size_t m_SphereIndexCount;
 	size_t m_MeshletCount;
 	Mobility m_Mobility;
-	class DescriptorPool* m_pPool;
+	class DescriptorPool* m_pPoolGpuVisible;
+	class DescriptorPool* m_pPoolCpuVisible;
 
 	bool Init
 	(
 		ID3D12Device* pDevice,
 		ID3D12GraphicsCommandList* pCmdList,
-		class DescriptorPool* pPool,
+		class DescriptorPool* pPoolGpuVisible,
+		class DescriptorPool* pPoolCpuVisible,
 		const ResMesh& resource,
 		size_t cbBufferSize,
 		bool isMeshlet

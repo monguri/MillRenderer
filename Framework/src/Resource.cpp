@@ -574,7 +574,7 @@ void Resource::Unmap() const
 	m_pResource->Unmap(0, nullptr);
 }
 
-void Resource::ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32_t value[4])
+void Resource::ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32_t value[4]) const
 {
 	assert(m_pHandleUAVGpuVisible != nullptr);
 	assert(m_pHandleUAVCpuVisible != nullptr);
