@@ -2287,7 +2287,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	if (m_useMeshlet)
 	{
 		// DrawVBuffer用のMeshletカウンターのDispatchIndirectArgの生成
-		if (!m_DrawVBufferIndirectArgBB.InitAsByteAddressBuffer
+		if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
 		(
 			m_pDevice.Get(),
 			3 * sizeof(uint32_t),
@@ -2304,7 +2304,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		// DrawVBuffer用のカリング済みMeshletIdxリストの生成
-		if (!m_DrawVBufferMeshletListBB.InitAsByteAddressBuffer
+		if (!m_DrawMeshletListBB.InitAsByteAddressBuffer
 		(
 			m_pDevice.Get(),
 			MAX_DRAW_MESHLET_COUNT * sizeof(uint32_t),
@@ -2321,8 +2321,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
-		DirectX::TransitionResource(pCmd, m_DrawVBufferIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		DirectX::TransitionResource(pCmd, m_DrawVBufferMeshletListBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmd, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmd, m_DrawMeshletListBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		pCmd->Close();
 
 		ID3D12CommandList* pLists[] = {pCmd};
@@ -6036,8 +6036,8 @@ void SampleApp::OnTerm()
 
 	m_FXAA_Target.Term();
 
-	m_DrawVBufferIndirectArgBB.Term();
-	m_DrawVBufferMeshletListBB.Term();
+	m_DrawMeshletIndirectArgBB.Term();
+	m_DrawMeshletListBB.Term();
 
 	m_pSkyTransmittanceLUT_PSO.Reset();
 	m_SkyTransmittanceLUT_RootSig.Term();
@@ -6694,15 +6694,15 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	// DispatchIndirectArg、VisibleMeshletListクリア
 	{
 		uint32_t clearValue[4] = {0, 0, 0, 0};
-		m_DrawVBufferIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
-		m_DrawVBufferMeshletListBB.ClearUavWithUintValue(pCmdList, clearValue);
+		m_DrawMeshletIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
+		m_DrawMeshletListBB.ClearUavWithUintValue(pCmdList, clearValue);
 	}
 
 	pCmdList->SetComputeRootSignature(m_MeshletCullingRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pMeshletCullingPSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(4, m_DrawVBufferIndirectArgBB.GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(5, m_DrawVBufferMeshletListBB.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_DrawMeshletIndirectArgBB.GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(5, m_DrawMeshletListBB.GetHandleUAV()->HandleGPU);
 
 	for (const Model* model : m_pModels)
 	{
