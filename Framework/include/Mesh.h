@@ -78,6 +78,7 @@ private:
 	Resource m_UnitCubeVB;
 	Resource m_UnitCubeIB;
 	Resource m_AABBInfosSB;
+	ComPtr<ID3D12CommandSignature> m_pDrawMeshletCmdSig;
 	Resource m_DrawMeshletIndirectArgBB;
 	Resource m_DrawMeshletListBB;
 	uint32_t m_MaterialId;

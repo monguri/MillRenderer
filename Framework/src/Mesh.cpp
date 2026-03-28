@@ -442,6 +442,24 @@ bool Mesh::Init
 			return false;
 		}
 
+		// DrawVBuffer用のCommandSignatureの生成
+		{
+			D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+			argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
+
+			D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
+			cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_MESH_ARGUMENTS);
+			cmdSigDesc.NumArgumentDescs = 1;
+			cmdSigDesc.pArgumentDescs = &argDesc;
+
+			HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawMeshletCmdSig));
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+				return false;
+			}
+		}
+
 		// DrawVBuffer用のMeshletカウンターのDispatchIndirectArgの生成
 		if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
 		(
