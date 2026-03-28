@@ -9,7 +9,7 @@
 	" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
 	" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
 	")"\
-	", RootConstants(num32BitConstants=6, b0, visibility = SHADER_VISIBILITY_MESH)"\
+	", RootConstants(num32BitConstants=7, b0, visibility = SHADER_VISIBILITY_MESH)"\
 	", RootConstants(num32BitConstants=11, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
 	", StaticSampler"\
 	"("\
@@ -51,6 +51,7 @@
 	", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
 	", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
 	", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
+	", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_MESH)"\
 	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
 	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
 	", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -137,6 +138,7 @@ struct DescHeapIndices
 	uint CbTransform;
 	uint CbMesh;
 	uint SbVertexBuffer;
+	uint BbDrawMeshletList;
 	uint SbMeshlets;
 	uint SbMeshletVertices;
 	uint SbMeshletTriangles;
@@ -150,9 +152,10 @@ ConstantBuffer<Mesh> CbMesh : register(b1);
 #endif // #ifdef USE_DYNAMIC_RESOURCE
 
 StructuredBuffer<VSInput> vertexBuffer : register(t0);
-StructuredBuffer<meshopt_Meshlet> meshlets : register(t1);
-StructuredBuffer<uint> meshletsVertices : register(t2);
-StructuredBuffer<uint> meshletsTriangles : register(t3);
+ByteAddressBuffer drawMeshletList : register(t1);
+StructuredBuffer<meshopt_Meshlet> meshlets : register(t2);
+StructuredBuffer<uint> meshletsVertices : register(t3);
+StructuredBuffer<uint> meshletsTriangles : register(t4);
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]

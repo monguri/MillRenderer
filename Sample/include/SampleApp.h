@@ -35,6 +35,7 @@ private:
 	{
 		uint32_t CbMesh[MAX_MESH_COUNT];
 		uint32_t SbVertexBuffer[MAX_MESH_COUNT];
+		uint32_t BbDrawMeshletListBuffer[MAX_MESH_COUNT];
 		uint32_t SbMeshletBuffer[MAX_MESH_COUNT];
 		uint32_t SbMeshletVerticesBuffer[MAX_MESH_COUNT];
 		uint32_t SbMeshletTrianglesBuffer[MAX_MESH_COUNT];

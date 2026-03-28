@@ -673,6 +673,7 @@ void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 void Mesh::DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	assert(m_IsMeshlet);
+
 	pCmdList->Dispatch(static_cast<UINT>(m_MeshletCount), 1, 1);
 }
 
@@ -761,10 +762,22 @@ const DescriptorHandle& Mesh::GetDrawMeshletIndirectArgBBHandle() const
 	return *m_DrawMeshletIndirectArgBB.GetHandleUAV();
 }
 
-const DescriptorHandle& Mesh::GetDrawMeshletListBBHandle() const
+const Resource& Mesh::GetDrawMeshletListBB() const
+{
+	assert(m_IsMeshlet);
+	return m_DrawMeshletListBB;
+}
+
+const DescriptorHandle& Mesh::GetDrawMeshletListBBUavHandle() const
 {
 	assert(m_IsMeshlet);
 	return *m_DrawMeshletListBB.GetHandleUAV();
+}
+
+const DescriptorHandle& Mesh::GetDrawMeshletListBBSrvHandle() const
+{
+	assert(m_IsMeshlet);
+	return *m_DrawMeshletListBB.GetHandleSRV();
 }
 
 uint32_t Mesh::GetMaterialId() const

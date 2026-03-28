@@ -9,7 +9,7 @@
 " | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
 " | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
 ")"\
-", RootConstants(num32BitConstants=6, b0, visibility = SHADER_VISIBILITY_MESH)"\
+", RootConstants(num32BitConstants=7, b0, visibility = SHADER_VISIBILITY_MESH)"\
 ", RootConstants(num32BitConstants=2, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
 ", StaticSampler"\
 "("\
@@ -60,6 +60,7 @@ struct DescHeapIndices
 	uint CbTransform;
 	uint CbMesh;
 	uint SbVertexBuffer;
+	uint BbDrawMeshletList;
 	uint SbMeshlets;
 	uint SbMeshletVertices;
 	uint SbMeshletTriangles;

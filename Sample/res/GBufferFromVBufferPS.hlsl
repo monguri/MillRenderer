@@ -67,10 +67,14 @@ static const uint MAX_MESH_COUNT = 256;
 static const uint NUM_POINT_LIGHTS = 4;
 static const uint NUM_SPOT_LIGHTS = 3;
 
+// CbMesh, SbVertexBuffer, BbDrawMeshletListBuffer, SbMeshletBuffer, SbMeshletVerticesBuffer, SbMeshletTrianglesBuffer, CbMaterial, BaseColorMap, MetallicRoughnessMap, NormalMap, EmissiveMap, AOMap
+static const uint EACH_MESH_DESCRIPTOR_COUNT = 12;
+
 struct CbDrawGBufferDescHeapIndices
 {
 	//uint CbMesh[MAX_MESH_COUNT];
 	//uint SbVertexBuffer[MAX_MESH_COUNT];
+	//uint BbDrawMeshletListBuffer[MAX_MESH_COUNT];
 	//uint SbMeshletBuffer[MAX_MESH_COUNT];
 	//uint SbMeshletVerticesBuffer[MAX_MESH_COUNT];
 	//uint SbMeshletTrianglesBuffer[MAX_MESH_COUNT];
@@ -81,6 +85,7 @@ struct CbDrawGBufferDescHeapIndices
 	//uint EmissiveMap[MAX_MESH_COUNT];
 	//uint AOMap[MAX_MESH_COUNT];
 
+	//uint CbTransform;
 	//uint CbCamera;
 	//uint VBuffer;
 	//uint DepthBuffer;
@@ -103,7 +108,7 @@ struct CbDrawGBufferDescHeapIndices
 	//TODO: 配列変数が複数あるとメインメモリとのメモリマッピングがうまくいかないので
 	// ひとつのuint[]にまとめてインデックスは別途ゲッターを用意する
 	uint4 Indices[(
-		MAX_MESH_COUNT * 11 // CbMesh, SbVertexBuffer, SbMeshletBuffer, SbMeshletVerticesBuffer, SbMeshletTrianglesBuffer, CbMaterial, BaseColorMap, MetallicRoughnessMap, NormalMap, EmissiveMap, AOMap
+		MAX_MESH_COUNT * EACH_MESH_DESCRIPTOR_COUNT
 		+ 1 // CbTransform
 		+ 1 // CbCamera
 		+ 1 // VBuffer
@@ -124,7 +129,8 @@ struct CbDrawGBufferDescHeapIndices
 
 static const uint CbMeshBaseIdx = 0;
 static const uint SbVertexBufferBaseIdx = CbMeshBaseIdx  + MAX_MESH_COUNT;
-static const uint SbMeshletBufferBaseIdx = SbVertexBufferBaseIdx + MAX_MESH_COUNT;
+static const uint BbDrawMeshletListBufferBaseIdx = SbVertexBufferBaseIdx + MAX_MESH_COUNT;
+static const uint SbMeshletBufferBaseIdx = BbDrawMeshletListBufferBaseIdx + MAX_MESH_COUNT;
 static const uint SbMeshletVerticesBufferBaseIdx = SbMeshletBufferBaseIdx + MAX_MESH_COUNT;
 static const uint SbMeshletTrianglesBufferBaseIdx = SbMeshletVerticesBufferBaseIdx + MAX_MESH_COUNT;
 static const uint CbMaterialBaseIdx = SbMeshletTrianglesBufferBaseIdx + MAX_MESH_COUNT;
@@ -133,7 +139,7 @@ static const uint MetallicRoughnessMapBaseIdx = BaseColorMapBaseIdx + MAX_MESH_C
 static const uint NormalMapBaseIdx = MetallicRoughnessMapBaseIdx + MAX_MESH_COUNT;
 static const uint EmissiveMapBaseIdx = NormalMapBaseIdx + MAX_MESH_COUNT;
 static const uint AOMapBaseIdx = EmissiveMapBaseIdx + MAX_MESH_COUNT;
-static const uint CbTransformIdx = MAX_MESH_COUNT * 11;
+static const uint CbTransformIdx = MAX_MESH_COUNT * EACH_MESH_DESCRIPTOR_COUNT;
 static const uint CbCameraIdx = CbTransformIdx + 1;
 static const uint VBufferIdx = CbCameraIdx + 1;
 static const uint DepthBufferIdx = VBufferIdx + 1;

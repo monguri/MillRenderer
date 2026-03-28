@@ -57,7 +57,9 @@ public:
 	const DescriptorHandle& GetMeshletsBoundingSphereInfosSBHandle() const;
 	const DescriptorHandle& GetMeshletsAABBInfosSBHandle() const;
 	const DescriptorHandle& GetDrawMeshletIndirectArgBBHandle() const;
-	const DescriptorHandle& GetDrawMeshletListBBHandle() const;
+	const Resource& GetDrawMeshletListBB() const;
+	const DescriptorHandle& GetDrawMeshletListBBUavHandle() const;
+	const DescriptorHandle& GetDrawMeshletListBBSrvHandle() const;
 
 	uint32_t GetMaterialId() const;
 	Mobility GetMobility() const;

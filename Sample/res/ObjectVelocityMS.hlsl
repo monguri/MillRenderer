@@ -12,6 +12,7 @@
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_MESH)"\
 
 //TODO:Ç¢ÇÎÇ¢ÇÎÇ»VS/MSÇ∆íËã`Ç™èÁí∑
 struct VSInput
@@ -45,9 +46,10 @@ cbuffer CbObjectVelocity : register(b0)
 }
 
 StructuredBuffer<VSInput> vertexBuffer : register(t0);
-StructuredBuffer<meshopt_Meshlet> meshlets : register(t1);
-StructuredBuffer<uint> meshletsVertices : register(t2);
-StructuredBuffer<uint> meshletsTriangles : register(t3);
+ByteAddressBuffer drawMeshletList : register(t1);
+StructuredBuffer<meshopt_Meshlet> meshlets : register(t2);
+StructuredBuffer<uint> meshletsVertices : register(t3);
+StructuredBuffer<uint> meshletsTriangles : register(t4);
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
