@@ -8623,7 +8623,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	// imgui_demo.cppを参考にしている。右列のラベル部分のサイズを固定する
     ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
 
-	ImGui::SeparatorText("Debug View");
+	if (ImGui::CollapsingHeader("Debug View", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		using enum DEBUG_VIEW_MODE;
 		// TODO:ラジオボタンだと面積を大きく撮るのでドロップダウンリストにしたい
@@ -8643,7 +8643,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	}
 
-	ImGui::SeparatorText("Culling");
+	if (ImGui::CollapsingHeader("Culling", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::Checkbox("Frustom Culling", &m_enableFrustomCulling);
 		ImGui::Checkbox("Occlusion Culling", &m_enableOcclusionCulling);
@@ -8651,45 +8651,45 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		ImGui::Checkbox("Freeze Culling", &m_freezeCulling);
 	}
 
-	ImGui::SeparatorText("Light Intensity");
+	if (ImGui::CollapsingHeader("Light Intensity"))
 	{
 		ImGui::SliderFloat("Dir Light Intensity", &m_directionalLightIntensity, 0.0f, 100.0f);
 		ImGui::SliderFloat("Point Light Intensity", &m_pointLightIntensity, 0.0f, 1000.0f);
 		ImGui::SliderFloat("Spot Light Intensity", &m_spotLightIntensity, 0.0f, 10000.0f);
 	}
 
-	ImGui::SeparatorText("Velocity and Motion Blur");
+	if (ImGui::CollapsingHeader("Velocity and Motion Blur"))
 	{
 		ImGui::Checkbox("Move Flower Base", &m_moveFlowerVase);
 		ImGui::Checkbox("Generate Velocity", &m_enableVelocity);
 		ImGui::SliderFloat("Motion Blur Scale", &m_motionBlurScale, 0.0f, 10.0f);
 	}
 
-	ImGui::SeparatorText("SSAO");
+	if (ImGui::CollapsingHeader("SSAO"))
 	{
 		ImGui::SliderFloat("SSAO Contrast", &m_SSAO_Contrast, 0.01f, 10.0f, "%f", ImGuiSliderFlags_Logarithmic);
 		ImGui::SliderFloat("SSAO Intensity", &m_SSAO_Intensity, 0.0f, 1.0f);
 	}
 
-	ImGui::SeparatorText("SSGI(WIP)");
+	if (ImGui::CollapsingHeader("SSGI(WIP)"))
 	{
 		ImGui::SliderFloat("SSGI Intensity", &m_SSGI_Intensity, 0.0f, 1.0f);
 	}
 
-	ImGui::SeparatorText("Volumetric Fog Intensity");
+	if (ImGui::CollapsingHeader("Volumetric Fog Intensity"))
 	{
 		ImGui::SliderFloat("Dir Light Scattering", &m_directionalLightVolumetricFogScatteringIntensity, 0.0f, 10000.0f);
 		ImGui::SliderFloat("Spot Light Scattering", &m_spotLightVolumetricFogScatteringIntensity, 0.0f, 100000.0f);
 	}
 
-	ImGui::SeparatorText("AA");
+	if (ImGui::CollapsingHeader("AA"))
 	{
 		ImGui::Checkbox("Temporal AA", &m_enableTemporalAA);
 		ImGui::Checkbox("FXAA", &m_enableFXAA);
 		ImGui::Checkbox("FXAA High Quality", &m_enableFXAA_HighQuality);
 	}
 
-	ImGui::SeparatorText("Tonemap");
+	if (ImGui::CollapsingHeader("Tonemap"))
 	{
 		using enum TONE_MAP;
 		// TODO:ラジオボタンだと面積を大きく撮るのでドロップダウンリストにしたい
@@ -8699,7 +8699,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		ImGui::RadioButton("Khronos PBR Neutral", reinterpret_cast<int*>(&m_ToneMapType), static_cast<int>(KHRONOS_PBR_NEUTRAL));
 	}
 
-	ImGui::SeparatorText("Other Postprocess");
+	if (ImGui::CollapsingHeader("Other Postprocess"))
 	{
 		ImGui::SliderFloat("SSR Intensity", &m_SSR_Intensity, 0.0f, 10.0f);
 	#if 0 // TODO: SSRだけでなくVolumetricFogも表示されるので、一旦機能をカット。将来的に他のパスについてもDebugViewを一通り揃えるなら改めてSSRについても正しいものを追加する
