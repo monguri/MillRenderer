@@ -197,6 +197,7 @@ private:
 	ColorTarget m_TonemapTarget;
 	ColorTarget m_FXAA_Target;
 	VertexBuffer m_QuadVB;
+	ConstantBuffer m_CullingCB;
 	ConstantBuffer m_DrawVBufferSWRasCB;
 	ConstantBuffer m_DrawGBufferDescHeapIndicesCB[FRAME_COUNT];;
 	ConstantBuffer m_GBufferFromVBufferCB;

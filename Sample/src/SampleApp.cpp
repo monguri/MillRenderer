@@ -210,6 +210,14 @@ namespace
 		unsigned int MaterialID;
 	};
 
+	struct alignas(256) CbCulling
+	{
+		unsigned int bEnableFrustumCulling;
+		unsigned int bEnableOcclusionCulling;
+		unsigned int bEnableBackFaceCulling;
+		float Padding[1];
+	};
+
 	// TODO: SS系のパスの多くで同じ変数を別のCBに入れているので共通化したい
 	struct alignas(256) CbDrawVBufferSWRas
 	{
@@ -1179,6 +1187,20 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 
 	m_pModels.shrink_to_fit();
+
+	if (m_useMeshlet)
+	{
+		if (!m_CullingCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbCulling), L"CbCulling"))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		CbCulling* ptr = m_CullingCB.GetPtr<CbCulling>();
+		ptr->bEnableFrustumCulling = m_enableFrustomCulling;
+		ptr->bEnableOcclusionCulling = m_enableOcclusionCulling;
+		ptr->bEnableBackFaceCulling = m_enableBackFaceCulling;
+	}
 
 	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer && m_useSWRasterizer)
 	{
@@ -6632,10 +6654,15 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 	::PIXScopedEvent(pCmdList, 0, L"MeshletCulling");
 
-	// 変換行列用の定数バッファの更新
+	// 定数バッファの更新
 	{
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 		ptr->ViewProj = viewProj;
+
+		CbCulling* ptrCulling = m_CullingCB.GetPtr<CbCulling>();
+		ptrCulling->bEnableFrustumCulling = m_enableFrustomCulling ? 1 : 0;
+		ptrCulling->bEnableOcclusionCulling = m_enableOcclusionCulling ? 1 : 0;
+		ptrCulling->bEnableBackFaceCulling = m_enableBackFaceCulling ? 1 : 0;
 	}
 
 	// DispatchIndirectArg、VisibleMeshletListクリア
@@ -6651,6 +6678,7 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	pCmdList->SetComputeRootSignature(m_MeshletCullingRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pMeshletCullingPSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_CullingCB.GetHandle()->HandleGPU);
 
 	for (const Model* model : m_pModels)
 	{
@@ -6658,10 +6686,10 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 		{
 			const Mesh* pMesh = model->GetMesh(m);
 
-			pCmdList->SetComputeRootDescriptorTable(2, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-			pCmdList->SetComputeRootDescriptorTable(3, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
-			pCmdList->SetComputeRootDescriptorTable(4, pMesh->GetDrawMeshletIndirectArgBBHandle().HandleGPU);
-			pCmdList->SetComputeRootDescriptorTable(5, pMesh->GetDrawMeshletListBBHandle().HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(3, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(4, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(5, pMesh->GetDrawMeshletIndirectArgBBHandle().HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(6, pMesh->GetDrawMeshletListBBHandle().HandleGPU);
 
 			pMesh->DoMeshletCulling(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}

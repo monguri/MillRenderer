@@ -12,6 +12,7 @@
 ", RootConstants(num32BitConstants=1, b0, visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_ALL)"\
+", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u1), visibility = SHADER_VISIBILITY_ALL)"\
@@ -30,6 +31,13 @@ struct Transform
 	float4x4 WorldToSpotLight3ShadowMap;
 };
 
+struct Culling
+{
+	uint bEnableFrustumCulling;
+	uint bEnableOcclusionCulling;
+	uint bEnableBackFaceCulling;
+};
+
 struct Mesh
 {
 	float4x4 World;
@@ -44,7 +52,8 @@ struct AABB
 
 ConstantBuffer<RootConstants> CbRootConst : register(b0);
 ConstantBuffer<Transform> CbTransform : register(b1);
-ConstantBuffer<Mesh> CbMesh : register(b2);
+ConstantBuffer<Culling> CbCulling : register(b2);
+ConstantBuffer<Mesh> CbMesh : register(b3);
 StructuredBuffer<AABB> SbAABBInfos : register(t0);
 RWByteAddressBuffer DrawVBufferIndirectArgBB : register(u0);
 RWByteAddressBuffer DrawVBufferMeshletListBB : register(u1);
@@ -109,7 +118,11 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 		vertices[i] = clipPos.xyz / clipPos.w;
 	}
 
-	bool visible = frustumCull(vertices);
+	bool visible = true;
+	if (CbCulling.bEnableFrustumCulling == 1)
+	{
+		 visible = visible && frustumCull(vertices);
+	}
 
 	if (visible)
 	{
