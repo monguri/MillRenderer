@@ -8643,6 +8643,14 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	}
 
+	ImGui::SeparatorText("Culling");
+	{
+		ImGui::Checkbox("Frustom Culling", &m_enableFrustomCulling);
+		ImGui::Checkbox("Occlusion Culling", &m_enableOcclusionCulling);
+		ImGui::Checkbox("Back Face Culling", &m_enableBackFaceCulling);
+		ImGui::Checkbox("Freeze Culling", &m_freezeCulling);
+	}
+
 	ImGui::SeparatorText("Light Intensity");
 	{
 		ImGui::SliderFloat("Dir Light Intensity", &m_directionalLightIntensity, 0.0f, 100.0f);

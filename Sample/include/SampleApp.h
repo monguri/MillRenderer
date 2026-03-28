@@ -256,6 +256,11 @@ private:
 	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitter;
 	DirectX::SimpleMath::Matrix m_PrevViewProjNoJitterForVolumetricFog;
 
+	enum class DEBUG_VIEW_MODE m_debugViewMode;
+	bool m_enableFrustomCulling;
+	bool m_enableOcclusionCulling;
+	bool m_enableBackFaceCulling;
+	bool m_freezeCulling;
 	float m_directionalLightIntensity;
 	float m_pointLightIntensity;
 	float m_spotLightIntensity;
@@ -274,7 +279,6 @@ private:
 	bool m_enableTemporalAA;
 	bool m_enableFXAA;
 	bool m_enableFXAA_HighQuality;
-	enum class DEBUG_VIEW_MODE m_debugViewMode;
 	bool m_isLightManipulateMode;
 
 	virtual bool OnInit(HWND hWnd) override;
