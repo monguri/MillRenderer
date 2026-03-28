@@ -442,7 +442,7 @@ bool Mesh::Init
 			return false;
 		}
 
-		// DrawVBuffer用のCommandSignatureの生成
+		// MeshletのHWRasterizer描画用のCommandSignatureの生成
 		{
 			D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
 			argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
@@ -452,7 +452,7 @@ bool Mesh::Init
 			cmdSigDesc.NumArgumentDescs = 1;
 			cmdSigDesc.pArgumentDescs = &argDesc;
 
-			HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawMeshletCmdSig));
+			HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawByHWRasCmdSig));
 			if (FAILED(hr))
 			{
 				ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
@@ -460,7 +460,25 @@ bool Mesh::Init
 			}
 		}
 
-		// DrawVBuffer用のMeshletカウンターのDispatchIndirectArgの生成
+		// MeshletのSWRasterizer描画用のCommandSignatureの生成
+		{
+			D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+			argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+
+			D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
+			cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
+			cmdSigDesc.NumArgumentDescs = 1;
+			cmdSigDesc.pArgumentDescs = &argDesc;
+
+			HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawBySWRasCmdSig));
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+				return false;
+			}
+		}
+
+		// Meshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
 		if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
 		(
 			pDevice,
@@ -479,7 +497,7 @@ bool Mesh::Init
 
 		DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-		// DrawVBuffer用のカリング済みMeshletIdxリストの生成
+		// Meshlet描画用のカリング済みMeshletIdxリストの生成
 		if (!m_DrawMeshletListBB.InitAsByteAddressBuffer
 		(
 			pDevice,
@@ -588,6 +606,9 @@ void Mesh::Term()
 	m_UnitCubeVB.Term();
 	m_UnitCubeIB.Term();
 	m_AABBInfosSB.Term();
+
+	m_pDrawByHWRasCmdSig.Reset();
+	m_pDrawBySWRasCmdSig.Reset();
 
 	m_DrawMeshletIndirectArgBB.Term();
 	m_DrawMeshletListBB.Term();
