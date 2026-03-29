@@ -6483,11 +6483,11 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 
 	// Opaqueマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices, false);
+	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices, false);
+	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices);
 
 	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
@@ -6519,11 +6519,11 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 
 	// Opaqueマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices, false);
+	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices, false);
+	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices);
 }
 
 void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
@@ -7138,7 +7138,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	{
 		pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
 	}
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices, true);
+	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	if (m_drawSponza)
@@ -7149,7 +7149,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	{
 		pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
 	}
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices, true);
+	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices);
 
 	if (m_drawSponza)
 	{
@@ -7314,7 +7314,7 @@ void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdL
 			pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(gsDescHeapIndices.size()), gsDescHeapIndices.data(), 0);
 			pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
 
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 
 			DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -7323,7 +7323,7 @@ void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdL
 	}
 }
 
-void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices, bool useCullingResult)
+void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices)
 {
 	for (const Model* model : m_pModels)
 	{
@@ -7419,7 +7419,7 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 				pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
 			}
 
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), useCullingResult);
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 
 			if (m_useMeshlet)
 			{
@@ -7657,7 +7657,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
 			}
 
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 
 			if (m_useMeshlet)
 			{
