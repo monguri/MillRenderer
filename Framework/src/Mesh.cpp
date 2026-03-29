@@ -488,7 +488,7 @@ bool Mesh::Init
 			pPoolGpuVisible,
 			pPoolGpuVisible,
 			pPoolCpuVisible,
-			L"DrawVBufferIndirectArgBB"
+			L"DrawMeshletIndirectArgBB"
 		))
 		{
 			ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
@@ -507,7 +507,7 @@ bool Mesh::Init
 			pPoolGpuVisible,
 			pPoolGpuVisible,
 			pPoolCpuVisible,
-			L"DrawVBufferMeshletListBB"
+			L"DrawMeshletMeshletListBB"
 		))
 		{
 			ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
@@ -656,7 +656,11 @@ void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	if (m_IsMeshlet)
 	{
-		pCmdList->DispatchMesh(static_cast<UINT>(m_MeshletCount), 1, 1);
+		DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+
+		pCmdList->ExecuteIndirect(m_pDrawByHWRasCmdSig.Get(), 1, m_DrawMeshletIndirectArgBB.GetResource(), 0, nullptr, 0);
+
+		DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	}
 	else
 	{
@@ -674,7 +678,11 @@ void Mesh::DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 {
 	assert(m_IsMeshlet);
 
-	pCmdList->Dispatch(static_cast<UINT>(m_MeshletCount), 1, 1);
+	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+
+	pCmdList->ExecuteIndirect(m_pDrawBySWRasCmdSig.Get(), 1, m_DrawMeshletIndirectArgBB.GetResource(), 0, nullptr, 0);
+
+	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
