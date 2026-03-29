@@ -652,7 +652,7 @@ void Mesh::DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const
 	pCmdList->Dispatch(NumGroupX, 1, 1);
 }
 
-void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
+void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList, bool useCullingResult) const
 {
 	if (m_IsMeshlet)
 	{

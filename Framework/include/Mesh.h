@@ -34,7 +34,7 @@ public:
 
 	void ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const;
 	void DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const;
-	void DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const;
+	void DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList, bool useCullingResult) const;
 	void DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const;
 	//TODO: BoundingSphere関連はすべて現在未使用でデッドコードになっている。World行列に不均一スケールがあると楕円球になり扱いにくいため
 	void DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const;

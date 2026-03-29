@@ -300,7 +300,7 @@ private:
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential);
 	void DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
 	void DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
-	void DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices);
+	void DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices, bool useCullingResult);
 	void DrawDepthBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawHCB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawHZB(ID3D12GraphicsCommandList* pCmdList);
