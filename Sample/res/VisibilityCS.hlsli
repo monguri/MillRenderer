@@ -59,7 +59,7 @@ struct DescHeapIndices
 	uint CbTransform;
 	uint CbMesh;
 	uint SbVertexBuffer;
-	uint BbMeshletList;
+	uint BbDrawMeshletList;
 	uint SbMeshlets;
 	uint SbMeshletVertices;
 	uint SbMeshletTriangles;
@@ -367,13 +367,15 @@ void main
 	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbDescHeapIndices.CbMesh];
 
 	StructuredBuffer<VSInput> vertexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.SbVertexBuffer];
+	ByteAddressBuffer drawMeshletList = ResourceDescriptorHeap[CbDescHeapIndices.BbDrawMeshletList];
 	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshlets];
 	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletVertices];
 	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletTriangles];
 	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
 	ConstantBuffer<DrawVBufferSWRas> CbDrawVBufferSWRas = ResourceDescriptorHeap[CbDescHeapIndices.CbDrawVBufferSWRas];
 
-	meshopt_Meshlet meshlet = meshlets[gid];
+	uint meshletIdx = drawMeshletList.Load(gid * 4);
+	meshopt_Meshlet meshlet = meshlets[meshletIdx];
 
 	if (gtid < meshlet.VertCount)
 	{

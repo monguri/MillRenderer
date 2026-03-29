@@ -62,7 +62,8 @@ void main
 	out indices uint3 outTriIndices[126]
 )
 {
-	meshopt_Meshlet meshlet = meshlets[gid];
+	uint meshletIdx = drawMeshletList.Load(gid * 4);
+	meshopt_Meshlet meshlet = meshlets[meshletIdx];
 
 	SetMeshOutputCounts(meshlet.VertCount, meshlet.TriCount);
 

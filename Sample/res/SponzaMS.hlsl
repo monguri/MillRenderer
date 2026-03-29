@@ -316,12 +316,14 @@ void main
 	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbDescHeapIndices.CbMesh];
 
 	StructuredBuffer<VSInput> vertexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.SbVertexBuffer];
+	ByteAddressBuffer drawMeshletList = ResourceDescriptorHeap[CbDescHeapIndices.BbDrawMeshletList];
 	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshlets];
 	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletVertices];
 	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletTriangles];
 #endif //#ifdef USE_DYNAMIC_RESOURCE
 
-	meshopt_Meshlet meshlet = meshlets[gid];
+	uint meshletIdx = drawMeshletList.Load(gid * 4);
+	meshopt_Meshlet meshlet = meshlets[meshletIdx];
 
 	SetMeshOutputCounts(meshlet.VertCount, meshlet.TriCount);
 
