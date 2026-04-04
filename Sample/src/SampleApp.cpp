@@ -6678,7 +6678,7 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	pCmdList->SetComputeRootSignature(m_MeshletCullingRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pMeshletCullingPSO.Get());
 	pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_CullingCB.GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_CullingCB.GetHandle()->HandleGPU);
 
 	for (const Model* model : m_pModels)
 	{
