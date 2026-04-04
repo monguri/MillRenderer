@@ -635,6 +635,7 @@ void Mesh::ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const
 	assert(m_IsMeshlet);
 
 	uint32_t clearValue[4] = {0, 0, 0, 0};
+	// 本来はX=0、Y=1、Z=1にしたいが、ClearUavWithUintValue()とByteAddressBufferではそれができないようだ。[0]の値ですべてクリアされてしまう。よってY=1、Z=1はシェーダで入れる。
 	m_DrawMeshletIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
 	m_DrawMeshletListBB.ClearUavWithUintValue(pCmdList, clearValue);
 }

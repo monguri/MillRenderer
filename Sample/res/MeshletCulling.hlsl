@@ -92,6 +92,13 @@ bool frustumCull(float3 aabbNdcPos[8])
 [numthreads(64, 1, 1)]
 void main(uint meshletIdx : SV_DispatchThreadID)
 {
+	if (meshletIdx == 0)
+	{
+		// Y=1,Z=1‚Ìˆø”‰Šú‰»Bcpp‚ÅClearUavWithUintValue()‚Å‚â‚è‚É‚­‚¢‚½‚ß‚±‚±‚ÅB
+		DrawVBufferIndirectArgBB.Store(4, 1);
+		DrawVBufferIndirectArgBB.Store(8, 1);
+	}
+
 	if (meshletIdx >= CbRootConst.MeshletCount)
 	{
 		return;
