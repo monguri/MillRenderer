@@ -134,7 +134,7 @@ void main
 	{
 		PrimitiveData p;
 		p.MeshIdx = CbMesh.MeshIdx;
-		p.MeshletIdx = gid;
+		p.MeshletIdx = meshletIdx;
 		p.TriangleIdx = gtid;
 		outPrims[gtid] = p;
 	}

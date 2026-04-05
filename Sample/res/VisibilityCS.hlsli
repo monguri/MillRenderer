@@ -405,7 +405,7 @@ void main
 
 		PrimitiveData primData;
 		primData.MeshIdx = CbMesh.MeshIdx;
-		primData.MeshletIdx = gid;
+		primData.MeshletIdx = meshletIdx;
 		primData.TriangleIdx = gtid;
 
 		// Inverse Z‚È‚Ì‚Åz‚ÍNearŒÅ’è
