@@ -6686,6 +6686,11 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		// ジオメトリ情報ののxチャンネルは0xffffffffで埋める。depthのyチャンネルは無限遠の0。
 		uint32_t clearValue[4] = {INVALID_VISIBILITY, 0, INVALID_VISIBILITY, INVALID_VISIBILITY};
 		m_VBufferTarget.ClearUavWithUintValue(pCmdList, clearValue);
+
+		D3D12_RESOURCE_BARRIER b = {};
+		b.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		b.UAV.pResource = m_VBufferTarget.GetResource();
+		pCmdList->ResourceBarrier(1, &b);
 	}
 
 	if (m_useSWRasterizer)

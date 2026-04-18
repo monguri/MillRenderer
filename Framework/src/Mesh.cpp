@@ -638,6 +638,14 @@ void Mesh::ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const
 	// 本来はX=0、Y=1、Z=1にしたいが、ClearUavWithUintValue()とByteAddressBufferではそれができないようだ。[0]の値ですべてクリアされてしまう。よってY=1、Z=1はシェーダで入れる。
 	m_DrawMeshletIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
 	m_DrawMeshletListBB.ClearUavWithUintValue(pCmdList, clearValue);
+
+	D3D12_RESOURCE_BARRIER barrier = {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	barrier.UAV.pResource = m_DrawMeshletIndirectArgBB.GetResource();
+	pCmdList->ResourceBarrier(1, &barrier);
+
+	barrier.UAV.pResource = m_DrawMeshletListBB.GetResource();
+	pCmdList->ResourceBarrier(1, &barrier);
 }
 
 void Mesh::DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const
@@ -651,6 +659,14 @@ void Mesh::DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const
 	// グループ数は切り上げ
 	UINT NumGroupX = static_cast<UINT>((m_MeshletCount + GROUP_SIZE_X - 1) / GROUP_SIZE_X);
 	pCmdList->Dispatch(NumGroupX, 1, 1);
+
+	D3D12_RESOURCE_BARRIER barrier = {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	barrier.UAV.pResource = m_DrawMeshletIndirectArgBB.GetResource();
+	pCmdList->ResourceBarrier(1, &barrier);
+
+	barrier.UAV.pResource = m_DrawMeshletListBB.GetResource();
+	pCmdList->ResourceBarrier(1, &barrier);
 }
 
 void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList, bool useCulling) const
