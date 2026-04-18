@@ -653,15 +653,20 @@ void Mesh::DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const
 	pCmdList->Dispatch(NumGroupX, 1, 1);
 }
 
-void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
+void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList, bool useCulling) const
 {
 	if (m_IsMeshlet)
 	{
-		DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-
-		pCmdList->ExecuteIndirect(m_pDrawByHWRasCmdSig.Get(), 1, m_DrawMeshletIndirectArgBB.GetResource(), 0, nullptr, 0);
-
-		DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		if (useCulling)
+		{
+			DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			pCmdList->ExecuteIndirect(m_pDrawByHWRasCmdSig.Get(), 1, m_DrawMeshletIndirectArgBB.GetResource(), 0, nullptr, 0);
+			DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
+		else
+		{
+			pCmdList->DispatchMesh(static_cast<UINT>(m_MeshletCount), 1, 1);
+		}
 	}
 	else
 	{

@@ -1188,6 +1188,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	m_pModels.shrink_to_fit();
 
+	// カリングフラグ定数バッファの生成
 	if (m_useMeshlet)
 	{
 		if (!m_CullingCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbCulling), L"CbCulling"))
@@ -1197,9 +1198,9 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		CbCulling* ptr = m_CullingCB.GetPtr<CbCulling>();
-		ptr->bEnableFrustumCulling = m_enableFrustomCulling;
-		ptr->bEnableOcclusionCulling = m_enableOcclusionCulling;
-		ptr->bEnableBackFaceCulling = m_enableBackFaceCulling;
+		ptr->bEnableFrustumCulling = m_enableFrustomCulling ? 1 : 0;
+		ptr->bEnableOcclusionCulling = m_enableOcclusionCulling ? 1 : 0;
+		ptr->bEnableBackFaceCulling = m_enableBackFaceCulling ? 1 : 0;
 	}
 
 	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer && m_useSWRasterizer)
@@ -2587,13 +2588,13 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring msPath;
-			if (!SearchFilePath(L"SponzaMS.hlsl", msPath))
+			if (!SearchFilePath(L"DepthMS.hlsl", msPath))
 			{
 				ELOG("Error : Mesh Shader Not Found");
 				return false;
 			}
 
-			std::vector<const wchar_t*> compileArgs =
+			compileArgs =
 			{
 				L"-T ms_6_7",
 				L"-I", L"../res",
@@ -2623,7 +2624,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
+			if (!m_DepthRootSig.Init(m_pDevice.Get(), pRSBlob))
 			{
 				ELOG("Error : RootSignature::Init() Failed.");
 				return false;
@@ -2633,7 +2634,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
 			// PSは実行しないので設定しない
 
-			desc.pRootSignature = m_SponzaRootSig.GetPtr();
+			desc.pRootSignature = m_DepthRootSig.GetPtr();
 			desc.BlendState = DirectX::CommonStates::Opaque;
 			desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
 			desc.SampleMask = UINT_MAX;
@@ -2655,7 +2656,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreatePipelineState(
 				&streamDesc,
-				IID_PPV_ARGS(m_pSponzaDepthOpaquePSO.GetAddressOf())
+				IID_PPV_ARGS(m_pDepthPSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -2672,7 +2673,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreatePipelineState(
 				&streamDesc,
-				IID_PPV_ARGS(m_pSponzaDepthMaskPSO.GetAddressOf())
+				IID_PPV_ARGS(m_pDepthMaskPSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -2681,6 +2682,32 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 
 			// AlphaModeがOpaqueのマテリアル用
+			if (!SearchFilePath(L"SponzaMS.hlsl", msPath))
+			{
+				ELOG("Error : Mesh Shader Not Found");
+				return false;
+			}
+
+			if (!m_ShaderCompiler.Compile(msPath.c_str(), compileArgs, pMSBlob))
+			{
+				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", msPath.c_str());
+				return false;
+			}
+
+			hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
+				return false;
+			}
+
+			if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
+
+			desc.pRootSignature = m_SponzaRootSig.GetPtr();
 			// SceneDepthはReverseZ
 			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
@@ -2690,6 +2717,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
 			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 
+			desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
+			desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
 			desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
 			desc.PS.BytecodeLength = pOpaquePSBlob->GetBufferSize();
 
@@ -2731,7 +2760,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring vsPath;
-			if (!SearchFilePath(L"SponzaVS.hlsl", vsPath))
+			if (!SearchFilePath(L"DepthVS.hlsl", vsPath))
 			{
 				ELOG("Error : Vertex Shader Not Found");
 				return false;
@@ -2771,13 +2800,13 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
+			if (!m_DepthRootSig.Init(m_pDevice.Get(), pRSBlob))
 			{
 				ELOG("Error : RootSignature::Init() Failed.");
 				return false;
 			}
 
-			desc.pRootSignature = m_SponzaRootSig.GetPtr();
+			desc.pRootSignature = m_DepthRootSig.GetPtr();
 			desc.BlendState = DirectX::CommonStates::Opaque;
 			desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
 			desc.SampleMask = UINT_MAX;
@@ -2794,7 +2823,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreateGraphicsPipelineState(
 				&desc,
-				IID_PPV_ARGS(m_pSponzaDepthOpaquePSO.GetAddressOf())
+				IID_PPV_ARGS(m_pDepthPSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -2808,7 +2837,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreateGraphicsPipelineState(
 				&desc,
-				IID_PPV_ARGS(m_pSponzaDepthMaskPSO.GetAddressOf())
+				IID_PPV_ARGS(m_pDepthMaskPSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -3151,7 +3180,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			{
 				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 				return false;
-			}
+		}
 
 			// AlphaModeがOpaqueのマテリアル用
 			// SceneDepthはReverseZ
@@ -6017,17 +6046,16 @@ void SampleApp::OnTerm()
 	m_pVolumetricCloudPSO.Reset();
 	m_VolumetricCloudRootSig.Term();
 
+	m_pDepthPSO.Reset();
+	m_pDepthMaskPSO.Reset();
+	m_DepthRootSig.Term();
+
 	m_pSponzaOpaquePSO.Reset();
 	m_pSponzaMaskPSO.Reset();
-	m_pSponzaDepthOpaquePSO.Reset();
-	m_pSponzaDepthMaskPSO.Reset();
-
 	m_SponzaRootSig.Term();
 
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
-	m_pSceneDepthOpaquePSO.Reset();
-	m_pSceneDepthMaskPSO.Reset();
 
 	m_SceneRootSig.Term();
 
@@ -6461,20 +6489,9 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 
 	pCmdList->RSSetViewports(1, &m_DirLightShadowMapViewport);
 	pCmdList->RSSetScissorRects(1, &m_DirLightShadowMapScissor);
-	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
+	pCmdList->SetGraphicsRootSignature(m_DepthRootSig.GetPtr());
 
-	// m_useDynamicResourcesでしか使ってない
-	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
-	std::vector<uint32_t> psDescHeapIndices(16 + NUM_SPOT_LIGHTS);
-
-	if (m_useDynamicResources)
-	{
-		gsDescHeapIndices[0] = m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-	}
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 	if (!m_useMeshlet)
 	{
@@ -6482,12 +6499,12 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 	}
 
 	// Opaqueマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices);
+	pCmdList->SetPipelineState(m_pDepthPSO.Get());
+	DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices);
+	pCmdList->SetPipelineState(m_pDepthMaskPSO.Get());
+	DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 
 	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
@@ -6498,19 +6515,8 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 
 	::PIXScopedEvent(pCmdList, 0, L"SpotLightShadowMap%d", spotLightIdx);
 
-	// m_useDynamicResourcesでしか使ってない
-	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
-	std::vector<uint32_t> psDescHeapIndices(16 + NUM_SPOT_LIGHTS);
-
-	pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
-	if (m_useDynamicResources)
-	{
-		gsDescHeapIndices[0] = m_SpotLightShadowMapTransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandle()->HandleGPU);
-	}
+	pCmdList->SetGraphicsRootSignature(m_DepthRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandle()->HandleGPU);
 
 	if (!m_useMeshlet)
 	{
@@ -6518,12 +6524,12 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 	}
 
 	// Opaqueマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSponzaDepthOpaquePSO.Get());
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices);
+	pCmdList->SetPipelineState(m_pDepthPSO.Get());
+	DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pSponzaDepthMaskPSO.Get());
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices);
+	pCmdList->SetPipelineState(m_pDepthMaskPSO.Get());
+	DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 }
 
 void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
@@ -7314,11 +7320,58 @@ void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdL
 			pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(gsDescHeapIndices.size()), gsDescHeapIndices.data(), 0);
 			pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
 
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
 
 			DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 			meshIdx++;
+		}
+	}
+}
+
+void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
+{
+	for (const Model* model : m_pModels)
+	{
+		for (size_t i = 0; i < model->GetMeshCount(); i++)
+		{
+			const Mesh* pMesh = model->GetMesh(i);
+
+			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
+			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
+
+			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
+			{
+				continue;
+			}
+			else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
+			{
+				continue;
+			}
+
+			if (m_useMeshlet)
+			{
+				DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			}
+
+			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+
+			if (m_useMeshlet)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(6, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
+			}
+
+			// 現状ではDepthのみ描画するケースでカリングを有効にするケースがない
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), false);
+
+			if (m_useMeshlet)
+			{
+				DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
 		}
 	}
 }
@@ -7419,7 +7472,7 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 				pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
 			}
 
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
 
 			if (m_useMeshlet)
 			{
@@ -7657,7 +7710,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
 			}
 
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
 
 			if (m_useMeshlet)
 			{
