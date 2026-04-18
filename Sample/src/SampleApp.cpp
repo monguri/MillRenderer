@@ -7323,16 +7323,19 @@ void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA
 			}
 
 			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(2 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+
+			// -1はカリングしてないのでdrawMeshletListをバインドしていない分
+			int32_t meshletRootParamCount = std::max(static_cast<int32_t>(m_meshletRootParamCount) - 1, 0);
+			pCmdList->SetGraphicsRootDescriptorTable(2 + meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(3 + meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
 
 			if (m_useMeshlet)
 			{
+				// カリングしてないのでdrawMeshletListをバインドしない
 				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(6, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMeshletsSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
 			}
 
 			// 現状ではDepthのみ描画するケースでカリングを有効にするケースがない

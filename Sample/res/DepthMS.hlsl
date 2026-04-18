@@ -13,7 +13,6 @@
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
-", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", StaticSampler"\
@@ -72,10 +71,9 @@ ConstantBuffer<Transform> CbTransform : register(b0);
 ConstantBuffer<Mesh> CbMesh : register(b1);
 
 StructuredBuffer<VSInput> vertexBuffer : register(t0);
-ByteAddressBuffer drawMeshletList : register(t1);
-StructuredBuffer<meshopt_Meshlet> meshlets : register(t2);
-StructuredBuffer<uint> meshletsVertices : register(t3);
-StructuredBuffer<uint> meshletsTriangles : register(t4);
+StructuredBuffer<meshopt_Meshlet> meshlets : register(t1);
+StructuredBuffer<uint> meshletsVertices : register(t2);
+StructuredBuffer<uint> meshletsTriangles : register(t3);
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(128, 1, 1)]
@@ -88,8 +86,10 @@ void main
 	out indices uint3 outTriIndices[126]
 )
 {
-	uint meshletIdx = drawMeshletList.Load(gid * 4);
-	meshopt_Meshlet meshlet = meshlets[meshletIdx];
+	// 現状このシェーダはカリングが必要な状況で使っていないため
+	// drawMeshletListは使用していない
+	// バインドがずれるのでdrawMeshletListはバインドしている
+	meshopt_Meshlet meshlet = meshlets[gid];
 
 	SetMeshOutputCounts(meshlet.VertCount, meshlet.TriCount);
 
