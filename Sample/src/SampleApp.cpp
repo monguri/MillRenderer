@@ -7318,6 +7318,8 @@ void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA
 			}
 
 			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(2 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
 
 			if (m_useMeshlet)
 			{
