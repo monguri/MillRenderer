@@ -2694,6 +2694,9 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
+			desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
+			desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
+
 			hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 			if (FAILED(hr))
 			{
@@ -2717,8 +2720,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
 			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 
-			desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
-			desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
 			desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
 			desc.PS.BytecodeLength = pOpaquePSBlob->GetBufferSize();
 
@@ -2766,7 +2767,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			std::vector<const wchar_t*> compileArgs =
+			compileArgs =
 			{
 				L"-T vs_6_7",
 				L"-I", L"../res",
@@ -2846,6 +2847,35 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 
 			// AlphaModeがOpaqueのマテリアル用
+			if (!SearchFilePath(L"SponzaVS.hlsl", vsPath))
+			{
+				ELOG("Error : Vertex Shader Not Found");
+				return false;
+			}
+
+			if (!m_ShaderCompiler.Compile(vsPath.c_str(), compileArgs, pVSBlob))
+			{
+				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", vsPath.c_str());
+				return false;
+			}
+
+			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+
+			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
+				return false;
+			}
+
+			if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
+
+			desc.pRootSignature = m_SponzaRootSig.GetPtr();
 			// SceneDepthはReverseZ
 			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
