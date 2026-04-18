@@ -99,8 +99,6 @@ private:
 	ComPtr<ID3D12PipelineState> m_pSponzaOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSponzaMaskPSO;
 	RootSignature m_SponzaRootSig;
-	ComPtr<ID3D12PipelineState> m_pSceneDepthOpaquePSO;
-	ComPtr<ID3D12PipelineState> m_pSceneDepthMaskPSO;
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;

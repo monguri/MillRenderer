@@ -2916,14 +2916,6 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 	else
 	{
-		// AlphaModeがMaskのシャドウマップ描画用
-		std::wstring psPath;
-		if (!SearchFilePath(L"DepthMaskPS.hlsl", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
 		std::vector<const wchar_t*> compileArgs =
 		{
 			L"-T ps_6_7",
@@ -2943,14 +2935,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
 		}
 
-		ComPtr<IDxcBlob> pDepthMaskPSBlob;
-		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pDepthMaskPSBlob))
-		{
-			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
 		// AlphaModeがOpaqueのマテリアル用
+		std::wstring psPath;
 		if (!SearchFilePath(L"BasePassOpaquePS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
@@ -2978,7 +2964,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		// シャドウマップ描画用のパイプラインステートディスクリプタ
 		if (m_useMeshlet)
 		{
 			D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
@@ -3048,33 +3033,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
 			streamDesc.pPipelineStateSubobjectStream = &psoStream;
 			streamDesc.SizeInBytes = sizeof(psoStream);
-
-			hr = m_pDevice->CreatePipelineState(
-				&streamDesc,
-				IID_PPV_ARGS(m_pSceneDepthOpaquePSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
-
-			desc.PS.pShaderBytecode = pDepthMaskPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
-			desc.RasterizerState = DirectX::CommonStates::CullNone;
-
-			psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
-			streamDesc.pPipelineStateSubobjectStream = &psoStream;
-
-			hr = m_pDevice->CreatePipelineState(
-				&streamDesc,
-				IID_PPV_ARGS(m_pSceneDepthMaskPSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
 
 			// AlphaModeがOpaqueのマテリアル用
 			// SceneDepthはReverseZ
@@ -3183,34 +3141,9 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
+			desc.pRootSignature = m_SceneRootSig.GetPtr();
 			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-			desc.pRootSignature = m_SceneRootSig.GetPtr();
-			// PSは実行しないので設定しない
-
-			hr = m_pDevice->CreateGraphicsPipelineState(
-				&desc,
-				IID_PPV_ARGS(m_pSceneDepthOpaquePSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
-
-			desc.PS.pShaderBytecode = pDepthMaskPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
-			desc.RasterizerState = DirectX::CommonStates::CullNone;
-
-			hr = m_pDevice->CreateGraphicsPipelineState(
-				&desc,
-				IID_PPV_ARGS(m_pSceneDepthMaskPSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-				return false;
-		}
 
 			// AlphaModeがOpaqueのマテリアル用
 			// SceneDepthはReverseZ
