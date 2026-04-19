@@ -6621,6 +6621,11 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 {
 	assert(m_useMeshlet);
 
+	if (m_freezeCulling)
+	{
+		return;
+	}
+
 	::PIXScopedEvent(pCmdList, 0, L"MeshletCulling");
 
 	// 定数バッファの更新
