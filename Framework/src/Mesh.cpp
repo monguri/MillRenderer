@@ -639,13 +639,8 @@ void Mesh::ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const
 	m_DrawMeshletIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
 	m_DrawMeshletListBB.ClearUavWithUintValue(pCmdList, clearValue);
 
-	D3D12_RESOURCE_BARRIER barrier = {};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-	barrier.UAV.pResource = m_DrawMeshletIndirectArgBB.GetResource();
-	pCmdList->ResourceBarrier(1, &barrier);
-
-	barrier.UAV.pResource = m_DrawMeshletListBB.GetResource();
-	pCmdList->ResourceBarrier(1, &barrier);
+	m_DrawMeshletIndirectArgBB.BarrierUAV(pCmdList);
+	m_DrawMeshletListBB.BarrierUAV(pCmdList);
 }
 
 void Mesh::DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const

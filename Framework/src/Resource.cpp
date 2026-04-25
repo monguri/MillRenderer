@@ -589,6 +589,14 @@ void Resource::ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32
 	);
 }
 
+void Resource::BarrierUAV(ID3D12GraphicsCommandList* pCmdList) const
+{
+	D3D12_RESOURCE_BARRIER barrier = {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	barrier.UAV.pResource = m_pResource.Get();
+	pCmdList->ResourceBarrier(1, &barrier);
+}
+
 D3D12_VERTEX_BUFFER_VIEW Resource::GetVBV() const
 {
 	return m_VBV;
