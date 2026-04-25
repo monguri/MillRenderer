@@ -6267,7 +6267,6 @@ void SampleApp::OnRender()
 
 			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential, drawGBufferDescHeapIndices);
 		}
-
 	}
 	else
 	{

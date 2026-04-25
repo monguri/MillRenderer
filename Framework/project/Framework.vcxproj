@@ -29,6 +29,7 @@
     <ClCompile Include="..\..\meshoptimizer\vfetchoptimizer.cpp" />
     <ClCompile Include="..\src\App.cpp" />
     <ClCompile Include="..\src\ByteAddressBuffer.cpp" />
+    <ClCompile Include="..\src\MeshManager.cpp" />
     <ClCompile Include="..\src\Resource.cpp" />
     <ClCompile Include="..\src\ShaderCompiler.cpp" />
     <ClCompile Include="..\src\TransformManipulator.cpp" />
@@ -54,6 +55,7 @@
     <ClInclude Include="..\..\meshoptimizer\meshoptimizer.h" />
     <ClInclude Include="..\include\App.h" />
     <ClInclude Include="..\include\ByteAddressBuffer.h" />
+    <ClInclude Include="..\include\MeshManager.h" />
     <ClInclude Include="..\include\Resource.h" />
     <ClInclude Include="..\include\ShaderCompiler.h" />
     <ClInclude Include="..\include\TransformManipulator.h" />
