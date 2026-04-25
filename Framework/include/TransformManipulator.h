@@ -45,7 +45,7 @@ private:
 		DirectX::SimpleMath::Vector3 Target;
 		DirectX::SimpleMath::Vector3 Upward;
 		DirectX::SimpleMath::Vector3 Forward;
-		DirectX::XMFLOAT2 Angle;
+		DirectX::SimpleMath::Vector2 Angle;
 		float Distance;
 	};
 

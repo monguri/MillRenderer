@@ -9,18 +9,18 @@
 struct MeshVertex
 {
 public:
-	DirectX::XMFLOAT3 Position;
-	DirectX::XMFLOAT3 Normal;
-	DirectX::XMFLOAT2 TexCoord;
-	DirectX::XMFLOAT3 Tangent;
+	DirectX::SimpleMath::Vector3 Position;
+	DirectX::SimpleMath::Vector3 Normal;
+	DirectX::SimpleMath::Vector2 TexCoord;
+	DirectX::SimpleMath::Vector3 Tangent;
 
 	MeshVertex() = default;
 
 	MeshVertex(
-		DirectX::XMFLOAT3 const& Position,
-		DirectX::XMFLOAT3 const& Normal,
-		DirectX::XMFLOAT2 const& TexCoord,
-		DirectX::XMFLOAT3 const& Tangent)
+		DirectX::SimpleMath::Vector3 const& Position,
+		DirectX::SimpleMath::Vector3 const& Normal,
+		DirectX::SimpleMath::Vector2 const& TexCoord,
+		DirectX::SimpleMath::Vector3 const& Tangent)
 	: Position(Position)
 	, Normal(Normal)
 	, TexCoord(TexCoord)
@@ -45,8 +45,8 @@ enum ALPHA_MODE
 
 struct ResMaterial
 {
-	DirectX::XMFLOAT3 Diffuse;
-	DirectX::XMFLOAT3 Specular;
+	DirectX::SimpleMath::Vector3 Diffuse;
+	DirectX::SimpleMath::Vector3 Specular;
 	float Alpha;
 	float Shininess;
 	std::wstring DiffuseMap;
@@ -54,11 +54,11 @@ struct ResMaterial
 	std::wstring ShininessMap;
 	std::wstring NormalMap;
 	std::wstring HeightMap;
-	DirectX::XMFLOAT3 BaseColor;
+	DirectX::SimpleMath::Vector3 BaseColor;
 	std::wstring BaseColorMap;
 	float MetallicFactor;
 	float RoughnessFactor;
-	DirectX::XMFLOAT3 EmissiveFactor;
+	DirectX::SimpleMath::Vector3 EmissiveFactor;
 	std::wstring MetallicRoughnessMap;
 	std::wstring EmissiveMap;
 	std::wstring AmbientOcclusionMap;

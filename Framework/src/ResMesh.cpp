@@ -146,10 +146,10 @@ namespace
 			const aiVector3D* pTangent = pSrcMesh->HasTangentsAndBitangents() ? &(pSrcMesh->mTangents[i]) : &zero3D;
 			
 			dstMesh.Vertices[i] = MeshVertex(
-				DirectX::XMFLOAT3(pPosition->x, pPosition->y, pPosition->z),
-				DirectX::XMFLOAT3(pNormal->x, pNormal->y, pNormal->z),
-				DirectX::XMFLOAT2(pTexCoord->x, pTexCoord->y),
-				DirectX::XMFLOAT3(pTangent->x, pTangent->y, pTangent->z)
+				Vector3(pPosition->x, pPosition->y, pPosition->z),
+				Vector3(pNormal->x, pNormal->y, pNormal->z),
+				Vector2(pTexCoord->x, pTexCoord->y),
+				Vector3(pTangent->x, pTangent->y, pTangent->z)
 			);
 		}
 
@@ -451,12 +451,12 @@ namespace
 		static constexpr uint32_t MAX_TRIS = 126;
 
 		size_t vertexCount = dstMesh.Vertices.size();
-		static_assert(sizeof(float) * 3 == sizeof(DirectX::XMFLOAT3));
+		static_assert(sizeof(float) * 3 == sizeof(Vector3));
 		std::vector<float> vertexPositions(vertexCount * 3);
 		for (size_t i = 0; i < vertexCount; i++)
 		{
 			const MeshVertex& vert = dstMesh.Vertices[i];
-			memcpy(&vertexPositions[3 * i], &vert.Position, sizeof(DirectX::XMFLOAT3));
+			memcpy(&vertexPositions[3 * i], &vert.Position, sizeof(Vector3));
 		}
 
 		if (useMetis)
@@ -765,7 +765,7 @@ namespace
 			for (size_t vtx = 0; vtx < dstMesh.Meshlets[i].vertex_count; vtx++)
 			{
 				uint32_t vertexIndex = dstMesh.MeshletsVertices[dstMesh.Meshlets[i].vertex_offset + vtx];
-				const DirectX::XMFLOAT3& position = dstMesh.Vertices[vertexIndex].Position;
+				const Vector3& position = dstMesh.Vertices[vertexIndex].Position;
 
 				min = Vector3::Min(min, position);
 				max = Vector3::Max(max, position);

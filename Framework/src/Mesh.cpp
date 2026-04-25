@@ -11,7 +11,7 @@ namespace
 	static constexpr uint32_t MAX_DRAW_MESHLET_COUNT = 1024;
 
 	// DirectXTK12、Geometry.cpp/hのDirectX::ComputeSphereを参考にしている
-	void CreateUnitSphereMesh(uint32_t segmentCount, std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
+	void CreateUnitSphereMesh(uint32_t segmentCount, std::vector<struct Vector3>& outVertices, std::vector<uint32_t>& outIndices)
 	{
 		using namespace DirectX;
 
@@ -68,7 +68,7 @@ namespace
 	}
 
 	// DirectXTK12、Geometry.cpp/hのDirectX::ComputeBoxを参考にしている
-	void CreateUnitCubeMesh(std::vector<struct DirectX::XMFLOAT3>& outVertices, std::vector<uint32_t>& outIndices)
+	void CreateUnitCubeMesh(std::vector<struct Vector3>& outVertices, std::vector<uint32_t>& outIndices)
 	{
 		using namespace DirectX;
 
@@ -289,14 +289,14 @@ bool Mesh::Init
 #if 0
 		//TODO: BoundingSphere関連はすべて現在未使用でデッドコードになっている。World行列に不均一スケールがあると楕円球になり扱いにくいため
 		assert(resource.Bounds.size() == m_MeshletCount);
-		std::vector<DirectX::XMFLOAT3> boundingSphereVertices;
+		std::vector<Vector3> boundingSphereVertices;
 		std::vector<uint32_t> boundingSphereIndices;
 		const uint32_t SPHERE_SEGMENT_COUNT = 4;
 		CreateUnitSphereMesh(SPHERE_SEGMENT_COUNT, boundingSphereVertices, boundingSphereIndices);
 
 		m_SphereIndexCount = boundingSphereIndices.size();
 
-		if (!m_UnitSphereVB.InitAsVertexBuffer<DirectX::XMFLOAT3>(
+		if (!m_UnitSphereVB.InitAsVertexBuffer<Vector3>(
 			pDevice,
 			boundingSphereVertices.size()
 		))
@@ -315,7 +315,7 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_UnitSphereVB.UploadBufferTypeData<DirectX::XMFLOAT3>(
+		if (!m_UnitSphereVB.UploadBufferTypeData<Vector3>(
 			pDevice,
 			pCmdList,
 			boundingSphereVertices.size(),
@@ -372,11 +372,11 @@ bool Mesh::Init
 #endif
 
 		assert(resource.AABBs.size() == m_MeshletCount);
-		std::vector<DirectX::XMFLOAT3> cubeVertices;
+		std::vector<Vector3> cubeVertices;
 		std::vector<uint32_t> cubeIndices;
 		CreateUnitCubeMesh(cubeVertices, cubeIndices);
 
-		if (!m_UnitCubeVB.InitAsVertexBuffer<DirectX::XMFLOAT3>(
+		if (!m_UnitCubeVB.InitAsVertexBuffer<Vector3>(
 			pDevice,
 			cubeVertices.size()
 		))
@@ -395,7 +395,7 @@ bool Mesh::Init
 			return false;
 		}
 
-		if (!m_UnitCubeVB.UploadBufferTypeData<DirectX::XMFLOAT3>(
+		if (!m_UnitCubeVB.UploadBufferTypeData<Vector3>(
 			pDevice,
 			pCmdList,
 			cubeVertices.size(),
