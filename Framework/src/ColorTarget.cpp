@@ -648,3 +648,11 @@ void ColorTarget::ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uin
 		);
 	}
 }
+
+void ColorTarget::BarrierUAV(ID3D12GraphicsCommandList* pCmdList) const
+{
+	D3D12_RESOURCE_BARRIER barrier = {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	barrier.UAV.pResource = m_pTarget.Get();
+	pCmdList->ResourceBarrier(1, &barrier);
+}

@@ -7536,6 +7536,8 @@ void SampleApp::DrawHCB(ID3D12GraphicsCommandList* pCmdList)
 	UINT NumGroupZ = 1;
 	pCmdList->Dispatch(NumGroupX, NumGroupY, NumGroupZ);
 
+	m_HCB_Target.BarrierUAV(pCmdList);
+
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 

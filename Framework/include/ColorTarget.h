@@ -106,6 +106,8 @@ public:
 	void ClearView(ID3D12GraphicsCommandList* pCmdList);
 	void ClearUavWithUintValue(ID3D12GraphicsCommandList* pCmdList, uint32_t value[4]);
 
+	void BarrierUAV(ID3D12GraphicsCommandList* pCmdList) const;
+
 private:
 	ComPtr<ID3D12Resource> m_pTarget;
 	DescriptorHandle* m_pHandleRTV;
