@@ -1,6 +1,10 @@
+#ifdef DRAW_SPONZA
 #include "ShadowMap.hlsli"
+#endif
+
 #include "BRDF.hlsli"
 
+#ifdef DRAW_SPONZA
 #define ROOT_SIGNATURE ""\
 "RootFlags"\
 "("\
@@ -13,6 +17,79 @@
 " | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
 ")"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b6), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b7), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b8), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b10), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b11), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_MIN_MAG_MIP_POINT"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+", StaticSampler"\
+"("\
+"s1"\
+", filter = FILTER_ANISOTROPIC"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 16"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+", StaticSampler"\
+"("\
+"s2"\
+", filter = FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT"\
+", addressU = TEXTURE_ADDRESS_CLAMP"\
+", addressV = TEXTURE_ADDRESS_CLAMP"\
+", addressW = TEXTURE_ADDRESS_CLAMP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_LESS_EQUAL"\
+", borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"
+#else // #ifdef DRAW_SPONZA
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+" | DENY_MESH_SHADER_ROOT_ACCESS"\
+" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
+")"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", StaticSampler"\
 "("\
 "s0"\
@@ -48,24 +125,11 @@
 ", comparisonFunc = COMPARISON_NEVER"\
 ", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
 ", visibility = SHADER_VISIBILITY_PIXEL"\
-")"\
-", StaticSampler"\
-"("\
-"s3"\
-", filter = FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT"\
-", addressU = TEXTURE_ADDRESS_CLAMP"\
-", addressV = TEXTURE_ADDRESS_CLAMP"\
-", addressW = TEXTURE_ADDRESS_CLAMP"\
-", maxAnisotropy = 1"\
-", comparisonFunc = COMPARISON_LESS_EQUAL"\
-", borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE"\
-", visibility = SHADER_VISIBILITY_PIXEL"\
 ")"
+#endif // #ifdef DRAW_SPONZA
 
 // C++側の定義と値の一致が必要
 static const uint MAX_MESH_COUNT = 256;
-static const uint NUM_POINT_LIGHTS = 4;
-static const uint NUM_SPOT_LIGHTS = 3;
 
 // CbMesh, SbVertexBuffer, BbDrawMeshletListBuffer, SbMeshletBuffer, SbMeshletVerticesBuffer, SbMeshletTrianglesBuffer, CbMaterial, BaseColorMap, MetallicRoughnessMap, NormalMap, EmissiveMap, AOMap
 static const uint EACH_MESH_DESCRIPTOR_COUNT = 12;
@@ -85,46 +149,9 @@ struct CbDrawGBufferDescHeapIndices
 	//uint EmissiveMap[MAX_MESH_COUNT];
 	//uint AOMap[MAX_MESH_COUNT];
 
-	//uint CbTransform;
-	//uint CbCamera;
-	//uint VBuffer;
-	//uint DepthBuffer;
-	//uint CbGBufferFromVBuffer;
-	//uint Padding[3];
-
-	//// Sponza用
-	//uint CbPointLight[NUM_POINT_LIGHTS];
-	//uint CbSpotLight[NUM_SPOT_LIGHTS];
-	//uint CbDirLight;
-	//uint SpotLightShadowMap[NUM_SPOT_LIGHTS];
-	//uint DirLightShadowMap;
-
-	//// IBL用
-	//uint CbIBL;
-	//uint DFGMap;
-	//uint DiffuseLDMap;
-	//uint SpecularLDMap;
-
 	//TODO: 配列変数が複数あるとメインメモリとのメモリマッピングがうまくいかないので
 	// ひとつのuint[]にまとめてインデックスは別途ゲッターを用意する
-	uint4 Indices[(
-		MAX_MESH_COUNT * EACH_MESH_DESCRIPTOR_COUNT
-		+ 1 // CbTransform
-		+ 1 // CbCamera
-		+ 1 // VBuffer
-		+ 1 // DepthBuffer
-		+ 1 // CbGBufferFromVBuffer
-		+ 3 // Padding
-		+ NUM_POINT_LIGHTS // CbPointLight
-		+ NUM_SPOT_LIGHTS // CbSpotLight
-		+ 1 // CbDirLight
-		+ NUM_SPOT_LIGHTS // SpotLightShadowMap
-		+ 1   // DirLightShadowMap
-		+ 1   // CbIBL
-		+ 1   // DFGMap
-		+ 1   // DiffuseLDMap
-		+ 1   // SpecularLDMap
-	) / 4];
+	uint4 Indices[MAX_MESH_COUNT * EACH_MESH_DESCRIPTOR_COUNT / 4];
 };
 
 static const uint CbMeshBaseIdx = 0;
@@ -139,40 +166,6 @@ static const uint MetallicRoughnessMapBaseIdx = BaseColorMapBaseIdx + MAX_MESH_C
 static const uint NormalMapBaseIdx = MetallicRoughnessMapBaseIdx + MAX_MESH_COUNT;
 static const uint EmissiveMapBaseIdx = NormalMapBaseIdx + MAX_MESH_COUNT;
 static const uint AOMapBaseIdx = EmissiveMapBaseIdx + MAX_MESH_COUNT;
-static const uint CbTransformIdx = MAX_MESH_COUNT * EACH_MESH_DESCRIPTOR_COUNT;
-static const uint CbCameraIdx = CbTransformIdx + 1;
-static const uint VBufferIdx = CbCameraIdx + 1;
-static const uint DepthBufferIdx = VBufferIdx + 1;
-static const uint CbGBufferFromVBufferIdx = DepthBufferIdx + 1;
-static const uint CbPointLightBaseIdx = CbGBufferFromVBufferIdx + 4;
-static const uint CbSpotLightBaseIdx = CbPointLightBaseIdx + NUM_POINT_LIGHTS;
-static const uint CbDirLightIdx = CbSpotLightBaseIdx + NUM_SPOT_LIGHTS;
-static const uint SpotLightShadowMapBaseIdx = CbDirLightIdx + 1;
-static const uint DirLightShadowMapIdx = SpotLightShadowMapBaseIdx + NUM_SPOT_LIGHTS;
-static const uint CbIBLIdx = DirLightShadowMapIdx + 1;
-static const uint DFGMapIdx = CbIBLIdx + 1;
-static const uint DiffuseLDMapIdx = DFGMapIdx + 1;
-static const uint SpecularLDMapIdx = DiffuseLDMapIdx + 1;
-
-ConstantBuffer<CbDrawGBufferDescHeapIndices> CbDescHeapIndices : register(b0);
-
-uint GetDescHeapIndex(uint idx)
-{
-	// [idx / 4][idx % 4]にあたる
-	// CBなので4つ分のインデックスをuint4で1セットにしているため
-	//uint ret = CbDescHeapIndices.Indices[idx >> 2][idx & 0b11];
-	uint ret = CbDescHeapIndices.Indices[idx / 4][idx % 4];
-	return ret;
-}
-
-SamplerState PointClampSmp : register(s0);
-SamplerState AnisotropicWrapSmp : register(s1);
-SamplerState LinearWrapSmp : register(s2);
-#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
-SamplerComparisonState ShadowSmp : register(s3);
-#else
-SamplerState ShadowSmp : register(s3);
-#endif
 
 // TODO:冗長
 // VBの頂点構造体
@@ -282,6 +275,59 @@ struct IBL
 	float LightIntensity;
 };
 
+ConstantBuffer<CbDrawGBufferDescHeapIndices> CbDescHeapIndices : register(b0);
+ConstantBuffer<Transform> CbTransform : register(b1);
+ConstantBuffer<Camera> CbCamera : register(b2);
+ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer : register(b3);
+
+#ifdef DRAW_SPONZA
+ConstantBuffer<DirectionalLight> CbDirectionalLight : register(b4);
+
+ConstantBuffer<PointLight> CbPointLight1 : register(b5);
+ConstantBuffer<PointLight> CbPointLight2 : register(b6);
+ConstantBuffer<PointLight> CbPointLight3 : register(b7);
+ConstantBuffer<PointLight> CbPointLight4 : register(b8);
+
+ConstantBuffer<SpotLight> CbSpotLight1 : register(b9);
+ConstantBuffer<SpotLight> CbSpotLight2 : register(b10);
+ConstantBuffer<SpotLight> CbSpotLight3 : register(b11);
+#else // ifdef DRAW_SPONZA
+ConstantBuffer<IBL> CbIBL : register(b4);
+#endif // ifdef DRAW_SPONZA
+
+Texture2D<uint2> VBuffer : register(t0);
+#ifdef DRAW_SPONZA
+Texture2D DirLightShadowMap : register(t1);
+Texture2D SpotLight1ShadowMap : register(t2);
+Texture2D SpotLight2ShadowMap : register(t3);
+Texture2D SpotLight3ShadowMap : register(t4);
+#else // ifdef DRAW_SPONZA
+Texture2D DFGMap : register(t1);
+TextureCube DiffuseLDMap : register(t2);
+TextureCube SpecularLDMap : register(t3);
+#endif // ifdef DRAW_SPONZA
+
+uint GetDescHeapIndex(uint idx)
+{
+	// [idx / 4][idx % 4]にあたる
+	// CBなので4つ分のインデックスをuint4で1セットにしているため
+	//uint ret = CbDescHeapIndices.Indices[idx >> 2][idx & 0b11];
+	uint ret = CbDescHeapIndices.Indices[idx / 4][idx % 4];
+	return ret;
+}
+
+SamplerState PointClampSmp : register(s0);
+SamplerState AnisotropicWrapSmp : register(s1);
+#ifdef DRAW_SPONZA
+#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
+SamplerComparisonState ShadowSmp : register(s2);
+#else
+SamplerState ShadowSmp : register(s2);
+#endif
+#else // #ifdef DRAW_SPONZA
+SamplerState LinearWrapSmp : register(s2);
+#endif // #ifdef DRAW_SPONZA
+
 // C++側の定義と値の一致が必要
 static const float INVALID_VISIBILITY = 0xffffffff;
 
@@ -387,6 +433,8 @@ void BaryInterpolateDeriv2(BarycentricDeriv deriv, float2 v0, float2 v1, float2 
 	ddy.x = dot(float3(v0.x, v1.x, v2.x), deriv.m_ddy);
 	ddy.y = dot(float3(v0.y, v1.y, v2.y), deriv.m_ddy);
 }
+
+#ifdef DRAW_SPONZA
 
 //TODO: ここからSponzaPS.hlsliのコピペなので共通化が必要
 #ifndef MIN_DIST
@@ -597,11 +645,12 @@ float3 EvaluateSpotLightReflection
 	return brdf * light * shadow;
 }
 
+#else //ifdef DRAW_SPONZA
+
 //TODO: BasePassPS.hlsliのコピペなので共通化が必要
 // Referenced glTF-Sample-Viewer ibl.glsl
 float3 GetIBLRadianceLambertian(float3 N, float3 NdotV, float roughness, float3 diffuseColor, float3 F0, float3 Fr, float2 f_ab)
 {
-	TextureCube DiffuseLDMap = ResourceDescriptorHeap[GetDescHeapIndex(DiffuseLDMapIdx)];
 	float3 irradiance = DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
 
     // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
@@ -629,8 +678,6 @@ float RoughnessToMipLevel(float linearRoughness, float mipCount)
 // Referenced glTF-Sample-Viewer ibl.glsl
 float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, float3 F0, float3 Fr, float2 f_ab, float mipCount)
 {
-	TextureCube SpecularLDMap = ResourceDescriptorHeap[GetDescHeapIndex(SpecularLDMapIdx)];
-
 	// TODO: float3 dominantR = GetSpecularDominantDir(N, R, a);なし
 	float mipLevel = RoughnessToMipLevel(roughness, mipCount);
 
@@ -645,11 +692,11 @@ float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, floa
 
 	return specularLight * FssEss;
 }
+#endif //ifdef DRAW_SPONZA
 
 [RootSignature(ROOT_SIGNATURE)]
 PSOutput main(VSOutput input)
 {
-	Texture2D<uint2> VBuffer = ResourceDescriptorHeap[GetDescHeapIndex(VBufferIdx)];
 	uint2 visibility = VBuffer.Sample(PointClampSmp, input.TexCoord);
 	// visibility.xの初期値はINVALID_VISIBILITY
 	if (visibility.x == INVALID_VISIBILITY)
@@ -711,12 +758,9 @@ PSOutput main(VSOutput input)
 	RayIntersectPlane(float3(0, 0, 0), normalize(viewPos - cameraPos), viewPos, triNormal, hitT);
 #endif
 
-	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[GetDescHeapIndex(CbTransformIdx)];
 	float4 clipPos0 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
 	float4 clipPos1 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
 	float4 clipPos2 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
-
-	ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer = ResourceDescriptorHeap[GetDescHeapIndex(CbGBufferFromVBufferIdx)];
 
 	BarycentricDeriv barycentricDeriv = CalcFullBary(clipPos0, clipPos1, clipPos2, screenPos, float2(CbGBufferFromVBuffer.Width, CbGBufferFromVBuffer.Height));
 	//TODO: SponzaVS.hlslおよびSponzaPS.hlsliの処理と重複するので共通化が必要
@@ -753,20 +797,7 @@ PSOutput main(VSOutput input)
 	BaryInterpolateDeriv2(barycentricDeriv, vertex0.TexCoord, vertex1.TexCoord, vertex2.TexCoord, texCoord, texCoordDdx, texCoordDdy);
 
 	// GBuffer描画に必要なリソースを取得
-	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[GetDescHeapIndex(CbCameraIdx)];
 	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetDescHeapIndex(CbMaterialBaseIdx + meshIdx)];
-
-	ConstantBuffer<DirectionalLight> CbDirectionalLight = ResourceDescriptorHeap[GetDescHeapIndex(CbDirLightIdx)];
-
-	ConstantBuffer<PointLight> CbPointLight1 = ResourceDescriptorHeap[GetDescHeapIndex(CbPointLightBaseIdx + 0)];
-	ConstantBuffer<PointLight> CbPointLight2 = ResourceDescriptorHeap[GetDescHeapIndex(CbPointLightBaseIdx + 1)];
-	ConstantBuffer<PointLight> CbPointLight3 = ResourceDescriptorHeap[GetDescHeapIndex(CbPointLightBaseIdx + 2)];
-	ConstantBuffer<PointLight> CbPointLight4 = ResourceDescriptorHeap[GetDescHeapIndex(CbPointLightBaseIdx + 3)];
-
-	ConstantBuffer<SpotLight> CbSpotLight1 = ResourceDescriptorHeap[GetDescHeapIndex(CbSpotLightBaseIdx + 0)];
-	ConstantBuffer<SpotLight> CbSpotLight2 = ResourceDescriptorHeap[GetDescHeapIndex(CbSpotLightBaseIdx + 1)];
-	ConstantBuffer<SpotLight> CbSpotLight3 = ResourceDescriptorHeap[GetDescHeapIndex(CbSpotLightBaseIdx + 2)];
-
 	Texture2D BaseColorMap = ResourceDescriptorHeap[GetDescHeapIndex(BaseColorMapBaseIdx + meshIdx)];
 	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[GetDescHeapIndex(MetallicRoughnessMapBaseIdx + meshIdx)];
 	Texture2D NormalMap = ResourceDescriptorHeap[GetDescHeapIndex(NormalMapBaseIdx + meshIdx)];
@@ -798,10 +829,6 @@ PSOutput main(VSOutput input)
 
 #ifdef DRAW_SPONZA
 	float NV = saturate(dot(N, V));
-	Texture2D DirLightShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(DirLightShadowMapIdx)];
-	Texture2D SpotLight1ShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(SpotLightShadowMapBaseIdx + 0)];
-	Texture2D SpotLight2ShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(SpotLightShadowMapBaseIdx + 1)];
-	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(SpotLightShadowMapBaseIdx + 2)];
 
 	// directional light
 	float3 dirLightL = normalize(-CbDirectionalLight.DirLightForward);
@@ -957,10 +984,6 @@ PSOutput main(VSOutput input)
 #else // #ifdef DRAW_SPONZA
 	float3 R = normalize(reflect(-V, N));
 	float NdotV = saturate(dot(N, V));
-
-	Texture2D DirLightShadowMap = ResourceDescriptorHeap[GetDescHeapIndex(DirLightShadowMapIdx)];
-	Texture2D DFGMap = ResourceDescriptorHeap[GetDescHeapIndex(DFGMapIdx)];
-	ConstantBuffer<IBL> CbIBL = ResourceDescriptorHeap[GetDescHeapIndex(CbIBLIdx)];
 
 	float3 cDiff = lerp(baseColor.rgb, 0.0f, metallic);;
 	float3 F0 = ComputeF0(baseColor.rgb, metallic);

@@ -45,26 +45,6 @@ private:
 		uint32_t NormalMap[MAX_MESH_COUNT];
 		uint32_t EmissiveMap[MAX_MESH_COUNT];
 		uint32_t AOMap[MAX_MESH_COUNT];
-
-		uint32_t CbTransform;
-		uint32_t CbCamera;
-		uint32_t VBuffer;
-		uint32_t DepthBuffer;
-		uint32_t CbGBufferFromVBuffer;
-		uint32_t Padding[3];
-
-		// Sponza用
-		uint32_t CbPointLight[NUM_POINT_LIGHTS];
-		uint32_t CbSpotLight[NUM_SPOT_LIGHTS];
-		uint32_t CbDirectionalLight;
-		uint32_t SpotLightShadowMap[NUM_SPOT_LIGHTS];
-		uint32_t DirLightShadowMap;
-
-		// IBL用
-		uint32_t CbIBL;
-		uint32_t DFGMap;
-		uint32_t DiffuseLDMap;
-		uint32_t SpecularLDMap;
 	};
 
 	// true:IBL下でのモデルビューワ
