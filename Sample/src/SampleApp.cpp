@@ -1036,6 +1036,11 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		m_pModels.push_back(model);
 
+		if (m_useMeshManager)
+		{
+			m_MeshManager.Init(pMeshes, pMaterials);
+		}
+
 		pCmd->Close();
 
 		ID3D12CommandList* pLists[] = {pCmd};

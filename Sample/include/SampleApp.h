@@ -10,6 +10,7 @@
 #include "Resource.h"
 #include "RootSignature.h"
 #include "Texture.h"
+#include "MeshManager.h"
 #include "TransformManipulator.h"
 #include "SphereMapConverter.h"
 #include "IBLBaker.h"
@@ -222,6 +223,7 @@ private:
 	SkyBox m_SkyBox;
 
 	std::vector<class Model*> m_pModels;
+	MeshManager m_MeshManager;
 	std::vector<DescriptorHandle*> m_pHZB_ParentMipSRVs;
 	float m_RotateAngle;
 	enum class TONE_MAP m_ToneMapType;
