@@ -156,7 +156,8 @@ bool Mesh::Init
 	class DescriptorPool* pPoolCpuVisible,
 	const ResMesh& resource,
 	size_t cbBufferSize,
-	bool isMeshlet
+	bool isMeshlet,
+	bool useMeshManager
 )
 {
 	if (pDevice == nullptr)
@@ -170,6 +171,7 @@ bool Mesh::Init
 	m_IndexCount = resource.Indices.size();
 
 	m_IsMeshlet = isMeshlet;
+	m_UseMeshManager = useMeshManager;
 
 	if (m_IsMeshlet)
 	{
@@ -286,235 +288,238 @@ bool Mesh::Init
 			return false;
 		}
 
+		if (!m_UseMeshManager)
+		{
 #if 0
-		//TODO: BoundingSphere関連はすべて現在未使用でデッドコードになっている。World行列に不均一スケールがあると楕円球になり扱いにくいため
-		assert(resource.Bounds.size() == m_MeshletCount);
-		std::vector<Vector3> boundingSphereVertices;
-		std::vector<uint32_t> boundingSphereIndices;
-		const uint32_t SPHERE_SEGMENT_COUNT = 4;
-		CreateUnitSphereMesh(SPHERE_SEGMENT_COUNT, boundingSphereVertices, boundingSphereIndices);
+			//TODO: BoundingSphere関連はすべて現在未使用でデッドコードになっている。World行列に不均一スケールがあると楕円球になり扱いにくいため
+			assert(resource.Bounds.size() == m_MeshletCount);
+			std::vector<Vector3> boundingSphereVertices;
+			std::vector<uint32_t> boundingSphereIndices;
+			const uint32_t SPHERE_SEGMENT_COUNT = 4;
+			CreateUnitSphereMesh(SPHERE_SEGMENT_COUNT, boundingSphereVertices, boundingSphereIndices);
 
-		m_SphereIndexCount = boundingSphereIndices.size();
+			m_SphereIndexCount = boundingSphereIndices.size();
 
-		if (!m_UnitSphereVB.InitAsVertexBuffer<Vector3>(
-			pDevice,
-			boundingSphereVertices.size()
-		))
-		{
-			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
-			return false;
-		}
+			if (!m_UnitSphereVB.InitAsVertexBuffer<Vector3>(
+				pDevice,
+				boundingSphereVertices.size()
+			))
+			{
+				ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+				return false;
+			}
 
-		if (!m_UnitSphereIB.InitAsIndexBuffer<uint32_t>(
-			pDevice,
-			DXGI_FORMAT_R32_UINT,
-			boundingSphereIndices.size()
-		))
-		{
-			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
-			return false;
-		}
+			if (!m_UnitSphereIB.InitAsIndexBuffer<uint32_t>(
+				pDevice,
+				DXGI_FORMAT_R32_UINT,
+				boundingSphereIndices.size()
+			))
+			{
+				ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+				return false;
+			}
 
-		if (!m_UnitSphereVB.UploadBufferTypeData<Vector3>(
-			pDevice,
-			pCmdList,
-			boundingSphereVertices.size(),
-			boundingSphereVertices.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
+			if (!m_UnitSphereVB.UploadBufferTypeData<Vector3>(
+				pDevice,
+				pCmdList,
+				boundingSphereVertices.size(),
+				boundingSphereVertices.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
 
-		if (!m_UnitSphereIB.UploadBufferTypeData<uint32_t>(
-			pDevice,
-			pCmdList,
-			boundingSphereIndices.size(),
-			boundingSphereIndices.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
+			if (!m_UnitSphereIB.UploadBufferTypeData<uint32_t>(
+				pDevice,
+				pCmdList,
+				boundingSphereIndices.size(),
+				boundingSphereIndices.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
 
-		std::vector<AABB> sphereInfos(m_MeshletCount);
+			std::vector<AABB> sphereInfos(m_MeshletCount);
 
-		for (uint32_t i = 0; i < m_MeshletCount; i++)
-		{
-			sphereInfos[i].Center = Vector3(resource.Bounds[i].center);
-			sphereInfos[i].HalfExtent = Vector3(resource.Bounds[i].radius);
-		}
+			for (uint32_t i = 0; i < m_MeshletCount; i++)
+			{
+				sphereInfos[i].Center = Vector3(resource.Bounds[i].center);
+				sphereInfos[i].HalfExtent = Vector3(resource.Bounds[i].radius);
+			}
 
-		if (!m_BoundingSphereInfosSB.InitAsStructuredBuffer<AABB>(
-			pDevice,
-			m_MeshletCount,
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
-			pPoolGpuVisible,
-			nullptr,
-			L"BoundingSpheresphereInfosB"
-		))
-		{
-			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
-			return false;
-		}
+			if (!m_BoundingSphereInfosSB.InitAsStructuredBuffer<AABB>(
+				pDevice,
+				m_MeshletCount,
+				D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATE_COMMON,
+				pPoolGpuVisible,
+				nullptr,
+				L"BoundingSpheresphereInfosB"
+			))
+			{
+				ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+				return false;
+			}
 
-		if (!m_BoundingSphereInfosSB.UploadBufferTypeData<AABB>(
-			pDevice,
-			pCmdList,
-			sphereInfos.size(),
-			sphereInfos.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
+			if (!m_BoundingSphereInfosSB.UploadBufferTypeData<AABB>(
+				pDevice,
+				pCmdList,
+				sphereInfos.size(),
+				sphereInfos.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
 #endif
 
-		assert(resource.AABBs.size() == m_MeshletCount);
-		std::vector<Vector3> cubeVertices;
-		std::vector<uint32_t> cubeIndices;
-		CreateUnitCubeMesh(cubeVertices, cubeIndices);
+			assert(resource.AABBs.size() == m_MeshletCount);
+			std::vector<Vector3> cubeVertices;
+			std::vector<uint32_t> cubeIndices;
+			CreateUnitCubeMesh(cubeVertices, cubeIndices);
 
-		if (!m_UnitCubeVB.InitAsVertexBuffer<Vector3>(
-			pDevice,
-			cubeVertices.size()
-		))
-		{
-			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
-			return false;
-		}
-
-		if (!m_UnitCubeIB.InitAsIndexBuffer<uint32_t>(
-			pDevice,
-			DXGI_FORMAT_R32_UINT,
-			cubeIndices.size()
-		))
-		{
-			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
-			return false;
-		}
-
-		if (!m_UnitCubeVB.UploadBufferTypeData<Vector3>(
-			pDevice,
-			pCmdList,
-			cubeVertices.size(),
-			cubeVertices.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
-		if (!m_UnitCubeIB.UploadBufferTypeData<uint32_t>(
-			pDevice,
-			pCmdList,
-			cubeIndices.size(),
-			cubeIndices.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
-		if (!m_AABBInfosSB.InitAsStructuredBuffer<AABB>(
-			pDevice,
-			m_MeshletCount,
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
-			pPoolGpuVisible,
-			nullptr,
-			L"AABBInfosSB"
-		))
-		{
-			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
-			return false;
-		}
-
-		if (!m_AABBInfosSB.UploadBufferTypeData<AABB>(
-			pDevice,
-			pCmdList,
-			resource.AABBs.size(),
-			resource.AABBs.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
-		// MeshletのHWRasterizer描画用のCommandSignatureの生成
-		{
-			D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
-			argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
-
-			D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
-			cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_MESH_ARGUMENTS);
-			cmdSigDesc.NumArgumentDescs = 1;
-			cmdSigDesc.pArgumentDescs = &argDesc;
-
-			HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawByHWRasCmdSig));
-			if (FAILED(hr))
+			if (!m_UnitCubeVB.InitAsVertexBuffer<Vector3>(
+				pDevice,
+				cubeVertices.size()
+			))
 			{
-				ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+				ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
 				return false;
 			}
-		}
 
-		// MeshletのSWRasterizer描画用のCommandSignatureの生成
-		{
-			D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
-			argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
-
-			D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
-			cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
-			cmdSigDesc.NumArgumentDescs = 1;
-			cmdSigDesc.pArgumentDescs = &argDesc;
-
-			HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawBySWRasCmdSig));
-			if (FAILED(hr))
+			if (!m_UnitCubeIB.InitAsIndexBuffer<uint32_t>(
+				pDevice,
+				DXGI_FORMAT_R32_UINT,
+				cubeIndices.size()
+			))
 			{
-				ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+				ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
 				return false;
 			}
+
+			if (!m_UnitCubeVB.UploadBufferTypeData<Vector3>(
+				pDevice,
+				pCmdList,
+				cubeVertices.size(),
+				cubeVertices.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
+
+			if (!m_UnitCubeIB.UploadBufferTypeData<uint32_t>(
+				pDevice,
+				pCmdList,
+				cubeIndices.size(),
+				cubeIndices.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
+
+			if (!m_AABBInfosSB.InitAsStructuredBuffer<AABB>(
+				pDevice,
+				m_MeshletCount,
+				D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATE_COMMON,
+				pPoolGpuVisible,
+				nullptr,
+				L"AABBInfosSB"
+			))
+			{
+				ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+				return false;
+			}
+
+			if (!m_AABBInfosSB.UploadBufferTypeData<AABB>(
+				pDevice,
+				pCmdList,
+				resource.AABBs.size(),
+				resource.AABBs.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
+
+			// MeshletのHWRasterizer描画用のCommandSignatureの生成
+			{
+				D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+				argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
+
+				D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
+				cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_MESH_ARGUMENTS);
+				cmdSigDesc.NumArgumentDescs = 1;
+				cmdSigDesc.pArgumentDescs = &argDesc;
+
+				HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawByHWRasCmdSig));
+				if (FAILED(hr))
+				{
+					ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+					return false;
+				}
+			}
+
+			// MeshletのSWRasterizer描画用のCommandSignatureの生成
+			{
+				D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+				argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+
+				D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
+				cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
+				cmdSigDesc.NumArgumentDescs = 1;
+				cmdSigDesc.pArgumentDescs = &argDesc;
+
+				HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawBySWRasCmdSig));
+				if (FAILED(hr))
+				{
+					ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+					return false;
+				}
+			}
+
+			// Meshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
+			if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
+			(
+				pDevice,
+				3 * sizeof(uint32_t),
+				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+				D3D12_RESOURCE_STATE_COMMON,
+				pPoolGpuVisible,
+				pPoolGpuVisible,
+				pPoolCpuVisible,
+				L"DrawMeshletIndirectArgBB"
+			))
+			{
+				ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+				return false;
+			}
+
+			DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+			// Meshlet描画用のカリング済みMeshletIdxリストの生成
+			if (!m_DrawMeshletListBB.InitAsByteAddressBuffer
+			(
+				pDevice,
+				MAX_DRAW_MESHLET_COUNT * sizeof(uint32_t),
+				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+				D3D12_RESOURCE_STATE_COMMON,
+				pPoolGpuVisible,
+				pPoolGpuVisible,
+				pPoolCpuVisible,
+				L"DrawMeshletMeshletListBB"
+			))
+			{
+				ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+				return false;
+			}
+
+			DirectX::TransitionResource(pCmdList, m_DrawMeshletListBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
-
-		// Meshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
-		if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
-		(
-			pDevice,
-			3 * sizeof(uint32_t),
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			D3D12_RESOURCE_STATE_COMMON,
-			pPoolGpuVisible,
-			pPoolGpuVisible,
-			pPoolCpuVisible,
-			L"DrawMeshletIndirectArgBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
-			return false;
-		}
-
-		DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		// Meshlet描画用のカリング済みMeshletIdxリストの生成
-		if (!m_DrawMeshletListBB.InitAsByteAddressBuffer
-		(
-			pDevice,
-			MAX_DRAW_MESHLET_COUNT * sizeof(uint32_t),
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			D3D12_RESOURCE_STATE_COMMON,
-			pPoolGpuVisible,
-			pPoolGpuVisible,
-			pPoolCpuVisible,
-			L"DrawMeshletMeshletListBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
-			return false;
-		}
-
-		DirectX::TransitionResource(pCmdList, m_DrawMeshletListBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	}
 	else
 	{
@@ -632,7 +637,7 @@ void Mesh::Term()
 
 void Mesh::ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 
 	uint32_t clearValue[4] = {0, 0, 0, 0};
 	// 本来はX=0、Y=1、Z=1にしたいが、ClearUavWithUintValue()とByteAddressBufferではそれができないようだ。[0]の値ですべてクリアされてしまう。よってY=1、Z=1はシェーダで入れる。
@@ -645,7 +650,7 @@ void Mesh::ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const
 
 void Mesh::DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 
 	pCmdList->SetComputeRoot32BitConstant(0, static_cast<UINT>(m_MeshletCount), 0);
 
@@ -661,7 +666,7 @@ void Mesh::DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const
 
 void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList, bool useCulling) const
 {
-	if (m_IsMeshlet)
+	if (m_IsMeshlet && !m_UseMeshManager)
 	{
 		if (useCulling)
 		{
@@ -688,7 +693,7 @@ void Mesh::DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList, bool useCull
 
 void Mesh::DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 
 	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
@@ -699,7 +704,7 @@ void Mesh::DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const
 
 void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 
 	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_UnitSphereVB.GetVBV();
 	const D3D12_INDEX_BUFFER_VIEW& IBV = m_UnitSphereIB.GetIBV();
@@ -712,7 +717,7 @@ void Mesh::DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const
 
 void Mesh::DrawMeshletAABB(ID3D12GraphicsCommandList6* pCmdList) const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 
 	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_UnitCubeVB.GetVBV();
 	const D3D12_INDEX_BUFFER_VIEW& IBV = m_UnitCubeIB.GetIBV();
@@ -766,37 +771,37 @@ const DescriptorHandle& Mesh::GetMeshletsTrianglesBBHandle() const
 
 const DescriptorHandle& Mesh::GetMeshletsBoundingSphereInfosSBHandle() const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 	return *m_BoundingSphereInfosSB.GetHandleSRV();
 }
 
 const DescriptorHandle& Mesh::GetMeshletsAABBInfosSBHandle() const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 	return *m_AABBInfosSB.GetHandleSRV();
 }
 
 const DescriptorHandle& Mesh::GetDrawMeshletIndirectArgBBHandle() const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 	return *m_DrawMeshletIndirectArgBB.GetHandleUAV();
 }
 
 const Resource& Mesh::GetDrawMeshletListBB() const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 	return m_DrawMeshletListBB;
 }
 
 const DescriptorHandle& Mesh::GetDrawMeshletListBBUavHandle() const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 	return *m_DrawMeshletListBB.GetHandleUAV();
 }
 
 const DescriptorHandle& Mesh::GetDrawMeshletListBBSrvHandle() const
 {
-	assert(m_IsMeshlet);
+	assert(m_IsMeshlet && !m_UseMeshManager);
 	return *m_DrawMeshletListBB.GetHandleSRV();
 }
 

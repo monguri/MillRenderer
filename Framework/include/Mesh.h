@@ -24,10 +24,11 @@ public:
 		class DescriptorPool* pPoolGpuVisible,
 		class DescriptorPool* pPoolCpuVisible,
 		const ResMesh& resource,
-		bool isMeshlet = false
+		bool isMeshlet,
+		bool useMeshManager
 	)
 	{
-		return Init(pDevice, pCmdList, pPoolGpuVisible, pPoolCpuVisible, resource, sizeof(CbType), isMeshlet);
+		return Init(pDevice, pCmdList, pPoolGpuVisible, pPoolCpuVisible, resource, sizeof(CbType), isMeshlet, useMeshManager);
 	}
 
 	void Term();
@@ -67,6 +68,7 @@ public:
 
 private:
 	bool m_IsMeshlet = false;
+	bool m_UseMeshManager = false;
 	// MeshletÇÃèÍçáÇÕSBÅAí èÌMeshÇÃèÍçáÇÕVB
 	Resource m_VB;
 	Resource m_IB;
@@ -100,7 +102,8 @@ private:
 		class DescriptorPool* pPoolCpuVisible,
 		const ResMesh& resource,
 		size_t cbBufferSize,
-		bool isMeshlet
+		bool isMeshlet,
+		bool useMeshManager
 	);
 
 	Mesh(const Mesh&) = delete;
