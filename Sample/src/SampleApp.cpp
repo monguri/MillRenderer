@@ -1213,13 +1213,16 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	if (m_useMeshlet && m_useVBuffer)
 	{
-		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
+		if (!m_MeshletsDescHeapIndicesCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbMeshletsDescHeapIndices)))
 		{
-			if (!m_DrawGBufferDescHeapIndicesCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDrawGBufferDescHeapIndices)))
-			{
-				ELOG("Error : ConstantBuffer::Init() Failed.");
-				return false;
-			}
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
+		}
+
+		if (!m_MaterialsDescHeapIndicesCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbMaterialsDescHeapIndices)))
+		{
+			ELOG("Error : ConstantBuffer::Init() Failed.");
+			return false;
 		}
 
 		if (!m_GBufferFromVBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbGBufferFromVBuffer), L"CbGBufferFromVBuffer"))
@@ -6178,29 +6181,30 @@ void SampleApp::OnRender()
 	{
 		// Indexは0初期化してシェーダ側で使用するインデックスがずれてもGPUクラッシュさせないようにする
 		// GPUクラッシュするより絵がおかしい方が調査しやすいので
-		CbDrawGBufferDescHeapIndices drawGBufferDescHeapIndices = {};
+		CbMeshletsDescHeapIndices meshletsDescHeapIndices = {};
+		CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
 
 		if (m_enableTemporalAA)
 		{
-			DrawVBuffer(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, drawGBufferDescHeapIndices);
+			DrawVBuffer(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, meshletsDescHeapIndices, materialsDescHeapIndices);
 
 			if (m_useSWRasterizer)
 			{
 				DrawDepthBufferFromVBuffer(pCmd);
 			}
 
-			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential, drawGBufferDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential, meshletsDescHeapIndices, materialsDescHeapIndices);
 		}
 		else
 		{
-			DrawVBuffer(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, drawGBufferDescHeapIndices);
+			DrawVBuffer(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, meshletsDescHeapIndices, materialsDescHeapIndices);
 
 			if (m_useSWRasterizer)
 			{
 				DrawDepthBufferFromVBuffer(pCmd);
 			}
 
-			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential, drawGBufferDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential, meshletsDescHeapIndices, materialsDescHeapIndices);
 		}
 	}
 	else
@@ -6614,7 +6618,7 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	}
 }
 
-void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
 {
 	assert(m_useMeshlet && m_useVBuffer);
 
@@ -6649,10 +6653,10 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		uint32_t meshIdx = 0;
 
 		pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
-		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, drawGBufferDescHeapIndices);
+		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
 
 		pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
-		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
+		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
 
 		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
@@ -6675,10 +6679,10 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		uint32_t meshIdx = 0;
 
 		pCmdList->SetPipelineState(m_pDrawVBufferHWRasOpaquePSO.Get());
-		DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, drawGBufferDescHeapIndices);
+		DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
 
 		pCmdList->SetPipelineState(m_pDrawVBufferHWRasMaskPSO.Get());
-		DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, drawGBufferDescHeapIndices);
+		DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
 	}
 	if (!m_useSWRasterizer)
 	{
@@ -6687,7 +6691,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	}
 }
 
-void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
 {
 	::PIXScopedEvent(pCmdList, 0, L"DrawGBufferFromVBuffer");
 
@@ -6719,8 +6723,13 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	// GBufferFromVBuffer専用の定数バッファ更新
 	{
 		{
-			CbDrawGBufferDescHeapIndices* ptr = m_DrawGBufferDescHeapIndicesCB[m_FrameIndex].GetPtr<CbDrawGBufferDescHeapIndices>();
-			*ptr = drawGBufferDescHeapIndices;
+			CbMeshletsDescHeapIndices* ptr = m_MeshletsDescHeapIndicesCB.GetPtr<CbMeshletsDescHeapIndices>();
+			*ptr = meshletsDescHeapIndices;
+		}
+
+		{
+			CbMaterialsDescHeapIndices* ptr = m_MaterialsDescHeapIndicesCB.GetPtr<CbMaterialsDescHeapIndices>();
+			*ptr = materialsDescHeapIndices;
 		}
 
 		{
@@ -6788,41 +6797,42 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 
 	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
 
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_DrawGBufferDescHeapIndicesCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(3, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshletsDescHeapIndicesCB.GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MaterialsDescHeapIndicesCB.GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
 
 	if (m_drawSponza)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(4, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(5 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(6 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
 		}
 
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(5 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
 		}
 
-		pCmdList->SetGraphicsRootDescriptorTable(5 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_VBufferTarget.GetHandleSRV()->HandleGPU);
 
-		pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
 
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 		}
 	}
 	else
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(4, m_IBL_CB.GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(5, m_VBufferTarget.GetHandleSRV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(6, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_IBL_CB.GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(6, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
 	}
 
 	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
@@ -7053,7 +7063,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
 {
 	assert(m_useMeshlet && m_useVBuffer && m_useSWRasterizer);
 
@@ -7094,24 +7104,24 @@ void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdL
 			descHeapIndices[5] = pMesh->GetMeshletsVerticesSBHandle().GetDescriptorIndex();
 			descHeapIndices[6] = pMesh->GetMeshletsTrianglesBBHandle().GetDescriptorIndex();
 
-			drawGBufferDescHeapIndices.CbMesh[meshIdx] = descHeapIndices[1];
-			drawGBufferDescHeapIndices.SbVertexBuffer[meshIdx] = descHeapIndices[2];
-			drawGBufferDescHeapIndices.BbDrawMeshletListBuffer[meshIdx] = descHeapIndices[3];
-			drawGBufferDescHeapIndices.SbMeshletBuffer[meshIdx] = descHeapIndices[4];
-			drawGBufferDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = descHeapIndices[5];
-			drawGBufferDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = descHeapIndices[6];
+			meshletsDescHeapIndices.CbMesh[meshIdx] = descHeapIndices[1];
+			meshletsDescHeapIndices.SbVertexBuffer[meshIdx] = descHeapIndices[2];
+			meshletsDescHeapIndices.BbDrawMeshletListBuffer[meshIdx] = descHeapIndices[3];
+			meshletsDescHeapIndices.SbMeshletBuffer[meshIdx] = descHeapIndices[4];
+			meshletsDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = descHeapIndices[5];
+			meshletsDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = descHeapIndices[6];
 
 			descHeapIndices[7] = pMaterial->GetCBHandle().GetDescriptorIndex();
 			descHeapIndices[8] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
 			descHeapIndices[9] = m_DrawVBufferSWRasCB.GetHandle()->GetDescriptorIndex();
 			descHeapIndices[10] = m_VBufferTarget.GetHandleUAVs()[0]->GetDescriptorIndex();
 
-			drawGBufferDescHeapIndices.CbMaterial[meshIdx] = descHeapIndices[7];
-			drawGBufferDescHeapIndices.BaseColorMap[meshIdx] = descHeapIndices[8];
-			drawGBufferDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
-			drawGBufferDescHeapIndices.NormalMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
-			drawGBufferDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
-			drawGBufferDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
+			materialsDescHeapIndices.CbMaterial[meshIdx] = descHeapIndices[7];
+			materialsDescHeapIndices.BaseColorMap[meshIdx] = descHeapIndices[8];
+			materialsDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
+			materialsDescHeapIndices.NormalMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
+			materialsDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
+			materialsDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
 
 			pCmdList->SetComputeRoot32BitConstants(0, static_cast<UINT>(descHeapIndices.size()), descHeapIndices.data(), 0);
 
@@ -7124,7 +7134,7 @@ void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdL
 	}
 }
 
-void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
+void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
 {
 	assert(m_useMeshlet && m_useVBuffer && !m_useSWRasterizer);
 
@@ -7166,21 +7176,21 @@ void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdL
 			gsDescHeapIndices[5] = pMesh->GetMeshletsVerticesSBHandle().GetDescriptorIndex();
 			gsDescHeapIndices[6] = pMesh->GetMeshletsTrianglesBBHandle().GetDescriptorIndex();
 
-			drawGBufferDescHeapIndices.CbMesh[meshIdx] = gsDescHeapIndices[1];
-			drawGBufferDescHeapIndices.SbVertexBuffer[meshIdx] = gsDescHeapIndices[2];
-			drawGBufferDescHeapIndices.BbDrawMeshletListBuffer[meshIdx] = gsDescHeapIndices[3];
-			drawGBufferDescHeapIndices.SbMeshletBuffer[meshIdx] = gsDescHeapIndices[4];
-			drawGBufferDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = gsDescHeapIndices[5];
-			drawGBufferDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = gsDescHeapIndices[6];
+			meshletsDescHeapIndices.CbMesh[meshIdx] = gsDescHeapIndices[1];
+			meshletsDescHeapIndices.SbVertexBuffer[meshIdx] = gsDescHeapIndices[2];
+			meshletsDescHeapIndices.BbDrawMeshletListBuffer[meshIdx] = gsDescHeapIndices[3];
+			meshletsDescHeapIndices.SbMeshletBuffer[meshIdx] = gsDescHeapIndices[4];
+			meshletsDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = gsDescHeapIndices[5];
+			meshletsDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = gsDescHeapIndices[6];
 
 			psDescHeapIndices[0] = pMaterial->GetCBHandle().GetDescriptorIndex();
 			psDescHeapIndices[1] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
-			drawGBufferDescHeapIndices.CbMaterial[meshIdx] = psDescHeapIndices[0];
-			drawGBufferDescHeapIndices.BaseColorMap[meshIdx] = psDescHeapIndices[1];
-			drawGBufferDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
-			drawGBufferDescHeapIndices.NormalMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
-			drawGBufferDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
-			drawGBufferDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
+			materialsDescHeapIndices.CbMaterial[meshIdx] = psDescHeapIndices[0];
+			materialsDescHeapIndices.BaseColorMap[meshIdx] = psDescHeapIndices[1];
+			materialsDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
+			materialsDescHeapIndices.NormalMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
+			materialsDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
+			materialsDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
 
 			pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(gsDescHeapIndices.size()), gsDescHeapIndices.data(), 0);
 			pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);

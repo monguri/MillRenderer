@@ -31,7 +31,7 @@ private:
 	// シェーダ側の定義と値の一致が必要
 	static constexpr uint32_t MAX_MESH_COUNT = 256;
 
-	struct alignas(256) CbDrawGBufferDescHeapIndices
+	struct alignas(256) CbMeshletsDescHeapIndices
 	{
 		uint32_t CbMesh[MAX_MESH_COUNT];
 		uint32_t SbVertexBuffer[MAX_MESH_COUNT];
@@ -39,6 +39,10 @@ private:
 		uint32_t SbMeshletBuffer[MAX_MESH_COUNT];
 		uint32_t SbMeshletVerticesBuffer[MAX_MESH_COUNT];
 		uint32_t SbMeshletTrianglesBuffer[MAX_MESH_COUNT];
+	};
+
+	struct alignas(256) CbMaterialsDescHeapIndices
+	{
 		uint32_t CbMaterial[MAX_MESH_COUNT];
 		uint32_t BaseColorMap[MAX_MESH_COUNT];
 		uint32_t MetallicRoughnessMap[MAX_MESH_COUNT];
@@ -177,7 +181,8 @@ private:
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_CullingCB;
 	ConstantBuffer m_DrawVBufferSWRasCB;
-	ConstantBuffer m_DrawGBufferDescHeapIndicesCB[FRAME_COUNT];;
+	ConstantBuffer m_MeshletsDescHeapIndicesCB;
+	ConstantBuffer m_MaterialsDescHeapIndicesCB;
 	ConstantBuffer m_GBufferFromVBufferCB;
 	ConstantBuffer m_DirectionalLightCB[FRAME_COUNT];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
@@ -272,11 +277,11 @@ private:
 	void DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const DirectX::SimpleMath::Vector3& dirLightDir);
 	void DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList);
 	void DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj);
-	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
-	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
+	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices);
+	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices);
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential);
-	void DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
-	void DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
+	void DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices);
+	void DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices);
 	void DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode);
 	void DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode);
 	void DrawDepthBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList);
