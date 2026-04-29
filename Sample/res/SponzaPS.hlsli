@@ -82,32 +82,6 @@ struct SpotLight
 
 SamplerState AnisotropicWrapSmp : register(s0);
 
-#ifdef USE_DYNAMIC_RESOURCE
-struct DescHeapIndices
-{
-	uint CbCamera;
-	uint CbMaterial;
-	uint CbDirectionalLight;
-	uint CbPointLight1;
-	uint CbPointLight2;
-	uint CbPointLight3;
-	uint CbPointLight4;
-	uint CbSpotLight1;
-	uint CbSpotLight2;
-	uint CbSpotLight3;
-	uint BaseColorMap;
-	uint MetallicRoughnessMap;
-	uint NormalMap;
-	uint EmissiveMap;
-	uint AOMap;
-	uint DirLightShadowMap;
-	uint SpotLight1ShadowMap;
-	uint SpotLight2ShadowMap;
-	uint SpotLight3ShadowMap;
-};
-
-ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b1);
-#else // #ifdef USE_DYNAMIC_RESOURCE
 ConstantBuffer<Camera> CbCamera : register(b0);
 ConstantBuffer<Material> CbMaterial : register(b1);
 
@@ -132,7 +106,6 @@ Texture2D DirLightShadowMap : register(t5);
 Texture2D SpotLight1ShadowMap : register(t6);
 Texture2D SpotLight2ShadowMap : register(t7);
 Texture2D SpotLight3ShadowMap : register(t8);
-#endif // #ifdef USE_DYNAMIC_RESOURCE
 
 #ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 SamplerComparisonState ShadowSmp : register(s1);
@@ -337,32 +310,6 @@ float3 EvaluateSpotLightReflection
 
 PSOutput main(VSOutput input , uint primitiveID : SV_PrimitiveID)
 {
-#ifdef USE_DYNAMIC_RESOURCE
-	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbDescHeapIndices.CbCamera];
-	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
-
-	ConstantBuffer<DirectionalLight> CbDirectionalLight = ResourceDescriptorHeap[CbDescHeapIndices.CbDirectionalLight];
-
-	ConstantBuffer<PointLight> CbPointLight1 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight1];
-	ConstantBuffer<PointLight> CbPointLight2 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight2];
-	ConstantBuffer<PointLight> CbPointLight3 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight3];
-	ConstantBuffer<PointLight> CbPointLight4 = ResourceDescriptorHeap[CbDescHeapIndices.CbPointLight4];
-
-	ConstantBuffer<SpotLight> CbSpotLight1 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight1];
-	ConstantBuffer<SpotLight> CbSpotLight2 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight2];
-	ConstantBuffer<SpotLight> CbSpotLight3 = ResourceDescriptorHeap[CbDescHeapIndices.CbSpotLight3];
-
-	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
-	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[CbDescHeapIndices.MetallicRoughnessMap];
-	Texture2D NormalMap = ResourceDescriptorHeap[CbDescHeapIndices.NormalMap];
-	Texture2D EmissiveMap = ResourceDescriptorHeap[CbDescHeapIndices.EmissiveMap];
-	Texture2D AOMap = ResourceDescriptorHeap[CbDescHeapIndices.AOMap];
-	Texture2D DirLightShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.DirLightShadowMap];
-	Texture2D SpotLight1ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLight1ShadowMap];
-	Texture2D SpotLight2ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLight2ShadowMap];
-	Texture2D SpotLight3ShadowMap = ResourceDescriptorHeap[CbDescHeapIndices.SpotLight3ShadowMap];
-#endif //#ifdef USE_DYNAMIC_RESOURCE
-
 	PSOutput output = (PSOutput)0;
 
 	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, input.TexCoord);

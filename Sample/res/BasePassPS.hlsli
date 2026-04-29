@@ -41,24 +41,6 @@ struct IBL
 	float LightIntensity;
 };
 
-#ifdef USE_DYNAMIC_RESOURCE
-struct DescHeapIndices
-{
-	uint CbCamera;
-	uint CbMaterial;
-	uint CbIBL;
-	uint BaseColorMap;
-	uint MetallicRoughnessMap;
-	uint NormalMap;
-	uint EmissiveMap;
-	uint AOMap;
-	uint DFGMap;
-	uint DiffuseLDMap;
-	uint SpecularLDMap;
-};
-
-ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b1);
-#else // #ifdef USE_DYNAMIC_RESOURCE
 ConstantBuffer<Camera> CbCamera : register(b0);
 ConstantBuffer<Material> CbMaterial : register(b1);
 ConstantBuffer<IBL> CbIBL : register(b2);
@@ -71,7 +53,6 @@ Texture2D AOMap : register(t4);
 Texture2D DFGMap : register(t5);
 TextureCube DiffuseLDMap : register(t6);
 TextureCube SpecularLDMap : register(t7);
-#endif // #ifdef USE_DYNAMIC_RESOURCE
 
 SamplerState AnisotropicWrapSmp : register(s0);
 SamplerState LinearWrapSmp : register(s1);
@@ -85,20 +66,12 @@ float3 GetSpecularDominantDir(float3 N, float3 R, float roughness)
 
 float3 EvaluateIBLDiffuse(float3 N)
 {
-#ifdef USE_DYNAMIC_RESOURCE
-	TextureCube DiffuseLDMap = ResourceDescriptorHeap[CbDescHeapIndices.DiffuseLDMap];
-#endif //#ifdef USE_DYNAMIC_RESOURCE
-
 	return DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
 }
 
 // Referenced glTF-Sample-Viewer ibl.glsl
 float3 GetIBLRadianceLambertian(float3 N, float3 NdotV, float roughness, float3 diffuseColor, float3 F0, float3 Fr, float2 f_ab)
 {
-#ifdef USE_DYNAMIC_RESOURCE
-	TextureCube DiffuseLDMap = ResourceDescriptorHeap[CbDescHeapIndices.DiffuseLDMap];
-#endif //#ifdef USE_DYNAMIC_RESOURCE
-
 	float3 irradiance = DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
 
     // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
@@ -132,11 +105,6 @@ float3 EvaluateIBLSpecular
 	float mipCount
 )
 {
-#ifdef USE_DYNAMIC_RESOURCE
-	Texture2D DFGMap = ResourceDescriptorHeap[CbDescHeapIndices.DFGMap];
-	TextureCube SpecularLDMap = ResourceDescriptorHeap[CbDescHeapIndices.SpecularLDMap];
-#endif //#ifdef USE_DYNAMIC_RESOURCE
-
 	float a = roughness * roughness;
 	float3 dominantR = GetSpecularDominantDir(N, R, a);
 
@@ -159,10 +127,6 @@ float3 EvaluateIBLSpecular
 // Referenced glTF-Sample-Viewer ibl.glsl
 float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, float3 F0, float3 Fr, float2 f_ab, float mipCount)
 {
-#ifdef USE_DYNAMIC_RESOURCE
-	TextureCube SpecularLDMap = ResourceDescriptorHeap[CbDescHeapIndices.SpecularLDMap];
-#endif //#ifdef USE_DYNAMIC_RESOURCE
-
 	// TODO: float3 dominantR = GetSpecularDominantDir(N, R, a);‚È‚µ
 	float mipLevel = RoughnessToMipLevel(roughness, mipCount);
 
@@ -180,20 +144,6 @@ float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, floa
 
 PSOutput main(VSOutput input , uint primitiveID : SV_PrimitiveID)
 {
-#ifdef USE_DYNAMIC_RESOURCE
-	ConstantBuffer<Camera> CbCamera = ResourceDescriptorHeap[CbDescHeapIndices.CbCamera];
-	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[CbDescHeapIndices.CbMaterial];
-	ConstantBuffer<IBL> CbIBL = ResourceDescriptorHeap[CbDescHeapIndices.CbIBL];
-
-	Texture2D BaseColorMap = ResourceDescriptorHeap[CbDescHeapIndices.BaseColorMap];
-	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[CbDescHeapIndices.MetallicRoughnessMap];
-	Texture2D NormalMap = ResourceDescriptorHeap[CbDescHeapIndices.NormalMap];
-	Texture2D EmissiveMap = ResourceDescriptorHeap[CbDescHeapIndices.EmissiveMap];
-	Texture2D AOMap = ResourceDescriptorHeap[CbDescHeapIndices.AOMap];
-	Texture2D DFGMap = ResourceDescriptorHeap[CbDescHeapIndices.DFGMap];
-	TextureCube DiffuseLDMap = ResourceDescriptorHeap[CbDescHeapIndices.DiffuseLDMap];
-	TextureCube SpecularLDMap = ResourceDescriptorHeap[CbDescHeapIndices.SpecularLDMap];
-#endif //#ifdef USE_DYNAMIC_RESOURCE
 	PSOutput output = (PSOutput)0;
 
 	float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, input.TexCoord);

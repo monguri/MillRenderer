@@ -1,93 +1,54 @@
-#ifdef USE_DYNAMIC_RESOURCE
-	#define ROOT_SIGNATURE ""\
-	"RootFlags"\
-	"("\
-	"DENY_VERTEX_SHADER_ROOT_ACCESS"\
-	" | DENY_HULL_SHADER_ROOT_ACCESS"\
-	" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
-	" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
-	" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
-	" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
-	")"\
-	", RootConstants(num32BitConstants=7, b0, visibility = SHADER_VISIBILITY_MESH)"\
-	", RootConstants(num32BitConstants=11, b1, visibility = SHADER_VISIBILITY_PIXEL)"\
-	", StaticSampler"\
-	"("\
-	"s0"\
-	", filter = FILTER_ANISOTROPIC"\
-	", addressU = TEXTURE_ADDRESS_WRAP"\
-	", addressV = TEXTURE_ADDRESS_WRAP"\
-	", addressW = TEXTURE_ADDRESS_WRAP"\
-	", maxAnisotropy = 16"\
-	", comparisonFunc = COMPARISON_NEVER"\
-	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-	", visibility = SHADER_VISIBILITY_PIXEL"\
-	")"\
-	", StaticSampler"\
-	"("\
-	"s1"\
-	", filter = FILTER_MIN_MAG_MIP_LINEAR"\
-	", addressU = TEXTURE_ADDRESS_WRAP"\
-	", addressV = TEXTURE_ADDRESS_WRAP"\
-	", addressW = TEXTURE_ADDRESS_WRAP"\
-	", maxAnisotropy = 1"\
-	", comparisonFunc = COMPARISON_NEVER"\
-	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-	", visibility = SHADER_VISIBILITY_PIXEL"\
-	")"
-#else // #ifdef USE_DYNAMIC_RESOURCE
-	#define ROOT_SIGNATURE ""\
-	"RootFlags"\
-	"("\
-	"DENY_VERTEX_SHADER_ROOT_ACCESS"\
-	" | DENY_HULL_SHADER_ROOT_ACCESS"\
-	" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
-	" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
-	" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
-	")"\
-	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
-	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
-	", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
-	", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
-	", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
-	", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
-	", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_MESH)"\
-	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
-	", StaticSampler"\
-	"("\
-	"s0"\
-	", filter = FILTER_ANISOTROPIC"\
-	", addressU = TEXTURE_ADDRESS_WRAP"\
-	", addressV = TEXTURE_ADDRESS_WRAP"\
-	", addressW = TEXTURE_ADDRESS_WRAP"\
-	", maxAnisotropy = 16"\
-	", comparisonFunc = COMPARISON_NEVER"\
-	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-	", visibility = SHADER_VISIBILITY_PIXEL"\
-	")"\
-	", StaticSampler"\
-	"("\
-	"s1"\
-	", filter = FILTER_MIN_MAG_MIP_LINEAR"\
-	", addressU = TEXTURE_ADDRESS_WRAP"\
-	", addressV = TEXTURE_ADDRESS_WRAP"\
-	", addressW = TEXTURE_ADDRESS_WRAP"\
-	", maxAnisotropy = 1"\
-	", comparisonFunc = COMPARISON_NEVER"\
-	", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
-	", visibility = SHADER_VISIBILITY_PIXEL"\
-	")"
-#endif //#ifdef USE_DYNAMIC_RESOURCE
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"DENY_VERTEX_SHADER_ROOT_ACCESS"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+")"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t6), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t7), visibility = SHADER_VISIBILITY_PIXEL)"\
+", StaticSampler"\
+"("\
+"s0"\
+", filter = FILTER_ANISOTROPIC"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 16"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"\
+", StaticSampler"\
+"("\
+"s1"\
+", filter = FILTER_MIN_MAG_MIP_LINEAR"\
+", addressU = TEXTURE_ADDRESS_WRAP"\
+", addressV = TEXTURE_ADDRESS_WRAP"\
+", addressW = TEXTURE_ADDRESS_WRAP"\
+", maxAnisotropy = 1"\
+", comparisonFunc = COMPARISON_NEVER"\
+", borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK"\
+", visibility = SHADER_VISIBILITY_PIXEL"\
+")"
 
 //TODO: SponzaVS.hlslとSponzaMS.hlslで構造体定義が重複している
 //TODO: BasePassVS.hlslとBasePassMS.hlslで構造体定義が重複している
@@ -132,24 +93,8 @@ struct Mesh
 	uint MeshIdx;
 };
 
-#ifdef USE_DYNAMIC_RESOURCE
-struct DescHeapIndices
-{
-	uint CbTransform;
-	uint CbMesh;
-	uint SbVertexBuffer;
-	uint BbDrawMeshletList;
-	uint SbMeshlets;
-	uint SbMeshletVertices;
-	uint SbMeshletTriangles;
-};
-
-ConstantBuffer<DescHeapIndices> CbDescHeapIndices : register(b0);
-#else // #ifdef USE_DYNAMIC_RESOURCE
 ConstantBuffer<Transform> CbTransform : register(b0);
-
 ConstantBuffer<Mesh> CbMesh : register(b1);
-#endif // #ifdef USE_DYNAMIC_RESOURCE
 
 StructuredBuffer<VSInput> vertexBuffer : register(t0);
 ByteAddressBuffer drawMeshletList : register(t1);
@@ -169,17 +114,6 @@ void main
 	out primitives PrimitiveOutput outPrims[126]
 )
 {
-#ifdef USE_DYNAMIC_RESOURCE
-	ConstantBuffer<Transform> CbTransform = ResourceDescriptorHeap[CbDescHeapIndices.CbTransform];
-	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[CbDescHeapIndices.CbMesh];
-
-	StructuredBuffer<VSInput> vertexBuffer = ResourceDescriptorHeap[CbDescHeapIndices.SbVertexBuffer];
-	ByteAddressBuffer drawMeshletList = ResourceDescriptorHeap[CbDescHeapIndices.BbDrawMeshletList];
-	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshlets];
-	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletVertices];
-	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[CbDescHeapIndices.SbMeshletTriangles];
-#endif //#ifdef USE_DYNAMIC_RESOURCE
-
 	uint meshletIdx = drawMeshletList.Load(gid * 4);
 	meshopt_Meshlet meshlet = meshlets[meshletIdx];
 

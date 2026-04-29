@@ -74,8 +74,6 @@ private:
 	bool m_useMeshlet = false;
 	// true:meshlet分割にMetisを使用、false:meshlet分割にmeshOptimizerのみを使用
 	bool m_useMetis = false;
-	// true:動的リソース割り当て、false:静的リソース割り当て
-	bool m_useDynamicResources = true;
 	// Visibility Bufferを使った描画をやるかどうか
 	bool m_useVBuffer = false;
 	// Visibility BufferをSW Rasterizeするかどうか
@@ -300,7 +298,7 @@ private:
 	void DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
 	void DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices);
 	void DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode);
-	void DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices);
+	void DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode);
 	void DrawDepthBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawHCB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawHZB(ID3D12GraphicsCommandList* pCmdList);

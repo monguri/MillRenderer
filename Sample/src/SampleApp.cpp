@@ -747,7 +747,6 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 : App(width, height, DXGI_FORMAT_R10G10B10A2_UNORM)
 , m_drawSponza(true)
 , m_useMeshlet(false)
-, m_useDynamicResources(false)
 , m_ToneMapType(TONE_MAP::GRAN_TURISMO)
 , m_ColorSpace(COLOR_SPACE::BT709)
 , m_BaseLuminance(100.0f)
@@ -798,10 +797,6 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		else if (wcscmp(argv[a], L"--metis") == 0)
 		{
 			m_useMetis = true;
-		}
-		else if (wcscmp(argv[a], L"--dynamicresources") == 0)
-		{
-			m_useDynamicResources = true;
 		}
 		else if (wcscmp(argv[a], L"--vbuffer") == 0)
 		{
@@ -1203,7 +1198,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->bEnableBackFaceCulling = m_enableBackFaceCulling ? 1 : 0;
 	}
 
-	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer && m_useSWRasterizer)
+	if (m_useMeshlet && m_useVBuffer && m_useSWRasterizer)
 	{
 		if (!m_DrawVBufferSWRasCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDrawVBufferSWRas), L"CbDrawVBufferSWRas"))
 		{
@@ -1216,7 +1211,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Height = m_Height;
 	}
 
-	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
+	if (m_useMeshlet && m_useVBuffer)
 	{
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
@@ -2542,10 +2537,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			compileArgs.push_back(L"-D USE_MESHLET");
 		}
-		if (m_useDynamicResources)
-		{
-			compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
-		}
 
 		ComPtr<IDxcBlob> pDepthMaskPSBlob;
 		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pDepthMaskPSBlob))
@@ -2588,36 +2579,22 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring msPath;
-			if (!SearchFilePath(L"DepthMS.hlsl", msPath))
+			if (!SearchFilePath(L"DepthMS.cso", msPath))
 			{
 				ELOG("Error : Mesh Shader Not Found");
 				return false;
 			}
 
-			compileArgs =
+			ComPtr<ID3DBlob> pMSBlob;
+			HRESULT hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
+			if (FAILED(hr))
 			{
-				L"-T ms_6_7",
-				L"-I", L"../res",
-#if defined(DEBUG) || defined(_DEBUG)
-				L"-Zi",
-				L"-Qembed_debug",
-				L"-Od"
-#endif
-			};
-			if (m_useDynamicResources)
-			{
-				compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
-			}
-
-			ComPtr<IDxcBlob> pMSBlob;
-			if (!m_ShaderCompiler.Compile(msPath.c_str(), compileArgs, pMSBlob))
-			{
-				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", msPath.c_str());
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
 				return false;
 			}
 
 			ComPtr<ID3DBlob> pRSBlob;
-			HRESULT hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
@@ -2682,15 +2659,16 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 
 			// AlphaModeがOpaqueのマテリアル用
-			if (!SearchFilePath(L"SponzaMS.hlsl", msPath))
+			if (!SearchFilePath(L"SponzaMS.cso", msPath))
 			{
 				ELOG("Error : Mesh Shader Not Found");
 				return false;
 			}
 
-			if (!m_ShaderCompiler.Compile(msPath.c_str(), compileArgs, pMSBlob))
+			hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
+			if (FAILED(hr))
 			{
-				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", msPath.c_str());
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
 				return false;
 			}
 
@@ -2761,31 +2739,17 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring vsPath;
-			if (!SearchFilePath(L"DepthVS.hlsl", vsPath))
+			if (!SearchFilePath(L"DepthVS.cso", vsPath))
 			{
 				ELOG("Error : Vertex Shader Not Found");
 				return false;
 			}
 
-			compileArgs =
+			ComPtr<ID3DBlob> pVSBlob;
+			HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+			if (FAILED(hr))
 			{
-				L"-T vs_6_7",
-				L"-I", L"../res",
-#if defined(DEBUG) || defined(_DEBUG)
-				L"-Zi",
-				L"-Qembed_debug",
-				L"-Od"
-#endif
-			};
-			if (m_useDynamicResources)
-			{
-				compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
-			}
-
-			ComPtr<IDxcBlob> pVSBlob;
-			if (!m_ShaderCompiler.Compile(vsPath.c_str(), compileArgs, pVSBlob))
-			{
-				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", vsPath.c_str());
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
 				return false;
 			}
 
@@ -2794,7 +2758,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			// PSは実行しないので設定しない
 
 			ComPtr<ID3DBlob> pRSBlob;
-			HRESULT hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
@@ -2847,15 +2811,16 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 
 			// AlphaModeがOpaqueのマテリアル用
-			if (!SearchFilePath(L"SponzaVS.hlsl", vsPath))
+			if (!SearchFilePath(L"SponzaVS.cso", vsPath))
 			{
 				ELOG("Error : Vertex Shader Not Found");
 				return false;
 			}
 
-			if (!m_ShaderCompiler.Compile(vsPath.c_str(), compileArgs, pVSBlob))
+			hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+			if (FAILED(hr))
 			{
-				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", vsPath.c_str());
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
 				return false;
 			}
 
@@ -2930,10 +2895,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			compileArgs.push_back(L"-D USE_MESHLET");
 		}
-		if (m_useDynamicResources)
-		{
-			compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
-		}
 
 		// AlphaModeがOpaqueのマテリアル用
 		std::wstring psPath;
@@ -2983,35 +2944,22 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring msPath;
-			if (!SearchFilePath(L"BasePassMS.hlsl", msPath))
+			if (!SearchFilePath(L"BasePassMS.cso", msPath))
 			{
 				ELOG("Error : Mesh Shader Not Found");
 				return false;
 			}
 
-			std::vector<const wchar_t*> compileArgs =
+			ComPtr<ID3DBlob> pMSBlob;
+			HRESULT hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
+			if (FAILED(hr))
 			{
-				L"-T ms_6_7",
-#if defined(DEBUG) || defined(_DEBUG)
-				L"-Zi",
-				L"-Qembed_debug",
-				L"-Od"
-#endif
-			};
-			if (m_useDynamicResources)
-			{
-				compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
-			}
-
-			ComPtr<IDxcBlob> pMSBlob;
-			if (!m_ShaderCompiler.Compile(msPath.c_str(), compileArgs, pMSBlob))
-			{
-				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", msPath.c_str());
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
 				return false;
 			}
 
 			ComPtr<ID3DBlob> pRSBlob;
-			HRESULT hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
@@ -3100,35 +3048,22 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring vsPath;
-			if (!SearchFilePath(L"BasePassVS.hlsl", vsPath))
+			if (!SearchFilePath(L"BasePassVS.cso", vsPath))
 			{
 				ELOG("Error : Vertex Shader Not Found");
 				return false;
 			}
 
-			std::vector<const wchar_t*> compileArgs =
+			ComPtr<ID3DBlob> pVSBlob;
+			HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+			if (FAILED(hr))
 			{
-				L"-T vs_6_7",
-#if defined(DEBUG) || defined(_DEBUG)
-				L"-Zi",
-				L"-Qembed_debug",
-				L"-Od"
-#endif
-			};
-			if (m_useDynamicResources)
-			{
-				compileArgs.push_back(L"-D USE_DYNAMIC_RESOURCE");
-			}
-
-			ComPtr<IDxcBlob> pVSBlob;
-			if (!m_ShaderCompiler.Compile(vsPath.c_str(), compileArgs, pVSBlob))
-			{
-				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", vsPath.c_str());
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
 				return false;
 			}
 
 			ComPtr<ID3DBlob> pRSBlob;
-			HRESULT hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
@@ -3241,7 +3176,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 
 	// Visibilityパス用ルートシグニチャとパイプラインステートの生成
-	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
+	if (m_useMeshlet && m_useVBuffer)
 	{
 		if (m_useSWRasterizer)
 		{
@@ -6239,7 +6174,7 @@ void SampleApp::OnRender()
 		}
 	}
 
-	if (m_useMeshlet && m_useDynamicResources && m_useVBuffer)
+	if (m_useMeshlet && m_useVBuffer)
 	{
 		// Indexは0初期化してシェーダ側で使用するインデックスがずれてもGPUクラッシュさせないようにする
 		// GPUクラッシュするより絵がおかしい方が調査しやすいので
@@ -6681,7 +6616,7 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
-	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer);
+	assert(m_useMeshlet && m_useVBuffer);
 
 	::PIXScopedEvent(pCmdList, 0, L"DrawVBuffer");
 
@@ -7021,95 +6956,41 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	}
 
-	// m_useDynamicResourcesでしか使ってない
-	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
-	std::vector<uint32_t> psDescHeapIndices;
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2 + m_meshletRootParamCount, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+
 	if (m_drawSponza)
 	{
-		psDescHeapIndices.resize(16 + NUM_SPOT_LIGHTS);
-	}
-	else
-	{
-		psDescHeapIndices.resize(11);
-	}
+		pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
 
-	if (m_useDynamicResources)
-	{
-		gsDescHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-		psDescHeapIndices[0] = m_CameraCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-
-		if (m_drawSponza)
+		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 		{
-			psDescHeapIndices[2] = m_DirectionalLightCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-
-			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-			{
-				psDescHeapIndices[3 + i] = m_PointLightCB[i].GetHandle()->GetDescriptorIndex();
-			}
-
-			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-			{
-				psDescHeapIndices[7 + i] = m_SpotLightCB[i].GetHandle()->GetDescriptorIndex();
-			}
-		}
-		else
-		{
-			psDescHeapIndices[2] = m_IBL_CB.GetHandle()->GetDescriptorIndex();
+			pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount + i, m_PointLightCB[i].GetHandle()->HandleGPU);
 		}
 
-		if (m_drawSponza)
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			psDescHeapIndices[15] = m_DirLightShadowMapTarget.GetHandleSRV()->GetDescriptorIndex();
-			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-			{
-				psDescHeapIndices[16 + i] = m_SpotLightShadowMapTarget[i].GetHandleSRV()->GetDescriptorIndex();
-			}
-		}
-		else
-		{
-			psDescHeapIndices[8] = m_IBLBaker.GetHandleSRV_DFG()->GetDescriptorIndex();
-			psDescHeapIndices[9] = m_IBLBaker.GetHandleSRV_DiffuseLD()->GetDescriptorIndex();
-			psDescHeapIndices[10] = m_IBLBaker.GetHandleSRV_SpecularLD()->GetDescriptorIndex();
+			pCmdList->SetGraphicsRootDescriptorTable(9 + m_meshletRootParamCount + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
 		}
 	}
 	else
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(2 + m_meshletRootParamCount, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, m_IBL_CB.GetHandle()->HandleGPU);
+	}
 
-		if (m_drawSponza)
+	if (m_drawSponza)
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(17 + m_meshletRootParamCount, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
-
-			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount + i, m_PointLightCB[i].GetHandle()->HandleGPU);
-			}
-
-			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(9 + m_meshletRootParamCount + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
-			}
+			pCmdList->SetGraphicsRootDescriptorTable(18 + m_meshletRootParamCount + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 		}
-		else
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, m_IBL_CB.GetHandle()->HandleGPU);
-		}
-
-		if (m_drawSponza)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(17 + m_meshletRootParamCount, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
-			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(18 + m_meshletRootParamCount + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
-			}
-		}
-		else
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(10 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(11 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(12 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
-		}
+	}
+	else
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(10 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(11 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(12 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
 	}
 
 	if (!m_useMeshlet)
@@ -7126,7 +7007,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	{
 		pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
 	}
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, gsDescHeapIndices, psDescHeapIndices);
+	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	if (m_drawSponza)
@@ -7137,7 +7018,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	{
 		pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
 	}
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, gsDescHeapIndices, psDescHeapIndices);
+	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 
 	if (m_drawSponza)
 	{
@@ -7170,7 +7051,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
-	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer && m_useSWRasterizer);
+	assert(m_useMeshlet && m_useVBuffer && m_useSWRasterizer);
 
 	std::vector<uint32_t> descHeapIndices(6 + m_meshletRootParamCount);
 
@@ -7242,7 +7123,7 @@ void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdL
 
 void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbDrawGBufferDescHeapIndices& drawGBufferDescHeapIndices)
 {
-	assert(m_useMeshlet && m_useDynamicResources && m_useVBuffer && !m_useSWRasterizer);
+	assert(m_useMeshlet && m_useVBuffer && !m_useSWRasterizer);
 
 	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
 	std::vector<uint32_t> psDescHeapIndices(2);
@@ -7363,7 +7244,7 @@ void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA
 	}
 }
 
-void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, std::vector<uint32_t>& gsDescHeapIndices, std::vector<uint32_t>& psDescHeapIndices)
+void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
 {
 	for (const Model* model : m_pModels)
 	{
@@ -7388,75 +7269,34 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 				DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			}
 
-			if (m_useDynamicResources)
+			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+
+			if (m_useMeshlet)
 			{
-				gsDescHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();
+				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(6, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
+			}
 
-				if (m_useMeshlet)
-				{
-					gsDescHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
-					gsDescHeapIndices[3] = pMesh->GetDrawMeshletListBBSrvHandle().GetDescriptorIndex();
-					gsDescHeapIndices[4] = pMesh->GetMeshletsSBHandle().GetDescriptorIndex();
-					gsDescHeapIndices[5] = pMesh->GetMeshletsVerticesSBHandle().GetDescriptorIndex();
-					gsDescHeapIndices[6] = pMesh->GetMeshletsTrianglesBBHandle().GetDescriptorIndex();
-				}
+			pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
 
-				psDescHeapIndices[1] = pMaterial->GetCBHandle().GetDescriptorIndex();
-
-				if (m_drawSponza)
-				{
-					psDescHeapIndices[10] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
-					psDescHeapIndices[11] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
-					psDescHeapIndices[12] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
-					psDescHeapIndices[13] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
-					psDescHeapIndices[14] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
-				}
-				else
-				{
-					psDescHeapIndices[3] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
-					psDescHeapIndices[4] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
-					psDescHeapIndices[5] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
-					psDescHeapIndices[6] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
-					psDescHeapIndices[7] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
-				}
+			if (m_drawSponza)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(12 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(13 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(14 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(15 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(16 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
 			}
 			else
 			{
-				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-
-				if (m_useMeshlet)
-				{
-					pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(6, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
-				}
-
-				pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
-
-				if (m_drawSponza)
-				{
-					pCmdList->SetGraphicsRootDescriptorTable(12 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(13 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(14 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(15 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(16 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
-				}
-				else
-				{
-					pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(7 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(8 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(9 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
-				}
-			}
-
-			if (m_useDynamicResources)
-			{
-				pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(gsDescHeapIndices.size()), gsDescHeapIndices.data(), 0);
-				pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
+				pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(7 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(8 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(9 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
 			}
 
 			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
