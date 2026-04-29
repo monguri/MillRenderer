@@ -56,6 +56,8 @@ private:
 	bool m_drawSponza = false;
 	// true:meshletとmsでのジオメトリ処理、false:vsでのジオメトリ処理
 	bool m_useMeshlet = false;
+	// true:meshとmaterialを一元管理しシングルDispatch、false:meshごとにDispatch
+	bool m_useMeshManager = false;
 	// true:meshlet分割にMetisを使用、false:meshlet分割にmeshOptimizerのみを使用
 	bool m_useMetis = false;
 	// Visibility Bufferを使った描画をやるかどうか

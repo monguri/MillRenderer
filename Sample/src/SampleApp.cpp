@@ -794,6 +794,10 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		{
 			m_useMeshlet = true;
 		}
+		else if (wcscmp(argv[a], L"--meshmanager") == 0)
+		{
+			m_useMeshManager = true;
+		}
 		else if (wcscmp(argv[a], L"--metis") == 0)
 		{
 			m_useMetis = true;
