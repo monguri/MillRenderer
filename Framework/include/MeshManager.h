@@ -8,6 +8,7 @@ class MeshManager
 {
 public:
 	MeshManager() {}
+	~MeshManager();
 
 	// 現時点ではシーンからの動的追加削除がないのでRegister/Unregisterは用意していない
 	template<typename MeshCBType>
@@ -32,6 +33,8 @@ public:
 			sizeof(MeshCBType)
 		);
 	}
+
+	void Term();
 
 private:
 	std::vector<class Mesh*> m_pMeshes;
