@@ -56,8 +56,12 @@ private:
 	Resource m_UnitCubeVB;
 	Resource m_UnitCubeIB;
 
+	Resource m_MeshletMeshMaterialTableSB;
+
+	ComPtr<ID3D12CommandSignature> m_pDrawByHWRasCmdSig;
+	ComPtr<ID3D12CommandSignature> m_pDrawBySWRasCmdSig;
 	Resource m_DrawMeshletIndirectArgBB;
-	Resource m_DrawMeshletSB;
+	Resource m_DrawMeshletIndicesBB;
 
 	bool Init
 	(

@@ -152,6 +152,8 @@ bool MeshManager::Init
 	m_MeshletsTrianglesSBs.resize(meshCount);
 	m_MeshletsAABBInfosSBs.resize(meshCount);
 
+	size_t totalMeshletCount = 0;
+
 	for (size_t meshIdx = 0; meshIdx < meshCount; meshIdx++)
 	{
 		const ResMesh& resMesh = resMeshes[meshIdx];
@@ -294,7 +296,89 @@ bool MeshManager::Init
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
+
+		totalMeshletCount += meshletCount;
 	}
+
+	// MeshletのHWRasterizer描画用のCommandSignatureの生成
+	{
+		D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+		argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
+
+		D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
+		cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_MESH_ARGUMENTS);
+		cmdSigDesc.NumArgumentDescs = 1;
+		cmdSigDesc.pArgumentDescs = &argDesc;
+
+		HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawByHWRasCmdSig));
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+			return false;
+		}
+	}
+
+	// MeshletのSWRasterizer描画用のCommandSignatureの生成
+	{
+		D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+		argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+
+		D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
+		cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
+		cmdSigDesc.NumArgumentDescs = 1;
+		cmdSigDesc.pArgumentDescs = &argDesc;
+
+		HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawBySWRasCmdSig));
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+			return false;
+		}
+	}
+
+	// Meshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
+	if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		3 * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndirectArgBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	struct MeshletMeshMaterial
+	{
+		uint32_t MeshIdx;
+		uint32_t MaterialIdx;
+	};
+
+	// Meshlet描画用のカリング済みMeshletリストの生成
+	if (!m_MeshletMeshMaterialTableSB.InitAsStructuredBuffer<MeshletMeshMaterial>
+	(
+		pDevice,
+		totalMeshletCount,
+		D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		nullptr,
+		L"DrawMeshletSB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	//TODO: 中身作成、Upload
+	//m_DrawMeshletIndicesBBの作成がまだ
 
 	m_pPoolGpuVisible = pPoolGpuVisible;
 	m_pPoolGpuVisible->AddRef();
@@ -379,5 +463,6 @@ void MeshManager::Term()
 	m_UnitCubeIB.Term();
 
 	m_DrawMeshletIndirectArgBB.Term();
-	m_DrawMeshletSB.Term();
+	m_MeshletMeshMaterialTableSB.Term();
+
 }
