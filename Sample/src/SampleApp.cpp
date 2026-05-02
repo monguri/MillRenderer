@@ -1038,7 +1038,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshManager)
 		{
-			m_MeshManager.Init(pMeshes, pMaterials);
+			m_MeshManager.Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE],  pMeshes, pMaterials);
 		}
 
 		pCmd->Close();
