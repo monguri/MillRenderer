@@ -2,6 +2,8 @@
 #include "DescriptorPool.h"
 #include "ResMesh.h"
 #include "Material.h"
+#include "Logger.h"
+#include "App.h"
 
 #include <DirectXHelpers.h>
 #include <SimpleMath.h>
@@ -96,6 +98,204 @@ bool MeshManager::Init
 	assert(pPoolCpuVisible != nullptr);
 	assert(cbBufferSize > 0);
 
+	std::vector<Vector3> cubeVertices;
+	std::vector<uint32_t> cubeIndices;
+	CreateUnitCubeMesh(cubeVertices, cubeIndices);
+
+	if (!m_UnitCubeVB.InitAsVertexBuffer<Vector3>(
+		pDevice,
+		cubeVertices.size()
+	))
+	{
+		ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_UnitCubeIB.InitAsIndexBuffer<uint32_t>(
+		pDevice,
+		DXGI_FORMAT_R32_UINT,
+		cubeIndices.size()
+	))
+	{
+		ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_UnitCubeVB.UploadBufferTypeData<Vector3>(
+		pDevice,
+		pCmdList,
+		cubeVertices.size(),
+		cubeVertices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	if (!m_UnitCubeIB.UploadBufferTypeData<uint32_t>(
+		pDevice,
+		pCmdList,
+		cubeIndices.size(),
+		cubeIndices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	size_t meshCount = resMeshes.size();
+	m_VBs.resize(meshCount);
+	m_IBs.resize(meshCount);
+	m_CBs.resize(meshCount * App::FRAME_COUNT);
+	m_MeshletsSBs.resize(meshCount);
+	m_MeshletsVerticesSBs.resize(meshCount);
+	m_MeshletsTrianglesSBs.resize(meshCount);
+	m_MeshletsAABBInfosSBs.resize(meshCount);
+
+	for (size_t meshIdx = 0; meshIdx < meshCount; meshIdx++)
+	{
+		const ResMesh& resMesh = resMeshes[meshIdx];
+		size_t meshletCount = resMesh.Meshlets.size();
+
+		if (!m_VBs[meshIdx].InitAsStructuredBuffer<MeshVertex>(
+			pDevice,
+			resMesh.Vertices.size(),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"SbVertexBuffer"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_IBs[meshIdx].InitAsStructuredBuffer<uint32_t>(
+			pDevice,
+			resMesh.Indices.size(),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"SbIndexBuffer"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsSBs[meshIdx].InitAsStructuredBuffer<meshopt_Meshlet>(
+			pDevice,
+			meshletCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"MeshletsSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsSBs[meshIdx].UploadBufferTypeData<meshopt_Meshlet>(
+			pDevice,
+			pCmdList,
+			meshletCount,
+			resMesh.Meshlets.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsVerticesSBs[meshIdx].InitAsStructuredBuffer<uint32_t>(
+			pDevice,
+			resMesh.MeshletsVertices.size(),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"MeshletsVerticesSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsVerticesSBs[meshIdx].UploadBufferTypeData<uint32_t>(
+			pDevice,
+			pCmdList,
+			resMesh.MeshletsVertices.size(),
+			resMesh.MeshletsVertices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		// TODO: uint8_tの3つをuint32_tに詰め込んでBBで扱いたい。
+		// 無駄にVRAMとメモリ帯域を使っている。Pixでの値確認はしやすいが。
+		std::vector<uint32_t> meshletsTriangles;
+		for (uint8_t index : resMesh.MeshletsTriangles)
+		{
+			meshletsTriangles.push_back(static_cast<uint32_t>(index));
+		}
+
+		if (!m_MeshletsTrianglesSBs[meshIdx].InitAsStructuredBuffer<uint32_t>(
+			pDevice,
+			meshletsTriangles.size(),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"MeshletsTrianglesBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsTrianglesSBs[meshIdx].UploadBufferTypeData<uint32_t>(
+			pDevice,
+			pCmdList,
+			meshletsTriangles.size(),
+			meshletsTriangles.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		assert(resMesh.AABBs.size() == meshletCount);
+
+		if (!m_MeshletsAABBInfosSBs[meshIdx].InitAsStructuredBuffer<AABB>(
+			pDevice,
+			meshletCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"AABBInfosSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsAABBInfosSBs[meshIdx].UploadBufferTypeData<AABB>(
+			pDevice,
+			pCmdList,
+			resMesh.AABBs.size(),
+			resMesh.AABBs.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+	}
+
 	m_pPoolGpuVisible = pPoolGpuVisible;
 	m_pPoolGpuVisible->AddRef();
 
@@ -131,41 +331,49 @@ void MeshManager::Term()
 	{
 		VB.Term();
 	}
+	m_VBs.clear();
 
 	for (Resource& IB : m_IBs)
 	{
 		IB.Term();
 	}
+	m_IBs.clear();
 
 	for (Resource& CB : m_CBs)
 	{
 		CB.Term();
 	}
+	m_CBs.clear();
 
 	for (Resource& SB : m_MeshletsSBs)
 	{
 		SB.Term();
 	}
+	m_MeshletsSBs.clear();
 
 	for (Resource& SB : m_MeshletsSBs)
 	{
 		SB.Term();
 	}
+	m_MeshletsSBs.clear();
 
 	for (Resource& SB : m_MeshletsVerticesSBs)
 	{
 		SB.Term();
 	}
+	m_MeshletsVerticesSBs.clear();
 
 	for (Resource& SB : m_MeshletsTrianglesSBs)
 	{
 		SB.Term();
 	}
+	m_MeshletsTrianglesSBs.clear();
 
 	for (Resource& SB : m_MeshletsAABBInfosSBs)
 	{
 		SB.Term();
 	}
+	m_MeshletsAABBInfosSBs.clear();
 
 	m_UnitCubeVB.Term();
 	m_UnitCubeIB.Term();

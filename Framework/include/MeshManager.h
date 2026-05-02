@@ -47,7 +47,7 @@ private:
 	std::vector<Resource> m_IBs;
 	// “o˜^‚³‚ê‚½Mesh” * App::FRAME_COUNT
 	std::vector<Resource> m_CBs;
-	// “o˜^‚³‚ê‚½Mesh‚»‚ê‚¼‚ê‚ÌMeshlet”‚Ì‡Œv
+	// “o˜^‚³‚ê‚½Mesh”
 	std::vector<Resource> m_MeshletsSBs;
 	std::vector<Resource> m_MeshletsVerticesSBs;
 	std::vector<Resource> m_MeshletsTrianglesSBs;

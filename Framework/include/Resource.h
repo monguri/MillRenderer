@@ -10,7 +10,6 @@ class DescriptorHandle;
 class Resource
 {
 public:
-	Resource();
 	virtual ~Resource();
 
 	bool Init
@@ -214,6 +213,5 @@ private:
 
 	void* Map() const;
 
-	Resource(const Resource&) = delete;
 	void operator=(const Resource&) = delete;
 };
