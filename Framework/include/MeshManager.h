@@ -18,8 +18,8 @@ public:
 		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPoolGpuVisible,
 		class DescriptorPool* pPoolCpuVisible,
-		const std::vector<class Mesh*>& pMeshes,
-		const std::vector<class Material*>& pMaterials
+		const std::vector<struct ResMesh>& resMeshes,
+		const std::vector<struct ResMaterial>& resMaterials
 	)
 	{
 		return Init
@@ -28,8 +28,8 @@ public:
 			pCmdList,
 			pPoolGpuVisible,
 			pPoolCpuVisible,
-			pMeshes,
-			pMaterials,
+			resMeshes,
+			resMaterials,
 			sizeof(MeshCBType)
 		);
 	}
@@ -37,8 +37,10 @@ public:
 	void Term();
 
 private:
-	std::vector<class Mesh*> m_pMeshes;
 	std::vector<class Material*> m_pMaterials;
+
+	class DescriptorPool* m_pPoolGpuVisible;
+	class DescriptorPool* m_pPoolCpuVisible;
 
 	// ìoò^Ç≥ÇÍÇΩMeshêî
 	std::vector<Resource> m_VBs;
@@ -63,8 +65,8 @@ private:
 		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPoolGpuVisible,
 		class DescriptorPool* pPoolCpuVisible,
-		const std::vector<class Mesh*>& pMeshes,
-		const std::vector<class Material*>& pMaterials,
+		const std::vector<struct ResMesh>& resMeshes,
+		const std::vector<struct ResMaterial>& resMaterials,
 		size_t cbBufferSize
 	);
 

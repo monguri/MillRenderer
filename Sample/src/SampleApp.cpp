@@ -912,6 +912,23 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
+		if (m_useMeshManager)
+		{
+			if (m_MeshManager.Init<CbMesh>
+			(
+				m_pDevice.Get(),
+				pCmd,
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
+				resMesh,
+				resMaterial
+			))
+			{
+				ELOG("Error : MeshManager::Init() failed.");
+				return false;
+			}
+		}
+
 		std::vector<Mesh*> pMeshes;
 		pMeshes.reserve(resMesh.size());
 
@@ -1035,11 +1052,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		model->SetMaterials(pMaterials);
 
 		m_pModels.push_back(model);
-
-		if (m_useMeshManager)
-		{
-			m_MeshManager.Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE],  pMeshes, pMaterials);
-		}
 
 		pCmd->Close();
 

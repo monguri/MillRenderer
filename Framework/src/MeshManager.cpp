@@ -1,4 +1,7 @@
 #include "MeshManager.h"
+#include "DescriptorPool.h"
+#include "ResMesh.h"
+#include "Material.h"
 
 #include <DirectXHelpers.h>
 #include <SimpleMath.h>
@@ -83,19 +86,47 @@ bool MeshManager::Init
 	ID3D12GraphicsCommandList* pCmdList,
 	class DescriptorPool* pPoolGpuVisible,
 	class DescriptorPool* pPoolCpuVisible,
-	const std::vector<class Mesh*>& pMeshes,
-	const std::vector<class Material*>& pMaterials,
+	const std::vector<struct ResMesh>& resMeshes,
+	const std::vector<struct ResMaterial>& resMaterials,
 	size_t cbBufferSize
 )
 {
-	m_pMeshes = pMeshes;
-	m_pMaterials = pMaterials;
+	assert(pDevice != nullptr);
+	assert(pPoolGpuVisible != nullptr);
+	assert(pPoolCpuVisible != nullptr);
+	assert(cbBufferSize > 0);
+
+	m_pPoolGpuVisible = pPoolGpuVisible;
+	m_pPoolGpuVisible->AddRef();
+
+	m_pPoolCpuVisible = pPoolCpuVisible;
+	m_pPoolCpuVisible->AddRef();
 
 	return true;
 }
 
 void MeshManager::Term()
 {
+	for (Material* pMat : m_pMaterials)
+	{
+		if (pMat != nullptr)
+		{
+			pMat->Term();
+		}
+	}
+
+	if (m_pPoolGpuVisible != nullptr)
+	{
+		m_pPoolGpuVisible->Release();
+		m_pPoolGpuVisible = nullptr;
+	}
+
+	if (m_pPoolCpuVisible != nullptr)
+	{
+		m_pPoolCpuVisible->Release();
+		m_pPoolCpuVisible = nullptr;
+	}
+
 	for (Resource& VB : m_VBs)
 	{
 		VB.Term();
