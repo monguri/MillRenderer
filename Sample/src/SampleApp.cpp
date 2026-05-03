@@ -914,7 +914,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshManager)
 		{
-			if (m_MeshManager.Init<CbMesh>
+			if (!m_MeshManager.Init<CbMesh>
 			(
 				m_pDevice.Get(),
 				pCmd,
