@@ -3150,10 +3150,21 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		std::wstring csPath;
 
-		if (!SearchFilePath(L"MeshletCulling.cso", csPath))
+		if (m_useMeshManager)
 		{
-			ELOG("Error : Mesh Shader Not Found");
-			return false;
+			if (!SearchFilePath(L"MeshletsCulling.cso", csPath))
+			{
+				ELOG("Error : Mesh Shader Not Found");
+				return false;
+			}
+		}
+		else
+		{
+			if (!SearchFilePath(L"MeshletCulling.cso", csPath))
+			{
+				ELOG("Error : Mesh Shader Not Found");
+				return false;
+			}
 		}
 
 		ComPtr<ID3DBlob> pCSBlob;
@@ -6609,12 +6620,19 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	}
 
 	// DispatchIndirectArg、VisibleMeshletListクリア
-	for (const Model* model : m_pModels)
+	if (m_useMeshManager)
 	{
-		for (size_t m = 0; m < model->GetMeshCount(); m++)
+		m_MeshManager.ClearDrawMeshletBBs(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+	}
+	else
+	{
+		for (const Model* model : m_pModels)
 		{
-			const Mesh* pMesh = model->GetMesh(m);
-			pMesh->ClearDrawMeshletBBs(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			for (size_t m = 0; m < model->GetMeshCount(); m++)
+			{
+				const Mesh* pMesh = model->GetMesh(m);
+				pMesh->ClearDrawMeshletBBs(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			}
 		}
 	}
 
@@ -6623,18 +6641,25 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_CullingCB.GetHandle()->HandleGPU);
 
-	for (const Model* model : m_pModels)
+	if (m_useMeshManager)
 	{
-		for (size_t m = 0; m < model->GetMeshCount(); m++)
+		m_MeshManager.DoCulling(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+	}
+	else
+	{
+		for (const Model* model : m_pModels)
 		{
-			const Mesh* pMesh = model->GetMesh(m);
+			for (size_t m = 0; m < model->GetMeshCount(); m++)
+			{
+				const Mesh* pMesh = model->GetMesh(m);
 
-			pCmdList->SetComputeRootDescriptorTable(3, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-			pCmdList->SetComputeRootDescriptorTable(4, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
-			pCmdList->SetComputeRootDescriptorTable(5, pMesh->GetDrawMeshletIndirectArgBBHandle().HandleGPU);
-			pCmdList->SetComputeRootDescriptorTable(6, pMesh->GetDrawMeshletListBBUavHandle().HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(3, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(4, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(5, pMesh->GetDrawMeshletIndirectArgBBHandle().HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(6, pMesh->GetDrawMeshletListBBUavHandle().HandleGPU);
 
-			pMesh->DoMeshletCulling(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+				pMesh->DoMeshletCulling(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			}
 		}
 	}
 }

@@ -35,6 +35,8 @@ public:
 	}
 
 	void Term();
+	void ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const;
+	void DoCulling(ID3D12GraphicsCommandList6* pCmdList) const;
 
 private:
 	std::vector<class Material*> m_pMaterials;
@@ -62,6 +64,8 @@ private:
 	ComPtr<ID3D12CommandSignature> m_pDrawBySWRasCmdSig;
 	Resource m_DrawMeshletIndirectArgBB;
 	Resource m_DrawMeshletIndicesBB;
+
+	uint32_t m_MeshletCount = 0;
 
 	bool Init
 	(
