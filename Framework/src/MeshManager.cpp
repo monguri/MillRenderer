@@ -260,7 +260,7 @@ bool MeshManager::Init
 			return false;
 		}
 
-		for (size_t i = 0; i < meshletCount; i)
+		for (size_t i = 0; i < meshletCount; i++)
 		{
 			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(meshIdx), resMesh.MaterialIdx);
 		}
