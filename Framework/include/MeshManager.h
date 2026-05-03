@@ -53,10 +53,10 @@ private:
 	std::vector<Resource> m_MeshletsTrianglesSBs;
 	std::vector<Resource> m_MeshletsAABBInfosSBs;
 
+	Resource m_MeshletMeshMaterialTableSB;
+
 	Resource m_UnitCubeVB;
 	Resource m_UnitCubeIB;
-
-	Resource m_MeshletMeshMaterialTableSB;
 
 	ComPtr<ID3D12CommandSignature> m_pDrawByHWRasCmdSig;
 	ComPtr<ID3D12CommandSignature> m_pDrawBySWRasCmdSig;

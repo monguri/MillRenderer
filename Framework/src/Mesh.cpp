@@ -133,7 +133,7 @@ namespace
 }
 
 Mesh::Mesh()
-: m_MaterialId(UINT32_MAX)
+: m_MaterialIdx(UINT32_MAX)
 , m_MeshletCount(0)
 , m_IndexCount(0)
 , m_SphereIndexCount(0)
@@ -585,7 +585,7 @@ bool Mesh::Init
 		}
 	}
 
-	m_MaterialId = resource.MaterialId;
+	m_MaterialIdx = resource.MaterialIdx;
 
 	return true;
 }
@@ -618,7 +618,7 @@ void Mesh::Term()
 	m_DrawMeshletIndirectArgBB.Term();
 	m_DrawMeshletListBB.Term();
 
-	m_MaterialId = UINT32_MAX;
+	m_MaterialIdx = UINT32_MAX;
 	m_IndexCount = 0;
 	m_SphereIndexCount = 0;
 
@@ -805,9 +805,9 @@ const DescriptorHandle& Mesh::GetDrawMeshletListBBSrvHandle() const
 	return *m_DrawMeshletListBB.GetHandleSRV();
 }
 
-uint32_t Mesh::GetMaterialId() const
+uint32_t Mesh::GetMaterialIdx() const
 {
-	return m_MaterialId;
+	return m_MaterialIdx;
 }
 
 Mobility Mesh::GetMobility() const

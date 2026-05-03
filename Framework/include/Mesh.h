@@ -62,7 +62,7 @@ public:
 	const DescriptorHandle& GetDrawMeshletListBBUavHandle() const;
 	const DescriptorHandle& GetDrawMeshletListBBSrvHandle() const;
 
-	uint32_t GetMaterialId() const;
+	uint32_t GetMaterialIdx() const;
 	Mobility GetMobility() const;
 	void SetMobility(Mobility mobility);
 
@@ -86,7 +86,7 @@ private:
 	ComPtr<ID3D12CommandSignature> m_pDrawBySWRasCmdSig;
 	Resource m_DrawMeshletIndirectArgBB;
 	Resource m_DrawMeshletListBB;
-	uint32_t m_MaterialId;
+	uint32_t m_MaterialIdx;
 	size_t m_IndexCount;
 	size_t m_SphereIndexCount;
 	size_t m_MeshletCount;

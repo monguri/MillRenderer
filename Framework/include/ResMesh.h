@@ -85,7 +85,7 @@ struct ResMesh
 	std::vector<meshopt_Bounds> Bounds;
 	std::vector<AABB> AABBs;
 
-	uint32_t MaterialId;
+	uint32_t MaterialIdx;
 };
 
 bool LoadMesh

@@ -98,51 +98,6 @@ bool MeshManager::Init
 	assert(pPoolCpuVisible != nullptr);
 	assert(cbBufferSize > 0);
 
-	std::vector<Vector3> cubeVertices;
-	std::vector<uint32_t> cubeIndices;
-	CreateUnitCubeMesh(cubeVertices, cubeIndices);
-
-	if (!m_UnitCubeVB.InitAsVertexBuffer<Vector3>(
-		pDevice,
-		cubeVertices.size()
-	))
-	{
-		ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
-		return false;
-	}
-
-	if (!m_UnitCubeIB.InitAsIndexBuffer<uint32_t>(
-		pDevice,
-		DXGI_FORMAT_R32_UINT,
-		cubeIndices.size()
-	))
-	{
-		ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
-		return false;
-	}
-
-	if (!m_UnitCubeVB.UploadBufferTypeData<Vector3>(
-		pDevice,
-		pCmdList,
-		cubeVertices.size(),
-		cubeVertices.data()
-	))
-	{
-		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-		return false;
-	}
-
-	if (!m_UnitCubeIB.UploadBufferTypeData<uint32_t>(
-		pDevice,
-		pCmdList,
-		cubeIndices.size(),
-		cubeIndices.data()
-	))
-	{
-		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-		return false;
-	}
-
 	size_t meshCount = resMeshes.size();
 	m_VBs.resize(meshCount);
 	m_IBs.resize(meshCount);
@@ -151,6 +106,14 @@ bool MeshManager::Init
 	m_MeshletsVerticesSBs.resize(meshCount);
 	m_MeshletsTrianglesSBs.resize(meshCount);
 	m_MeshletsAABBInfosSBs.resize(meshCount);
+
+	struct MeshletMeshMaterial
+	{
+		uint32_t MeshIdx;
+		uint32_t MaterialIdx;
+	};
+
+	std::vector<MeshletMeshMaterial> meshletMeshMaterialTable;
 
 	size_t totalMeshletCount = 0;
 
@@ -297,7 +260,84 @@ bool MeshManager::Init
 			return false;
 		}
 
+		for (size_t i = 0; i < meshletCount; i)
+		{
+			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(meshIdx), resMesh.MaterialIdx);
+		}
+
 		totalMeshletCount += meshletCount;
+	}
+
+	// MeshletとMeshおよびMaterialの対応テーブルの生成
+	if (!m_MeshletMeshMaterialTableSB.InitAsStructuredBuffer<MeshletMeshMaterial>
+	(
+		pDevice,
+		totalMeshletCount,
+		D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		nullptr,
+		L"MeshletMeshMaterialTableSB"
+	))
+	{
+		ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_MeshletMeshMaterialTableSB.UploadBufferTypeData<MeshletMeshMaterial>(
+		pDevice,
+		pCmdList,
+		meshletMeshMaterialTable.size(),
+		meshletMeshMaterialTable.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	std::vector<Vector3> cubeVertices;
+	std::vector<uint32_t> cubeIndices;
+	CreateUnitCubeMesh(cubeVertices, cubeIndices);
+
+	if (!m_UnitCubeVB.InitAsVertexBuffer<Vector3>(
+		pDevice,
+		cubeVertices.size()
+	))
+	{
+		ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_UnitCubeIB.InitAsIndexBuffer<uint32_t>(
+		pDevice,
+		DXGI_FORMAT_R32_UINT,
+		cubeIndices.size()
+	))
+	{
+		ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_UnitCubeVB.UploadBufferTypeData<Vector3>(
+		pDevice,
+		pCmdList,
+		cubeVertices.size(),
+		cubeVertices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	if (!m_UnitCubeIB.UploadBufferTypeData<uint32_t>(
+		pDevice,
+		pCmdList,
+		cubeIndices.size(),
+		cubeIndices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
 	}
 
 	// MeshletのHWRasterizer描画用のCommandSignatureの生成
@@ -355,30 +395,24 @@ bool MeshManager::Init
 
 	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	struct MeshletMeshMaterial
-	{
-		uint32_t MeshIdx;
-		uint32_t MaterialIdx;
-	};
-
-	// Meshlet描画用のカリング済みMeshletリストの生成
-	if (!m_MeshletMeshMaterialTableSB.InitAsStructuredBuffer<MeshletMeshMaterial>
+	// Meshlet描画用のカリング済みMeshletIdxリストの生成
+	if (!m_DrawMeshletIndicesBB.InitAsByteAddressBuffer
 	(
 		pDevice,
-		totalMeshletCount,
-		D3D12_RESOURCE_FLAG_NONE,
+		totalMeshletCount * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
-		nullptr,
-		L"DrawMeshletSB"
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndicesBB"
 	))
 	{
 		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
 		return false;
 	}
 
-	//TODO: 中身作成、Upload
-	//m_DrawMeshletIndicesBBの作成がまだ
+	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	m_pPoolGpuVisible = pPoolGpuVisible;
 	m_pPoolGpuVisible->AddRef();
@@ -459,10 +493,11 @@ void MeshManager::Term()
 	}
 	m_MeshletsAABBInfosSBs.clear();
 
+	m_MeshletMeshMaterialTableSB.Term();
+
 	m_UnitCubeVB.Term();
 	m_UnitCubeIB.Term();
 
 	m_DrawMeshletIndirectArgBB.Term();
-	m_MeshletMeshMaterialTableSB.Term();
-
+	m_DrawMeshletIndicesBB.Term();
 }

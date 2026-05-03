@@ -7099,7 +7099,7 @@ void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdL
 			const Mesh* pMesh = model->GetMesh(m);
 
 			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
+			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
 
 			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
 			{
@@ -7171,7 +7171,7 @@ void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdL
 			const Mesh* pMesh = model->GetMesh(m);
 
 			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
+			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
 
 			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
 			{
@@ -7234,7 +7234,7 @@ void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA
 			const Mesh* pMesh = model->GetMesh(i);
 
 			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
+			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
 
 			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
 			{
@@ -7286,7 +7286,7 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 			const Mesh* pMesh = model->GetMesh(i);
 
 			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialId());
+			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
 
 			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
 			{

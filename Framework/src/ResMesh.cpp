@@ -133,7 +133,7 @@ namespace
 
 	void MeshLoader::ParseMesh(ResMesh& dstMesh, const aiMesh* pSrcMesh)
 	{
-		dstMesh.MaterialId = pSrcMesh->mMaterialIndex;
+		dstMesh.MaterialIdx = pSrcMesh->mMaterialIndex;
 
 		dstMesh.Vertices.resize(pSrcMesh->mNumVertices);
 
