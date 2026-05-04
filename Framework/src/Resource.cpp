@@ -203,6 +203,7 @@ bool Resource::InitAsConstantBuffer
 	D3D12_CONSTANT_BUFFER_VIEW_DESC descCBV = {};
 	descCBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
 	descCBV.SizeInBytes = static_cast<UINT>(sizeAligned);
+	// m_pHandleSRVをCBV用に使う。SRVとCBVを同時に使うことがないので。
 	pDevice->CreateConstantBufferView(&descCBV, m_pHandleSRV->HandleCPU);
 
 	return true;
@@ -605,7 +606,7 @@ D3D12_INDEX_BUFFER_VIEW Resource::GetIBV() const
 
 DescriptorHandle* Resource::GetHandleCBV() const
 {
-	// m_pHandleSRVをCBV用に使う。SRVとCBVを同人に使うことがないので。
+	// m_pHandleSRVをCBV用に使う。SRVとCBVを同時に使うことがないので。
 	return m_pHandleSRV;
 }
 
