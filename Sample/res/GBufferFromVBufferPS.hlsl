@@ -325,8 +325,8 @@ uint GetMeshletDescHeapIndex(uint meshIdx)
 {
 	// [idx / 4][idx % 4]にあたる
 	// CBなので4つ分のインデックスをuint4で1セットにしているため
-	//uint ret = CbMeshletsDescHeapIndices.Indices[meshIdx >> 2][meshIdx & 0b11];
-	uint ret = CbMeshletsDescHeapIndices.Indices[meshIdx / 4][meshIdx % 4];
+	uint ret = CbMeshletsDescHeapIndices.Indices[meshIdx >> 2][meshIdx & 0b11];
+	//uint ret = CbMeshletsDescHeapIndices.Indices[meshIdx / 4][meshIdx % 4];
 	return ret;
 }
 
@@ -334,8 +334,8 @@ uint GetMaterialDescHeapIndex(uint meshIdx)
 {
 	// [idx / 4][idx % 4]にあたる
 	// CBなので4つ分のインデックスをuint4で1セットにしているため
-	//uint ret = CbMaterialsDescHeapIndices.Indices[meshIdx >> 2][meshIdx & 0b11];
-	uint ret = CbMaterialsDescHeapIndices.Indices[meshIdx / 4][meshIdx % 4];
+	uint ret = CbMaterialsDescHeapIndices.Indices[meshIdx >> 2][meshIdx & 0b11];
+	//uint ret = CbMaterialsDescHeapIndices.Indices[meshIdx / 4][meshIdx % 4];
 	return ret;
 }
 
