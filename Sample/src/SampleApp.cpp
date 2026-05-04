@@ -914,7 +914,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshManager)
 		{
-			if (!m_MeshManager.Init<CbMesh>
+			if (!m_MeshManager.Init
 			(
 				m_pDevice.Get(),
 				pCmd,
@@ -6638,15 +6638,24 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 	pCmdList->SetComputeRootSignature(m_MeshletCullingRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pMeshletCullingPSO.Get());
-	pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_CullingCB.GetHandle()->HandleGPU);
 
 	if (m_useMeshManager)
 	{
+		pCmdList->SetComputeRoot32BitConstant(0, static_cast<UINT>(m_MeshManager.GetMeshletCount()), 0);
+		pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(3, m_CullingCB.GetHandle()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+
 		m_MeshManager.DoCulling(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 	}
 	else
 	{
+		pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(2, m_CullingCB.GetHandle()->HandleGPU);
+
 		for (const Model* model : m_pModels)
 		{
 			for (size_t m = 0; m < model->GetMeshCount(); m++)

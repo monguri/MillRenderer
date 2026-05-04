@@ -11,7 +11,6 @@ public:
 	~MeshManager();
 
 	// åªéûì_Ç≈ÇÕÉVÅ[ÉìÇ©ÇÁÇÃìÆìIí«â¡çÌèúÇ™Ç»Ç¢ÇÃÇ≈Register/UnregisterÇÕópà”ÇµÇƒÇ¢Ç»Ç¢
-	template<typename MeshCBType>
 	bool Init
 	(
 		ID3D12Device* pDevice,
@@ -20,23 +19,18 @@ public:
 		class DescriptorPool* pPoolCpuVisible,
 		const std::vector<struct ResMesh>& resMeshes,
 		const std::vector<struct ResMaterial>& resMaterials
-	)
-	{
-		return Init
-		(
-			pDevice,
-			pCmdList,
-			pPoolGpuVisible,
-			pPoolCpuVisible,
-			resMeshes,
-			resMaterials,
-			sizeof(MeshCBType)
-		);
-	}
+	);
 
 	void Term();
 	void ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const;
 	void DoCulling(ID3D12GraphicsCommandList6* pCmdList) const;
+
+	const Resource& GetDrawMeshletIndirectArgBB() const;
+	const Resource& GetDrawMeshletIndicesBB() const;
+	const Resource& GetMeshletMeshMaterialTableSB() const;
+	const Resource& GetMeshesDescHeapIndicesCB() const;
+
+	uint32_t GetMeshletCount() const;
 
 private:
 	std::vector<class Material*> m_pMaterials;
@@ -44,12 +38,9 @@ private:
 	class DescriptorPool* m_pPoolGpuVisible;
 	class DescriptorPool* m_pPoolCpuVisible;
 
-	// ìoò^Ç≥ÇÍÇΩMeshêî
-	std::vector<Resource> m_VBs;
-	std::vector<Resource> m_IBs;
-	// ìoò^Ç≥ÇÍÇΩMeshêî * App::FRAME_COUNT
+	// óvëfêîÇÕìoò^Ç≥ÇÍÇΩMeshêî
 	std::vector<Resource> m_CBs;
-	// ìoò^Ç≥ÇÍÇΩMeshêî
+	std::vector<Resource> m_VBs;
 	std::vector<Resource> m_MeshletsSBs;
 	std::vector<Resource> m_MeshletsVerticesSBs;
 	std::vector<Resource> m_MeshletsTrianglesSBs;
@@ -65,18 +56,10 @@ private:
 	Resource m_DrawMeshletIndirectArgBB;
 	Resource m_DrawMeshletIndicesBB;
 
-	uint32_t m_MeshletCount = 0;
+	Resource m_MeshesDescHeapIndicesCB;
+	Resource m_MaterialsDescHeapIndicesCB;
 
-	bool Init
-	(
-		ID3D12Device* pDevice,
-		ID3D12GraphicsCommandList* pCmdList,
-		class DescriptorPool* pPoolGpuVisible,
-		class DescriptorPool* pPoolCpuVisible,
-		const std::vector<struct ResMesh>& resMeshes,
-		const std::vector<struct ResMaterial>& resMaterials,
-		size_t cbBufferSize
-	);
+	uint32_t m_MeshletCount = 0;
 
 	MeshManager(const MeshManager&) = delete;
 	void operator=(const MeshManager&) = delete;

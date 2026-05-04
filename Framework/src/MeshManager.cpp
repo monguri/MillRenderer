@@ -12,6 +12,29 @@ using namespace DirectX::SimpleMath;
 
 namespace
 {
+	// シェーダ側の定義と値の一致が必要
+	static constexpr uint32_t MAX_MESH_COUNT = 256;
+
+	struct alignas(256) CbMeshesDescHeapIndices
+	{
+		uint32_t CbMesh[MAX_MESH_COUNT];
+		uint32_t SbVertexBuffer[MAX_MESH_COUNT];
+		uint32_t SbMeshletBuffer[MAX_MESH_COUNT];
+		uint32_t SbMeshletVerticesBuffer[MAX_MESH_COUNT];
+		uint32_t SbMeshletTrianglesBuffer[MAX_MESH_COUNT];
+		uint32_t SbMeshletAABBInfosBuffer[MAX_MESH_COUNT];
+	};
+
+	struct alignas(256) CbMaterialsDescHeapIndices
+	{
+		uint32_t CbMaterial[MAX_MESH_COUNT];
+		uint32_t BaseColorMap[MAX_MESH_COUNT];
+		uint32_t MetallicRoughnessMap[MAX_MESH_COUNT];
+		uint32_t NormalMap[MAX_MESH_COUNT];
+		uint32_t EmissiveMap[MAX_MESH_COUNT];
+		uint32_t AOMap[MAX_MESH_COUNT];
+	};
+
 	// DirectXTK12、Geometry.cpp/hのDirectX::ComputeBoxを参考にしている
 	void CreateUnitCubeMesh(std::vector<struct Vector3>& outVertices, std::vector<uint32_t>& outIndices)
 	{
@@ -89,23 +112,27 @@ bool MeshManager::Init
 	class DescriptorPool* pPoolGpuVisible,
 	class DescriptorPool* pPoolCpuVisible,
 	const std::vector<struct ResMesh>& resMeshes,
-	const std::vector<struct ResMaterial>& resMaterials,
-	size_t cbBufferSize
+	const std::vector<struct ResMaterial>& resMaterials
 )
 {
 	assert(pDevice != nullptr);
 	assert(pPoolGpuVisible != nullptr);
 	assert(pPoolCpuVisible != nullptr);
-	assert(cbBufferSize > 0);
 
 	size_t meshCount = resMeshes.size();
+	m_CBs.resize(meshCount);
 	m_VBs.resize(meshCount);
-	m_IBs.resize(meshCount);
-	m_CBs.resize(meshCount * App::FRAME_COUNT);
 	m_MeshletsSBs.resize(meshCount);
 	m_MeshletsVerticesSBs.resize(meshCount);
 	m_MeshletsTrianglesSBs.resize(meshCount);
 	m_MeshletsAABBInfosSBs.resize(meshCount);
+
+	struct alignas(256) CbMesh
+	{
+		Matrix World;
+		unsigned int MeshIdx;
+		float Padding[3];
+	};
 
 	struct MeshletMeshMaterial
 	{
@@ -115,12 +142,41 @@ bool MeshManager::Init
 
 	std::vector<MeshletMeshMaterial> meshletMeshMaterialTable;
 
+	CbMeshesDescHeapIndices meshesDescHeapIndices = {};
+
 	size_t totalMeshletCount = 0;
 
 	for (size_t meshIdx = 0; meshIdx < meshCount; meshIdx++)
 	{
 		const ResMesh& resMesh = resMeshes[meshIdx];
 		size_t meshletCount = resMesh.Meshlets.size();
+
+		// Worldへのフレーム遅延は発生するが今のところ遅延しても困る使い方はしてないので
+		// 多重バッファにはしないでおく
+		if (!m_CBs[meshIdx].InitAsConstantBuffer<CbMesh>(
+			pDevice,
+			D3D12_HEAP_TYPE_DEFAULT,
+			pPoolGpuVisible,
+			L"CbMesh"
+		))
+		{
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+			return false;
+		}
+
+		CbMesh cbMesh = {Matrix::Identity, static_cast<uint32_t>(meshIdx)};
+		if (!m_CBs[meshIdx].UploadBufferTypeData<CbMesh>(
+			pDevice,
+			pCmdList,
+			1,
+			&cbMesh
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		meshesDescHeapIndices.CbMesh[meshIdx] = m_CBs[meshIdx].GetHandleCBV()->GetDescriptorIndex();
 
 		if (!m_VBs[meshIdx].InitAsStructuredBuffer<MeshVertex>(
 			pDevice,
@@ -136,19 +192,18 @@ bool MeshManager::Init
 			return false;
 		}
 
-		if (!m_IBs[meshIdx].InitAsStructuredBuffer<uint32_t>(
+		if (!m_VBs[meshIdx].UploadBufferTypeData<MeshVertex>(
 			pDevice,
-			resMesh.Indices.size(),
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
-			pPoolGpuVisible,
-			nullptr,
-			L"SbIndexBuffer"
+			pCmdList,
+			resMesh.Vertices.size(),
+			resMesh.Vertices.data()
 		))
 		{
-			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
+
+		meshesDescHeapIndices.SbVertexBuffer[meshIdx] = m_VBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
 
 		if (!m_MeshletsSBs[meshIdx].InitAsStructuredBuffer<meshopt_Meshlet>(
 			pDevice,
@@ -175,6 +230,8 @@ bool MeshManager::Init
 			return false;
 		}
 
+		meshesDescHeapIndices.SbMeshletBuffer[meshIdx] = m_MeshletsSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+
 		if (!m_MeshletsVerticesSBs[meshIdx].InitAsStructuredBuffer<uint32_t>(
 			pDevice,
 			resMesh.MeshletsVertices.size(),
@@ -199,6 +256,8 @@ bool MeshManager::Init
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
+
+		meshesDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = m_MeshletsVerticesSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
 
 		// TODO: uint8_tの3つをuint32_tに詰め込んでBBで扱いたい。
 		// 無駄にVRAMとメモリ帯域を使っている。Pixでの値確認はしやすいが。
@@ -233,6 +292,8 @@ bool MeshManager::Init
 			return false;
 		}
 
+		meshesDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = m_MeshletsTrianglesSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+
 		assert(resMesh.AABBs.size() == meshletCount);
 
 		if (!m_MeshletsAABBInfosSBs[meshIdx].InitAsStructuredBuffer<AABB>(
@@ -259,6 +320,8 @@ bool MeshManager::Init
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
+
+		meshesDescHeapIndices.SbMeshletAABBInfosBuffer[meshIdx] = m_MeshletsAABBInfosSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
 
 		for (size_t i = 0; i < meshletCount; i++)
 		{
@@ -414,6 +477,58 @@ bool MeshManager::Init
 
 	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
+	if (!m_MeshesDescHeapIndicesCB.InitAsConstantBuffer<CbMeshesDescHeapIndices>(
+		pDevice,
+		D3D12_HEAP_TYPE_DEFAULT,
+		pPoolGpuVisible,
+		L"MeshesDescHeapIndicesCB"
+	))
+	{
+		ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_MeshesDescHeapIndicesCB.UploadBufferTypeData<CbMeshesDescHeapIndices>(
+		pDevice,
+		pCmdList,
+		1,
+		&meshesDescHeapIndices
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	//TODO: Materialに関することは後で
+	CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
+	for (size_t matIdx = 0; matIdx < resMaterials.size(); matIdx++)
+	{
+		//Matearialクラス作成
+		//materialsDescHeapIndicesへの代入
+	}
+
+	if (!m_MaterialsDescHeapIndicesCB.InitAsConstantBuffer<CbMaterialsDescHeapIndices>(
+		pDevice,
+		D3D12_HEAP_TYPE_DEFAULT,
+		pPoolGpuVisible,
+		L"MaterialsDescHeapIndicesCB"
+	))
+	{
+		ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_MaterialsDescHeapIndicesCB.UploadBufferTypeData<CbMaterialsDescHeapIndices>(
+		pDevice,
+		pCmdList,
+		1,
+		&materialsDescHeapIndices
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
 	m_pPoolGpuVisible = pPoolGpuVisible;
 	m_pPoolGpuVisible->AddRef();
 
@@ -445,23 +560,20 @@ void MeshManager::Term()
 		m_pPoolCpuVisible = nullptr;
 	}
 
-	for (Resource& VB : m_VBs)
-	{
-		VB.Term();
-	}
-	m_VBs.clear();
-
-	for (Resource& IB : m_IBs)
-	{
-		IB.Term();
-	}
-	m_IBs.clear();
+	m_MeshesDescHeapIndicesCB.Term();
+	m_MaterialsDescHeapIndicesCB.Term();
 
 	for (Resource& CB : m_CBs)
 	{
 		CB.Term();
 	}
 	m_CBs.clear();
+
+	for (Resource& VB : m_VBs)
+	{
+		VB.Term();
+	}
+	m_VBs.clear();
 
 	for (Resource& SB : m_MeshletsSBs)
 	{
@@ -501,3 +613,45 @@ void MeshManager::Term()
 	m_DrawMeshletIndirectArgBB.Term();
 	m_DrawMeshletIndicesBB.Term();
 }
+
+void MeshManager::ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const
+{
+	uint32_t clearValue[4] = {0, 0, 0, 0};
+	// 本来はX=0、Y=1、Z=1にしたいが、ClearUavWithUintValue()とByteAddressBufferではそれができないようだ。[0]の値ですべてクリアされてしまう。よってY=1、Z=1はシェーダで入れる。
+	m_DrawMeshletIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
+	m_DrawMeshletIndicesBB.ClearUavWithUintValue(pCmdList, clearValue);
+
+	m_DrawMeshletIndirectArgBB.BarrierUAV(pCmdList);
+	m_DrawMeshletIndicesBB.BarrierUAV(pCmdList);
+}
+
+void MeshManager::DoCulling(ID3D12GraphicsCommandList6* pCmdList) const
+{
+	//TODO:実装
+}
+
+const Resource& MeshManager::GetDrawMeshletIndirectArgBB() const
+{
+	return m_DrawMeshletIndirectArgBB;
+}
+
+const Resource& MeshManager::GetDrawMeshletIndicesBB() const
+{
+	return m_DrawMeshletIndicesBB;
+}
+
+const Resource& MeshManager::GetMeshletMeshMaterialTableSB() const
+{
+	return m_MeshletMeshMaterialTableSB;
+}
+
+const Resource& MeshManager::GetMeshesDescHeapIndicesCB() const
+{
+	return m_MeshesDescHeapIndicesCB;
+}
+
+uint32_t MeshManager::GetMeshletCount() const
+{
+	return m_MeshletCount;
+}
+

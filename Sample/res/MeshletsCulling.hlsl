@@ -8,6 +8,7 @@
 " | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
 " | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
 " | DENY_MESH_SHADER_ROOT_ACCESS"\
+" | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED"\
 ")"\
 ", RootConstants(num32BitConstants=1, b0, visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_ALL)"\
@@ -17,9 +18,39 @@
 ", DescriptorTable(UAV(u0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u1), visibility = SHADER_VISIBILITY_ALL)"\
 
+//TODO: GBufferFromVBufferPS.hlslと共通化できる定数は共通ヘッダに移す
+// C++側の定義と値の一致が必要
+static const uint MAX_MESH_COUNT = 256;
+
+// CbMesh, SbVertexBuffer, BbDrawMeshletListBuffer, SbMeshletBuffer, SbMeshletVerticesBuffer, SbMeshletTrianglesBuffer, SbMeshletAABBInfosBuffer
+static const uint EACH_MESH_DESCRIPTOR_COUNT = 7;
+
+static const uint SbMeshletAABBInfosBufferBaseIdx = (EACH_MESH_DESCRIPTOR_COUNT - 1)* MAX_MESH_COUNT;
+
+struct MeshesDescHeapIndices
+{
+	//uint CbMesh[MAX_MESH_COUNT];
+	//uint SbVertexBuffer[MAX_MESH_COUNT];
+	//uint BbDrawMeshletListBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletVerticesBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletTrianglesBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletAABBInfosBuffer[MAX_MESH_COUNT];
+
+	//TODO: 配列変数が複数あるとメインメモリとのメモリマッピングがうまくいかないので
+	// ひとつのuint[]にまとめてインデックスは別途ゲッターを用意する
+	uint4 Indices[MAX_MESH_COUNT * EACH_MESH_DESCRIPTOR_COUNT / 4];
+};
+
 struct RootConstants
 {
 	uint MeshletCount;
+};
+
+struct Mesh
+{
+	float4x4 World;
+	uint MeshIdx;
 };
 
 struct Transform
@@ -38,25 +69,45 @@ struct Culling
 	uint bEnableBackFaceCulling;
 };
 
-struct Mesh
-{
-	float4x4 World;
-	uint MeshIdx;
-};
-
 struct AABB
 {
 	float3 Center;
 	float3 HalfExtent;
 };
 
+struct MeshletMeshMaterial
+{
+	uint MeshIdx;
+	uint MaterialIdx;
+};
+
 ConstantBuffer<RootConstants> CbRootConst : register(b0);
-ConstantBuffer<Transform> CbTransform : register(b1);
-ConstantBuffer<Culling> CbCulling : register(b2);
-ConstantBuffer<Mesh> CbMesh : register(b3);
-StructuredBuffer<AABB> SbAABBInfos : register(t0);
+ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b1);
+ConstantBuffer<Transform> CbTransform : register(b2);
+ConstantBuffer<Culling> CbCulling : register(b3);
+StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t0);
 RWByteAddressBuffer DrawVBufferIndirectArgBB : register(u0);
 RWByteAddressBuffer DrawVBufferMeshletListBB : register(u1);
+
+uint GetCbMeshDescHeapIndex(uint meshIdx)
+{
+	// [idx / 4][idx % 4]にあたる
+	// CBなので4つ分のインデックスをuint4で1セットにしているため
+	uint ret = CbMeshesDescHeapIndices.Indices[meshIdx >> 2][meshIdx & 0b11];
+	//uint ret = CbMeshesDescHeapIndices.Indices[meshIdx / 4][meshIdx % 4];
+	return ret;
+}
+
+uint GetSbMeshletAABBInfoDescHeapIndex(uint meshIdx)
+{
+	uint idx = SbMeshletAABBInfosBufferBaseIdx + meshIdx;
+
+	// [idx / 4][idx % 4]にあたる
+	// CBなので4つ分のインデックスをuint4で1セットにしているため
+	uint ret = CbMeshesDescHeapIndices.Indices[idx >> 2][idx & 0b11];
+	//uint ret = CbMeshesDescHeapIndices.Indices[idx / 4][idx % 4];
+	return ret;
+}
 
 // InverseZ、InfinitePlane
 bool frustumCull(float3 aabbNdcPos[8])
@@ -104,7 +155,9 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 		return;
 	}
 
-	AABB aabb = SbAABBInfos[meshletIdx];
+	MeshletMeshMaterial meshMaterial = SbMeshletMeshMaterialTable[meshletIdx];
+	StructuredBuffer<AABB> meshletsAABBInfo = ResourceDescriptorHeap[GetSbMeshletAABBInfoDescHeapIndex(meshMaterial.MeshIdx)];
+	AABB aabb = meshletsAABBInfo[meshletIdx];
 
 	float3 vertices[8] =
 	{
@@ -117,6 +170,8 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 		aabb.Center + float3( aabb.HalfExtent.x,  aabb.HalfExtent.y, -aabb.HalfExtent.z),
 		aabb.Center + float3( aabb.HalfExtent.x,  aabb.HalfExtent.y,  aabb.HalfExtent.z),
 	};
+
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[GetCbMeshDescHeapIndex(meshMaterial.MeshIdx)];
 
 	// モデル座標からNDC座標への変換
 	for (uint i = 0; i < 8; i++)
