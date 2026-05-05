@@ -928,130 +928,132 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 		}
-
-		std::vector<Mesh*> pMeshes;
-		pMeshes.reserve(resMesh.size());
-
-		for (size_t i = 0; i < resMesh.size(); i++)
+		else
 		{
-			Mesh* mesh = new (std::nothrow) Mesh();
-			if (mesh == nullptr)
+			std::vector<Mesh*> pMeshes;
+			pMeshes.reserve(resMesh.size());
+
+			for (size_t i = 0; i < resMesh.size(); i++)
+			{
+				Mesh* mesh = new (std::nothrow) Mesh();
+				if (mesh == nullptr)
+				{
+					ELOG("Error : Out of memory.");
+					return false;
+				}
+
+				if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE], resMesh[i], m_useMeshlet, m_useMeshManager))
+				{
+					ELOG("Error : Mesh Initialize Failed.");
+					delete mesh;
+					return false;
+				}
+
+				for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
+				{
+					CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
+					ptr->World = Matrix::Identity;
+					ptr->MeshIdx = 0;
+					mesh->UnmapConstantBuffer(frameIndex);
+				}
+
+				pMeshes.push_back(mesh);
+			}
+
+			pMeshes.shrink_to_fit();
+
+			//TODO: Velocityのテストとして2番のメッシュをMovableとする
+			if (m_drawSponza)
+			{
+				if (pMeshes.size() > 2)
+				{
+					pMeshes[2]->SetMobility(Mobility::Movable);
+				}
+			}
+
+			Model* model = new (std::nothrow) Model();
+			if (model == nullptr)
 			{
 				ELOG("Error : Out of memory.");
 				return false;
 			}
+			model->SetMeshes(pMeshes);
 
-			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE], resMesh[i], m_useMeshlet, m_useMeshManager))
+			std::vector<Material*> pMaterials;
+			pMaterials.reserve(resMaterial.size());
+
+			for (size_t i = 0; i < resMaterial.size(); i++)
 			{
-				ELOG("Error : Mesh Initialize Failed.");
-				delete mesh;
-				return false;
+				Material* material = new (std::nothrow) Material();
+				if (material == nullptr)
+				{
+					ELOG("Error : Out of memory.");
+					return false;
+				}
+
+				if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], &m_DummyTexture))
+				{
+					ELOG("Error : Material Initialize Failed.");
+					delete material;
+					return false;
+				}
+
+				pMaterials.push_back(material);
 			}
 
-			for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
+			pMaterials.shrink_to_fit();
+
+			// 全マテリアルの全テクスチャでバッチ処理を走らせるために、SetTexture()を
+			// Material::Init()の中で行っていない
+			DirectX::ResourceUploadBatch batch(m_pDevice.Get());
+			batch.Begin();
+
+			const std::wstring& dir = GetDirectoryPath(path.c_str());
+			for (size_t i = 0; i < resMaterial.size(); i++)
 			{
-				CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
-				ptr->World = Matrix::Identity;
-				ptr->MeshIdx = 0;
-				mesh->UnmapConstantBuffer(frameIndex);
+				Material* pMaterial = pMaterials[i];
+				const ResMaterial& resMat = resMaterial[i];
+
+				// ResMaterialにBaseColorMapとDiffuseMapがあったらBaseColorMapを優先して採用する
+				if (resMat.BaseColorMap.size() > 0)
+				{
+					pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.BaseColorMap, batch);
+				}
+				else
+				{
+					pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.DiffuseMap, batch);
+				}
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMat.MetallicRoughnessMap, batch);
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_NORMAL, dir + resMat.NormalMap, batch);
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_EMISSIVE, dir + resMat.EmissiveMap, batch);
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION, dir + resMat.AmbientOcclusionMap, batch);
+
+				pMaterial->SetDoubleSided(resMat.DoubleSided);
+
+				CbMaterial cbMat = {};
+				cbMat.BaseColorFactor = resMat.BaseColor;
+				cbMat.MetallicFactor = resMat.MetallicFactor;
+				cbMat.RoughnessFactor = resMat.RoughnessFactor;
+				cbMat.EmissiveFactor = resMat.EmissiveFactor;
+				cbMat.AlphaCutoff = resMat.AlphaCutoff;
+				cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
+				cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+				// 現状、DynamicResourceを考慮するとGBuffer描画には一種類のパイプラインしか使っていない
+				cbMat.MaterialID = 0;
+				if (!pMaterial->UploadConstantBufferData<CbMaterial>(m_pDevice.Get(), pCmd, cbMat))
+				{
+					ELOG("Error : Material::UploadConstantBufferData() Failed.");
+					return false;
+				}
 			}
 
-			pMeshes.push_back(mesh);
+			std::future<void> future = batch.End(m_pQueue.Get());
+			future.wait();
+
+			model->SetMaterials(pMaterials);
+
+			m_pModels.push_back(model);
 		}
-
-		pMeshes.shrink_to_fit();
-
-		//TODO: Velocityのテストとして2番のメッシュをMovableとする
-		if (m_drawSponza)
-		{
-			if (pMeshes.size() > 2)
-			{
-				pMeshes[2]->SetMobility(Mobility::Movable);
-			}
-		}
-
-		Model* model = new (std::nothrow) Model();
-		if (model == nullptr)
-		{
-			ELOG("Error : Out of memory.");
-			return false;
-		}
-		model->SetMeshes(pMeshes);
-
-		std::vector<Material*> pMaterials;
-		pMaterials.reserve(resMaterial.size());
-
-		for (size_t i = 0; i < resMaterial.size(); i++)
-		{
-			Material* material = new (std::nothrow) Material();
-			if (material == nullptr)
-			{
-				ELOG("Error : Out of memory.");
-				return false;
-			}
-
-			if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], &m_DummyTexture))
-			{
-				ELOG("Error : Material Initialize Failed.");
-				delete material;
-				return false;
-			}
-
-			pMaterials.push_back(material);
-		}
-
-		pMaterials.shrink_to_fit();
-
-		// 全マテリアルの全テクスチャでバッチ処理を走らせるために、SetTexture()を
-		// Material::Init()の中で行っていない
-		DirectX::ResourceUploadBatch batch(m_pDevice.Get());
-		batch.Begin();
-
-		const std::wstring& dir = GetDirectoryPath(path.c_str());
-		for (size_t i = 0; i < resMaterial.size(); i++)
-		{
-			Material* pMaterial = pMaterials[i];
-			const ResMaterial& resMat = resMaterial[i];
-
-			// ResMaterialにBaseColorMapとDiffuseMapがあったらBaseColorMapを優先して採用する
-			if (resMat.BaseColorMap.size() > 0)
-			{
-				pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.BaseColorMap, batch);
-			}
-			else
-			{
-				pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.DiffuseMap, batch);
-			}
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMat.MetallicRoughnessMap, batch);
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_NORMAL, dir + resMat.NormalMap, batch);
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_EMISSIVE, dir + resMat.EmissiveMap, batch);
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION, dir + resMat.AmbientOcclusionMap, batch);
-
-			pMaterial->SetDoubleSided(resMat.DoubleSided);
-
-			CbMaterial cbMat = {};
-			cbMat.BaseColorFactor = resMat.BaseColor;
-			cbMat.MetallicFactor = resMat.MetallicFactor;
-			cbMat.RoughnessFactor = resMat.RoughnessFactor;
-			cbMat.EmissiveFactor = resMat.EmissiveFactor;
-			cbMat.AlphaCutoff = resMat.AlphaCutoff;
-			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
-			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
-			// 現状、DynamicResourceを考慮するとGBuffer描画には一種類のパイプラインしか使っていない
-			cbMat.MaterialID = 0;
-			if (!pMaterial->UploadConstantBufferData<CbMaterial>(m_pDevice.Get(), pCmd, cbMat))
-			{
-				ELOG("Error : Material::UploadConstantBufferData() Failed.");
-				return false;
-			}
-		}
-
-		std::future<void> future = batch.End(m_pQueue.Get());
-		future.wait();
-
-		model->SetMaterials(pMaterials);
-
-		m_pModels.push_back(model);
 
 		pCmd->Close();
 
@@ -1083,118 +1085,125 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
-		std::vector<Mesh*> pMeshes;
-		pMeshes.reserve(resMesh.size());
-
-		for (size_t i = 0; i < resMesh.size(); i++)
+		if (m_useMeshManager)
 		{
-			Mesh* mesh = new (std::nothrow) Mesh();
-			if (mesh == nullptr)
+			// TODO: 実装
+		}
+		else
+		{
+			std::vector<Mesh*> pMeshes;
+			pMeshes.reserve(resMesh.size());
+
+			for (size_t i = 0; i < resMesh.size(); i++)
+			{
+				Mesh* mesh = new (std::nothrow) Mesh();
+				if (mesh == nullptr)
+				{
+					ELOG("Error : Out of memory.");
+					return false;
+				}
+
+				if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE], resMesh[i], m_useMeshlet, m_useMeshManager))
+				{
+					ELOG("Error : Mesh Initialize Failed.");
+					delete mesh;
+					return false;
+				}
+
+				//const Matrix& worldMat = Matrix::CreateScale(0.25f) * Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.5f, 0.0f);
+				const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
+
+				for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
+				{
+					CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
+					ptr->World = worldMat;
+					ptr->MeshIdx = 0;
+					mesh->UnmapConstantBuffer(frameIndex);
+				}
+
+				pMeshes.push_back(mesh);
+			}
+
+			pMeshes.shrink_to_fit();
+
+			// Wait command queue finishing.
+			m_Fence.Wait(m_pQueue.Get(), INFINITE);
+
+			Model* model = new (std::nothrow) Model();
+			if (model == nullptr)
 			{
 				ELOG("Error : Out of memory.");
 				return false;
 			}
+			model->SetMeshes(pMeshes);
 
-			if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE], resMesh[i], m_useMeshlet, m_useMeshManager))
+			std::vector<Material*> pMaterials;
+			pMaterials.reserve(resMaterial.size());
+
+			for (size_t i = 0; i < resMaterial.size(); i++)
 			{
-				ELOG("Error : Mesh Initialize Failed.");
-				delete mesh;
-				return false;
+				Material* material = new (std::nothrow) Material();
+				if (material == nullptr)
+				{
+					ELOG("Error : Out of memory.");
+					return false;
+				}
+
+				if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], &m_DummyTexture))
+				{
+					ELOG("Error : Material::Init() Failed.");
+					delete material;
+					return false;
+				}
+
+				pMaterials.push_back(material);
 			}
 
-			//const Matrix& worldMat = Matrix::CreateScale(0.25f) * Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.5f, 0.0f);
-			const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
+			pMaterials.shrink_to_fit();
 
-			for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
+			// 全マテリアルの全テクスチャでバッチ処理を走らせるために、SetTexture()を
+			// Material::Init()の中で行っていない
+			DirectX::ResourceUploadBatch batch(m_pDevice.Get());
+			batch.Begin();
+
+			const std::wstring& dir = GetDirectoryPath(path.c_str());
+			for (size_t i = 0; i < resMaterial.size(); i++)
 			{
-				CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
-				ptr->World = worldMat;
-				ptr->MeshIdx = 0;
-				mesh->UnmapConstantBuffer(frameIndex);
+				Material* pMaterial = pMaterials[i];
+				const ResMaterial& resMat = resMaterial[i];
+
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.BaseColorMap, batch);
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMat.MetallicRoughnessMap, batch);
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_NORMAL, dir + resMat.NormalMap, batch);
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_EMISSIVE, dir + resMat.EmissiveMap, batch);
+				pMaterial->SetTexture(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION, dir + resMat.AmbientOcclusionMap, batch);
+
+				pMaterial->SetDoubleSided(resMat.DoubleSided);
+
+				CbMaterial cbMat = {};
+				cbMat.BaseColorFactor = resMat.BaseColor;
+				cbMat.MetallicFactor = resMat.MetallicFactor;
+				cbMat.RoughnessFactor = resMat.RoughnessFactor;
+				cbMat.EmissiveFactor = resMat.EmissiveFactor;
+				cbMat.AlphaCutoff = resMat.AlphaCutoff;
+				cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
+				cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+				// 現状、DynamicResourceを考慮するとGBuffer描画には一種類のパイプラインしか使っていない
+				cbMat.MaterialID = 0;
+				if (!pMaterial->UploadConstantBufferData<CbMaterial>(m_pDevice.Get(), pCmd, cbMat))
+				{
+					ELOG("Error : Material::UploadConstantBufferData() Failed.");
+					return false;
+				}
 			}
 
-			pMeshes.push_back(mesh);
+			std::future<void> future = batch.End(m_pQueue.Get());
+			future.wait();
+
+			model->SetMaterials(pMaterials);
+
+			m_pModels.push_back(model);
 		}
-
-		pMeshes.shrink_to_fit();
-
-		// Wait command queue finishing.
-		m_Fence.Wait(m_pQueue.Get(), INFINITE);
-
-		Model* model = new (std::nothrow) Model();
-		if (model == nullptr)
-		{
-			ELOG("Error : Out of memory.");
-			return false;
-		}
-		model->SetMeshes(pMeshes);
-
-		std::vector<Material*> pMaterials;
-		pMaterials.reserve(resMaterial.size());
-
-		for (size_t i = 0; i < resMaterial.size(); i++)
-		{
-			Material* material = new (std::nothrow) Material();
-			if (material == nullptr)
-			{
-				ELOG("Error : Out of memory.");
-				return false;
-			}
-
-			if (!material->Init<CbMaterial>(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], &m_DummyTexture))
-			{
-				ELOG("Error : Material::Init() Failed.");
-				delete material;
-				return false;
-			}
-
-			pMaterials.push_back(material);
-		}
-
-		pMaterials.shrink_to_fit();
-
-		// 全マテリアルの全テクスチャでバッチ処理を走らせるために、SetTexture()を
-		// Material::Init()の中で行っていない
-		DirectX::ResourceUploadBatch batch(m_pDevice.Get());
-		batch.Begin();
-
-		const std::wstring& dir = GetDirectoryPath(path.c_str());
-		for (size_t i = 0; i < resMaterial.size(); i++)
-		{
-			Material* pMaterial = pMaterials[i];
-			const ResMaterial& resMat = resMaterial[i];
-
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_BASE_COLOR, dir + resMat.BaseColorMap, batch);
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS, dir + resMat.MetallicRoughnessMap, batch);
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_NORMAL, dir + resMat.NormalMap, batch);
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_EMISSIVE, dir + resMat.EmissiveMap, batch);
-			pMaterial->SetTexture(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION, dir + resMat.AmbientOcclusionMap, batch);
-
-			pMaterial->SetDoubleSided(resMat.DoubleSided);
-
-			CbMaterial cbMat = {};
-			cbMat.BaseColorFactor = resMat.BaseColor;
-			cbMat.MetallicFactor = resMat.MetallicFactor;
-			cbMat.RoughnessFactor = resMat.RoughnessFactor;
-			cbMat.EmissiveFactor = resMat.EmissiveFactor;
-			cbMat.AlphaCutoff = resMat.AlphaCutoff;
-			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
-			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
-			// 現状、DynamicResourceを考慮するとGBuffer描画には一種類のパイプラインしか使っていない
-			cbMat.MaterialID = 0;
-			if (!pMaterial->UploadConstantBufferData<CbMaterial>(m_pDevice.Get(), pCmd, cbMat))
-			{
-				ELOG("Error : Material::UploadConstantBufferData() Failed.");
-				return false;
-			}
-		}
-
-		std::future<void> future = batch.End(m_pQueue.Get());
-		future.wait();
-
-		model->SetMaterials(pMaterials);
-
-		m_pModels.push_back(model);
 
 		pCmd->Close();
 
@@ -6162,6 +6171,11 @@ void SampleApp::OnRender()
 	//TODO: MovableなメッシュをVelocityのテストのためサインカーブで動かす
 	const Matrix& worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
 
+	if (m_useMeshManager)
+	{
+		//TODO:実装
+	}
+	else
 	{
 		for (const Model* model : m_pModels)
 		{
@@ -6701,48 +6715,53 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		pCmdList->ResourceBarrier(1, &b);
 	}
 
-	if (m_useSWRasterizer)
+	if (m_useMeshManager)
 	{
-		pCmdList->SetComputeRootSignature(m_DrawVBufferSWRasRootSig.GetPtr());
-
-		uint32_t meshIdx = 0;
-
-		pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
-		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
-
-		pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
-		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
-
-		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		// TODO:実装
 	}
 	else
 	{
-		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		if (m_useSWRasterizer)
+		{
+			pCmdList->SetComputeRootSignature(m_DrawVBufferSWRasRootSig.GetPtr());
 
-		D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_VBufferTarget.GetHandleRTV()->HandleCPU;
-		const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
-		pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
+			uint32_t meshIdx = 0;
 
-		m_SceneDepthTarget.ClearView(pCmdList);
+			pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
+			DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
 
-		pCmdList->RSSetViewports(1, &m_Viewport);
-		pCmdList->RSSetScissorRects(1, &m_Scissor);
+			pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
+			DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
 
-		pCmdList->SetGraphicsRootSignature(m_DrawVBufferHWRasRootSig.GetPtr());
+			DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+		else
+		{
+			DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-		uint32_t meshIdx = 0;
+			D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_VBufferTarget.GetHandleRTV()->HandleCPU;
+			const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+			pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
 
-		pCmdList->SetPipelineState(m_pDrawVBufferHWRasOpaquePSO.Get());
-		DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+			m_SceneDepthTarget.ClearView(pCmdList);
 
-		pCmdList->SetPipelineState(m_pDrawVBufferHWRasMaskPSO.Get());
-		DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
-	}
-	if (!m_useSWRasterizer)
-	{
-		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			pCmdList->RSSetViewports(1, &m_Viewport);
+			pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+			pCmdList->SetGraphicsRootSignature(m_DrawVBufferHWRasRootSig.GetPtr());
+
+			uint32_t meshIdx = 0;
+
+			pCmdList->SetPipelineState(m_pDrawVBufferHWRasOpaquePSO.Get());
+			DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+
+			pCmdList->SetPipelineState(m_pDrawVBufferHWRasMaskPSO.Get());
+			DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+
+			DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
 	}
 }
 
@@ -6850,85 +6869,92 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	m_SceneNormalTarget.ClearView(pCmdList);
 	m_SceneMetallicRoughnessTarget.ClearView(pCmdList);
 
-	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
-
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshletsDescHeapIndicesCB.GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_MaterialsDescHeapIndicesCB.GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
-
-	if (m_drawSponza)
+	if (m_useMeshManager)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(5, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
-
-		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(6 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
-		}
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
-		}
-
-		pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_VBufferTarget.GetHandleSRV()->HandleGPU);
-
-		pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
-		}
+		//TODO:実装
 	}
 	else
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(5, m_IBL_CB.GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(6, m_VBufferTarget.GetHandleSRV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
+		pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
+
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshletsDescHeapIndicesCB.GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_MaterialsDescHeapIndicesCB.GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
+
+		if (m_drawSponza)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(5, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
+
+			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(6 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
+			}
+
+			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
+			}
+
+			pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+
+			pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+
+			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+			}
+		}
+		else
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(5, m_IBL_CB.GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(6, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
+		}
+
+		pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
+
+		pCmdList->RSSetViewports(1, &m_Viewport);
+		pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+		pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+		pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+		pCmdList->DrawInstanced(3, 1, 0, 0);
+
+		// SkyBoxや環境マップのBoxの描画はVBufferに加えていないので、ここで描画する
+		if (m_drawSponza)
+		{
+			// UEのDirectionalLightComponent::GetOuterSpaceLuminance()を参考にしている
+			const Vector3& discLuminance = GetSunLightDiscLuminance(m_directionalLightIntensity, Vector3::One);
+			m_SkyBox.DrawSkyAtmosphere(
+				pCmdList,
+				m_SkyViewLUT_Target,
+				m_SkyTransmittanceLUT_Target,
+				view,
+				proj,
+				viewRotProj,
+				SKY_BOX_HALF_EXTENT,
+				skyViewLutReferential,
+				PLANET_BOTTOM_RADIUS_KM,
+				-lightForward, // これはDirectionalLightの方向でなく、カメラから見た太陽の方向なので符号を逆にする
+				discLuminance
+			);
+		}
+		else
+		{
+			m_SkyBox.DrawEnvironmentCubeMap(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
+		}
+
+		DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
-
-	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
-
-	pCmdList->RSSetViewports(1, &m_Viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
-
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
-	pCmdList->IASetVertexBuffers(0, 1, &VBV);
-
-	pCmdList->DrawInstanced(3, 1, 0, 0);
-
-	// SkyBoxや環境マップのBoxの描画はVBufferに加えていないので、ここで描画する
-	if (m_drawSponza)
-	{
-		// UEのDirectionalLightComponent::GetOuterSpaceLuminance()を参考にしている
-		const Vector3& discLuminance = GetSunLightDiscLuminance(m_directionalLightIntensity, Vector3::One);
-		m_SkyBox.DrawSkyAtmosphere(
-			pCmdList,
-			m_SkyViewLUT_Target,
-			m_SkyTransmittanceLUT_Target,
-			view,
-			proj,
-			viewRotProj,
-			SKY_BOX_HALF_EXTENT,
-			skyViewLutReferential,
-			PLANET_BOTTOM_RADIUS_KM,
-			-lightForward, // これはDirectionalLightの方向でなく、カメラから見た太陽の方向なので符号を逆にする
-			discLuminance
-		);
-	}
-	else
-	{
-		m_SkyBox.DrawEnvironmentCubeMap(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
-	}
-
-	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
@@ -7313,64 +7339,71 @@ void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA
 
 void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
 {
-	for (const Model* model : m_pModels)
+	if (m_useMeshManager)
 	{
-		for (size_t i = 0; i < model->GetMeshCount(); i++)
+		//TODO:実装
+	}
+	else
+	{
+		for (const Model* model : m_pModels)
 		{
-			const Mesh* pMesh = model->GetMesh(i);
-
-			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
-
-			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
+			for (size_t i = 0; i < model->GetMeshCount(); i++)
 			{
-				continue;
-			}
-			else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
-			{
-				continue;
-			}
+				const Mesh* pMesh = model->GetMesh(i);
 
-			if (m_useMeshlet)
-			{
-				DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-			}
+				// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
+				const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
 
-			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+				if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
+				{
+					continue;
+				}
+				else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
+				{
+					continue;
+				}
 
-			if (m_useMeshlet)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(6, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
-			}
+				if (m_useMeshlet)
+				{
+					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				}
 
-			pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
 
-			if (m_drawSponza)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(12 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(13 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(14 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(15 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(16 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
-			}
-			else
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(7 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(8 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(9 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
-			}
+				if (m_useMeshlet)
+				{
+					pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(6, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
+				}
 
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
+				pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
 
-			if (m_useMeshlet)
-			{
-				DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				if (m_drawSponza)
+				{
+					pCmdList->SetGraphicsRootDescriptorTable(12 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(13 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(14 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(15 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(16 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
+				}
+				else
+				{
+					pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(7 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(8 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(9 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
+				}
+
+				pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
+
+				if (m_useMeshlet)
+				{
+					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				}
 			}
 		}
 	}
