@@ -5,6 +5,10 @@
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx12.h"
 
+// nvapi
+#include "nvapi.h"
+#pragma comment(lib, "nvapi64.lib")
+
 // DirectX libraries
 #include <DirectXMath.h>
 #include <CommonStates.h>
@@ -16,8 +20,6 @@
 #include "ScopedTimer.h"
 
 #include <array>
-
-//#define DYNAMIC_RESOURCES
 
 using namespace DirectX::SimpleMath;
 
