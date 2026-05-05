@@ -4,6 +4,7 @@
 #include <chrono>
 #include "App.h"
 #include "Resource.h"
+#include "VertexBuffer.h"
 #include "IndexBuffer.h"
 #include "ConstantBuffer.h"
 #include "DepthTarget.h"
@@ -30,9 +31,13 @@ private:
 	DescriptorHandle* m_pTlasResultSrvHandle = nullptr;
 	RootSignature m_GlobalRootSig;
 
+	ComPtr<ID3D12PipelineState> m_pBackBufferPSO;
+	RootSignature m_BackBufferRootSig;
+
 	ComPtr<ID3D12StateObject> m_pStateObject;
 	ColorTarget m_RTTarget;
 	Resource m_ShaderTableBB;
+	VertexBuffer m_QuadVB;
 
 	size_t m_ShaderTableEntrySize = 0;
 
