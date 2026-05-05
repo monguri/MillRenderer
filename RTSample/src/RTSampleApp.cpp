@@ -90,6 +90,58 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+#if defined(DEBUG) || defined(_DEBUG)
+	// nvapi初期化
+	{
+		NvAPI_Status status = NVAPI_OK;
+		NvAPI_ShortString szError = {0};
+		status = NvAPI_Initialize();
+		if (status != NVAPI_OK)
+		{
+			NvAPI_GetErrorMessage(status, szError);
+			ELOG("Error : NvAPI_Initialize() Failed. status = %d, error message = %s", status, szError);
+			return false;
+		}
+
+		status = NvAPI_D3D12_EnableRaytracingValidation(m_pDevice.Get(), NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE);
+		if (status != NVAPI_OK)
+		{
+			NvAPI_GetErrorMessage(status, szError);
+			ELOG("Error : NvAPI_Initialize() Failed. status = %d, error message = %s", status, szError);
+			return false;
+		}
+
+		void* unregisterHandle = nullptr;
+		status = NvAPI_D3D12_RegisterRaytracingValidationMessageCallback
+		(
+			m_pDevice.Get(),
+			[](void* pUserData, NVAPI_D3D12_RAYTRACING_VALIDATION_MESSAGE_SEVERITY severity, const char* messageCode, const char* message, const char* messageDetails)
+			{
+				const char* severityString = "unknown";
+				switch (severity)
+				{
+				case NVAPI_D3D12_RAYTRACING_VALIDATION_MESSAGE_SEVERITY_ERROR:
+					severityString = "error";
+					break;
+				case NVAPI_D3D12_RAYTRACING_VALIDATION_MESSAGE_SEVERITY_WARNING:
+					severityString = "warning";
+					break;
+				}
+
+				ELOG("Ray Tracing Validation message: %s: [%s] %s\n%s", severityString, messageCode, message, messageDetails);
+			},
+			nullptr,
+			&unregisterHandle 
+		);
+		if (status != NVAPI_OK)
+		{
+			NvAPI_GetErrorMessage(status, szError);
+			ELOG("Error : NvAPI_Initialize() Failed. status = %d, error message = %s", status, szError);
+			return false;
+		}
+	}
+#endif
+
 	// シーン用デプスターゲットの生成
 	{
 		if (!m_SceneDepthTarget.Init
@@ -713,6 +765,10 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	// Wait command queue finishing.
 	m_Fence.Wait(m_pQueue.Get(), INFINITE);
 
+#if defined(DEBUG) || defined(_DEBUG)
+	NvAPI_D3D12_FlushRaytracingValidationMessages(m_pDevice.Get());
+#endif
+
 	return true;
 }
 
@@ -738,6 +794,10 @@ void RTSampleApp::OnTerm()
 	m_BlasResultBB.Term();
 	m_TlasResultBB.Term();
 	m_ShaderTableBB.Term();
+
+#if defined(DEBUG) || defined(_DEBUG)
+	NvAPI_D3D12_FlushRaytracingValidationMessages(m_pDevice.Get());
+#endif
 }
 
 void RTSampleApp::OnRender()
