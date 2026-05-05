@@ -74,14 +74,14 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		DescriptorHandle* pHandleSRV = m_pPool[POOL_TYPE_RES]->AllocHandle();
+		DescriptorHandle* pHandleSRV = m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->AllocHandle();
 		if (pHandleSRV == nullptr)
 		{
 			ELOG("Error : DescriptorPool::AllocHandle() Failed.");
 			return false;
 		}
 
-		if (!ImGui_ImplDX12_Init(m_pDevice.Get(), 1, m_BackBufferFormat, m_pPool[POOL_TYPE_RES]->GetHeap(), pHandleSRV->HandleCPU, pHandleSRV->HandleGPU))
+		if (!ImGui_ImplDX12_Init(m_pDevice.Get(), 1, m_BackBufferFormat, m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->GetHeap(), pHandleSRV->HandleCPU, pHandleSRV->HandleGPU))
 		{
 			ELOG("Error : ImGui_ImplDX12_Init() Failed.");
 			return false;
@@ -94,7 +94,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_DSV],
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
 			DXGI_FORMAT_D32_FLOAT,
@@ -117,7 +117,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES], sizeof(CbCamera)))
+			if (!m_CameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbCamera)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -187,6 +187,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			nullptr,
+			nullptr,
 			nullptr
 		))
 		{
@@ -200,6 +201,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			preBuildInfo.ResultDataMaxSizeInBytes,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+			nullptr,
 			nullptr,
 			nullptr
 		))
@@ -242,6 +244,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
+			nullptr,
 			nullptr
 		))
 		{
@@ -272,6 +275,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			nullptr,
+			nullptr,
 			nullptr
 		))
 		{
@@ -286,6 +290,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 			nullptr,
+			nullptr,
 			nullptr
 		))
 		{
@@ -299,7 +304,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srvDesc.RaytracingAccelerationStructure.Location = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
-		m_pTlasResultSrvHandle = m_pPool[POOL_TYPE_RES]->AllocHandle();
+		m_pTlasResultSrvHandle = m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->AllocHandle();
 		if (m_pTlasResultSrvHandle == nullptr)
 		{
 			ELOG("Error : DescriptorPool::AllocHandle() Failed.");
@@ -601,13 +606,14 @@ bool RTSampleApp::OnInit(HWND hWnd)
 	// State Objectの作成
 
 	// RT書き出し用テクスチャの作成
-	// ここで作ったUAVがPOOL_TYPE_RESのディスクリプタプールでTLASのSRVの次に作るディスクリプタである必要がある
+	// ここで作ったUAVがPOOL_TYPE_RES_GPU_VISIBLEのディスクリプタプールでTLASのSRVの次に作るディスクリプタである必要がある
 	// m_pTlasResultSrvHandleをRayGenのシェーダテーブルに設定するので
 	{
 		float clearColor[] = { 0, 0, 0, 0 };
 		if (!m_RTTarget.InitUnorderedAccessTarget(
 			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			nullptr,
 			nullptr,
 			nullptr,
 			m_Width,
@@ -668,6 +674,7 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			shaderTblData.size(),
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
 			nullptr,
 			nullptr
 		))
@@ -748,7 +755,7 @@ void RTSampleApp::OnRender()
 	ID3D12GraphicsCommandList4* pCmd = m_CommandList.Reset();
 
 	ID3D12DescriptorHeap* const pHeaps[] = {
-		m_pPool[POOL_TYPE_RES]->GetHeap()
+		m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->GetHeap()
 	};
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
