@@ -42,16 +42,7 @@ void rayGeneration()
 	uint multiplierForGeometryContributionToHitGroupIndex = 0;
 	uint missShaderIndex = 0;
 
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	// TraceRay()‚ğŒÄ‚Ô‚ÆTDR‚É‚È‚èDeviceRemoval‚ª”­¶‚·‚é‚Ì‚ªŒ»İ‚Ì–â‘è
-	// TLAS/BLAS‚ÆTLAS‚ÌSRV‚ª³‚µ‚­ì‚ç‚ê‚Ä‚é‚©A³‚µ‚­t0‚ÉSRV‚ªİ’è‚³‚ê‚Ä‚é‚©‚ª
-	// Å‚à‚ ‚â‚µ‚¢BCopilot‚à‚»‚¤Œ¾‚Á‚Ä‚½
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#if 0
 	TraceRay(gRtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
-#else
-	payload.color = float3(0.4, 0.6, 0.2);
-#endif
 
 	float3 color = linearToSrgb(payload.color);
 	gOutputTex[rayIndex.xy] = float4(color, 1);

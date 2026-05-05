@@ -576,8 +576,8 @@ bool RTSampleApp::OnInit(HWND hWnd)
 		// Pipeline ConfigのSubObjectを作成
 		D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
 		{
-			// 再帰的レイ生成は0段
-			pipelineConfig.MaxTraceRecursionDepth = 0;
+			// primary rayのみ 
+			pipelineConfig.MaxTraceRecursionDepth = 1;
 
 			D3D12_STATE_SUBOBJECT subObjPipelineConfig;
 			subObjPipelineConfig.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
