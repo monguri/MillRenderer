@@ -70,7 +70,7 @@
       <AdditionalDependencies>metis.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
-      <ShaderModel>6.6</ShaderModel>
+      <ShaderModel>6.7</ShaderModel>
       <AdditionalOptions>-Qembed_debug</AdditionalOptions>
     </FxCompile>
   </ItemDefinitionGroup>
@@ -97,7 +97,7 @@
       <AdditionalDependencies>metis.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
-      <ShaderModel>6.6</ShaderModel>
+      <ShaderModel>6.7</ShaderModel>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
