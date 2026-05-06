@@ -7280,51 +7280,58 @@ void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdL
 
 void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
 {
-	for (const Model* model : m_pModels)
+	if (m_useMeshManager)
 	{
-		for (size_t i = 0; i < model->GetMeshCount(); i++)
+		//TODO:実装
+	}
+	else
+	{
+		for (const Model* model : m_pModels)
 		{
-			const Mesh* pMesh = model->GetMesh(i);
-
-			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
-
-			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
+			for (size_t i = 0; i < model->GetMeshCount(); i++)
 			{
-				continue;
-			}
-			else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
-			{
-				continue;
-			}
+				const Mesh* pMesh = model->GetMesh(i);
 
-			if (m_useMeshlet)
-			{
-				DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-			}
+				// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
+				const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
 
-			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+				if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
+				{
+					continue;
+				}
+				else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
+				{
+					continue;
+				}
 
-			// -1はカリングしてないのでdrawMeshletListをバインドしていない分
-			int32_t meshletRootParamCount = std::max(static_cast<int32_t>(m_meshletRootParamCount) - 1, 0);
-			pCmdList->SetGraphicsRootDescriptorTable(2 + meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(3 + meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+				if (m_useMeshlet)
+				{
+					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				}
 
-			if (m_useMeshlet)
-			{
-				// カリングしてないのでdrawMeshletListをバインドしない
-				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMeshletsSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
-			}
+				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
 
-			// 現状ではDepthのみ描画するケースでカリングを有効にするケースがない
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), false);
+				// -1はカリングしてないのでdrawMeshletListをバインドしていない分
+				int32_t meshletRootParamCount = std::max(static_cast<int32_t>(m_meshletRootParamCount) - 1, 0);
+				pCmdList->SetGraphicsRootDescriptorTable(2 + meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(3 + meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
 
-			if (m_useMeshlet)
-			{
-				DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				if (m_useMeshlet)
+				{
+					// カリングしてないのでdrawMeshletListをバインドしない
+					pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMeshletsSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
+				}
+
+				// 現状ではDepthのみ描画するケースでカリングを有効にするケースがない
+				pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), false);
+
+				if (m_useMeshlet)
+				{
+					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				}
 			}
 		}
 	}
@@ -7613,32 +7620,39 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	pCmdList->SetPipelineState(m_pObjectVelocityPSO.Get());
 
 	// Movableなものだけ描画
-	for (const Model* model : m_pModels)
+	if (m_useMeshManager)
 	{
-		for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
+		//TODO:実装
+	}
+	else
+	{
+		for (const Model* model : m_pModels)
 		{
-			const Mesh* pMesh = model->GetMesh(meshIdx);
-			if (pMesh->GetMobility() != Mobility::Movable)
+			for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
 			{
-				continue;
-			}
+				const Mesh* pMesh = model->GetMesh(meshIdx);
+				if (pMesh->GetMobility() != Mobility::Movable)
+				{
+					continue;
+				}
 
-			if (m_useMeshlet)
-			{
-				DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				if (m_useMeshlet)
+				{
+					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetVertexBufferSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMeshletsSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
-			}
+					pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetVertexBufferSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMeshletsSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
+				}
 
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
+				pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
 
-			if (m_useMeshlet)
-			{
-				DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				if (m_useMeshlet)
+				{
+					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				}
 			}
 		}
 	}
@@ -8372,16 +8386,23 @@ void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const Direc
 
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 
-	for (const Model* model : m_pModels)
+	if (m_useMeshManager)
 	{
-		for (size_t i = 0; i < model->GetMeshCount(); i++)
+		//TODO:実装
+	}
+	else
+	{
+		for (const Model* model : m_pModels)
 		{
-			const Mesh* pMesh = model->GetMesh(i);
+			for (size_t i = 0; i < model->GetMeshCount(); i++)
+			{
+				const Mesh* pMesh = model->GetMesh(i);
 
-			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
 
-			pMesh->DrawMeshletAABB(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+				pMesh->DrawMeshletAABB(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+			}
 		}
 	}
 
