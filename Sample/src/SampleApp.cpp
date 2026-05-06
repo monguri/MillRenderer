@@ -921,7 +921,8 @@ bool SampleApp::OnInit(HWND hWnd)
 				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 				resMesh,
-				resMaterial
+				resMaterial,
+				m_DummyTexture
 			))
 			{
 				ELOG("Error : MeshManager::Init() failed.");

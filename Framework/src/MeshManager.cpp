@@ -1,7 +1,7 @@
 #include "MeshManager.h"
+#include "Texture.h"
 #include "DescriptorPool.h"
 #include "ResMesh.h"
-#include "Material.h"
 #include "Logger.h"
 #include "App.h"
 
@@ -112,7 +112,8 @@ bool MeshManager::Init
 	class DescriptorPool* pPoolGpuVisible,
 	class DescriptorPool* pPoolCpuVisible,
 	const std::vector<struct ResMesh>& resMeshes,
-	const std::vector<struct ResMaterial>& resMaterials
+	const std::vector<struct ResMaterial>& resMaterials,
+	const Texture& dummyTexture
 )
 {
 	assert(pDevice != nullptr);
@@ -540,14 +541,6 @@ bool MeshManager::Init
 
 void MeshManager::Term()
 {
-	for (Material* pMat : m_pMaterials)
-	{
-		if (pMat != nullptr)
-		{
-			pMat->Term();
-		}
-	}
-
 	if (m_pPoolGpuVisible != nullptr)
 	{
 		m_pPoolGpuVisible->Release();

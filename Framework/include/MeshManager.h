@@ -18,7 +18,8 @@ public:
 		class DescriptorPool* pPoolGpuVisible,
 		class DescriptorPool* pPoolCpuVisible,
 		const std::vector<struct ResMesh>& resMeshes,
-		const std::vector<struct ResMaterial>& resMaterials
+		const std::vector<struct ResMaterial>& resMaterials,
+		const class Texture& dummyTexture
 	);
 
 	void Term();
@@ -33,8 +34,6 @@ public:
 	uint32_t GetMeshletCount() const;
 
 private:
-	std::vector<class Material*> m_pMaterials;
-
 	class DescriptorPool* m_pPoolGpuVisible;
 	class DescriptorPool* m_pPoolCpuVisible;
 
