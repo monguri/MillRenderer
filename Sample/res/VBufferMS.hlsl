@@ -11,6 +11,7 @@
 ")"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_MESH)"\
+", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_MESH)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_MESH)"\
 ", StaticSampler"\

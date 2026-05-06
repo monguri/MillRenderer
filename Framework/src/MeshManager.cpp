@@ -25,15 +25,17 @@ namespace
 		uint32_t SbMeshletAABBInfosBuffer[MAX_MESH_COUNT];
 	};
 
+	// シェーダ側の定義と値の一致が必要
+	static constexpr uint32_t MAX_MATERIAL_COUNT = 256;
+
 	struct alignas(256) CbMaterialsDescHeapIndices
 	{
-		uint32_t IsAlphaMask[MAX_MESH_COUNT];
-		uint32_t CbMaterial[MAX_MESH_COUNT];
-		uint32_t BaseColorMap[MAX_MESH_COUNT];
-		uint32_t MetallicRoughnessMap[MAX_MESH_COUNT];
-		uint32_t NormalMap[MAX_MESH_COUNT];
-		uint32_t EmissiveMap[MAX_MESH_COUNT];
-		uint32_t AOMap[MAX_MESH_COUNT];
+		uint32_t CbMaterial[MAX_MATERIAL_COUNT];
+		uint32_t BaseColorMap[MAX_MATERIAL_COUNT];
+		uint32_t MetallicRoughnessMap[MAX_MATERIAL_COUNT];
+		uint32_t NormalMap[MAX_MATERIAL_COUNT];
+		uint32_t EmissiveMap[MAX_MATERIAL_COUNT];
+		uint32_t AOMap[MAX_MATERIAL_COUNT];
 	};
 
 	// DirectXTK12、Geometry.cpp/hのDirectX::ComputeBoxを参考にしている
@@ -541,11 +543,10 @@ bool MeshManager::Init
 			float MetallicFactor;
 			float RoughnessFactor;
 			Vector3 EmissiveFactor;
+			unsigned int bAlphaMask;
 			float AlphaCutoff;
-			int bExistEmissiveTex;
-			int bExistAOTex;
-			// GBuffer用のPSOに割り振るIDだが一般にMaterialIDという用語なのでそうしている
-			unsigned int MaterialID;
+			unsigned int bExistEmissiveTex;
+			unsigned int bExistAOTex;
 		};
 
 		for (size_t materialIdx = 0; materialIdx < materialCount; materialIdx++)
@@ -620,11 +621,10 @@ bool MeshManager::Init
 			cbMat.MetallicFactor = resMat.MetallicFactor;
 			cbMat.RoughnessFactor = resMat.RoughnessFactor;
 			cbMat.EmissiveFactor = resMat.EmissiveFactor;
+			cbMat.bAlphaMask = resMat.DoubleSided ? 0 : 1;
 			cbMat.AlphaCutoff = resMat.AlphaCutoff;
 			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
 			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
-			// 現状、DynamicResourceを考慮するとGBuffer描画には一種類のパイプラインしか使っていない
-			cbMat.MaterialID = 0;
 
 			if (!m_MaterialCBs[materialIdx].UploadBufferTypeData<CbMaterial>(
 				pDevice,
@@ -641,7 +641,6 @@ bool MeshManager::Init
 			uint32_t dummyTextureIndex = dummyTexture.GetHandleSRVPtr()->GetDescriptorIndex();
 
 			// 画像ファイルがディレクトリになかった場合はTextureを初期化してない。その場合はダミーテクスチャを使う
-			materialsDescHeapIndices.IsAlphaMask[materialIdx] = resMat.DoubleSided ? 0 : 1;
 			materialsDescHeapIndices.BaseColorMap[materialIdx] = m_BaseColorMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_BaseColorMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
 			materialsDescHeapIndices.MetallicRoughnessMap[materialIdx] = m_MetallicRoughnessMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_MetallicRoughnessMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
 			materialsDescHeapIndices.NormalMap[materialIdx] = m_NormalMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_NormalMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
