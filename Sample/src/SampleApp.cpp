@@ -6869,92 +6869,85 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	m_SceneNormalTarget.ClearView(pCmdList);
 	m_SceneMetallicRoughnessTarget.ClearView(pCmdList);
 
-	if (m_useMeshManager)
+	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
+
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshletsDescHeapIndicesCB.GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MaterialsDescHeapIndicesCB.GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
+
+	if (m_drawSponza)
 	{
-		//TODO:実装
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
+
+		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(6 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
+		}
+
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
+		}
+
+		pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+
+		pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+		}
 	}
 	else
 	{
-		pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
-
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshletsDescHeapIndicesCB.GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_MaterialsDescHeapIndicesCB.GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
-
-		if (m_drawSponza)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(5, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
-
-			for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(6 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
-			}
-
-			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
-			}
-
-			pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_VBufferTarget.GetHandleSRV()->HandleGPU);
-
-			pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
-
-			for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
-			}
-		}
-		else
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(5, m_IBL_CB.GetHandle()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(6, m_VBufferTarget.GetHandleSRV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
-		}
-
-		pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
-
-		pCmdList->RSSetViewports(1, &m_Viewport);
-		pCmdList->RSSetScissorRects(1, &m_Scissor);
-
-		pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
-		pCmdList->IASetVertexBuffers(0, 1, &VBV);
-
-		pCmdList->DrawInstanced(3, 1, 0, 0);
-
-		// SkyBoxや環境マップのBoxの描画はVBufferに加えていないので、ここで描画する
-		if (m_drawSponza)
-		{
-			// UEのDirectionalLightComponent::GetOuterSpaceLuminance()を参考にしている
-			const Vector3& discLuminance = GetSunLightDiscLuminance(m_directionalLightIntensity, Vector3::One);
-			m_SkyBox.DrawSkyAtmosphere(
-				pCmdList,
-				m_SkyViewLUT_Target,
-				m_SkyTransmittanceLUT_Target,
-				view,
-				proj,
-				viewRotProj,
-				SKY_BOX_HALF_EXTENT,
-				skyViewLutReferential,
-				PLANET_BOTTOM_RADIUS_KM,
-				-lightForward, // これはDirectionalLightの方向でなく、カメラから見た太陽の方向なので符号を逆にする
-				discLuminance
-			);
-		}
-		else
-		{
-			m_SkyBox.DrawEnvironmentCubeMap(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
-		}
-
-		DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_IBL_CB.GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(6, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
 	}
+
+	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	// SkyBoxや環境マップのBoxの描画はVBufferに加えていないので、ここで描画する
+	if (m_drawSponza)
+	{
+		// UEのDirectionalLightComponent::GetOuterSpaceLuminance()を参考にしている
+		const Vector3& discLuminance = GetSunLightDiscLuminance(m_directionalLightIntensity, Vector3::One);
+		m_SkyBox.DrawSkyAtmosphere(
+			pCmdList,
+			m_SkyViewLUT_Target,
+			m_SkyTransmittanceLUT_Target,
+			view,
+			proj,
+			viewRotProj,
+			SKY_BOX_HALF_EXTENT,
+			skyViewLutReferential,
+			PLANET_BOTTOM_RADIUS_KM,
+			-lightForward, // これはDirectionalLightの方向でなく、カメラから見た太陽の方向なので符号を逆にする
+			discLuminance
+		);
+	}
+	else
+	{
+		m_SkyBox.DrawEnvironmentCubeMap(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
+	}
+
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
