@@ -3309,10 +3309,21 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			std::wstring msPath;
 
-			if (!SearchFilePath(L"VisibilityMS.cso", msPath))
+			if (m_useMeshManager)
 			{
-				ELOG("Error : Mesh Shader Not Found");
-				return false;
+				if (!SearchFilePath(L"VBufferMS.cso", msPath))
+				{
+					ELOG("Error : Mesh Shader Not Found");
+					return false;
+				}
+			}
+			else
+			{
+				if (!SearchFilePath(L"VisibilityMS.cso", msPath))
+				{
+					ELOG("Error : Mesh Shader Not Found");
+					return false;
+				}
 			}
 
 			ComPtr<ID3DBlob> pMSBlob;
@@ -3340,10 +3351,21 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			std::wstring psPath;
 
-			if (!SearchFilePath(L"VisibilityOpaquePS.cso", psPath))
+			if (m_useMeshManager)
 			{
-				ELOG("Error : Pixel Shader Not Found");
-				return false;
+				if (!SearchFilePath(L"VBufferPS.cso", psPath))
+				{
+					ELOG("Error : Pixel Shader Not Found");
+					return false;
+				}
+			}
+			else
+			{
+				if (!SearchFilePath(L"VisibilityOpaquePS.cso", psPath))
+				{
+					ELOG("Error : Pixel Shader Not Found");
+					return false;
+				}
 			}
 
 			ComPtr<ID3DBlob> pPSBlob;
@@ -6720,42 +6742,58 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		pCmdList->ResourceBarrier(1, &b);
 	}
 
-	if (m_useMeshManager)
+	if (m_useSWRasterizer)
 	{
-		// TODO:実装
+		pCmdList->SetComputeRootSignature(m_DrawVBufferSWRasRootSig.GetPtr());
+
+		uint32_t meshIdx = 0;
+
+		pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
+		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+
+		pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
+		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+
+		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 	else
 	{
-		if (m_useSWRasterizer)
+		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_VBufferTarget.GetHandleRTV()->HandleCPU;
+		const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+		pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
+
+		m_SceneDepthTarget.ClearView(pCmdList);
+
+		pCmdList->RSSetViewports(1, &m_Viewport);
+		pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+		pCmdList->SetGraphicsRootSignature(m_DrawVBufferHWRasRootSig.GetPtr());
+
+		if (m_useMeshManager)
 		{
-			pCmdList->SetComputeRootSignature(m_DrawVBufferSWRasRootSig.GetPtr());
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-			uint32_t meshIdx = 0;
+			//TODO: SetGraphicsRootDescriptorTable()の追加
 
-			pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
-			DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+			pCmdList->ExecuteIndirect
+			(
+				m_MeshManager.GetHWRasCmdSig().Get(),
+				1,
+				m_MeshManager.GetDrawMeshletIndirectArgBB().GetResource(),
+				0,
+				nullptr,
+				0
+			);
 
-			pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
-			DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
-
-			DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 		else
 		{
-			DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-			D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_VBufferTarget.GetHandleRTV()->HandleCPU;
-			const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
-			pCmdList->OMSetRenderTargets(1, &rtv, FALSE, &handleDSV->HandleCPU);
-
-			m_SceneDepthTarget.ClearView(pCmdList);
-
-			pCmdList->RSSetViewports(1, &m_Viewport);
-			pCmdList->RSSetScissorRects(1, &m_Scissor);
-
-			pCmdList->SetGraphicsRootSignature(m_DrawVBufferHWRasRootSig.GetPtr());
-
 			uint32_t meshIdx = 0;
 
 			pCmdList->SetPipelineState(m_pDrawVBufferHWRasOpaquePSO.Get());
@@ -6763,10 +6801,10 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 			pCmdList->SetPipelineState(m_pDrawVBufferHWRasMaskPSO.Get());
 			DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
-
-			DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
+
+		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 }
 

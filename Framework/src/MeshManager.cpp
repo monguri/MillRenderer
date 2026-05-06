@@ -823,6 +823,11 @@ const Resource& MeshManager::GetMeshesDescHeapIndicesCB() const
 	return m_MeshesDescHeapIndicesCB;
 }
 
+const ComPtr<ID3D12CommandSignature>& MeshManager::GetHWRasCmdSig() const
+{
+	return m_pDrawByHWRasCmdSig;
+}
+
 uint32_t MeshManager::GetMeshletCount() const
 {
 	return m_MeshletCount;
