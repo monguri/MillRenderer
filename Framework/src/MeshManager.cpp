@@ -3,6 +3,7 @@
 #include "ResMesh.h"
 #include "Logger.h"
 #include "App.h"
+#include "FileUtil.h"
 
 #include <DirectXHelpers.h>
 #include <SimpleMath.h>
@@ -26,6 +27,7 @@ namespace
 
 	struct alignas(256) CbMaterialsDescHeapIndices
 	{
+		uint32_t IsAlphaMask[MAX_MESH_COUNT];
 		uint32_t CbMaterial[MAX_MESH_COUNT];
 		uint32_t BaseColorMap[MAX_MESH_COUNT];
 		uint32_t MetallicRoughnessMap[MAX_MESH_COUNT];
@@ -97,6 +99,22 @@ namespace
 			outVertices.emplace_back(XMVectorGetX(v3), XMVectorGetY(v3), XMVectorGetZ(v3));
 		}
 	}
+
+	std::wstring ConvertToValidFilePath(const std::wstring& filePath)
+	{
+		std::wstring result;
+		if (!SearchFilePathW(filePath.c_str(), result))
+		{
+			return std::wstring();
+		}
+
+		if (PathIsDirectoryW(result.c_str()) != FALSE)
+		{
+			return  std::wstring();
+		}
+
+		return result;
+	}
 }
 
 MeshManager::~MeshManager()
@@ -111,6 +129,7 @@ bool MeshManager::Init
 	ID3D12GraphicsCommandList* pCmdList,
 	class DescriptorPool* pPoolGpuVisible,
 	class DescriptorPool* pPoolCpuVisible,
+	const std::wstring& modelDirPath,
 	const std::vector<struct ResMesh>& resMeshes,
 	const std::vector<struct ResMaterial>& resMaterials,
 	const Texture& dummyTexture
@@ -502,8 +521,9 @@ bool MeshManager::Init
 		return false;
 	}
 
+	CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
+
 	size_t materialCount = resMaterials.size();
-	m_IsAlphaMasks.resize(materialCount);
 	m_MaterialCBs.resize(materialCount);
 	m_BaseColorMaps.resize(materialCount);
 	m_MetallicRoughnessMaps.resize(materialCount);
@@ -511,18 +531,127 @@ bool MeshManager::Init
 	m_EmissiveMaps.resize(materialCount);
 	m_AOMaps.resize(materialCount);
 
-	DirectX::ResourceUploadBatch batch(pDevice);
-	batch.Begin();
-
-	CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
-	for (size_t matIdx = 0; matIdx < resMaterials.size(); matIdx++)
 	{
-		//Matearialクラス作成
-		//materialsDescHeapIndicesへの代入
-	}
+		DirectX::ResourceUploadBatch batch(pDevice);
+		batch.Begin();
 
-	std::future<void> future = batch.End(pQueue);
-	future.wait();
+		struct alignas(256) CbMaterial
+		{
+			Vector3 BaseColorFactor;
+			float MetallicFactor;
+			float RoughnessFactor;
+			Vector3 EmissiveFactor;
+			float AlphaCutoff;
+			int bExistEmissiveTex;
+			int bExistAOTex;
+			// GBuffer用のPSOに割り振るIDだが一般にMaterialIDという用語なのでそうしている
+			unsigned int MaterialID;
+		};
+
+		for (size_t materialIdx = 0; materialIdx < materialCount; materialIdx++)
+		{
+			const ResMaterial& resMat = resMaterials[materialIdx];
+
+			m_MaterialCBs[materialIdx].InitAsConstantBuffer<CbMaterial>(
+				pDevice,
+				D3D12_HEAP_TYPE_DEFAULT,
+				pPoolGpuVisible,
+				L"CbMaterial"
+			);
+
+			// 画像ファイルがディレクトリになかった場合はTextureを初期化しない。それを判定に用いてダミーテクスチャを使うようにする。他のテクスチャも同様
+			std::wstring baseColorMapPath = ConvertToValidFilePath(modelDirPath + resMat.BaseColorMap);
+			if (baseColorMapPath.empty())
+			{
+				baseColorMapPath = ConvertToValidFilePath(modelDirPath + resMat.DiffuseMap);
+			}
+
+			if (!baseColorMapPath.empty())
+			{
+				if (!m_BaseColorMaps[materialIdx].Init(pDevice, pPoolGpuVisible, baseColorMapPath.c_str(), true, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", baseColorMapPath.c_str());
+					return false;
+				}
+			}
+
+			const std::wstring& metallicRoughnessMapPath = ConvertToValidFilePath(modelDirPath + resMat.MetallicRoughnessMap);
+			if (!metallicRoughnessMapPath.empty())
+			{
+				if (!m_MetallicRoughnessMaps[materialIdx].Init(pDevice, pPoolGpuVisible, metallicRoughnessMapPath.c_str(), false, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", metallicRoughnessMapPath.c_str());
+					return false;
+				}
+			}
+
+			const std::wstring& normalMapPath = ConvertToValidFilePath(modelDirPath + resMat.NormalMap);
+			if (!normalMapPath.empty())
+			{
+				if (!m_NormalMaps[materialIdx].Init(pDevice, pPoolGpuVisible, normalMapPath.c_str(), false, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", normalMapPath.c_str());
+					return false;
+				}
+			}
+
+			const std::wstring& emissiveMapPath = ConvertToValidFilePath(modelDirPath + resMat.EmissiveMap);
+			if (!emissiveMapPath.empty())
+			{
+				if (!m_EmissiveMaps[materialIdx].Init(pDevice, pPoolGpuVisible, emissiveMapPath.c_str(), false, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", emissiveMapPath.c_str());
+					return false;
+				}
+			}
+
+			const std::wstring& aoMapPath = ConvertToValidFilePath(modelDirPath + resMat.AmbientOcclusionMap);
+			if (!aoMapPath.empty())
+			{
+				if (!m_AOMaps[materialIdx].Init(pDevice, pPoolGpuVisible, aoMapPath.c_str(), false, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", aoMapPath.c_str());
+					return false;
+				}
+			}
+
+			CbMaterial cbMat = {};
+			cbMat.BaseColorFactor = resMat.BaseColor;
+			cbMat.MetallicFactor = resMat.MetallicFactor;
+			cbMat.RoughnessFactor = resMat.RoughnessFactor;
+			cbMat.EmissiveFactor = resMat.EmissiveFactor;
+			cbMat.AlphaCutoff = resMat.AlphaCutoff;
+			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
+			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+			// 現状、DynamicResourceを考慮するとGBuffer描画には一種類のパイプラインしか使っていない
+			cbMat.MaterialID = 0;
+
+			if (!m_MaterialCBs[materialIdx].UploadBufferTypeData<CbMaterial>(
+				pDevice,
+				pCmdList,
+				1,
+				&cbMat
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
+
+			//materialsDescHeapIndicesへの代入
+			uint32_t dummyTextureIndex = dummyTexture.GetHandleSRVPtr()->GetDescriptorIndex();
+
+			// 画像ファイルがディレクトリになかった場合はTextureを初期化してない。その場合はダミーテクスチャを使う
+			materialsDescHeapIndices.IsAlphaMask[materialIdx] = resMat.DoubleSided ? 0 : 1;
+			materialsDescHeapIndices.BaseColorMap[materialIdx] = m_BaseColorMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_BaseColorMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+			materialsDescHeapIndices.MetallicRoughnessMap[materialIdx] = m_MetallicRoughnessMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_MetallicRoughnessMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+			materialsDescHeapIndices.NormalMap[materialIdx] = m_NormalMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_NormalMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+			materialsDescHeapIndices.EmissiveMap[materialIdx] = m_EmissiveMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_EmissiveMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+			materialsDescHeapIndices.AOMap[materialIdx] = m_AOMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_AOMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+		}
+
+		std::future<void> future = batch.End(pQueue);
+		future.wait();
+	}
 
 	if (!m_MaterialsDescHeapIndicesCB.InitAsConstantBuffer<CbMaterialsDescHeapIndices>(
 		pDevice,
@@ -621,6 +750,42 @@ void MeshManager::Term()
 
 	m_DrawMeshletIndirectArgBB.Term();
 	m_DrawMeshletIndicesBB.Term();
+
+	for (Resource& CB : m_MaterialCBs)
+	{
+		CB.Term();
+	}
+	m_MaterialCBs.clear();
+
+	for (Texture& tex : m_BaseColorMaps)
+	{
+		tex.Term();
+	}
+	m_BaseColorMaps.clear();
+
+	for (Texture& tex : m_MetallicRoughnessMaps)
+	{
+		tex.Term();
+	}
+	m_MetallicRoughnessMaps.clear();
+
+	for (Texture& tex : m_NormalMaps)
+	{
+		tex.Term();
+	}
+	m_NormalMaps.clear();
+
+	for (Texture& tex : m_EmissiveMaps)
+	{
+		tex.Term();
+	}
+	m_EmissiveMaps.clear();
+
+	for (Texture& tex : m_AOMaps)
+	{
+		tex.Term();
+	}
+	m_AOMaps.clear();
 }
 
 void MeshManager::ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const

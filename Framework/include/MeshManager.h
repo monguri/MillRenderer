@@ -19,6 +19,7 @@ public:
 		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPoolGpuVisible,
 		class DescriptorPool* pPoolCpuVisible,
+		const std::wstring& modelDirPath,
 		const std::vector<struct ResMesh>& resMeshes,
 		const std::vector<struct ResMaterial>& resMaterials,
 		const class Texture& dummyTexture
@@ -63,7 +64,6 @@ private:
 	uint32_t m_MeshletCount = 0;
 
 	// óvëfêîÇÕìoò^Ç≥ÇÍÇΩMaterialêî
-	std::vector<bool> m_IsAlphaMasks;
 	std::vector<Resource> m_MaterialCBs;
 	std::vector<Texture> m_BaseColorMaps;
 	std::vector<Texture> m_MetallicRoughnessMaps;

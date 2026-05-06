@@ -914,6 +914,8 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshManager)
 		{
+			const std::wstring& dirPath = GetDirectoryPath(path.c_str());
+
 			if (!m_MeshManager.Init
 			(
 				m_pDevice.Get(),
@@ -921,6 +923,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				pCmd,
 				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
+				dirPath,
 				resMesh,
 				resMaterial,
 				m_DummyTexture
