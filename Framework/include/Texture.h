@@ -10,7 +10,6 @@ class DescriptorHandle;
 class Texture
 {
 public:
-	Texture();
 	~Texture();
 
 	bool Init
@@ -68,11 +67,10 @@ public:
 private:
 	ComPtr<ID3D12Resource> m_pTex;
 	ComPtr<ID3D12Resource> m_pUploadBuffer;
-	DescriptorHandle* m_pHandle;
-	DescriptorPool* m_pPool;
+	DescriptorHandle* m_pHandle = nullptr;
+	DescriptorPool* m_pPool = nullptr;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC GetViewDesc(bool isCube) const;
 
-	Texture(const Texture&) = delete;
 	void operator=(const Texture&) = delete;
 };

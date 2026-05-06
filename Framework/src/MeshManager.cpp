@@ -1,5 +1,4 @@
 #include "MeshManager.h"
-#include "Texture.h"
 #include "DescriptorPool.h"
 #include "ResMesh.h"
 #include "Logger.h"
@@ -108,6 +107,7 @@ MeshManager::~MeshManager()
 bool MeshManager::Init
 (
 	ID3D12Device* pDevice,
+	ID3D12CommandQueue* pQueue,
 	ID3D12GraphicsCommandList* pCmdList,
 	class DescriptorPool* pPoolGpuVisible,
 	class DescriptorPool* pPoolCpuVisible,
@@ -117,11 +117,13 @@ bool MeshManager::Init
 )
 {
 	assert(pDevice != nullptr);
+	assert(pQueue != nullptr);
+	assert(pCmdList != nullptr);
 	assert(pPoolGpuVisible != nullptr);
 	assert(pPoolCpuVisible != nullptr);
 
 	size_t meshCount = resMeshes.size();
-	m_CBs.resize(meshCount);
+	m_MeshCBs.resize(meshCount);
 	m_VBs.resize(meshCount);
 	m_MeshletsSBs.resize(meshCount);
 	m_MeshletsVerticesSBs.resize(meshCount);
@@ -154,7 +156,7 @@ bool MeshManager::Init
 
 		// Worldへのフレーム遅延は発生するが今のところ遅延しても困る使い方はしてないので
 		// 多重バッファにはしないでおく
-		if (!m_CBs[meshIdx].InitAsConstantBuffer<CbMesh>(
+		if (!m_MeshCBs[meshIdx].InitAsConstantBuffer<CbMesh>(
 			pDevice,
 			D3D12_HEAP_TYPE_DEFAULT,
 			pPoolGpuVisible,
@@ -166,7 +168,7 @@ bool MeshManager::Init
 		}
 
 		CbMesh cbMesh = {Matrix::Identity, static_cast<uint32_t>(meshIdx)};
-		if (!m_CBs[meshIdx].UploadBufferTypeData<CbMesh>(
+		if (!m_MeshCBs[meshIdx].UploadBufferTypeData<CbMesh>(
 			pDevice,
 			pCmdList,
 			1,
@@ -177,7 +179,7 @@ bool MeshManager::Init
 			return false;
 		}
 
-		meshesDescHeapIndices.CbMesh[meshIdx] = m_CBs[meshIdx].GetHandleCBV()->GetDescriptorIndex();
+		meshesDescHeapIndices.CbMesh[meshIdx] = m_MeshCBs[meshIdx].GetHandleCBV()->GetDescriptorIndex();
 
 		if (!m_VBs[meshIdx].InitAsStructuredBuffer<MeshVertex>(
 			pDevice,
@@ -500,13 +502,27 @@ bool MeshManager::Init
 		return false;
 	}
 
-	//TODO: Materialに関することは後で
+	size_t materialCount = resMaterials.size();
+	m_IsAlphaMasks.resize(materialCount);
+	m_MaterialCBs.resize(materialCount);
+	m_BaseColorMaps.resize(materialCount);
+	m_MetallicRoughnessMaps.resize(materialCount);
+	m_NormalMaps.resize(materialCount);
+	m_EmissiveMaps.resize(materialCount);
+	m_AOMaps.resize(materialCount);
+
+	DirectX::ResourceUploadBatch batch(pDevice);
+	batch.Begin();
+
 	CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
 	for (size_t matIdx = 0; matIdx < resMaterials.size(); matIdx++)
 	{
 		//Matearialクラス作成
 		//materialsDescHeapIndicesへの代入
 	}
+
+	std::future<void> future = batch.End(pQueue);
+	future.wait();
 
 	if (!m_MaterialsDescHeapIndicesCB.InitAsConstantBuffer<CbMaterialsDescHeapIndices>(
 		pDevice,
@@ -556,11 +572,11 @@ void MeshManager::Term()
 	m_MeshesDescHeapIndicesCB.Term();
 	m_MaterialsDescHeapIndicesCB.Term();
 
-	for (Resource& CB : m_CBs)
+	for (Resource& CB : m_MeshCBs)
 	{
 		CB.Term();
 	}
-	m_CBs.clear();
+	m_MeshCBs.clear();
 
 	for (Resource& VB : m_VBs)
 	{

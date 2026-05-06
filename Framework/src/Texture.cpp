@@ -42,13 +42,6 @@ namespace
 	}
 }
 
-Texture::Texture()
-: m_pTex(nullptr)
-, m_pHandle(nullptr)
-, m_pPool(nullptr)
-{
-}
-
 Texture::~Texture()
 {
 	Term();

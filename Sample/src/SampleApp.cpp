@@ -917,6 +917,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			if (!m_MeshManager.Init
 			(
 				m_pDevice.Get(),
+				m_pQueue.Get(),
 				pCmd,
 				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				m_pPool[POOL_TYPE_RES_CPU_VISIBLE],

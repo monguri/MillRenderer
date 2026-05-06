@@ -2,6 +2,7 @@
 
 #include <vector>
 #include "Resource.h"
+#include "Texture.h"
 
 // Meshlet‚ÌŠÇ—ƒNƒ‰ƒXBŒ»“_‚Å‚Í”ñMeshlet‚ÍŠÇ—‚µ‚Ä‚È‚¢B
 class MeshManager
@@ -14,6 +15,7 @@ public:
 	bool Init
 	(
 		ID3D12Device* pDevice,
+		ID3D12CommandQueue* pQueue,
 		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPoolGpuVisible,
 		class DescriptorPool* pPoolCpuVisible,
@@ -38,7 +40,7 @@ private:
 	class DescriptorPool* m_pPoolCpuVisible;
 
 	// —v‘f”‚Í“o˜^‚³‚ê‚½Mesh”
-	std::vector<Resource> m_CBs;
+	std::vector<Resource> m_MeshCBs;
 	std::vector<Resource> m_VBs;
 	std::vector<Resource> m_MeshletsSBs;
 	std::vector<Resource> m_MeshletsVerticesSBs;
@@ -59,6 +61,15 @@ private:
 	Resource m_MaterialsDescHeapIndicesCB;
 
 	uint32_t m_MeshletCount = 0;
+
+	// —v‘f”‚Í“o˜^‚³‚ê‚½Material”
+	std::vector<bool> m_IsAlphaMasks;
+	std::vector<Resource> m_MaterialCBs;
+	std::vector<Texture> m_BaseColorMaps;
+	std::vector<Texture> m_MetallicRoughnessMaps;
+	std::vector<Texture> m_NormalMaps;
+	std::vector<Texture> m_EmissiveMaps;
+	std::vector<Texture> m_AOMaps;
 
 	MeshManager(const MeshManager&) = delete;
 	void operator=(const MeshManager&) = delete;
