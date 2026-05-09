@@ -33,6 +33,7 @@ public:
 	const Resource& GetDrawMeshletIndicesBB() const;
 	const Resource& GetMeshletMeshMaterialTableSB() const;
 	const Resource& GetMeshesDescHeapIndicesCB() const;
+	const Resource& GetMaterialsDescHeapIndicesCB() const;
 
 	const ComPtr<ID3D12CommandSignature>& GetHWRasCmdSig() const;
 
