@@ -240,10 +240,10 @@ struct Material
 	float MetallicFactor;
 	float RoughnessFactor;
 	float3 EmissiveFactor;
+	uint bAlphaMask;
 	float AlphaCutoff;
-	int bExistEmissiveTex;
-	int bExistAOTex;
-	uint MaterialID;
+	uint bExistEmissiveTex;
+	uint bExistAOTex;
 };
 
 struct GBufferFromVBuffer
