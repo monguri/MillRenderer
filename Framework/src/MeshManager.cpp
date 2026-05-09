@@ -162,6 +162,7 @@ bool MeshManager::Init
 	{
 		uint32_t MeshIdx;
 		uint32_t MaterialIdx;
+		uint32_t LocalMeshletIdx;
 	};
 
 	std::vector<MeshletMeshMaterial> meshletMeshMaterialTable;
@@ -173,7 +174,7 @@ bool MeshManager::Init
 	for (size_t meshIdx = 0; meshIdx < meshCount; meshIdx++)
 	{
 		const ResMesh& resMesh = resMeshes[meshIdx];
-		size_t meshletCount = resMesh.Meshlets.size();
+		size_t localMeshletCount = resMesh.Meshlets.size();
 
 		// Worldへのフレーム遅延は発生するが今のところ遅延しても困る使い方はしてないので
 		// 多重バッファにはしないでおく
@@ -231,7 +232,7 @@ bool MeshManager::Init
 
 		if (!m_MeshletsSBs[meshIdx].InitAsStructuredBuffer<meshopt_Meshlet>(
 			pDevice,
-			meshletCount,
+			localMeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
 			pPoolGpuVisible,
@@ -246,7 +247,7 @@ bool MeshManager::Init
 		if (!m_MeshletsSBs[meshIdx].UploadBufferTypeData<meshopt_Meshlet>(
 			pDevice,
 			pCmdList,
-			meshletCount,
+			localMeshletCount,
 			resMesh.Meshlets.data()
 		))
 		{
@@ -318,11 +319,11 @@ bool MeshManager::Init
 
 		meshesDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = m_MeshletsTrianglesSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
 
-		assert(resMesh.AABBs.size() == meshletCount);
+		assert(resMesh.AABBs.size() == localMeshletCount);
 
 		if (!m_MeshletsAABBInfosSBs[meshIdx].InitAsStructuredBuffer<AABB>(
 			pDevice,
-			meshletCount,
+			localMeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
 			D3D12_RESOURCE_STATE_COMMON,
 			pPoolGpuVisible,
@@ -347,12 +348,12 @@ bool MeshManager::Init
 
 		meshesDescHeapIndices.SbMeshletAABBInfosBuffer[meshIdx] = m_MeshletsAABBInfosSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
 
-		for (size_t i = 0; i < meshletCount; i++)
+		for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
 		{
-			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(meshIdx), resMesh.MaterialIdx);
+			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(meshIdx), resMesh.MaterialIdx, static_cast<uint32_t>(localMeshletIdx));
 		}
 
-		m_MeshletCount += static_cast<uint32_t>(meshletCount);
+		m_MeshletCount += static_cast<uint32_t>(localMeshletCount);
 	}
 
 	// MeshletとMeshおよびMaterialの対応テーブルの生成

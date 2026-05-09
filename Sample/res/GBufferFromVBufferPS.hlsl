@@ -294,6 +294,7 @@ struct MeshletMeshMaterial
 {
 	uint MeshIdx;
 	uint MaterialIdx;
+	uint LocalMeshletIdx;
 };
 
 ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b0);
@@ -743,12 +744,13 @@ PSOutput main(VSOutput input)
 	MeshletMeshMaterial meshMaterial = SbMeshletMeshMaterialTable[meshletIdx];
 	uint meshIdx = meshMaterial.MeshIdx;
 	uint matIdx = meshMaterial.MaterialIdx;
+	uint localMeshletIdx = meshMaterial.LocalMeshletIdx;
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 
 	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletBufferBaseIdx + meshIdx)];
-	meshopt_Meshlet meshlet = meshlets[meshletIdx];
+	meshopt_Meshlet meshlet = meshlets[localMeshletIdx];
 
 	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletTrianglesBufferBaseIdx + meshIdx)];
 

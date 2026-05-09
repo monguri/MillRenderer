@@ -77,6 +77,7 @@ struct MeshletMeshMaterial
 {
 	uint MeshIdx;
 	uint MaterialIdx;
+	uint LocalMeshletIdx;
 };
 
 ConstantBuffer<RootConstants> CbRootConst : register(b0);
@@ -155,7 +156,7 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 
 	MeshletMeshMaterial meshMaterial = SbMeshletMeshMaterialTable[meshletIdx];
 	StructuredBuffer<AABB> meshletsAABBInfo = ResourceDescriptorHeap[GetSbMeshletAABBInfoDescHeapIndex(meshMaterial.MeshIdx)];
-	AABB aabb = meshletsAABBInfo[meshletIdx];
+	AABB aabb = meshletsAABBInfo[meshMaterial.LocalMeshletIdx];
 
 	float3 vertices[8] =
 	{

@@ -98,6 +98,7 @@ struct MeshletMeshMaterial
 {
 	uint MeshIdx;
 	uint MaterialIdx;
+	uint LocalMeshletIdx;
 };
 
 ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b0);
@@ -136,7 +137,7 @@ void main
 	StructuredBuffer<uint> SbMeshletsVertices = ResourceDescriptorHeap[GetDescHeapIndex(SbMeshletVerticesBufferBaseIdx + meshIdx)];
 	StructuredBuffer<uint> SbMeshletsTriangles = ResourceDescriptorHeap[GetDescHeapIndex(SbMeshletTrianglesBufferBaseIdx + meshIdx)];
 
-	meshopt_Meshlet meshlet = SbMeshlets[meshletIdx];
+	meshopt_Meshlet meshlet = SbMeshlets[meshMaterial.LocalMeshletIdx];
 	SetMeshOutputCounts(meshlet.VertCount, meshlet.TriCount);
 
 	if (gtid < meshlet.VertCount)

@@ -42,6 +42,7 @@ struct MeshletMeshMaterial
 {
 	uint MeshIdx;
 	uint MaterialIdx;
+	uint LocalMeshletIdx;
 };
 
 ConstantBuffer<MaterialsDescHeapIndices> CbMaterialsDescHeapIndices : register(b0);
