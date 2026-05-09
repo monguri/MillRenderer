@@ -22,8 +22,7 @@
 // C++側の定義と値の一致が必要
 static const uint MAX_MESH_COUNT = 256;
 
-// CbMesh, SbVertexBuffer, BbDrawMeshletListBuffer, SbMeshletBuffer, SbMeshletVerticesBuffer, SbMeshletTrianglesBuffer, SbMeshletAABBInfosBuffer
-static const uint EACH_MESH_DESCRIPTOR_COUNT = 7;
+static const uint EACH_MESH_DESCRIPTOR_COUNT = 6;
 
 static const uint SbMeshletAABBInfosBufferBaseIdx = (EACH_MESH_DESCRIPTOR_COUNT - 1)* MAX_MESH_COUNT;
 
@@ -31,7 +30,6 @@ struct MeshesDescHeapIndices
 {
 	//uint CbMesh[MAX_MESH_COUNT];
 	//uint SbVertexBuffer[MAX_MESH_COUNT];
-	//uint BbDrawMeshletListBuffer[MAX_MESH_COUNT];
 	//uint SbMeshletBuffer[MAX_MESH_COUNT];
 	//uint SbMeshletVerticesBuffer[MAX_MESH_COUNT];
 	//uint SbMeshletTrianglesBuffer[MAX_MESH_COUNT];
