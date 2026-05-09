@@ -168,7 +168,7 @@ bool MeshManager::Init
 
 	CbMeshesDescHeapIndices meshesDescHeapIndices = {};
 
-	size_t totalMeshletCount = 0;
+	m_MeshletCount = 0;
 
 	for (size_t meshIdx = 0; meshIdx < meshCount; meshIdx++)
 	{
@@ -352,14 +352,14 @@ bool MeshManager::Init
 			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(meshIdx), resMesh.MaterialIdx);
 		}
 
-		totalMeshletCount += meshletCount;
+		m_MeshletCount += static_cast<uint32_t>(meshletCount);
 	}
 
 	// MeshletとMeshおよびMaterialの対応テーブルの生成
 	if (!m_MeshletMeshMaterialTableSB.InitAsStructuredBuffer<MeshletMeshMaterial>
 	(
 		pDevice,
-		totalMeshletCount,
+		m_MeshletCount,
 		D3D12_RESOURCE_FLAG_NONE,
 		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
@@ -486,7 +486,7 @@ bool MeshManager::Init
 	if (!m_DrawMeshletIndicesBB.InitAsByteAddressBuffer
 	(
 		pDevice,
-		totalMeshletCount * sizeof(uint32_t),
+		m_MeshletCount * sizeof(uint32_t),
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
@@ -785,22 +785,6 @@ void MeshManager::Term()
 		tex.Term();
 	}
 	m_AOMaps.clear();
-}
-
-void MeshManager::ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const
-{
-	uint32_t clearValue[4] = {0, 0, 0, 0};
-	// 本来はX=0、Y=1、Z=1にしたいが、ClearUavWithUintValue()とByteAddressBufferではそれができないようだ。[0]の値ですべてクリアされてしまう。よってY=1、Z=1はシェーダで入れる。
-	m_DrawMeshletIndirectArgBB.ClearUavWithUintValue(pCmdList, clearValue);
-	m_DrawMeshletIndicesBB.ClearUavWithUintValue(pCmdList, clearValue);
-
-	m_DrawMeshletIndirectArgBB.BarrierUAV(pCmdList);
-	m_DrawMeshletIndicesBB.BarrierUAV(pCmdList);
-}
-
-void MeshManager::DoCulling(ID3D12GraphicsCommandList6* pCmdList) const
-{
-	//TODO:実装
 }
 
 const Resource& MeshManager::GetDrawMeshletIndirectArgBB() const

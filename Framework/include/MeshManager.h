@@ -26,8 +26,6 @@ public:
 	);
 
 	void Term();
-	void ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const;
-	void DoCulling(ID3D12GraphicsCommandList6* pCmdList) const;
 
 	const Resource& GetDrawMeshletIndirectArgBB() const;
 	const Resource& GetDrawMeshletIndicesBB() const;

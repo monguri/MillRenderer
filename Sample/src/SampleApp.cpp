@@ -6679,7 +6679,13 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	// DispatchIndirectArg、VisibleMeshletListクリア
 	if (m_useMeshManager)
 	{
-		m_MeshManager.ClearDrawMeshletBBs(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+		uint32_t clearValue[4] = {0, 0, 0, 0};
+		// 本来はX=0、Y=1、Z=1にしたいが、ClearUavWithUintValue()とByteAddressBufferではそれができないようだ。[0]の値ですべてクリアされてしまう。よってY=1、Z=1はシェーダで入れる。
+		m_MeshManager.GetDrawMeshletIndirectArgBB().ClearUavWithUintValue(pCmdList, clearValue);
+		m_MeshManager.GetDrawMeshletIndicesBB().ClearUavWithUintValue(pCmdList, clearValue);
+
+		m_MeshManager.GetDrawMeshletIndirectArgBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawMeshletIndicesBB().BarrierUAV(pCmdList);
 	}
 	else
 	{
@@ -6706,7 +6712,14 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 		pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
 		pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawMeshletIndicesBB().GetHandleUAV()->HandleGPU);
 
-		m_MeshManager.DoCulling(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
+		// シェーダ側と合わせている
+		constexpr size_t GROUP_SIZE_X = 64;
+		// グループ数は切り上げ
+		UINT NumGroupX = static_cast<UINT>((m_MeshManager.GetMeshletCount() + GROUP_SIZE_X - 1) / GROUP_SIZE_X);
+		pCmdList->Dispatch(NumGroupX, 1, 1);
+
+		m_MeshManager.GetDrawMeshletIndirectArgBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawMeshletIndicesBB().BarrierUAV(pCmdList);
 	}
 	else
 	{
