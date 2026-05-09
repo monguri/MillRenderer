@@ -718,12 +718,6 @@ void MeshManager::Term()
 	}
 	m_MeshletsSBs.clear();
 
-	for (Resource& SB : m_MeshletsSBs)
-	{
-		SB.Term();
-	}
-	m_MeshletsSBs.clear();
-
 	for (Resource& SB : m_MeshletsVerticesSBs)
 	{
 		SB.Term();
