@@ -3845,7 +3845,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		std::wstring psPath;
-		if (!SearchFilePath(L"GBufferFromVBufferPS.hlsl", psPath))
+		if (!SearchFilePath(L"GBufferFromVisibilityPS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
