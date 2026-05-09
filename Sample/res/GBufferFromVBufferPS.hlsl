@@ -34,6 +34,7 @@
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t5), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", StaticSampler"\
 "("\
 "s0"\
@@ -92,6 +93,7 @@
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t4), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", StaticSampler"\
 "("\
 "s0"\
@@ -133,52 +135,52 @@
 // C++側の定義と値の一致が必要
 static const uint MAX_MESH_COUNT = 256;
 
-// CbMesh, SbVertexBuffer, BbDrawMeshletListBuffer, SbMeshletBuffer, SbMeshletVerticesBuffer, SbMeshletTrianglesBuffer
 static const uint EACH_MESH_DESCRIPTOR_COUNT = 6;
 
-// CbMaterial, BaseColorMap, MetallicRoughnessMap, NormalMap, EmissiveMap, AOMap
-static const uint EACH_MATERIAL_DESCRIPTOR_COUNT = 6;
-
-struct MeshletsDescHeapIndices
+struct MeshesDescHeapIndices
 {
 	//uint CbMesh[MAX_MESH_COUNT];
 	//uint SbVertexBuffer[MAX_MESH_COUNT];
-	//uint BbDrawMeshletListBuffer[MAX_MESH_COUNT];
 	//uint SbMeshletBuffer[MAX_MESH_COUNT];
 	//uint SbMeshletVerticesBuffer[MAX_MESH_COUNT];
 	//uint SbMeshletTrianglesBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletAABBInfosBuffer[MAX_MESH_COUNT];
 
 	//TODO: 配列変数が複数あるとメインメモリとのメモリマッピングがうまくいかないので
 	// ひとつのuint[]にまとめてインデックスは別途ゲッターを用意する
 	uint4 Indices[MAX_MESH_COUNT * EACH_MESH_DESCRIPTOR_COUNT / 4];
 };
 
+static const uint CbMeshBaseIdx = 0;
+static const uint SbVertexBufferBaseIdx = CbMeshBaseIdx  + MAX_MESH_COUNT;
+static const uint SbMeshletBufferBaseIdx = SbVertexBufferBaseIdx + MAX_MESH_COUNT;
+static const uint SbMeshletVerticesBufferBaseIdx = SbMeshletBufferBaseIdx + MAX_MESH_COUNT;
+static const uint SbMeshletTrianglesBufferBaseIdx = SbMeshletVerticesBufferBaseIdx + MAX_MESH_COUNT;
+
+static const uint MAX_MATERIAL_COUNT = 256;
+
+static const uint EACH_MATERIAL_DESCRIPTOR_COUNT = 6;
+
 struct MaterialsDescHeapIndices
 {
-	//uint CbMaterial[MAX_MESH_COUNT];
-	//uint BaseColorMap[MAX_MESH_COUNT];
-	//uint MetallicRoughnessMap[MAX_MESH_COUNT];
-	//uint NormalMap[MAX_MESH_COUNT];
-	//uint EmissiveMap[MAX_MESH_COUNT];
-	//uint AOMap[MAX_MESH_COUNT];
+	//uint CbMaterial[MAX_MATERIAL_COUNT];
+	//uint BaseColorMap[MAX_MATERIAL_COUNT];
+	//uint MetallicRoughnessMap[MAX_MATERIAL_COUNT];
+	//uint NormalMap[MAX_MATERIAL_COUNT];
+	//uint EmissiveMap[MAX_MATERIAL_COUNT];
+	//uint AOMap[MAX_MATERIAL_COUNT];
 
 	//TODO: 配列変数が複数あるとメインメモリとのメモリマッピングがうまくいかないので
 	// ひとつのuint[]にまとめてインデックスは別途ゲッターを用意する
-	uint4 Indices[MAX_MESH_COUNT * EACH_MATERIAL_DESCRIPTOR_COUNT / 4];
+	uint4 Indices[MAX_MATERIAL_COUNT * EACH_MATERIAL_DESCRIPTOR_COUNT / 4];
 };
 
-static const uint CbMeshBaseIdx = 0;
-static const uint SbVertexBufferBaseIdx = CbMeshBaseIdx  + MAX_MESH_COUNT;
-static const uint BbDrawMeshletListBufferBaseIdx = SbVertexBufferBaseIdx + MAX_MESH_COUNT;
-static const uint SbMeshletBufferBaseIdx = BbDrawMeshletListBufferBaseIdx + MAX_MESH_COUNT;
-static const uint SbMeshletVerticesBufferBaseIdx = SbMeshletBufferBaseIdx + MAX_MESH_COUNT;
-static const uint SbMeshletTrianglesBufferBaseIdx = SbMeshletVerticesBufferBaseIdx + MAX_MESH_COUNT;
 static const uint CbMaterialBaseIdx = 0;
-static const uint BaseColorMapBaseIdx = CbMaterialBaseIdx + MAX_MESH_COUNT;
-static const uint MetallicRoughnessMapBaseIdx = BaseColorMapBaseIdx + MAX_MESH_COUNT;
-static const uint NormalMapBaseIdx = MetallicRoughnessMapBaseIdx + MAX_MESH_COUNT;
-static const uint EmissiveMapBaseIdx = NormalMapBaseIdx + MAX_MESH_COUNT;
-static const uint AOMapBaseIdx = EmissiveMapBaseIdx + MAX_MESH_COUNT;
+static const uint BaseColorMapBaseIdx = CbMaterialBaseIdx + MAX_MATERIAL_COUNT;
+static const uint MetallicRoughnessMapBaseIdx = BaseColorMapBaseIdx + MAX_MATERIAL_COUNT;
+static const uint NormalMapBaseIdx = MetallicRoughnessMapBaseIdx + MAX_MATERIAL_COUNT;
+static const uint EmissiveMapBaseIdx = NormalMapBaseIdx + MAX_MATERIAL_COUNT;
+static const uint AOMapBaseIdx = EmissiveMapBaseIdx + MAX_MATERIAL_COUNT;
 
 // TODO:冗長
 // VBの頂点構造体
@@ -288,7 +290,13 @@ struct IBL
 	float LightIntensity;
 };
 
-ConstantBuffer<MeshletsDescHeapIndices> CbMeshletsDescHeapIndices : register(b0);
+struct MeshletMeshMaterial
+{
+	uint MeshIdx;
+	uint MaterialIdx;
+};
+
+ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b0);
 ConstantBuffer<MaterialsDescHeapIndices> CbMaterialsDescHeapIndices : register(b1);
 ConstantBuffer<Transform> CbTransform : register(b2);
 ConstantBuffer<Camera> CbCamera : register(b3);
@@ -315,27 +323,29 @@ Texture2D DirLightShadowMap : register(t1);
 Texture2D SpotLight1ShadowMap : register(t2);
 Texture2D SpotLight2ShadowMap : register(t3);
 Texture2D SpotLight3ShadowMap : register(t4);
+StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t5);
 #else // ifdef DRAW_SPONZA
 Texture2D DFGMap : register(t1);
 TextureCube DiffuseLDMap : register(t2);
 TextureCube SpecularLDMap : register(t3);
+StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t4);
 #endif // ifdef DRAW_SPONZA
 
-uint GetMeshletDescHeapIndex(uint meshIdx)
+uint GetMeshDescHeapIndex(uint meshIdx)
 {
 	// [idx / 4][idx % 4]にあたる
 	// CBなので4つ分のインデックスをuint4で1セットにしているため
-	uint ret = CbMeshletsDescHeapIndices.Indices[meshIdx >> 2][meshIdx & 0b11];
-	//uint ret = CbMeshletsDescHeapIndices.Indices[meshIdx / 4][meshIdx % 4];
+	uint ret = CbMeshesDescHeapIndices.Indices[meshIdx >> 2][meshIdx & 0b11];
+	//uint ret = CbMeshesDescHeapIndices.Indices[meshIdx / 4][meshIdx % 4];
 	return ret;
 }
 
-uint GetMaterialDescHeapIndex(uint meshIdx)
+uint GetMaterialDescHeapIndex(uint matIdx)
 {
 	// [idx / 4][idx % 4]にあたる
 	// CBなので4つ分のインデックスをuint4で1セットにしているため
-	uint ret = CbMaterialsDescHeapIndices.Indices[meshIdx >> 2][meshIdx & 0b11];
-	//uint ret = CbMaterialsDescHeapIndices.Indices[meshIdx / 4][meshIdx % 4];
+	uint ret = CbMaterialsDescHeapIndices.Indices[matIdx >> 2][matIdx & 0b11];
+	//uint ret = CbMaterialsDescHeapIndices.Indices[matIdx / 4][matIdx % 4];
 	return ret;
 }
 
@@ -727,40 +737,43 @@ PSOutput main(VSOutput input)
 		discard;
 	}
 
-	uint meshIdx = visibility.x >> 23; // 9bit
 	uint meshletIdx = (visibility.x >> 7) & 0xffff; // 16bit
 	uint triangleIdx = visibility.x & 0x7f; // 7bit
+
+	MeshletMeshMaterial meshMaterial = SbMeshletMeshMaterialTable[meshletIdx];
+	uint meshIdx = meshMaterial.MeshIdx;
+	uint matIdx = meshMaterial.MaterialIdx;
 
 	// [-1,1]x[-1,1]
 	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
 
-	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[GetMeshletDescHeapIndex(SbMeshletBufferBaseIdx + meshIdx)];
+	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletBufferBaseIdx + meshIdx)];
 	meshopt_Meshlet meshlet = meshlets[meshletIdx];
 
-	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[GetMeshletDescHeapIndex(SbMeshletTrianglesBufferBaseIdx + meshIdx)];
+	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletTrianglesBufferBaseIdx + meshIdx)];
 
 	uint triBaseIdx = meshlet.TriOffset + triangleIdx * 3;
 	uint index0 = meshletsTriangles[triBaseIdx];
 	uint index1 = meshletsTriangles[triBaseIdx + 1];
 	uint index2 = meshletsTriangles[triBaseIdx + 2];
 
-	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[GetMeshletDescHeapIndex(SbMeshletVerticesBufferBaseIdx + meshIdx)];
+	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletVerticesBufferBaseIdx + meshIdx)];
 	uint vertIdx0 = meshletsVertices[meshlet.VertOffset + index0];
 	uint vertIdx1 = meshletsVertices[meshlet.VertOffset + index1];
 	uint vertIdx2 = meshletsVertices[meshlet.VertOffset + index2];
 
-	StructuredBuffer<VSInput> SbVertexBuffer = ResourceDescriptorHeap[GetMeshletDescHeapIndex(SbVertexBufferBaseIdx + meshIdx)];
+	StructuredBuffer<VSInput> SbVertexBuffer = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbVertexBufferBaseIdx + meshIdx)];
 	VSInput vertex0 = SbVertexBuffer[vertIdx0];
 	VSInput vertex1 = SbVertexBuffer[vertIdx1];
 	VSInput vertex2 = SbVertexBuffer[vertIdx2];
 
-	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[GetMeshletDescHeapIndex(CbMeshBaseIdx + meshIdx)];
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[GetMeshDescHeapIndex(CbMeshBaseIdx + meshIdx)];
 	// TODO: 思うに、Triangleの3点がわかるならddx(uv)、ddy(uv)、すなわちDuvDpx、DuvDpyは求まるのでは？ピクセル座標で3頂点のUVからヤコビ案計算でわかりそうなものだ
 	// 方法こそ違えど、CalcFullBaryでやっていることと同じでは？
 #if 0
 	// View Spaceで計算する
 
-	Texture2D DepthBuffer = ResourceDescriptorHeap[CbMeshletsDescHeapIndices.DepthBuffer];
+	Texture2D DepthBuffer = ResourceDescriptorHeap[CbMeshesDescHeapIndices.DepthBuffer];
 	float deviceZ = DepthBuffer.Sample(PointClampSmp, input.TexCoord).r;
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
 	float3 viewPos = ConverFromNDCToVS(ndcPos, CbGBufferFromVBuffer.Near, CbGBufferFromVBuffer.InvProjMatrix);
@@ -820,12 +833,12 @@ PSOutput main(VSOutput input)
 	BaryInterpolateDeriv2(barycentricDeriv, vertex0.TexCoord, vertex1.TexCoord, vertex2.TexCoord, texCoord, texCoordDdx, texCoordDdy);
 
 	// GBuffer描画に必要なリソースを取得
-	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetMaterialDescHeapIndex(CbMaterialBaseIdx + meshIdx)];
-	Texture2D BaseColorMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(BaseColorMapBaseIdx + meshIdx)];
-	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(MetallicRoughnessMapBaseIdx + meshIdx)];
-	Texture2D NormalMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(NormalMapBaseIdx + meshIdx)];
-	Texture2D EmissiveMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(EmissiveMapBaseIdx + meshIdx)];
-	Texture2D AOMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(AOMapBaseIdx + meshIdx)];
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetMaterialDescHeapIndex(CbMaterialBaseIdx + matIdx)];
+	Texture2D BaseColorMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(BaseColorMapBaseIdx + matIdx)];
+	Texture2D MetallicRoughnessMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(MetallicRoughnessMapBaseIdx + matIdx)];
+	Texture2D NormalMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(NormalMapBaseIdx + matIdx)];
+	Texture2D EmissiveMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(EmissiveMapBaseIdx + matIdx)];
+	Texture2D AOMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(AOMapBaseIdx + matIdx)];
 
 	PSOutput output = (PSOutput)0;
 

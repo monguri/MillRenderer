@@ -3845,10 +3845,21 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		std::wstring psPath;
-		if (!SearchFilePath(L"GBufferFromVisibilityPS.hlsl", psPath))
+		if (m_useMeshManager)
 		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
+			if (!SearchFilePath(L"GBufferFromVBufferPS.hlsl", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
+		}
+		else
+		{
+			if (!SearchFilePath(L"GBufferFromVisibilityPS.hlsl", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
 		}
 
 		std::vector<const wchar_t*> compileArgs =
@@ -6873,6 +6884,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	}
 
 	// GBufferFromVBuffer専用の定数バッファ更新
+	if (!m_useMeshManager)
 	{
 		{
 			CbMeshletsDescHeapIndices* ptr = m_MeshletsDescHeapIndicesCB.GetPtr<CbMeshletsDescHeapIndices>();
@@ -6949,8 +6961,16 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 
 	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
 
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshletsDescHeapIndicesCB.GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_MaterialsDescHeapIndicesCB.GetHandle()->HandleGPU);
+	if (m_useMeshManager)
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+	}
+	else
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshletsDescHeapIndicesCB.GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_MaterialsDescHeapIndicesCB.GetHandle()->HandleGPU);
+	}
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
@@ -6977,6 +6997,11 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		{
 			pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 		}
+
+		if (m_useMeshManager)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + 2 * NUM_SPOT_LIGHTS, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+		}
 	}
 	else
 	{
@@ -6985,6 +7010,11 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
+
+		if (m_useMeshManager)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(10, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+		}
 	}
 
 	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
