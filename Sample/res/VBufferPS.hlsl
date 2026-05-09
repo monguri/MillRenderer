@@ -44,8 +44,8 @@ struct MeshletMeshMaterial
 	uint MaterialIdx;
 };
 
-ConstantBuffer<MaterialsDescHeapIndices> CbMaterialsDescHeapIndices : register(b2);
-StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t1);
+ConstantBuffer<MaterialsDescHeapIndices> CbMaterialsDescHeapIndices : register(b0);
+StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t0);
 SamplerState AnisotropicWrapSmp : register(s0);
 
 static const uint CbMaterialBaseIdx = 0;

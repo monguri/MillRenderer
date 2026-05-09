@@ -6819,9 +6819,9 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 			pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetDrawMeshletIndicesBB().GetHandleSRV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(5, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 
 			pCmdList->SetPipelineState(m_pDrawVBufferHWRasPSO.Get());
