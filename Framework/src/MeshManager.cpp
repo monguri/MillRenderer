@@ -641,7 +641,7 @@ bool MeshManager::Init
 			uint32_t dummyTextureIndex = dummyTexture.GetHandleSRVPtr()->GetDescriptorIndex();
 
 			// 画像ファイルがディレクトリになかった場合はTextureを初期化してない。その場合はダミーテクスチャを使う
-			materialsDescHeapIndices.BaseColorMap[materialIdx] = m_BaseColorMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_BaseColorMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+			materialsDescHeapIndices.CbMaterial[materialIdx] = m_MaterialCBs[materialIdx].GetHandleCBV()->GetDescriptorIndex();
 			materialsDescHeapIndices.MetallicRoughnessMap[materialIdx] = m_MetallicRoughnessMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_MetallicRoughnessMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
 			materialsDescHeapIndices.NormalMap[materialIdx] = m_NormalMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_NormalMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
 			materialsDescHeapIndices.EmissiveMap[materialIdx] = m_EmissiveMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_EmissiveMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
