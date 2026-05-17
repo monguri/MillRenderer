@@ -6692,11 +6692,11 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	{
 		uint32_t clearValue[4] = {0, 0, 0, 0};
 		// 本来はX=0、Y=1、Z=1にしたいが、ClearUavWithUintValue()とByteAddressBufferではそれができないようだ。[0]の値ですべてクリアされてしまう。よってY=1、Z=1はシェーダで入れる。
-		m_MeshManager.GetDrawMeshletIndirectArgBB().ClearUavWithUintValue(pCmdList, clearValue);
-		m_MeshManager.GetDrawMeshletIndicesBB().ClearUavWithUintValue(pCmdList, clearValue);
+		m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().ClearUavWithUintValue(pCmdList, clearValue);
+		m_MeshManager.GetDrawOpaqueMeshletIndicesBB().ClearUavWithUintValue(pCmdList, clearValue);
 
-		m_MeshManager.GetDrawMeshletIndirectArgBB().BarrierUAV(pCmdList);
-		m_MeshManager.GetDrawMeshletIndicesBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawOpaqueMeshletIndicesBB().BarrierUAV(pCmdList);
 	}
 	else
 	{
@@ -6720,8 +6720,8 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 		pCmdList->SetComputeRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 		pCmdList->SetComputeRootDescriptorTable(3, m_CullingCB.GetHandle()->HandleGPU);
 		pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleUAV()->HandleGPU);
 
 		// シェーダ側と合わせている
 		constexpr size_t GROUP_SIZE_X = 64;
@@ -6729,8 +6729,8 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 		UINT NumGroupX = static_cast<UINT>((m_MeshManager.GetMeshletCount() + GROUP_SIZE_X - 1) / GROUP_SIZE_X);
 		pCmdList->Dispatch(NumGroupX, 1, 1);
 
-		m_MeshManager.GetDrawMeshletIndirectArgBB().BarrierUAV(pCmdList);
-		m_MeshManager.GetDrawMeshletIndicesBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawOpaqueMeshletIndicesBB().BarrierUAV(pCmdList);
 	}
 	else
 	{
@@ -6814,12 +6814,12 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 		if (m_useMeshManager)
 		{
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 			pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(5, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
@@ -6829,14 +6829,14 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 			(
 				m_MeshManager.GetHWRasCmdSig().Get(),
 				1,
-				m_MeshManager.GetDrawMeshletIndirectArgBB().GetResource(),
+				m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
 				0,
 				nullptr,
 				0
 			);
 
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 		else
 		{

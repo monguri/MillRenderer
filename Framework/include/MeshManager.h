@@ -27,8 +27,8 @@ public:
 
 	void Term();
 
-	const Resource& GetDrawMeshletIndirectArgBB() const;
-	const Resource& GetDrawMeshletIndicesBB() const;
+	const Resource& GetDrawOpaqueMeshletIndirectArgBB() const;
+	const Resource& GetDrawOpaqueMeshletIndicesBB() const;
 	const Resource& GetMeshletMeshMaterialTableSB() const;
 	const Resource& GetMeshesDescHeapIndicesCB() const;
 	const Resource& GetMaterialsDescHeapIndicesCB() const;
@@ -56,8 +56,8 @@ private:
 
 	ComPtr<ID3D12CommandSignature> m_pDrawByHWRasCmdSig;
 	ComPtr<ID3D12CommandSignature> m_pDrawBySWRasCmdSig;
-	Resource m_DrawMeshletIndirectArgBB;
-	Resource m_DrawMeshletIndicesBB;
+	Resource m_DrawOpaqueMeshletIndirectArgBB;
+	Resource m_DrawOpaqueMeshletIndicesBB;
 
 	Resource m_MeshesDescHeapIndicesCB;
 	Resource m_MaterialsDescHeapIndicesCB;

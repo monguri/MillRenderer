@@ -465,7 +465,7 @@ bool MeshManager::Init
 	}
 
 	// Meshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
-	if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
+	if (!m_DrawOpaqueMeshletIndirectArgBB.InitAsByteAddressBuffer
 	(
 		pDevice,
 		3 * sizeof(uint32_t),
@@ -481,10 +481,10 @@ bool MeshManager::Init
 		return false;
 	}
 
-	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_DrawOpaqueMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	// Meshlet描画用のカリング済みMeshletIdxリストの生成
-	if (!m_DrawMeshletIndicesBB.InitAsByteAddressBuffer
+	if (!m_DrawOpaqueMeshletIndicesBB.InitAsByteAddressBuffer
 	(
 		pDevice,
 		m_MeshletCount * sizeof(uint32_t),
@@ -500,7 +500,7 @@ bool MeshManager::Init
 		return false;
 	}
 
-	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_DrawOpaqueMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	if (!m_MeshesDescHeapIndicesCB.InitAsConstantBuffer<CbMeshesDescHeapIndices>(
 		pDevice,
@@ -743,8 +743,8 @@ void MeshManager::Term()
 	m_UnitCubeVB.Term();
 	m_UnitCubeIB.Term();
 
-	m_DrawMeshletIndirectArgBB.Term();
-	m_DrawMeshletIndicesBB.Term();
+	m_DrawOpaqueMeshletIndirectArgBB.Term();
+	m_DrawOpaqueMeshletIndicesBB.Term();
 
 	for (Resource& CB : m_MaterialCBs)
 	{
@@ -783,14 +783,14 @@ void MeshManager::Term()
 	m_AOMaps.clear();
 }
 
-const Resource& MeshManager::GetDrawMeshletIndirectArgBB() const
+const Resource& MeshManager::GetDrawOpaqueMeshletIndirectArgBB() const
 {
-	return m_DrawMeshletIndirectArgBB;
+	return m_DrawOpaqueMeshletIndirectArgBB;
 }
 
-const Resource& MeshManager::GetDrawMeshletIndicesBB() const
+const Resource& MeshManager::GetDrawOpaqueMeshletIndicesBB() const
 {
-	return m_DrawMeshletIndicesBB;
+	return m_DrawOpaqueMeshletIndicesBB;
 }
 
 const Resource& MeshManager::GetMeshletMeshMaterialTableSB() const
