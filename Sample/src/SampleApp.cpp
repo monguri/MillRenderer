@@ -6697,6 +6697,12 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 		m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().BarrierUAV(pCmdList);
 		m_MeshManager.GetDrawOpaqueMeshletIndicesBB().BarrierUAV(pCmdList);
+
+		m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().ClearUavWithUintValue(pCmdList, clearValue);
+		m_MeshManager.GetDrawMaskedMeshletIndicesBB().ClearUavWithUintValue(pCmdList, clearValue);
+
+		m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawMaskedMeshletIndicesBB().BarrierUAV(pCmdList);
 	}
 	else
 	{
@@ -6722,6 +6728,8 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 		pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 		pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
 		pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleUAV()->HandleGPU);
 
 		// シェーダ側と合わせている
 		constexpr size_t GROUP_SIZE_X = 64;
@@ -6731,6 +6739,8 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 		m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().BarrierUAV(pCmdList);
 		m_MeshManager.GetDrawOpaqueMeshletIndicesBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawMaskedMeshletIndicesBB().BarrierUAV(pCmdList);
 	}
 	else
 	{

@@ -17,6 +17,8 @@
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u1), visibility = SHADER_VISIBILITY_ALL)"\
+", DescriptorTable(UAV(u2), visibility = SHADER_VISIBILITY_ALL)"\
+", DescriptorTable(UAV(u3), visibility = SHADER_VISIBILITY_ALL)"\
 
 //TODO: GBufferFromVBufferPS.hlslと共通化できる定数は共通ヘッダに移す
 // C++側の定義と値の一致が必要
@@ -78,6 +80,7 @@ struct MeshletMeshMaterial
 	uint MeshIdx;
 	uint MaterialIdx;
 	uint LocalMeshletIdx;
+	uint bMasked;
 };
 
 ConstantBuffer<RootConstants> CbRootConst : register(b0);
@@ -85,8 +88,10 @@ ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b1);
 ConstantBuffer<Transform> CbTransform : register(b2);
 ConstantBuffer<Culling> CbCulling : register(b3);
 StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t0);
-RWByteAddressBuffer DrawVBufferIndirectArgBB : register(u0);
-RWByteAddressBuffer DrawVBufferMeshletListBB : register(u1);
+RWByteAddressBuffer DrawOpaqueMeshletIndirectArgBB : register(u0);
+RWByteAddressBuffer DrawOpaqueMeshletIndicesBB : register(u1);
+RWByteAddressBuffer DrawMaskedMeshletIndirectArgBB : register(u2);
+RWByteAddressBuffer DrawMaskedMeshletIndicesBB : register(u3);
 
 uint GetCbMeshDescHeapIndex(uint meshIdx)
 {
@@ -145,8 +150,10 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 	if (meshletIdx == 0)
 	{
 		// Y=1,Z=1の引数初期化。cppでClearUavWithUintValue()でやりにくいためここで。
-		DrawVBufferIndirectArgBB.Store(4, 1);
-		DrawVBufferIndirectArgBB.Store(8, 1);
+		DrawOpaqueMeshletIndirectArgBB.Store(4, 1);
+		DrawOpaqueMeshletIndirectArgBB.Store(8, 1);
+		DrawMaskedMeshletIndirectArgBB.Store(4, 1);
+		DrawMaskedMeshletIndirectArgBB.Store(8, 1);
 	}
 
 	if (meshletIdx >= CbRootConst.MeshletCount)
@@ -187,9 +194,17 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 
 	if (visible)
 	{
-		uint visibleMeshletIdx;
-		DrawVBufferIndirectArgBB.InterlockedAdd(0, 1, visibleMeshletIdx);
-
-		DrawVBufferMeshletListBB.Store(visibleMeshletIdx * 4, meshletIdx);
+		if (meshMaterial.bMasked == 0)
+		{
+			uint drawMeshletIdx;
+			DrawOpaqueMeshletIndirectArgBB.InterlockedAdd(0, 1, drawMeshletIdx);
+			DrawOpaqueMeshletIndicesBB.Store(drawMeshletIdx * 4, meshletIdx);
+		}
+		else
+		{
+			uint drawMeshletIdx;
+			DrawMaskedMeshletIndirectArgBB.InterlockedAdd(0, 1, drawMeshletIdx);
+			DrawMaskedMeshletIndicesBB.Store(drawMeshletIdx * 4, meshletIdx);
+		}
 	}
 }
