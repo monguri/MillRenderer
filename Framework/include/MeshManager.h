@@ -29,6 +29,8 @@ public:
 
 	const Resource& GetDrawOpaqueMeshletIndirectArgBB() const;
 	const Resource& GetDrawOpaqueMeshletIndicesBB() const;
+	const Resource& GetDrawMaskedMeshletIndirectArgBB() const;
+	const Resource& GetDrawMaskedMeshletIndicesBB() const;
 	const Resource& GetMeshletMeshMaterialTableSB() const;
 	const Resource& GetMeshesDescHeapIndicesCB() const;
 	const Resource& GetMaterialsDescHeapIndicesCB() const;
@@ -58,6 +60,8 @@ private:
 	ComPtr<ID3D12CommandSignature> m_pDrawBySWRasCmdSig;
 	Resource m_DrawOpaqueMeshletIndirectArgBB;
 	Resource m_DrawOpaqueMeshletIndicesBB;
+	Resource m_DrawMaskedMeshletIndirectArgBB;
+	Resource m_DrawMaskedMeshletIndicesBB;
 
 	Resource m_MeshesDescHeapIndicesCB;
 	Resource m_MaterialsDescHeapIndicesCB;

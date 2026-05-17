@@ -464,7 +464,7 @@ bool MeshManager::Init
 		}
 	}
 
-	// Meshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
+	// OpaqueのMeshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
 	if (!m_DrawOpaqueMeshletIndirectArgBB.InitAsByteAddressBuffer
 	(
 		pDevice,
@@ -483,7 +483,7 @@ bool MeshManager::Init
 
 	DirectX::TransitionResource(pCmdList, m_DrawOpaqueMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	// Meshlet描画用のカリング済みMeshletIdxリストの生成
+	// OpaqueのMeshlet描画用のカリング済みMeshletIdxリストの生成
 	if (!m_DrawOpaqueMeshletIndicesBB.InitAsByteAddressBuffer
 	(
 		pDevice,
@@ -501,6 +501,44 @@ bool MeshManager::Init
 	}
 
 	DirectX::TransitionResource(pCmdList, m_DrawOpaqueMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	// MaskedのMeshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
+	if (!m_DrawMaskedMeshletIndirectArgBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		3 * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndirectArgBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawMaskedMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	// MaskedのMeshlet描画用のカリング済みMeshletIdxリストの生成
+	if (!m_DrawMaskedMeshletIndicesBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		m_MeshletCount * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndicesBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawMaskedMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	if (!m_MeshesDescHeapIndicesCB.InitAsConstantBuffer<CbMeshesDescHeapIndices>(
 		pDevice,
@@ -745,6 +783,8 @@ void MeshManager::Term()
 
 	m_DrawOpaqueMeshletIndirectArgBB.Term();
 	m_DrawOpaqueMeshletIndicesBB.Term();
+	m_DrawMaskedMeshletIndirectArgBB.Term();
+	m_DrawMaskedMeshletIndicesBB.Term();
 
 	for (Resource& CB : m_MaterialCBs)
 	{
@@ -791,6 +831,16 @@ const Resource& MeshManager::GetDrawOpaqueMeshletIndirectArgBB() const
 const Resource& MeshManager::GetDrawOpaqueMeshletIndicesBB() const
 {
 	return m_DrawOpaqueMeshletIndicesBB;
+}
+
+const Resource& MeshManager::GetDrawMaskedMeshletIndirectArgBB() const
+{
+	return m_DrawMaskedMeshletIndirectArgBB;
+}
+
+const Resource& MeshManager::GetDrawMaskedMeshletIndicesBB() const
+{
+	return m_DrawMaskedMeshletIndicesBB;
 }
 
 const Resource& MeshManager::GetMeshletMeshMaterialTableSB() const
