@@ -117,6 +117,23 @@ namespace
 
 		return result;
 	}
+
+	// シェーダはOpaqueでかつTwoSideでないもの用と、MaskedでTwoSideなもの用の2種類しか用意しないのでその他があれば弾く
+	bool IsMaterialValid(const ResMaterial& resMat)
+	{
+		switch (resMat.AlphaMode)
+		{
+			case ALPHA_MODE_OPAQUE:
+				return !resMat.DoubleSided;
+			case ALPHA_MODE_MASK:
+				return resMat.DoubleSided;
+			case ALPHA_MODE_BLEND:
+				return false;
+			default:
+				assert(false);
+				return false;
+		}
+	}
 }
 
 MeshManager::~MeshManager()
@@ -163,6 +180,7 @@ bool MeshManager::Init
 		uint32_t MeshIdx;
 		uint32_t MaterialIdx;
 		uint32_t LocalMeshletIdx;
+		uint32_t bMasked;
 	};
 
 	std::vector<MeshletMeshMaterial> meshletMeshMaterialTable;
@@ -171,9 +189,15 @@ bool MeshManager::Init
 
 	m_MeshletCount = 0;
 
-	for (size_t meshIdx = 0; meshIdx < meshCount; meshIdx++)
+	size_t meshIdx = 0;
+	for (const ResMesh& resMesh : resMeshes)
 	{
-		const ResMesh& resMesh = resMeshes[meshIdx];
+		const ResMaterial& resMat = resMaterials[resMesh.MaterialIdx];
+		if (!IsMaterialValid(resMat))
+		{
+			continue;
+		}
+
 		size_t localMeshletCount = resMesh.Meshlets.size();
 
 		// Worldへのフレーム遅延は発生するが今のところ遅延しても困る使い方はしてないので
@@ -354,6 +378,8 @@ bool MeshManager::Init
 		}
 
 		m_MeshletCount += static_cast<uint32_t>(localMeshletCount);
+
+		meshIdx++;
 	}
 
 	// MeshletとMeshおよびMaterialの対応テーブルの生成
@@ -591,6 +617,8 @@ bool MeshManager::Init
 		for (size_t materialIdx = 0; materialIdx < materialCount; materialIdx++)
 		{
 			const ResMaterial& resMat = resMaterials[materialIdx];
+			// マテリアルの情報はResMeshのもつMaterialIdxから引っ張ってくるので
+			// IsValidMaterial()によってはじくことはしない
 
 			m_MaterialCBs[materialIdx].InitAsConstantBuffer<CbMaterial>(
 				pDevice,
