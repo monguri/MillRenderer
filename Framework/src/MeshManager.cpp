@@ -372,9 +372,11 @@ bool MeshManager::Init
 
 		meshesDescHeapIndices.SbMeshletAABBInfosBuffer[meshIdx] = m_MeshletsAABBInfosSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
 
+		bool bMasked = (resMat.AlphaMode == ALPHA_MODE_MASK) && resMat.DoubleSided;
 		for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
 		{
-			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(meshIdx), resMesh.MaterialIdx, static_cast<uint32_t>(localMeshletIdx));
+
+			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(meshIdx), resMesh.MaterialIdx, static_cast<uint32_t>(localMeshletIdx), bMasked ? 1 : 0);
 		}
 
 		m_MeshletCount += static_cast<uint32_t>(localMeshletCount);
