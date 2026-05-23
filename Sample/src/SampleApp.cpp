@@ -2580,45 +2580,32 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!SearchFilePath(L"SponzaOpaquePS.hlsl", psPath))
+		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		std::vector<const wchar_t*> compileArgs =
+		ComPtr<ID3DBlob> pOpaquePSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
+		if (FAILED(hr))
 		{
-			L"-T ps_6_7",
-			L"-I", L"../res",
-#if defined(DEBUG) || defined(_DEBUG)
-			L"-Zi",
-			L"-Qembed_debug",
-			L"-Od"
-#endif
-		};
-		if (m_useMeshlet)
-		{
-			compileArgs.push_back(L"-D USE_MESHLET");
-		}
-
-		ComPtr<IDxcBlob> pOpaquePSBlob;
-		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pOpaquePSBlob))
-		{
-			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
 		// AlphaModeがMaskのマテリアル用
-		if (!SearchFilePath(L"SponzaMaskPS.hlsl", psPath))
+		if (!SearchFilePath(L"SponzaMaskPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
 		}
 
-		ComPtr<IDxcBlob> pMaskPSBlob;
-		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pMaskPSBlob))
+		ComPtr<ID3DBlob> pMaskPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pMaskPSBlob.GetAddressOf());
+		if (FAILED(hr))
 		{
-			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
 			return false;
 		}
 
