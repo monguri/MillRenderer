@@ -2555,10 +2555,21 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		// AlphaModeがMaskのシャドウマップ描画用
 		std::wstring psPath;
-		if (!SearchFilePath(L"DepthMaskPS.hlsl", psPath))
+		if (m_useMeshManager)
 		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
+			if (!SearchFilePath(L"DepthMeshesMaskPS.hlsl", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
+		}
+		else
+		{
+			if (!SearchFilePath(L"DepthMaskPS.hlsl", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
 		}
 
 		std::vector<const wchar_t*> compileArgs =
@@ -2617,10 +2628,21 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring msPath;
-			if (!SearchFilePath(L"DepthMS.cso", msPath))
+			if (m_useMeshManager)
 			{
-				ELOG("Error : Mesh Shader Not Found");
-				return false;
+				if (!SearchFilePath(L"DepthMeshesMS.cso", msPath))
+				{
+					ELOG("Error : Mesh Shader Not Found");
+					return false;
+				}
+			}
+			else
+			{
+				if (!SearchFilePath(L"DepthMS.cso", msPath))
+				{
+					ELOG("Error : Mesh Shader Not Found");
+					return false;
+				}
 			}
 
 			ComPtr<ID3DBlob> pMSBlob;
@@ -6488,8 +6510,12 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 	}
 
 	// Opaqueマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pDepthPSO.Get());
-	DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+	// TODO: MeshManagerではOpaqueとMaskedを分類して新たなIndirectArgとMeshletListを作るのが面倒なので両方Maskedマテリアルで描画している
+	if (!m_useMeshManager)
+	{
+		pCmdList->SetPipelineState(m_pDepthPSO.Get());
+		DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+	}
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pDepthMaskPSO.Get());
@@ -6513,8 +6539,12 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 	}
 
 	// Opaqueマテリアルのメッシュの描画
-	pCmdList->SetPipelineState(m_pDepthPSO.Get());
-	DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+	// TODO: MeshManagerではOpaqueとMaskedを分類して新たなIndirectArgとMeshletListを作るのが面倒なので両方Maskedマテリアルで描画している
+	if (!m_useMeshManager)
+	{
+		pCmdList->SetPipelineState(m_pDepthPSO.Get());
+		DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+	}
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pDepthMaskPSO.Get());
@@ -7413,7 +7443,12 @@ void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA
 {
 	if (m_useMeshManager)
 	{
-		//TODO:実装
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+
+		static_cast<ID3D12GraphicsCommandList6*>(pCmdList)->DispatchMesh(m_MeshManager.GetMeshletCount(), 1, 1);
 	}
 	else
 	{
