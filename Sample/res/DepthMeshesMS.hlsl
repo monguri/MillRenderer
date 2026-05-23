@@ -99,8 +99,8 @@ struct MeshletMeshMaterial
 	uint bMasked;
 };
 
-ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b0);
-ConstantBuffer<Transform> CbTransform : register(b1);
+ConstantBuffer<Transform> CbTransform : register(b0);
+ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b1);
 StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t0);
 
 uint GetDescHeapIndex(uint meshIdx)
