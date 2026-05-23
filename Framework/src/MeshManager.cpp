@@ -690,7 +690,7 @@ bool MeshManager::Init
 			cbMat.MetallicFactor = resMat.MetallicFactor;
 			cbMat.RoughnessFactor = resMat.RoughnessFactor;
 			cbMat.EmissiveFactor = resMat.EmissiveFactor;
-			cbMat.bAlphaMask = resMat.DoubleSided ? 0 : 1;
+			cbMat.bAlphaMask = resMat.DoubleSided ? 1 : 0;
 			cbMat.AlphaCutoff = resMat.AlphaCutoff;
 			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
 			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
