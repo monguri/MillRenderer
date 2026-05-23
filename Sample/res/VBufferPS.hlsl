@@ -72,9 +72,9 @@ uint2 main(MSOutput input) : SV_TARGET
 	MeshletMeshMaterial meshMaterial = SbMeshletMeshMaterialTable[meshletIdx];
 	uint matIdx = meshMaterial.MaterialIdx;
 
-		ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetDescHeapIndex(CbMaterialBaseIdx + matIdx)];
 	if (meshMaterial.bMasked == 1)
 	{
+		ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetDescHeapIndex(CbMaterialBaseIdx + matIdx)];
 		Texture2D BaseColorMap = ResourceDescriptorHeap[GetDescHeapIndex(BaseColorMapBaseIdx + matIdx)];
 		float4 baseColor = BaseColorMap.Sample(AnisotropicWrapSmp, input.TexCoord);
 		if (baseColor.a < CbMaterial.AlphaCutoff)
