@@ -2557,7 +2557,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		std::wstring psPath;
 		if (m_useMeshManager)
 		{
-			if (!SearchFilePath(L"DepthMeshesMaskPS.hlsl", psPath))
+			if (!SearchFilePath(L"DepthMeshesMaskPS.cso", psPath))
 			{
 				ELOG("Error : Pixel Shader Not Found");
 				return false;
@@ -2565,11 +2565,25 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 		else
 		{
-			if (!SearchFilePath(L"DepthMaskPS.hlsl", psPath))
+			if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
 			{
 				ELOG("Error : Pixel Shader Not Found");
 				return false;
 			}
+		}
+
+		ComPtr<ID3DBlob> pDepthMaskPSBlob;
+		HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!SearchFilePath(L"SponzaOpaquePS.hlsl", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
 		}
 
 		std::vector<const wchar_t*> compileArgs =
@@ -2585,19 +2599,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (m_useMeshlet)
 		{
 			compileArgs.push_back(L"-D USE_MESHLET");
-		}
-
-		ComPtr<IDxcBlob> pDepthMaskPSBlob;
-		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pDepthMaskPSBlob))
-		{
-			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		if (!SearchFilePath(L"SponzaOpaquePS.hlsl", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
 		}
 
 		ComPtr<IDxcBlob> pOpaquePSBlob;
