@@ -3403,30 +3403,18 @@ bool SampleApp::OnInit(HWND hWnd)
 			streamDesc.pPipelineStateSubobjectStream = &psoStream;
 			streamDesc.SizeInBytes = sizeof(psoStream);
 
-			if (m_useMeshManager)
+			hr = m_pDevice->CreatePipelineState(
+				&streamDesc,
+				IID_PPV_ARGS(m_pDrawVBufferHWRasOpaquePSO.GetAddressOf())
+			);
+			if (FAILED(hr))
 			{
-				hr = m_pDevice->CreatePipelineState(
-					&streamDesc,
-					IID_PPV_ARGS(m_pDrawVBufferHWRasPSO.GetAddressOf())
-				);
-				if (FAILED(hr))
-				{
-					ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-					return false;
-				}
+				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+				return false;
 			}
-			else
-			{
-				hr = m_pDevice->CreatePipelineState(
-					&streamDesc,
-					IID_PPV_ARGS(m_pDrawVBufferHWRasOpaquePSO.GetAddressOf())
-				);
-				if (FAILED(hr))
-				{
-					ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-					return false;
-				}
 
+			if (!m_useMeshManager)
+			{
 				if (!SearchFilePath(L"VisibilityMaskPS.cso", psPath))
 				{
 					ELOG("Error : Pixel Shader Not Found");
@@ -3440,24 +3428,25 @@ bool SampleApp::OnInit(HWND hWnd)
 					return false;
 				}
 
-				//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
 				desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 				desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-				desc.RasterizerState = DirectX::CommonStates::CullNone;
+			}
 
-				psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
-				streamDesc.pPipelineStateSubobjectStream = &psoStream;
-				streamDesc.SizeInBytes = sizeof(psoStream);
+			//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
+			desc.RasterizerState = DirectX::CommonStates::CullNone;
 
-				hr = m_pDevice->CreatePipelineState(
-					&streamDesc,
-					IID_PPV_ARGS(m_pDrawVBufferHWRasMaskPSO.GetAddressOf())
-				);
-				if (FAILED(hr))
-				{
-					ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-					return false;
-				}
+			psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+			streamDesc.pPipelineStateSubobjectStream = &psoStream;
+			streamDesc.SizeInBytes = sizeof(psoStream);
+
+			hr = m_pDevice->CreatePipelineState(
+				&streamDesc,
+				IID_PPV_ARGS(m_pDrawVBufferHWRasMaskPSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+				return false;
 			}
 		}
 	}
@@ -6057,7 +6046,6 @@ void SampleApp::OnTerm()
 	m_pMeshletCullingPSO.Reset();
 	m_MeshletCullingRootSig.Term();
 
-	m_pDrawVBufferHWRasPSO.Reset();
 	m_pDrawVBufferHWRasOpaquePSO.Reset();
 	m_pDrawVBufferHWRasMaskPSO.Reset();
 	m_DrawVBufferHWRasRootSig.Term();
@@ -6824,29 +6812,54 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 		if (m_useMeshManager)
 		{
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			// Opaqueマテリアルのメッシュの描画
+			{
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-			pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(5, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(5, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 
-			pCmdList->SetPipelineState(m_pDrawVBufferHWRasPSO.Get());
-			pCmdList->ExecuteIndirect
-			(
-				m_MeshManager.GetHWRasCmdSig().Get(),
-				1,
-				m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
-				0,
-				nullptr,
-				0
-			);
+				pCmdList->SetPipelineState(m_pDrawVBufferHWRasOpaquePSO.Get());
+				pCmdList->ExecuteIndirect
+				(
+					m_MeshManager.GetHWRasCmdSig().Get(),
+					1,
+					m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
+					0,
+					nullptr,
+					0
+				);
 
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
+
+			// AlphaMask, DoubleSidedマテリアルのメッシュの描画
+			{
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+				pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+
+				pCmdList->SetPipelineState(m_pDrawVBufferHWRasMaskPSO.Get());
+				pCmdList->ExecuteIndirect
+				(
+					m_MeshManager.GetHWRasCmdSig().Get(),
+					1,
+					m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
+					0,
+					nullptr,
+					0
+				);
+
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
 		}
 		else
 		{
