@@ -2693,6 +2693,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
 			desc.RasterizerState = DirectX::CommonStates::CullNone;
 
+			// TODO: MeshManagerではOpaqueとMaskedを分類して新たなIndirectArgとMeshletListを作るのが面倒なので両方Maskedマテリアルで描画している
+			if (m_useMeshManager)
+			{
+				// TODO:SponzaRendererの数字を何も考えずに使っている
+				desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+				desc.RasterizerState.DepthBias = 100;
+			}
+
 			psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
 			streamDesc.pPipelineStateSubobjectStream = &psoStream;
 
