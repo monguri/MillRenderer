@@ -1,6 +1,5 @@
 #include "MeshManager.h"
 #include "DescriptorPool.h"
-#include "ResMesh.h"
 #include "Logger.h"
 #include "App.h"
 #include "FileUtil.h"
@@ -851,6 +850,17 @@ void MeshManager::Term()
 		tex.Term();
 	}
 	m_AOMaps.clear();
+}
+
+void MeshManager::RegisterModel(const std::wstring& filePath, bool useMetis)
+{
+	//TODO: ŽÀ‘•
+}
+
+bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture)
+{
+	//TODO: ŽÀ‘•
+	return false;
 }
 
 const Resource& MeshManager::GetDrawOpaqueMeshletIndirectArgBB() const

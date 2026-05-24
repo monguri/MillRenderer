@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "ResMesh.h"
 #include "Resource.h"
 #include "Texture.h"
 
@@ -11,7 +12,6 @@ public:
 	MeshManager() {}
 	~MeshManager();
 
-	// 現時点ではシーンからの動的追加削除がないのでRegister/Unregisterは用意していない
 	bool Init
 	(
 		ID3D12Device* pDevice,
@@ -27,6 +27,19 @@ public:
 
 	void Term();
 
+	// 現時点ではシーンからの動的削除がないのでUnregisterは用意していない
+	void RegisterModel(const std::wstring& filePath, bool useMetis);
+
+	bool Update
+	(
+		ID3D12Device* pDevice,
+		ID3D12CommandQueue* pQueue,
+		ID3D12GraphicsCommandList* pCmdList,
+		class DescriptorPool* pPoolGpuVisible,
+		class DescriptorPool* pPoolCpuVisible,
+		const class Texture& dummyTexture
+	);
+
 	const Resource& GetDrawOpaqueMeshletIndirectArgBB() const;
 	const Resource& GetDrawOpaqueMeshletIndicesBB() const;
 	const Resource& GetDrawMaskedMeshletIndirectArgBB() const;
@@ -40,6 +53,9 @@ public:
 	uint32_t GetMeshletCount() const;
 
 private:
+	std::vector<ResMesh> resMeshes;
+	std::vector<ResMaterial> resMaterials;
+
 	class DescriptorPool* m_pPoolGpuVisible;
 	class DescriptorPool* m_pPoolCpuVisible;
 
