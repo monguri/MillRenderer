@@ -754,6 +754,9 @@ bool MeshManager::Init
 
 void MeshManager::Term()
 {
+	m_resMeshes.clear();
+	m_resMaterials.clear();
+
 	if (m_pPoolGpuVisible != nullptr)
 	{
 		m_pPoolGpuVisible->Release();
@@ -852,15 +855,643 @@ void MeshManager::Term()
 	m_AOMaps.clear();
 }
 
-void MeshManager::RegisterModel(const std::wstring& filePath, bool useMetis)
+bool MeshManager::RegisterModel(const std::wstring& filePath, bool useMetis)
 {
-	//TODO: 実装
+	std::vector<ResMesh> meshes;
+	std::vector<ResMaterial> materials;
+
+	if (!LoadMesh(filePath.c_str(), true, useMetis, meshes, materials))
+	{
+		ELOG("Error : Load Mesh Failed. filepath = %ls", filePath.c_str());
+		return false;
+	}
+
+	uint32_t materialBaseIdx = static_cast<uint32_t>(m_resMaterials.size());
+	for (ResMesh& mesh : meshes)
+	{
+		mesh.MaterialIdx += materialBaseIdx;
+	}
+
+	m_resMeshes.insert(m_resMeshes.end(), meshes.begin(), meshes.end());
+
+	const std::wstring& dirPath = GetDirectoryPath(filePath.c_str());
+	for (ResMaterial& material : materials)
+	{
+		material.DiffuseMap = dirPath + material.DiffuseMap;
+		material.SpecularMap = dirPath + material.SpecularMap;
+		material.ShininessMap = dirPath + material.ShininessMap;
+		material.NormalMap = dirPath + material.NormalMap;
+		material.HeightMap = dirPath + material.HeightMap;
+		material.BaseColorMap = dirPath + material.BaseColorMap;
+		material.MetallicRoughnessMap = dirPath + material.MetallicRoughnessMap;
+		material.EmissiveMap = dirPath + material.EmissiveMap;
+		material.AmbientOcclusionMap = dirPath + material.AmbientOcclusionMap;
+	}
+
+	m_resMaterials.insert(m_resMaterials.end(), materials.begin(), materials.end());
+
+	return true;
 }
 
 bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture)
 {
-	//TODO: 実装
-	return false;
+	assert(pDevice != nullptr);
+	assert(pQueue != nullptr);
+	assert(pCmdList != nullptr);
+	assert(pPoolGpuVisible != nullptr);
+	assert(pPoolCpuVisible != nullptr);
+
+	size_t meshCount = m_resMeshes.size();
+	m_MeshCBs.resize(meshCount);
+	m_VBs.resize(meshCount);
+	m_MeshletsSBs.resize(meshCount);
+	m_MeshletsVerticesSBs.resize(meshCount);
+	m_MeshletsTrianglesSBs.resize(meshCount);
+	m_MeshletsAABBInfosSBs.resize(meshCount);
+
+	struct alignas(256) CbMesh
+	{
+		Matrix World;
+		unsigned int MeshIdx;
+		float Padding[3];
+	};
+
+	struct MeshletMeshMaterial
+	{
+		uint32_t MeshIdx;
+		uint32_t MaterialIdx;
+		uint32_t LocalMeshletIdx;
+		uint32_t bMasked;
+	};
+
+	std::vector<MeshletMeshMaterial> meshletMeshMaterialTable;
+
+	CbMeshesDescHeapIndices meshesDescHeapIndices = {};
+
+	m_MeshletCount = 0;
+
+	size_t meshIdx = 0;
+	for (const ResMesh& resMesh : m_resMeshes)
+	{
+		const ResMaterial& resMat = m_resMaterials[resMesh.MaterialIdx];
+		if (!IsMaterialValid(resMat))
+		{
+			continue;
+		}
+
+		size_t localMeshletCount = resMesh.Meshlets.size();
+
+		// Worldへのフレーム遅延は発生するが今のところ遅延しても困る使い方はしてないので
+		// 多重バッファにはしないでおく
+		if (!m_MeshCBs[meshIdx].InitAsConstantBuffer<CbMesh>(
+			pDevice,
+			D3D12_HEAP_TYPE_DEFAULT,
+			pPoolGpuVisible,
+			L"CbMesh"
+		))
+		{
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+			return false;
+		}
+
+		CbMesh cbMesh = {Matrix::Identity, static_cast<uint32_t>(meshIdx)};
+		if (!m_MeshCBs[meshIdx].UploadBufferTypeData<CbMesh>(
+			pDevice,
+			pCmdList,
+			1,
+			&cbMesh
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		meshesDescHeapIndices.CbMesh[meshIdx] = m_MeshCBs[meshIdx].GetHandleCBV()->GetDescriptorIndex();
+
+		if (!m_VBs[meshIdx].InitAsStructuredBuffer<MeshVertex>(
+			pDevice,
+			resMesh.Vertices.size(),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"SbVertexBuffer"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_VBs[meshIdx].UploadBufferTypeData<MeshVertex>(
+			pDevice,
+			pCmdList,
+			resMesh.Vertices.size(),
+			resMesh.Vertices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		meshesDescHeapIndices.SbVertexBuffer[meshIdx] = m_VBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+
+		if (!m_MeshletsSBs[meshIdx].InitAsStructuredBuffer<meshopt_Meshlet>(
+			pDevice,
+			localMeshletCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"MeshletsSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsSBs[meshIdx].UploadBufferTypeData<meshopt_Meshlet>(
+			pDevice,
+			pCmdList,
+			localMeshletCount,
+			resMesh.Meshlets.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		meshesDescHeapIndices.SbMeshletBuffer[meshIdx] = m_MeshletsSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+
+		if (!m_MeshletsVerticesSBs[meshIdx].InitAsStructuredBuffer<uint32_t>(
+			pDevice,
+			resMesh.MeshletsVertices.size(),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"MeshletsVerticesSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsVerticesSBs[meshIdx].UploadBufferTypeData<uint32_t>(
+			pDevice,
+			pCmdList,
+			resMesh.MeshletsVertices.size(),
+			resMesh.MeshletsVertices.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		meshesDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = m_MeshletsVerticesSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+
+		// TODO: uint8_tの3つをuint32_tに詰め込んでBBで扱いたい。
+		// 無駄にVRAMとメモリ帯域を使っている。Pixでの値確認はしやすいが。
+		std::vector<uint32_t> meshletsTriangles;
+		for (uint8_t index : resMesh.MeshletsTriangles)
+		{
+			meshletsTriangles.push_back(static_cast<uint32_t>(index));
+		}
+
+		if (!m_MeshletsTrianglesSBs[meshIdx].InitAsStructuredBuffer<uint32_t>(
+			pDevice,
+			meshletsTriangles.size(),
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"MeshletsTrianglesBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsTrianglesSBs[meshIdx].UploadBufferTypeData<uint32_t>(
+			pDevice,
+			pCmdList,
+			meshletsTriangles.size(),
+			meshletsTriangles.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		meshesDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = m_MeshletsTrianglesSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+
+		assert(resMesh.AABBs.size() == localMeshletCount);
+
+		if (!m_MeshletsAABBInfosSBs[meshIdx].InitAsStructuredBuffer<AABB>(
+			pDevice,
+			localMeshletCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			nullptr,
+			L"AABBInfosSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshletsAABBInfosSBs[meshIdx].UploadBufferTypeData<AABB>(
+			pDevice,
+			pCmdList,
+			resMesh.AABBs.size(),
+			resMesh.AABBs.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		meshesDescHeapIndices.SbMeshletAABBInfosBuffer[meshIdx] = m_MeshletsAABBInfosSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+
+		bool bMasked = (resMat.AlphaMode == ALPHA_MODE_MASK) && resMat.DoubleSided;
+		for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
+		{
+
+			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(meshIdx), resMesh.MaterialIdx, static_cast<uint32_t>(localMeshletIdx), bMasked ? 1 : 0);
+		}
+
+		m_MeshletCount += static_cast<uint32_t>(localMeshletCount);
+
+		meshIdx++;
+	}
+
+	// MeshletとMeshおよびMaterialの対応テーブルの生成
+	if (!m_MeshletMeshMaterialTableSB.InitAsStructuredBuffer<MeshletMeshMaterial>
+	(
+		pDevice,
+		m_MeshletCount,
+		D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		nullptr,
+		L"MeshletMeshMaterialTableSB"
+	))
+	{
+		ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_MeshletMeshMaterialTableSB.UploadBufferTypeData<MeshletMeshMaterial>(
+		pDevice,
+		pCmdList,
+		meshletMeshMaterialTable.size(),
+		meshletMeshMaterialTable.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	std::vector<Vector3> cubeVertices;
+	std::vector<uint32_t> cubeIndices;
+	CreateUnitCubeMesh(cubeVertices, cubeIndices);
+
+	if (!m_UnitCubeVB.InitAsVertexBuffer<Vector3>(
+		pDevice,
+		cubeVertices.size()
+	))
+	{
+		ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_UnitCubeIB.InitAsIndexBuffer<uint32_t>(
+		pDevice,
+		DXGI_FORMAT_R32_UINT,
+		cubeIndices.size()
+	))
+	{
+		ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_UnitCubeVB.UploadBufferTypeData<Vector3>(
+		pDevice,
+		pCmdList,
+		cubeVertices.size(),
+		cubeVertices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	if (!m_UnitCubeIB.UploadBufferTypeData<uint32_t>(
+		pDevice,
+		pCmdList,
+		cubeIndices.size(),
+		cubeIndices.data()
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	// MeshletのHWRasterizer描画用のCommandSignatureの生成
+	{
+		D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+		argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
+
+		D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
+		cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_MESH_ARGUMENTS);
+		cmdSigDesc.NumArgumentDescs = 1;
+		cmdSigDesc.pArgumentDescs = &argDesc;
+
+		HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawByHWRasCmdSig));
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+			return false;
+		}
+	}
+
+	// MeshletのSWRasterizer描画用のCommandSignatureの生成
+	{
+		D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+		argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+
+		D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
+		cmdSigDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
+		cmdSigDesc.NumArgumentDescs = 1;
+		cmdSigDesc.pArgumentDescs = &argDesc;
+
+		HRESULT hr = pDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&m_pDrawBySWRasCmdSig));
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
+			return false;
+		}
+	}
+
+	// OpaqueのMeshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
+	if (!m_DrawOpaqueMeshletIndirectArgBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		3 * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndirectArgBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawOpaqueMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	// OpaqueのMeshlet描画用のカリング済みMeshletIdxリストの生成
+	if (!m_DrawOpaqueMeshletIndicesBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		m_MeshletCount * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndicesBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawOpaqueMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	// MaskedのMeshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
+	if (!m_DrawMaskedMeshletIndirectArgBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		3 * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndirectArgBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawMaskedMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	// MaskedのMeshlet描画用のカリング済みMeshletIdxリストの生成
+	if (!m_DrawMaskedMeshletIndicesBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		m_MeshletCount * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndicesBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawMaskedMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	if (!m_MeshesDescHeapIndicesCB.InitAsConstantBuffer<CbMeshesDescHeapIndices>(
+		pDevice,
+		D3D12_HEAP_TYPE_DEFAULT,
+		pPoolGpuVisible,
+		L"MeshesDescHeapIndicesCB"
+	))
+	{
+		ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_MeshesDescHeapIndicesCB.UploadBufferTypeData<CbMeshesDescHeapIndices>(
+		pDevice,
+		pCmdList,
+		1,
+		&meshesDescHeapIndices
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
+
+	size_t materialCount = m_resMaterials.size();
+	m_MaterialCBs.resize(materialCount);
+	m_BaseColorMaps.resize(materialCount);
+	m_MetallicRoughnessMaps.resize(materialCount);
+	m_NormalMaps.resize(materialCount);
+	m_EmissiveMaps.resize(materialCount);
+	m_AOMaps.resize(materialCount);
+
+	{
+		DirectX::ResourceUploadBatch batch(pDevice);
+		batch.Begin();
+
+		struct alignas(256) CbMaterial
+		{
+			Vector3 BaseColorFactor;
+			float MetallicFactor;
+			float RoughnessFactor;
+			Vector3 EmissiveFactor;
+			unsigned int bAlphaMask;
+			float AlphaCutoff;
+			unsigned int bExistEmissiveTex;
+			unsigned int bExistAOTex;
+		};
+
+		for (size_t materialIdx = 0; materialIdx < materialCount; materialIdx++)
+		{
+			const ResMaterial& resMat = m_resMaterials[materialIdx];
+			// マテリアルの情報はResMeshのもつMaterialIdxから引っ張ってくるので
+			// IsValidMaterial()によってはじくことはしない
+
+			m_MaterialCBs[materialIdx].InitAsConstantBuffer<CbMaterial>(
+				pDevice,
+				D3D12_HEAP_TYPE_DEFAULT,
+				pPoolGpuVisible,
+				L"CbMaterial"
+			);
+
+			// 画像ファイルがディレクトリになかった場合はTextureを初期化しない。それを判定に用いてダミーテクスチャを使うようにする。他のテクスチャも同様
+			std::wstring baseColorMapPath = ConvertToValidFilePath(resMat.BaseColorMap);
+			if (baseColorMapPath.empty())
+			{
+				baseColorMapPath = ConvertToValidFilePath(resMat.DiffuseMap);
+			}
+
+			if (!baseColorMapPath.empty())
+			{
+				if (!m_BaseColorMaps[materialIdx].Init(pDevice, pPoolGpuVisible, baseColorMapPath.c_str(), true, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", baseColorMapPath.c_str());
+					return false;
+				}
+			}
+
+			const std::wstring& metallicRoughnessMapPath = ConvertToValidFilePath(resMat.MetallicRoughnessMap);
+			if (!metallicRoughnessMapPath.empty())
+			{
+				if (!m_MetallicRoughnessMaps[materialIdx].Init(pDevice, pPoolGpuVisible, metallicRoughnessMapPath.c_str(), false, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", metallicRoughnessMapPath.c_str());
+					return false;
+				}
+			}
+
+			const std::wstring& normalMapPath = ConvertToValidFilePath(resMat.NormalMap);
+			if (!normalMapPath.empty())
+			{
+				if (!m_NormalMaps[materialIdx].Init(pDevice, pPoolGpuVisible, normalMapPath.c_str(), false, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", normalMapPath.c_str());
+					return false;
+				}
+			}
+
+			const std::wstring& emissiveMapPath = ConvertToValidFilePath(resMat.EmissiveMap);
+			if (!emissiveMapPath.empty())
+			{
+				if (!m_EmissiveMaps[materialIdx].Init(pDevice, pPoolGpuVisible, emissiveMapPath.c_str(), false, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", emissiveMapPath.c_str());
+					return false;
+				}
+			}
+
+			const std::wstring& aoMapPath = ConvertToValidFilePath(resMat.AmbientOcclusionMap);
+			if (!aoMapPath.empty())
+			{
+				if (!m_AOMaps[materialIdx].Init(pDevice, pPoolGpuVisible, aoMapPath.c_str(), false, batch))
+				{
+					ELOG("Error : Texture::Init() Failed. path = %ls", aoMapPath.c_str());
+					return false;
+				}
+			}
+
+			CbMaterial cbMat = {};
+			cbMat.BaseColorFactor = resMat.BaseColor;
+			cbMat.MetallicFactor = resMat.MetallicFactor;
+			cbMat.RoughnessFactor = resMat.RoughnessFactor;
+			cbMat.EmissiveFactor = resMat.EmissiveFactor;
+			cbMat.bAlphaMask = resMat.DoubleSided ? 1 : 0;
+			cbMat.AlphaCutoff = resMat.AlphaCutoff;
+			cbMat.bExistEmissiveTex = resMat.EmissiveMap.empty() ? 0 : 1;
+			cbMat.bExistAOTex = resMat.AmbientOcclusionMap.empty() ? 0 : 1;
+
+			if (!m_MaterialCBs[materialIdx].UploadBufferTypeData<CbMaterial>(
+				pDevice,
+				pCmdList,
+				1,
+				&cbMat
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
+
+			//materialsDescHeapIndicesへの代入
+			uint32_t dummyTextureIndex = dummyTexture.GetHandleSRVPtr()->GetDescriptorIndex();
+
+			// 画像ファイルがディレクトリになかった場合はTextureを初期化してない。その場合はダミーテクスチャを使う
+			materialsDescHeapIndices.CbMaterial[materialIdx] = m_MaterialCBs[materialIdx].GetHandleCBV()->GetDescriptorIndex();
+			materialsDescHeapIndices.BaseColorMap[materialIdx] = m_BaseColorMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_BaseColorMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+			materialsDescHeapIndices.MetallicRoughnessMap[materialIdx] = m_MetallicRoughnessMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_MetallicRoughnessMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+			materialsDescHeapIndices.NormalMap[materialIdx] = m_NormalMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_NormalMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+			materialsDescHeapIndices.EmissiveMap[materialIdx] = m_EmissiveMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_EmissiveMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+			materialsDescHeapIndices.AOMap[materialIdx] = m_AOMaps[materialIdx].GetHandleSRVPtr() == nullptr ? dummyTextureIndex : m_AOMaps[materialIdx].GetHandleSRVPtr()->GetDescriptorIndex();
+		}
+
+		std::future<void> future = batch.End(pQueue);
+		future.wait();
+	}
+
+	if (!m_MaterialsDescHeapIndicesCB.InitAsConstantBuffer<CbMaterialsDescHeapIndices>(
+		pDevice,
+		D3D12_HEAP_TYPE_DEFAULT,
+		pPoolGpuVisible,
+		L"MaterialsDescHeapIndicesCB"
+	))
+	{
+		ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+		return false;
+	}
+
+	if (!m_MaterialsDescHeapIndicesCB.UploadBufferTypeData<CbMaterialsDescHeapIndices>(
+		pDevice,
+		pCmdList,
+		1,
+		&materialsDescHeapIndices
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
+
+	m_pPoolGpuVisible = pPoolGpuVisible;
+	m_pPoolGpuVisible->AddRef();
+
+	m_pPoolCpuVisible = pPoolCpuVisible;
+	m_pPoolCpuVisible->AddRef();
+
+	return true;
 }
 
 const Resource& MeshManager::GetDrawOpaqueMeshletIndirectArgBB() const

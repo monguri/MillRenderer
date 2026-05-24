@@ -28,7 +28,7 @@ public:
 	void Term();
 
 	// 現時点ではシーンからの動的削除がないのでUnregisterは用意していない
-	void RegisterModel(const std::wstring& filePath, bool useMetis);
+	bool RegisterModel(const std::wstring& filePath, bool useMetis);
 
 	bool Update
 	(
@@ -53,8 +53,8 @@ public:
 	uint32_t GetMeshletCount() const;
 
 private:
-	std::vector<ResMesh> resMeshes;
-	std::vector<ResMaterial> resMaterials;
+	std::vector<ResMesh> m_resMeshes;
+	std::vector<ResMaterial> m_resMaterials;
 
 	class DescriptorPool* m_pPoolGpuVisible;
 	class DescriptorPool* m_pPoolCpuVisible;

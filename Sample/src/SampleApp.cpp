@@ -914,6 +914,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshManager)
 		{
+#if 0
 			const std::wstring& dirPath = GetDirectoryPath(path.c_str());
 
 			if (!m_MeshManager.Init
@@ -932,6 +933,13 @@ bool SampleApp::OnInit(HWND hWnd)
 				ELOG("Error : MeshManager::Init() failed.");
 				return false;
 			}
+#else
+			if (!m_MeshManager.RegisterModel(path, m_useMetis))
+			{
+				ELOG("Error : MeshManager::RegisterModel() failed.");
+				return false;
+			}
+#endif
 		}
 		else
 		{
@@ -1092,7 +1100,11 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshManager)
 		{
-			// TODO: 実装
+			if (!m_MeshManager.RegisterModel(path, m_useMetis))
+			{
+				ELOG("Error : MeshManager::RegisterModel() failed.");
+				return false;
+			}
 		}
 		else
 		{
@@ -1209,6 +1221,25 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			m_pModels.push_back(model);
 		}
+
+#if 1
+		if (m_useMeshManager)
+		{
+			if (!m_MeshManager.Update
+			(
+				m_pDevice.Get(),
+				m_pQueue.Get(),
+				pCmd,
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
+				m_DummyTexture
+			))
+			{
+				ELOG("Error : MeshManager::Update() failed.");
+				return false;
+			}
+		}
+#endif
 
 		pCmd->Close();
 
