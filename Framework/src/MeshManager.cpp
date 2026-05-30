@@ -5,7 +5,6 @@
 #include "FileUtil.h"
 
 #include <DirectXHelpers.h>
-#include <SimpleMath.h>
 
 using namespace DirectX::SimpleMath;
 
@@ -243,7 +242,7 @@ void MeshManager::Term()
 	m_AOMaps.clear();
 }
 
-bool MeshManager::RegisterModel(const std::wstring& filePath, bool useMetis)
+bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
 {
 	std::vector<ResMesh> meshes;
 	std::vector<ResMaterial> materials;
@@ -285,6 +284,10 @@ bool MeshManager::RegisterModel(const std::wstring& filePath, bool useMetis)
 
 	m_resMaterials.insert(m_resMaterials.end(), materials.begin(), materials.end());
 
+	std::vector<Matrix> matrices;
+	matrices.resize(meshes.size(), worldMat);
+	m_worldMatrices.insert(m_worldMatrices.end(), matrices.begin(), matrices.end());
+
 	return true;
 }
 
@@ -325,9 +328,11 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 
 	m_MeshletCount = 0;
 
-	size_t meshIdx = 0;
-	for (const ResMesh& resMesh : m_resMeshes)
+	size_t validMeshIdx = 0;
+	for (size_t meshIdx = 0; meshIdx < m_resMeshes.size(); meshIdx++)
 	{
+		const ResMesh& resMesh = m_resMeshes[meshIdx];
+
 		const ResMaterial& resMat = m_resMaterials[resMesh.MaterialIdx];
 		if (!IsMaterialValid(resMat))
 		{
@@ -338,7 +343,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 
 		// Worldへのフレーム遅延は発生するが今のところ遅延しても困る使い方はしてないので
 		// 多重バッファにはしないでおく
-		if (!m_MeshCBs[meshIdx].InitAsConstantBuffer<CbMesh>(
+		if (!m_MeshCBs[validMeshIdx].InitAsConstantBuffer<CbMesh>(
 			pDevice,
 			D3D12_HEAP_TYPE_DEFAULT,
 			pPoolGpuVisible,
@@ -349,8 +354,8 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		CbMesh cbMesh = {Matrix::Identity, static_cast<uint32_t>(meshIdx)};
-		if (!m_MeshCBs[meshIdx].UploadBufferTypeData<CbMesh>(
+		CbMesh cbMesh = {m_worldMatrices[meshIdx], static_cast<uint32_t>(validMeshIdx)};
+		if (!m_MeshCBs[validMeshIdx].UploadBufferTypeData<CbMesh>(
 			pDevice,
 			pCmdList,
 			1,
@@ -361,9 +366,9 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		meshesDescHeapIndices.CbMesh[meshIdx] = m_MeshCBs[meshIdx].GetHandleCBV()->GetDescriptorIndex();
+		meshesDescHeapIndices.CbMesh[validMeshIdx] = m_MeshCBs[validMeshIdx].GetHandleCBV()->GetDescriptorIndex();
 
-		if (!m_VBs[meshIdx].InitAsStructuredBuffer<MeshVertex>(
+		if (!m_VBs[validMeshIdx].InitAsStructuredBuffer<MeshVertex>(
 			pDevice,
 			resMesh.Vertices.size(),
 			D3D12_RESOURCE_FLAG_NONE,
@@ -377,7 +382,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		if (!m_VBs[meshIdx].UploadBufferTypeData<MeshVertex>(
+		if (!m_VBs[validMeshIdx].UploadBufferTypeData<MeshVertex>(
 			pDevice,
 			pCmdList,
 			resMesh.Vertices.size(),
@@ -388,9 +393,9 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		meshesDescHeapIndices.SbVertexBuffer[meshIdx] = m_VBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+		meshesDescHeapIndices.SbVertexBuffer[validMeshIdx] = m_VBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
 
-		if (!m_MeshletsSBs[meshIdx].InitAsStructuredBuffer<meshopt_Meshlet>(
+		if (!m_MeshletsSBs[validMeshIdx].InitAsStructuredBuffer<meshopt_Meshlet>(
 			pDevice,
 			localMeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
@@ -404,7 +409,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		if (!m_MeshletsSBs[meshIdx].UploadBufferTypeData<meshopt_Meshlet>(
+		if (!m_MeshletsSBs[validMeshIdx].UploadBufferTypeData<meshopt_Meshlet>(
 			pDevice,
 			pCmdList,
 			localMeshletCount,
@@ -415,9 +420,9 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		meshesDescHeapIndices.SbMeshletBuffer[meshIdx] = m_MeshletsSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+		meshesDescHeapIndices.SbMeshletBuffer[validMeshIdx] = m_MeshletsSBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
 
-		if (!m_MeshletsVerticesSBs[meshIdx].InitAsStructuredBuffer<uint32_t>(
+		if (!m_MeshletsVerticesSBs[validMeshIdx].InitAsStructuredBuffer<uint32_t>(
 			pDevice,
 			resMesh.MeshletsVertices.size(),
 			D3D12_RESOURCE_FLAG_NONE,
@@ -431,7 +436,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		if (!m_MeshletsVerticesSBs[meshIdx].UploadBufferTypeData<uint32_t>(
+		if (!m_MeshletsVerticesSBs[validMeshIdx].UploadBufferTypeData<uint32_t>(
 			pDevice,
 			pCmdList,
 			resMesh.MeshletsVertices.size(),
@@ -442,7 +447,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		meshesDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = m_MeshletsVerticesSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+		meshesDescHeapIndices.SbMeshletVerticesBuffer[validMeshIdx] = m_MeshletsVerticesSBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
 
 		// TODO: uint8_tの3つをuint32_tに詰め込んでBBで扱いたい。
 		// 無駄にVRAMとメモリ帯域を使っている。Pixでの値確認はしやすいが。
@@ -452,7 +457,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			meshletsTriangles.push_back(static_cast<uint32_t>(index));
 		}
 
-		if (!m_MeshletsTrianglesSBs[meshIdx].InitAsStructuredBuffer<uint32_t>(
+		if (!m_MeshletsTrianglesSBs[validMeshIdx].InitAsStructuredBuffer<uint32_t>(
 			pDevice,
 			meshletsTriangles.size(),
 			D3D12_RESOURCE_FLAG_NONE,
@@ -466,7 +471,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		if (!m_MeshletsTrianglesSBs[meshIdx].UploadBufferTypeData<uint32_t>(
+		if (!m_MeshletsTrianglesSBs[validMeshIdx].UploadBufferTypeData<uint32_t>(
 			pDevice,
 			pCmdList,
 			meshletsTriangles.size(),
@@ -477,11 +482,11 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		meshesDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = m_MeshletsTrianglesSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+		meshesDescHeapIndices.SbMeshletTrianglesBuffer[validMeshIdx] = m_MeshletsTrianglesSBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
 
 		assert(resMesh.AABBs.size() == localMeshletCount);
 
-		if (!m_MeshletsAABBInfosSBs[meshIdx].InitAsStructuredBuffer<AABB>(
+		if (!m_MeshletsAABBInfosSBs[validMeshIdx].InitAsStructuredBuffer<AABB>(
 			pDevice,
 			localMeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
@@ -495,7 +500,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		if (!m_MeshletsAABBInfosSBs[meshIdx].UploadBufferTypeData<AABB>(
+		if (!m_MeshletsAABBInfosSBs[validMeshIdx].UploadBufferTypeData<AABB>(
 			pDevice,
 			pCmdList,
 			resMesh.AABBs.size(),
@@ -506,18 +511,18 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		meshesDescHeapIndices.SbMeshletAABBInfosBuffer[meshIdx] = m_MeshletsAABBInfosSBs[meshIdx].GetHandleSRV()->GetDescriptorIndex();
+		meshesDescHeapIndices.SbMeshletAABBInfosBuffer[validMeshIdx] = m_MeshletsAABBInfosSBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
 
 		bool bMasked = (resMat.AlphaMode == ALPHA_MODE_MASK) && resMat.DoubleSided;
 		for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
 		{
 
-			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(meshIdx), resMesh.MaterialIdx, static_cast<uint32_t>(localMeshletIdx), bMasked ? 1 : 0);
+			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(validMeshIdx), resMesh.MaterialIdx, static_cast<uint32_t>(localMeshletIdx), bMasked ? 1 : 0);
 		}
 
 		m_MeshletCount += static_cast<uint32_t>(localMeshletCount);
 
-		meshIdx++;
+		validMeshIdx++;
 	}
 
 	// MeshletとMeshおよびMaterialの対応テーブルの生成

@@ -5,6 +5,8 @@
 #include "Resource.h"
 #include "Texture.h"
 
+#include <SimpleMath.h>
+
 // Meshletの管理クラス。現時点では非Meshletは管理してない。
 class MeshManager
 {
@@ -15,7 +17,7 @@ public:
 	void Term();
 
 	// 現時点ではシーンからの動的削除がないのでUnregisterは用意していない
-	bool RegisterModel(const std::wstring& filePath, bool useMetis);
+	bool RegisterModel(const std::wstring& filePath, const DirectX::SimpleMath::Matrix& worldMat, bool useMetis);
 
 	bool Update
 	(
@@ -42,6 +44,7 @@ public:
 private:
 	std::vector<ResMesh> m_resMeshes;
 	std::vector<ResMaterial> m_resMaterials;
+	std::vector<DirectX::SimpleMath::Matrix> m_worldMatrices;
 
 	class DescriptorPool* m_pPoolGpuVisible;
 	class DescriptorPool* m_pPoolCpuVisible;
