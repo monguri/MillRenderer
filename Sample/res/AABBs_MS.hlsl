@@ -129,6 +129,8 @@ void main
 	if (gtid < CUBE_VERTEX_COUNT)
 	{
 		float3 localPos = SbUnitCubeVertices[gtid];
+		localPos *= aabb.HalfExtent;
+		localPos += aabb.Center;
 		float4 worldPos = mul(CbMesh.World, float4(localPos, 1));
 		float4 projPos = mul(CbTransform.ViewProj, worldPos);
 
