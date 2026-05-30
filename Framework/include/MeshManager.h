@@ -12,19 +12,6 @@ public:
 	MeshManager() {}
 	~MeshManager();
 
-	bool Init
-	(
-		ID3D12Device* pDevice,
-		ID3D12CommandQueue* pQueue,
-		ID3D12GraphicsCommandList* pCmdList,
-		class DescriptorPool* pPoolGpuVisible,
-		class DescriptorPool* pPoolCpuVisible,
-		const std::wstring& modelDirPath,
-		const std::vector<struct ResMesh>& resMeshes,
-		const std::vector<struct ResMaterial>& resMaterials,
-		const class Texture& dummyTexture
-	);
-
 	void Term();
 
 	// 現時点ではシーンからの動的削除がないのでUnregisterは用意していない

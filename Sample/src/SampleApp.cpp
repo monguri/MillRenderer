@@ -914,32 +914,11 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshManager)
 		{
-#if 0
-			const std::wstring& dirPath = GetDirectoryPath(path.c_str());
-
-			if (!m_MeshManager.Init
-			(
-				m_pDevice.Get(),
-				m_pQueue.Get(),
-				pCmd,
-				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-				m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
-				dirPath,
-				resMesh,
-				resMaterial,
-				m_DummyTexture
-			))
-			{
-				ELOG("Error : MeshManager::Init() failed.");
-				return false;
-			}
-#else
 			if (!m_MeshManager.RegisterModel(path, m_useMetis))
 			{
 				ELOG("Error : MeshManager::RegisterModel() failed.");
 				return false;
 			}
-#endif
 		}
 		else
 		{
@@ -1229,7 +1208,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		m_pQueue->ExecuteCommandLists(1, pLists);
 	}
 
-#if 1
 	if (m_useMeshManager)
 	{
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
@@ -1253,7 +1231,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		ID3D12CommandList* pLists[] = {pCmd};
 		m_pQueue->ExecuteCommandLists(1, pLists);
 	}
-#endif
 
 	m_pModels.shrink_to_fit();
 
