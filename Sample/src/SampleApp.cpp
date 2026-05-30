@@ -866,7 +866,8 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
-		// 法線マップのデフォルトテクスチャとして使えるように(0.5,0.5,1)にする
+		// normal mapのデフォルトテクスチャとして使えるように(0.5,0.5,1)にする
+		// metallic roughness mapはgとbを使うので0.5と1
 		// TODO:いずれ種類ごとに別のデフォルトテクスチャが必要になったら対応する
 		uint32_t normalBlue = 0x00FF8080;
 		if (!m_DummyTexture.InitFromData(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &normalBlue))
