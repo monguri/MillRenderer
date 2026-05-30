@@ -558,17 +558,25 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 
 	if (!m_UnitCubeVB.InitAsVertexBuffer<Vector3>(
 		pDevice,
-		cubeVertices.size()
+		cubeVertices.size(),
+		D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		L"UnitCubeVB"
 	))
 	{
-		ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+		ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
 		return false;
 	}
 
 	if (!m_UnitCubeIB.InitAsIndexBuffer<uint32_t>(
 		pDevice,
 		DXGI_FORMAT_R32_UINT,
-		cubeIndices.size()
+		cubeIndices.size(),
+		D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		L"UnitCubeIB"
 	))
 	{
 		ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
@@ -925,6 +933,16 @@ const Resource& MeshManager::GetMeshesDescHeapIndicesCB() const
 const Resource& MeshManager::GetMaterialsDescHeapIndicesCB() const
 {
 	return m_MaterialsDescHeapIndicesCB;
+}
+
+const Resource& MeshManager::GetUnitCubeVB() const
+{
+	return m_UnitCubeVB;
+}
+
+const Resource& MeshManager::GetUnitCubeIB() const
+{
+	return m_UnitCubeIB;
 }
 
 const ComPtr<ID3D12CommandSignature>& MeshManager::GetHWRasCmdSig() const

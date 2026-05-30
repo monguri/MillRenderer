@@ -209,9 +209,18 @@ bool Resource::InitAsConstantBuffer
 	return true;
 }
 
-bool Resource::InitAsVertexBuffer(ID3D12Device* pDevice, size_t stride, size_t size)
+bool Resource::InitAsVertexBuffer
+(
+	ID3D12Device* pDevice,
+	size_t stride,
+	size_t count,
+	D3D12_RESOURCE_FLAGS flags,
+	D3D12_RESOURCE_STATES state,
+	DescriptorPool* pPoolSRV,
+	LPCWSTR name
+)
 {
-	if (pDevice == nullptr || size == 0 || stride == 0)
+	if (pDevice == nullptr || count == 0 || stride == 0)
 	{
 		return false;
 	}
@@ -226,7 +235,7 @@ bool Resource::InitAsVertexBuffer(ID3D12Device* pDevice, size_t stride, size_t s
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Alignment = 0;
-	desc.Width = UINT64(size);
+	desc.Width = static_cast<UINT64>(stride * count);
 	desc.Height = 1;
 	desc.DepthOrArraySize = 1;
 	desc.MipLevels = 1;
@@ -234,25 +243,48 @@ bool Resource::InitAsVertexBuffer(ID3D12Device* pDevice, size_t stride, size_t s
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	desc.Flags = flags;
 
-	HRESULT hr = pDevice->CreateCommittedResource
-	(
-		&heapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_COMMON,
-		nullptr,
-		IID_PPV_ARGS(m_pResource.GetAddressOf())
-	);
-	if (FAILED(hr))
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = static_cast<UINT>(count);
+	srvDesc.Buffer.StructureByteStride = static_cast<UINT>(stride);
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.NumElements = static_cast<UINT>(count);
+	uavDesc.Buffer.StructureByteStride = static_cast<UINT>(stride);
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+	if (!Init
+		(
+			pDevice,
+			stride * count,
+			heapProp,
+			desc,
+			state,
+			pPoolSRV,
+			srvDesc,
+			nullptr,
+			nullptr,
+			uavDesc,
+			name
+		)
+	)
 	{
 		return false;
 	}
 
 	m_VBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
 	m_VBV.StrideInBytes = static_cast<UINT>(stride);
-	m_VBV.SizeInBytes = static_cast<UINT>(size);
+	m_VBV.SizeInBytes = static_cast<UINT>(stride * count);
 
 	return true;
 }
@@ -261,10 +293,15 @@ bool Resource::InitAsIndexBuffer
 (
 	ID3D12Device* pDevice,
 	DXGI_FORMAT format,
-	size_t size
+	size_t structureSize,
+	size_t count,
+	D3D12_RESOURCE_FLAGS flags,
+	D3D12_RESOURCE_STATES state,
+	DescriptorPool* pPoolSRV,
+	LPCWSTR name
 )
 {
-	if (pDevice == nullptr || size == 0)
+	if (pDevice == nullptr || structureSize == 0 || count == 0)
 	{
 		return false;
 	}
@@ -279,7 +316,7 @@ bool Resource::InitAsIndexBuffer
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Alignment = 0;
-	desc.Width = UINT64(size);
+	desc.Width = static_cast<UINT64>(structureSize * count);
 	desc.Height = 1;
 	desc.DepthOrArraySize = 1;
 	desc.MipLevels = 1;
@@ -287,25 +324,48 @@ bool Resource::InitAsIndexBuffer
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	desc.Flags = flags;
 
-	HRESULT hr = pDevice->CreateCommittedResource
-	(
-		&heapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_COMMON,
-		nullptr,
-		IID_PPV_ARGS(m_pResource.GetAddressOf())
-	);
-	if (FAILED(hr))
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = static_cast<UINT>(count);
+	srvDesc.Buffer.StructureByteStride = static_cast<UINT>(structureSize);
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.NumElements = static_cast<UINT>(count);
+	uavDesc.Buffer.StructureByteStride = static_cast<UINT>(structureSize);
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+	if (!Init
+		(
+			pDevice,
+			structureSize * count,
+			heapProp,
+			desc,
+			state,
+			pPoolSRV,
+			srvDesc,
+			nullptr,
+			nullptr,
+			uavDesc,
+			name
+		)
+	)
 	{
 		return false;
 	}
 
 	m_IBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
 	m_IBV.Format = format;
-	m_IBV.SizeInBytes = static_cast<UINT>(size);
+	m_IBV.SizeInBytes = static_cast<UINT>(structureSize * count);
 
 	return true;
 }

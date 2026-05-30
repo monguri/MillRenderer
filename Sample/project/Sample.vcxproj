@@ -101,6 +101,10 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <FxCompile Include="..\res\AABBs_MS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Mesh</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Mesh</ShaderType>
+    </FxCompile>
     <FxCompile Include="..\res\AmbientLightPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.7</ShaderModel>

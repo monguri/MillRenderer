@@ -4939,10 +4939,21 @@ bool SampleApp::OnInit(HWND hWnd)
 	if (m_useMeshlet)
 	{
 		std::wstring vsPath;
-		if (!SearchFilePath(L"AABB_VS.cso", vsPath))
+		if (m_useMeshManager)
 		{
-			ELOG("Error : Vertex Shader Not Found");
-			return false;
+			if (!SearchFilePath(L"AABBs_MS.cso", vsPath))
+			{
+				ELOG("Error : Vertex Shader Not Found");
+				return false;
+			}
+		}
+		else
+		{
+			if (!SearchFilePath(L"AABB_VS.cso", vsPath))
+			{
+				ELOG("Error : Vertex Shader Not Found");
+				return false;
+			}
 		}
 
 		ComPtr<ID3DBlob> pVSBlob;
@@ -4982,38 +4993,81 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout = Mesh::PosOnlyInputLayout;
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
-		desc.SampleMask = UINT_MAX;
-		desc.RasterizerState = DirectX::CommonStates::Wireframe;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 1;
-		desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
-		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
-
-		// TODO:SponzaRendererの数字を何も考えずに使っている
-		desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-		desc.RasterizerState.DepthBias = 100;
-
-		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-		desc.pRootSignature = m_MeshletAABBRootSig.GetPtr();
-
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-
-		hr = m_pDevice->CreateGraphicsPipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pMeshletAABB_PSO.GetAddressOf())
-		);
-		if (FAILED(hr))
+		if (m_useMeshManager)
 		{
-			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-			return false;
+			D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
+			desc.BlendState = DirectX::CommonStates::Opaque;
+			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
+			desc.SampleMask = UINT_MAX;
+			desc.RasterizerState = DirectX::CommonStates::Wireframe;
+			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			desc.NumRenderTargets = 1;
+			desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
+			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
+
+			// TODO:SponzaRendererの数字を何も考えずに使っている
+			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+			desc.RasterizerState.DepthBias = 100;
+
+			desc.MS.pShaderBytecode = pVSBlob->GetBufferPointer();
+			desc.MS.BytecodeLength = pVSBlob->GetBufferSize();
+			desc.pRootSignature = m_MeshletAABBRootSig.GetPtr();
+
+			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+
+			CD3DX12_PIPELINE_MESH_STATE_STREAM psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+			D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
+			streamDesc.pPipelineStateSubobjectStream = &psoStream;
+			streamDesc.SizeInBytes = sizeof(psoStream);
+
+			hr = m_pDevice->CreatePipelineState(
+				&streamDesc,
+				IID_PPV_ARGS(m_pMeshletAABB_PSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
+		}
+		else
+		{
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+			desc.InputLayout = Mesh::PosOnlyInputLayout;
+			desc.BlendState = DirectX::CommonStates::Opaque;
+			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
+			desc.SampleMask = UINT_MAX;
+			desc.RasterizerState = DirectX::CommonStates::Wireframe;
+			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			desc.NumRenderTargets = 1;
+			desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
+			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
+
+			// TODO:SponzaRendererの数字を何も考えずに使っている
+			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+			desc.RasterizerState.DepthBias = 100;
+
+			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+			desc.pRootSignature = m_MeshletAABBRootSig.GetPtr();
+
+			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+
+			hr = m_pDevice->CreateGraphicsPipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pMeshletAABB_PSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 	}
 
@@ -8566,14 +8620,61 @@ void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const Direc
 	pCmdList->SetGraphicsRootSignature(m_MeshletAABBRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pMeshletAABB_PSO.Get());
 
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-
 	if (m_useMeshManager)
 	{
-		//TODO:実装
+		// Opaqueマテリアルのメッシュの描画
+		{
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+			pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetUnitCubeVB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(5, m_MeshManager.GetUnitCubeIB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(6, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(7, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+
+			pCmdList->ExecuteIndirect
+			(
+				m_MeshManager.GetHWRasCmdSig().Get(),
+				1,
+				m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
+				0,
+				nullptr,
+				0
+			);
+
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
+
+		// AlphaMask, DoubleSidedマテリアルのメッシュの描画
+		{
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+
+			pCmdList->ExecuteIndirect
+			(
+				m_MeshManager.GetHWRasCmdSig().Get(),
+				1,
+				m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
+				0,
+				nullptr,
+				0
+			);
+
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
 	}
 	else
 	{
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+
 		for (const Model* model : m_pModels)
 		{
 			for (size_t i = 0; i < model->GetMeshCount(); i++)

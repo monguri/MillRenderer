@@ -36,7 +36,7 @@ struct AABB
 struct VSOutput
 {
 	float4 Position : SV_Position;
-	uint InstanceID : SV_InstanceID;
+	uint InstanceID : INSTANCE_ID;
 };
 
 ConstantBuffer<Transform> CbTransform : register(b0);

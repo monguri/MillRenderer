@@ -1,7 +1,7 @@
 struct VSOutput
 {
 	float4 Position : SV_Position;
-	uint InstanceID : SV_InstanceID;
+	uint InstanceID : INSTANCE_ID;
 };
 
 float4 main(VSOutput input) : SV_TARGET

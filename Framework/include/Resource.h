@@ -59,14 +59,22 @@ public:
 	bool InitAsVertexBuffer
 	(
 		ID3D12Device* pDevice,
-		size_t count
+		size_t count,
+		D3D12_RESOURCE_FLAGS flags,
+		D3D12_RESOURCE_STATES state,
+		DescriptorPool* pPoolSRV,
+		LPCWSTR name = nullptr
 	)
 	{
 		return InitAsVertexBuffer
 		(
 			pDevice,
 			sizeof(T),
-			count * sizeof(T)
+			count,
+			flags,
+			state,
+			pPoolSRV,
+			name
 		);
 	}
 
@@ -75,14 +83,23 @@ public:
 	(
 		ID3D12Device* pDevice,
 		DXGI_FORMAT format,
-		size_t count
+		size_t count,
+		D3D12_RESOURCE_FLAGS flags,
+		D3D12_RESOURCE_STATES state,
+		DescriptorPool* pPoolSRV,
+		LPCWSTR name = nullptr
 	)
 	{
 		return InitAsIndexBuffer
 		(
 			pDevice,
 			format,
-			count * sizeof(T)
+			sizeof(T),
+			count,
+			flags,
+			state,
+			pPoolSRV,
+			name
 		);
 	}
 
@@ -189,14 +206,23 @@ private:
 	(
 		ID3D12Device* pDevice,
 		size_t stride,
-		size_t size
+		size_t count,
+		D3D12_RESOURCE_FLAGS flags,
+		D3D12_RESOURCE_STATES state,
+		DescriptorPool* pPoolSRV,
+		LPCWSTR name = nullptr
 	);
 
 	bool InitAsIndexBuffer
 	(
 		ID3D12Device* pDevice,
 		DXGI_FORMAT format,
-		size_t size
+		size_t structureSize,
+		size_t count,
+		D3D12_RESOURCE_FLAGS flags,
+		D3D12_RESOURCE_STATES state,
+		DescriptorPool* pPoolSRV,
+		LPCWSTR name = nullptr
 	);
 
 	bool InitAsStructuredBuffer

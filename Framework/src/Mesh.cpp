@@ -382,17 +382,25 @@ bool Mesh::Init
 
 			if (!m_UnitCubeVB.InitAsVertexBuffer<Vector3>(
 				pDevice,
-				cubeVertices.size()
+				cubeVertices.size(),
+				D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATE_COMMON,
+				pPoolGpuVisible,
+				L"UnitCubeVB"
 			))
 			{
-				ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+				ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
 				return false;
 			}
 
 			if (!m_UnitCubeIB.InitAsIndexBuffer<uint32_t>(
 				pDevice,
 				DXGI_FORMAT_R32_UINT,
-				cubeIndices.size()
+				cubeIndices.size(),
+				D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATE_COMMON,
+				pPoolGpuVisible,
+				L"UnitCubeIB"
 			))
 			{
 				ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
@@ -525,7 +533,11 @@ bool Mesh::Init
 	{
 		if (!m_VB.InitAsVertexBuffer<MeshVertex>(
 			pDevice,
-			vertexCount
+			vertexCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			L"VB"
 		))
 		{
 			ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
@@ -535,7 +547,11 @@ bool Mesh::Init
 		if (!m_IB.InitAsIndexBuffer<uint32_t>(
 			pDevice,
 			DXGI_FORMAT_R32_UINT,
-			m_IndexCount
+			m_IndexCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			pPoolGpuVisible,
+			L"IB"
 		))
 		{
 			ELOG("Error : Resource::InitAsIndexBuffer() Failed.");

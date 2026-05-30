@@ -36,6 +36,8 @@ public:
 	const Resource& GetMeshletMeshMaterialTableSB() const;
 	const Resource& GetMeshesDescHeapIndicesCB() const;
 	const Resource& GetMaterialsDescHeapIndicesCB() const;
+	const Resource& GetUnitCubeVB() const;
+	const Resource& GetUnitCubeIB() const;
 
 	const ComPtr<ID3D12CommandSignature>& GetHWRasCmdSig() const;
 
