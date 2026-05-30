@@ -915,7 +915,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshManager)
 		{
-			if (!m_MeshManager.RegisterModel(path, m_useMetis))
+			if (!m_MeshManager.RegisterModel(path, Matrix::Identity, m_useMetis))
 			{
 				ELOG("Error : MeshManager::RegisterModel() failed.");
 				return false;
@@ -1080,7 +1080,10 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshManager)
 		{
-			if (!m_MeshManager.RegisterModel(path, m_useMetis))
+			//const Matrix& worldMat = Matrix::CreateScale(0.25f) * Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.5f, 0.0f);
+			const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
+
+			if (!m_MeshManager.RegisterModel(path, worldMat, m_useMetis))
 			{
 				ELOG("Error : MeshManager::RegisterModel() failed.");
 				return false;
