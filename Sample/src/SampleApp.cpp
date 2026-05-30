@@ -1222,30 +1222,38 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pModels.push_back(model);
 		}
 
-#if 1
-		if (m_useMeshManager)
-		{
-			if (!m_MeshManager.Update
-			(
-				m_pDevice.Get(),
-				m_pQueue.Get(),
-				pCmd,
-				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-				m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
-				m_DummyTexture
-			))
-			{
-				ELOG("Error : MeshManager::Update() failed.");
-				return false;
-			}
-		}
-#endif
 
 		pCmd->Close();
 
 		ID3D12CommandList* pLists[] = {pCmd};
 		m_pQueue->ExecuteCommandLists(1, pLists);
 	}
+
+#if 1
+	if (m_useMeshManager)
+	{
+		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
+		if (!m_MeshManager.Update
+		(
+			m_pDevice.Get(),
+			m_pQueue.Get(),
+			pCmd,
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
+			m_DummyTexture
+		))
+		{
+			ELOG("Error : MeshManager::Update() failed.");
+			return false;
+		}
+
+		pCmd->Close();
+
+		ID3D12CommandList* pLists[] = {pCmd};
+		m_pQueue->ExecuteCommandLists(1, pLists);
+	}
+#endif
 
 	m_pModels.shrink_to_fit();
 
