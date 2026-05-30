@@ -772,13 +772,11 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 				baseColorMapPath = ConvertToValidFilePath(resMat.DiffuseMap);
 			}
 
-			if (!baseColorMapPath.empty())
+			assert(!baseColorMapPath.empty());
+			if (!m_BaseColorMaps[materialIdx].Init(pDevice, pPoolGpuVisible, baseColorMapPath.c_str(), true, batch))
 			{
-				if (!m_BaseColorMaps[materialIdx].Init(pDevice, pPoolGpuVisible, baseColorMapPath.c_str(), true, batch))
-				{
-					ELOG("Error : Texture::Init() Failed. path = %ls", baseColorMapPath.c_str());
-					return false;
-				}
+				ELOG("Error : Texture::Init() Failed. path = %ls", baseColorMapPath.c_str());
+				return false;
 			}
 
 			const std::wstring& metallicRoughnessMapPath = ConvertToValidFilePath(resMat.MetallicRoughnessMap);
