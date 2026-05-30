@@ -883,9 +883,16 @@ bool MeshManager::RegisterModel(const std::wstring& filePath, bool useMetis)
 		material.NormalMap = dirPath + material.NormalMap;
 		material.HeightMap = dirPath + material.HeightMap;
 		material.BaseColorMap = dirPath + material.BaseColorMap;
+		// 以下のテクスチャはパス文字列が空かどうかはテクスチャが存在するかどうかのフラグになるので空の場合は空のままにしておく必要がある
 		material.MetallicRoughnessMap = dirPath + material.MetallicRoughnessMap;
-		material.EmissiveMap = dirPath + material.EmissiveMap;
-		material.AmbientOcclusionMap = dirPath + material.AmbientOcclusionMap;
+		if (!material.EmissiveMap.empty())
+		{
+			material.EmissiveMap = dirPath + material.EmissiveMap;
+		}
+		if (!material.AmbientOcclusionMap.empty())
+		{
+			material.AmbientOcclusionMap = dirPath + material.AmbientOcclusionMap;
+		}
 	}
 
 	m_resMaterials.insert(m_resMaterials.end(), materials.begin(), materials.end());
