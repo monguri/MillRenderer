@@ -3269,10 +3269,21 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			std::wstring csPath;
 
-			if (!SearchFilePath(L"VisibilityOpaqueCS.cso", csPath))
+			if (m_useMeshManager)
 			{
-				ELOG("Error : Mesh Shader Not Found");
-				return false;
+				if (!SearchFilePath(L"VBufferOpaqueCS.cso", csPath))
+				{
+					ELOG("Error : Mesh Shader Not Found");
+					return false;
+				}
+			}
+			else
+			{
+				if (!SearchFilePath(L"VisibilityOpaqueCS.cso", csPath))
+				{
+					ELOG("Error : Mesh Shader Not Found");
+					return false;
+				}
 			}
 
 			ComPtr<ID3DBlob> pCSBlob;
@@ -3317,10 +3328,21 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!SearchFilePath(L"VisibilityMaskCS.cso", csPath))
+			if (m_useMeshManager)
 			{
-				ELOG("Error : Mesh Shader Not Found");
-				return false;
+				if (!SearchFilePath(L"VBufferMaskCS.cso", csPath))
+				{
+					ELOG("Error : Mesh Shader Not Found");
+					return false;
+				}
+			}
+			else
+			{
+				if (!SearchFilePath(L"VisibilityMaskCS.cso", csPath))
+				{
+					ELOG("Error : Mesh Shader Not Found");
+					return false;
+				}
 			}
 
 			hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
@@ -6884,13 +6906,70 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	{
 		pCmdList->SetComputeRootSignature(m_DrawVBufferSWRasRootSig.GetPtr());
 
-		uint32_t meshIdx = 0;
+		// TODO: m_useSWRasterizerとm_useMeshManagerのifは逆の順番の方がいいかも
+		// 処理の共通化の量的に
+		if (m_useMeshManager)
+		{
+			// Opaqueマテリアルのメッシュの描画
+			{
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-		pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
-		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+				pCmdList->SetComputeRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(5, m_DrawVBufferSWRasCB.GetHandle()->HandleGPU);
+				pCmdList->SetComputeRootDescriptorTable(6, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
 
-		pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
-		DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+				pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
+				pCmdList->ExecuteIndirect
+				(
+					m_MeshManager.GetSWRasCmdSig().Get(),
+					1,
+					m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
+					0,
+					nullptr,
+					0
+				);
+
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
+
+			// AlphaMask, DoubleSidedマテリアルのメッシュの描画
+			{
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+				pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+
+				pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
+				pCmdList->ExecuteIndirect
+				(
+					m_MeshManager.GetHWRasCmdSig().Get(),
+					1,
+					m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
+					0,
+					nullptr,
+					0
+				);
+
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
+		}
+		else
+		{
+			uint32_t meshIdx = 0;
+
+			pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
+			DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+
+			pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
+			DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+		}
 
 		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}

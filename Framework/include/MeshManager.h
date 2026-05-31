@@ -40,6 +40,7 @@ public:
 	const Resource& GetUnitCubeIB() const;
 
 	const ComPtr<ID3D12CommandSignature>& GetHWRasCmdSig() const;
+	const ComPtr<ID3D12CommandSignature>& GetSWRasCmdSig() const;
 
 	uint32_t GetMeshletCount() const;
 

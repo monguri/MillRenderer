@@ -950,6 +950,11 @@ const ComPtr<ID3D12CommandSignature>& MeshManager::GetHWRasCmdSig() const
 	return m_pDrawByHWRasCmdSig;
 }
 
+const ComPtr<ID3D12CommandSignature>& MeshManager::GetSWRasCmdSig() const
+{
+	return m_pDrawBySWRasCmdSig;
+}
+
 uint32_t MeshManager::GetMeshletCount() const
 {
 	return m_MeshletCount;
