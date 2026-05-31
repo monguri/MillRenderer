@@ -22,24 +22,15 @@ public:
 		ID3D12Device* pDevice,
 		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPoolGpuVisible,
-		class DescriptorPool* pPoolCpuVisible,
-		const ResMesh& resource,
-		bool isMeshlet,
-		bool useMeshManager
+		const ResMesh& resource
 	)
 	{
-		return Init(pDevice, pCmdList, pPoolGpuVisible, pPoolCpuVisible, resource, sizeof(CbType), isMeshlet, useMeshManager);
+		return Init(pDevice, pCmdList, pPoolGpuVisible, resource, sizeof(CbType));
 	}
 
 	void Term();
 
-	void ClearDrawMeshletBBs(ID3D12GraphicsCommandList6* pCmdList) const;
-	void DoMeshletCulling(ID3D12GraphicsCommandList6* pCmdList) const;
-	void DrawByHWRasterizer(ID3D12GraphicsCommandList6* pCmdList, bool useCulling) const;
-	void DrawBySWRasterizer(ID3D12GraphicsCommandList6* pCmdList) const;
-	//TODO: BoundingSphere関連はすべて現在未使用でデッドコードになっている。World行列に不均一スケールがあると楕円球になり扱いにくいため
-	void DrawMeshletBoundingSphere(ID3D12GraphicsCommandList6* pCmdList) const;
-	void DrawMeshletAABB(ID3D12GraphicsCommandList6* pCmdList) const;
+	void Draw(ID3D12GraphicsCommandList6* pCmdList) const;
 
 	template<typename T>
 	T* MapConstantBuffer(uint32_t frameIndex) const
@@ -50,46 +41,18 @@ public:
 	void UnmapConstantBuffer(uint32_t frameIndex) const;
 
 	const DescriptorHandle& GetConstantBufferHandle(uint32_t frameIndex) const;
-	const DescriptorHandle& GetVertexBufferSBHandle() const;
-	const DescriptorHandle& GetIndexBufferSBHandle() const;
-	const DescriptorHandle& GetMeshletsSBHandle() const;
-	const DescriptorHandle& GetMeshletsVerticesSBHandle() const;
-	const DescriptorHandle& GetMeshletsTrianglesBBHandle() const;
-	const DescriptorHandle& GetMeshletsBoundingSphereInfosSBHandle() const;
-	const DescriptorHandle& GetMeshletsAABBInfosSBHandle() const;
-	const DescriptorHandle& GetDrawMeshletIndirectArgBBHandle() const;
-	const Resource& GetDrawMeshletListBB() const;
-	const DescriptorHandle& GetDrawMeshletListBBUavHandle() const;
-	const DescriptorHandle& GetDrawMeshletListBBSrvHandle() const;
 
 	uint32_t GetMaterialIdx() const;
 	Mobility GetMobility() const;
 	void SetMobility(Mobility mobility);
 
 private:
-	bool m_IsMeshlet = false;
-	bool m_UseMeshManager = false;
 	// Meshletの場合はSB、通常Meshの場合はVB
 	Resource m_VB;
 	Resource m_IB;
 	Resource m_CB[App::FRAME_COUNT];
-	Resource m_MeshletsSB;
-	Resource m_MeshletsVerticesSB;
-	Resource m_MeshletsTrianglesBB;
-	Resource m_UnitSphereVB;
-	Resource m_UnitSphereIB;
-	Resource m_BoundingSphereInfosSB;
-	Resource m_UnitCubeVB;
-	Resource m_UnitCubeIB;
-	Resource m_AABBInfosSB;
-	ComPtr<ID3D12CommandSignature> m_pDrawByHWRasCmdSig;
-	ComPtr<ID3D12CommandSignature> m_pDrawBySWRasCmdSig;
-	Resource m_DrawMeshletIndirectArgBB;
-	Resource m_DrawMeshletListBB;
 	uint32_t m_MaterialIdx;
 	size_t m_IndexCount;
-	size_t m_SphereIndexCount;
-	size_t m_MeshletCount;
 	Mobility m_Mobility;
 	class DescriptorPool* m_pPoolGpuVisible;
 	class DescriptorPool* m_pPoolCpuVisible;
@@ -99,21 +62,10 @@ private:
 		ID3D12Device* pDevice,
 		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPoolGpuVisible,
-		class DescriptorPool* pPoolCpuVisible,
 		const ResMesh& resource,
-		size_t cbBufferSize,
-		bool isMeshlet,
-		bool useMeshManager
+		size_t cbBufferSize
 	);
 
 	Mesh(const Mesh&) = delete;
 	void operator=(const Mesh&) = delete;
-
-public:
-	static const D3D12_INPUT_LAYOUT_DESC PosOnlyInputLayout;
-
-private:
-	static const int PosOnlyInputElementCount = 1;
-	static const D3D12_INPUT_ELEMENT_DESC PosOnlyInputElements[PosOnlyInputElementCount];
-
 };

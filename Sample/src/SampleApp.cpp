@@ -794,17 +794,9 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		{
 			m_useMeshlet = true;
 		}
-		else if (wcscmp(argv[a], L"--meshmanager") == 0)
-		{
-			m_useMeshManager = true;
-		}
 		else if (wcscmp(argv[a], L"--metis") == 0)
 		{
 			m_useMetis = true;
-		}
-		else if (wcscmp(argv[a], L"--vbuffer") == 0)
-		{
-			m_useVBuffer = true;
 		}
 		else if (wcscmp(argv[a], L"--swrasterizer") == 0)
 		{
@@ -882,7 +874,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
-	// メッシュをロード
+	// モデルをロード
 	{
 		std::wstring path;
 		if (m_drawSponza)
@@ -913,7 +905,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
-		if (m_useMeshManager)
+		if (m_useMeshlet)
 		{
 			if (!m_MeshManager.RegisterModel(path, Matrix::Identity, m_useMetis))
 			{
@@ -935,7 +927,7 @@ bool SampleApp::OnInit(HWND hWnd)
 					return false;
 				}
 
-				if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE], resMesh[i], m_useMeshlet, m_useMeshManager))
+				if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], resMesh[i]))
 				{
 					ELOG("Error : Mesh Initialize Failed.");
 					delete mesh;
@@ -1057,7 +1049,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
-	// 2つ目のメッシュをロード
+	// 2つ目のモデルをロード
 	if (m_drawSponza)
 	{
 		std::wstring path;
@@ -1076,13 +1068,11 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+		//const Matrix& worldMat = Matrix::CreateScale(0.25f) * Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.5f, 0.0f);
+		const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
 
-		if (m_useMeshManager)
+		if (m_useMeshlet)
 		{
-			//const Matrix& worldMat = Matrix::CreateScale(0.25f) * Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.5f, 0.0f);
-			const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
-
 			if (!m_MeshManager.RegisterModel(path, worldMat, m_useMetis))
 			{
 				ELOG("Error : MeshManager::RegisterModel() failed.");
@@ -1091,6 +1081,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 		else
 		{
+			ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
 			std::vector<Mesh*> pMeshes;
 			pMeshes.reserve(resMesh.size());
 
@@ -1103,15 +1095,12 @@ bool SampleApp::OnInit(HWND hWnd)
 					return false;
 				}
 
-				if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], m_pPool[POOL_TYPE_RES_CPU_VISIBLE], resMesh[i], m_useMeshlet, m_useMeshManager))
+				if (!mesh->Init<CbMesh>(m_pDevice.Get(), pCmd, m_pPool[POOL_TYPE_RES_GPU_VISIBLE], resMesh[i]))
 				{
 					ELOG("Error : Mesh Initialize Failed.");
 					delete mesh;
 					return false;
 				}
-
-				//const Matrix& worldMat = Matrix::CreateScale(0.25f) * Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.5f, 0.0f);
-				const Matrix& worldMat = Matrix::CreateRotationY(DirectX::XM_PI * 0.5f) * Matrix::CreateTranslation(0, 1.0f, 0.0f);
 
 				for (uint32_t frameIndex = 0; frameIndex  < FRAME_COUNT; frameIndex++)
 				{
@@ -1203,16 +1192,18 @@ bool SampleApp::OnInit(HWND hWnd)
 			model->SetMaterials(pMaterials);
 
 			m_pModels.push_back(model);
+
+			pCmd->Close();
+
+			ID3D12CommandList* pLists[] = {pCmd};
+			m_pQueue->ExecuteCommandLists(1, pLists);
+
+			// Wait command queue finishing.
+			m_Fence.Wait(m_pQueue.Get(), INFINITE);
 		}
-
-
-		pCmd->Close();
-
-		ID3D12CommandList* pLists[] = {pCmd};
-		m_pQueue->ExecuteCommandLists(1, pLists);
 	}
 
-	if (m_useMeshManager)
+	if (m_useMeshlet)
 	{
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
@@ -1234,6 +1225,9 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		ID3D12CommandList* pLists[] = {pCmd};
 		m_pQueue->ExecuteCommandLists(1, pLists);
+
+		// Wait command queue finishing.
+		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
 
 	m_pModels.shrink_to_fit();
@@ -1253,7 +1247,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->bEnableBackFaceCulling = m_enableBackFaceCulling ? 1 : 0;
 	}
 
-	if (m_useMeshlet && m_useVBuffer && m_useSWRasterizer)
+	if (m_useMeshlet && m_useSWRasterizer)
 	{
 		if (!m_DrawVBufferSWRasCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDrawVBufferSWRas), L"CbDrawVBufferSWRas"))
 		{
@@ -1266,7 +1260,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->Height = m_Height;
 	}
 
-	if (m_useMeshlet && m_useVBuffer)
+	if (m_useMeshlet)
 	{
 		if (!m_MeshletsDescHeapIndicesCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbMeshletsDescHeapIndices)))
 		{
@@ -1712,7 +1706,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 
 	// VisibilyBufferの生成
-	if (m_useVBuffer)
+	if (m_useMeshlet)
 	{
 		// クリアはfloatではR32G32_Uintに対応してないため後で行う
 		float clearColor[4] = {0, 0, 0, 0};
@@ -2575,31 +2569,6 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		// AlphaModeがMaskのシャドウマップ描画用
 		std::wstring psPath;
-		if (m_useMeshManager)
-		{
-			if (!SearchFilePath(L"DepthMeshesMaskPS.cso", psPath))
-			{
-				ELOG("Error : Pixel Shader Not Found");
-				return false;
-			}
-		}
-		else
-		{
-			if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
-			{
-				ELOG("Error : Pixel Shader Not Found");
-				return false;
-			}
-		}
-
-		ComPtr<ID3DBlob> pDepthMaskPSBlob;
-		HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
 		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
@@ -2607,7 +2576,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		ComPtr<ID3DBlob> pOpaquePSBlob;
-		hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
+		HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
 			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
@@ -2631,30 +2600,30 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		if (m_useMeshlet)
 		{
-			// シャドウマップ描画用のパイプラインステートディスクリプタ
-			D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
+			if (!SearchFilePath(L"DepthMeshesMaskPS.cso", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pDepthMaskPSBlob;
+			HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+				return false;
+			}
 
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring msPath;
-			if (m_useMeshManager)
+			if (!SearchFilePath(L"DepthMeshesMS.cso", msPath))
 			{
-				if (!SearchFilePath(L"DepthMeshesMS.cso", msPath))
-				{
-					ELOG("Error : Mesh Shader Not Found");
-					return false;
-				}
-			}
-			else
-			{
-				if (!SearchFilePath(L"DepthMS.cso", msPath))
-				{
-					ELOG("Error : Mesh Shader Not Found");
-					return false;
-				}
+				ELOG("Error : Mesh Shader Not Found");
+				return false;
 			}
 
 			ComPtr<ID3DBlob> pMSBlob;
-			HRESULT hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
+			hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
@@ -2675,6 +2644,8 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
+			// シャドウマップ描画用のパイプラインステートディスクリプタ
+			D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
 			desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
 			desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
 			// PSは実行しないので設定しない
@@ -2714,12 +2685,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.RasterizerState = DirectX::CommonStates::CullNone;
 
 			// TODO: MeshManagerではOpaqueとMaskedを分類して新たなIndirectArgとMeshletListを作るのが面倒なので両方Maskedマテリアルで描画している
-			if (m_useMeshManager)
-			{
-				// TODO:SponzaRendererの数字を何も考えずに使っている
-				desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-				desc.RasterizerState.DepthBias = 100;
-			}
+
+			// TODO:SponzaRendererの数字を何も考えずに使っている
+			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+			desc.RasterizerState.DepthBias = 100;
 
 			psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
 			streamDesc.pPipelineStateSubobjectStream = &psoStream;
@@ -2810,6 +2779,20 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 		else // if (m_useMeshlet)
 		{
+			if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pDepthMaskPSBlob;
+			hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+				return false;
+			}
+
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 			desc.InputLayout = MeshVertex::InputLayout;
 
@@ -3201,22 +3184,10 @@ bool SampleApp::OnInit(HWND hWnd)
 	if (m_useMeshlet)
 	{
 		std::wstring csPath;
-
-		if (m_useMeshManager)
+		if (!SearchFilePath(L"MeshletsCulling.cso", csPath))
 		{
-			if (!SearchFilePath(L"MeshletsCulling.cso", csPath))
-			{
-				ELOG("Error : Mesh Shader Not Found");
-				return false;
-			}
-		}
-		else
-		{
-			if (!SearchFilePath(L"MeshletCulling.cso", csPath))
-			{
-				ELOG("Error : Mesh Shader Not Found");
-				return false;
-			}
+			ELOG("Error : Mesh Shader Not Found");
+			return false;
 		}
 
 		ComPtr<ID3DBlob> pCSBlob;
@@ -3263,27 +3234,15 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 
 	// Visibilityパス用ルートシグニチャとパイプラインステートの生成
-	if (m_useMeshlet && m_useVBuffer)
+	if (m_useMeshlet)
 	{
 		if (m_useSWRasterizer)
 		{
 			std::wstring csPath;
-
-			if (m_useMeshManager)
+			if (!SearchFilePath(L"VBufferOpaqueCS.cso", csPath))
 			{
-				if (!SearchFilePath(L"VBufferOpaqueCS.cso", csPath))
-				{
-					ELOG("Error : Mesh Shader Not Found");
-					return false;
-				}
-			}
-			else
-			{
-				if (!SearchFilePath(L"VisibilityOpaqueCS.cso", csPath))
-				{
-					ELOG("Error : Mesh Shader Not Found");
-					return false;
-				}
+				ELOG("Error : Mesh Shader Not Found");
+				return false;
 			}
 
 			ComPtr<ID3DBlob> pCSBlob;
@@ -3328,21 +3287,10 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (m_useMeshManager)
+			if (!SearchFilePath(L"VBufferMaskCS.cso", csPath))
 			{
-				if (!SearchFilePath(L"VBufferMaskCS.cso", csPath))
-				{
-					ELOG("Error : Mesh Shader Not Found");
-					return false;
-				}
-			}
-			else
-			{
-				if (!SearchFilePath(L"VisibilityMaskCS.cso", csPath))
-				{
-					ELOG("Error : Mesh Shader Not Found");
-					return false;
-				}
+				ELOG("Error : Mesh Shader Not Found");
+				return false;
 			}
 
 			hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
@@ -3368,26 +3316,13 @@ bool SampleApp::OnInit(HWND hWnd)
 		else
 		{
 			std::wstring msPath;
-
-			if (m_useMeshManager)
+			if (!SearchFilePath(L"VBufferMS.cso", msPath))
 			{
-				if (!SearchFilePath(L"VBufferMS.cso", msPath))
-				{
-					ELOG("Error : Mesh Shader Not Found");
-					return false;
-				}
-			}
-			else
-			{
-				if (!SearchFilePath(L"VisibilityMS.cso", msPath))
-				{
-					ELOG("Error : Mesh Shader Not Found");
-					return false;
-				}
+				ELOG("Error : Mesh Shader Not Found");
+				return false;
 			}
 
 			ComPtr<ID3DBlob> pMSBlob;
-
 			HRESULT hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
 			if (FAILED(hr))
 			{
@@ -3410,22 +3345,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 
 			std::wstring psPath;
-
-			if (m_useMeshManager)
+			if (!SearchFilePath(L"VBufferPS.cso", psPath))
 			{
-				if (!SearchFilePath(L"VBufferPS.cso", psPath))
-				{
-					ELOG("Error : Pixel Shader Not Found");
-					return false;
-				}
-			}
-			else
-			{
-				if (!SearchFilePath(L"VisibilityOpaquePS.cso", psPath))
-				{
-					ELOG("Error : Pixel Shader Not Found");
-					return false;
-				}
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
 			}
 
 			ComPtr<ID3DBlob> pPSBlob;
@@ -3471,25 +3394,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			{
 				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
 				return false;
-			}
-
-			if (!m_useMeshManager)
-			{
-				if (!SearchFilePath(L"VisibilityMaskPS.cso", psPath))
-				{
-					ELOG("Error : Pixel Shader Not Found");
-					return false;
-				}
-
-				hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-				if (FAILED(hr))
-				{
-					ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-					return false;
-				}
-
-				desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-				desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 			}
 
 			//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
@@ -3894,21 +3798,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		std::wstring psPath;
-		if (m_useMeshManager)
+		if (!SearchFilePath(L"GBufferFromVBufferPS.hlsl", psPath))
 		{
-			if (!SearchFilePath(L"GBufferFromVBufferPS.hlsl", psPath))
-			{
-				ELOG("Error : Pixel Shader Not Found");
-				return false;
-			}
-		}
-		else
-		{
-			if (!SearchFilePath(L"GBufferFromVisibilityPS.hlsl", psPath))
-			{
-				ELOG("Error : Pixel Shader Not Found");
-				return false;
-			}
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
 		}
 
 		std::vector<const wchar_t*> compileArgs =
@@ -4960,29 +4853,18 @@ bool SampleApp::OnInit(HWND hWnd)
 	// Meshlet Bounding Sphere/AABB表示用ルートシグニチャとパイプラインステートの生成
 	if (m_useMeshlet)
 	{
-		std::wstring vsPath;
-		if (m_useMeshManager)
+		std::wstring msPath;
+		if (!SearchFilePath(L"AABBs_MS.cso", msPath))
 		{
-			if (!SearchFilePath(L"AABBs_MS.cso", vsPath))
-			{
-				ELOG("Error : Vertex Shader Not Found");
-				return false;
-			}
-		}
-		else
-		{
-			if (!SearchFilePath(L"AABB_VS.cso", vsPath))
-			{
-				ELOG("Error : Vertex Shader Not Found");
-				return false;
-			}
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
 		}
 
-		ComPtr<ID3DBlob> pVSBlob;
-		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		ComPtr<ID3DBlob> pMSBlob;
+		HRESULT hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
 			return false;
 		}
 
@@ -4997,15 +4879,15 @@ bool SampleApp::OnInit(HWND hWnd)
 		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
 		if (FAILED(hr))
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
 			return false;
 		}
 
 		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
 		if (FAILED(hr))
 		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
 			return false;
 		}
 
@@ -5015,81 +4897,42 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (m_useMeshManager)
+		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
+		desc.BlendState = DirectX::CommonStates::Opaque;
+		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
+		desc.SampleMask = UINT_MAX;
+		desc.RasterizerState = DirectX::CommonStates::Wireframe;
+		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
+		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+
+		// TODO:SponzaRendererの数字を何も考えずに使っている
+		desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+		desc.RasterizerState.DepthBias = 100;
+
+		desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
+		desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
+		desc.pRootSignature = m_MeshletAABBRootSig.GetPtr();
+
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+
+		CD3DX12_PIPELINE_MESH_STATE_STREAM psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+		D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
+		streamDesc.pPipelineStateSubobjectStream = &psoStream;
+		streamDesc.SizeInBytes = sizeof(psoStream);
+
+		hr = m_pDevice->CreatePipelineState(
+			&streamDesc,
+			IID_PPV_ARGS(m_pMeshletAABB_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
 		{
-			D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
-			desc.BlendState = DirectX::CommonStates::Opaque;
-			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
-			desc.SampleMask = UINT_MAX;
-			desc.RasterizerState = DirectX::CommonStates::Wireframe;
-			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			desc.NumRenderTargets = 1;
-			desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
-			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
-
-			// TODO:SponzaRendererの数字を何も考えずに使っている
-			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-			desc.RasterizerState.DepthBias = 100;
-
-			desc.MS.pShaderBytecode = pVSBlob->GetBufferPointer();
-			desc.MS.BytecodeLength = pVSBlob->GetBufferSize();
-			desc.pRootSignature = m_MeshletAABBRootSig.GetPtr();
-
-			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-
-			CD3DX12_PIPELINE_MESH_STATE_STREAM psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
-			D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
-			streamDesc.pPipelineStateSubobjectStream = &psoStream;
-			streamDesc.SizeInBytes = sizeof(psoStream);
-
-			hr = m_pDevice->CreatePipelineState(
-				&streamDesc,
-				IID_PPV_ARGS(m_pMeshletAABB_PSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
-		}
-		else
-		{
-			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-			desc.InputLayout = Mesh::PosOnlyInputLayout;
-			desc.BlendState = DirectX::CommonStates::Opaque;
-			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
-			desc.SampleMask = UINT_MAX;
-			desc.RasterizerState = DirectX::CommonStates::Wireframe;
-			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			desc.NumRenderTargets = 1;
-			desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
-			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
-
-			// TODO:SponzaRendererの数字を何も考えずに使っている
-			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-			desc.RasterizerState.DepthBias = 100;
-
-			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-			desc.pRootSignature = m_MeshletAABBRootSig.GetPtr();
-
-			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-
-			hr = m_pDevice->CreateGraphicsPipelineState(
-				&desc,
-				IID_PPV_ARGS(m_pMeshletAABB_PSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
+			ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+			return false;
 		}
 	}
 
@@ -6327,7 +6170,7 @@ void SampleApp::OnRender()
 	//TODO: MovableなメッシュをVelocityのテストのためサインカーブで動かす
 	const Matrix& worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
 
-	if (m_useMeshManager)
+	if (m_useMeshlet)
 	{
 		//TODO:実装
 	}
@@ -6379,7 +6222,7 @@ void SampleApp::OnRender()
 		}
 	}
 
-	if (m_useMeshlet && m_useVBuffer)
+	if (m_useMeshlet)
 	{
 		// Indexは0初期化してシェーダ側で使用するインデックスがずれてもGPUクラッシュさせないようにする
 		// GPUクラッシュするより絵がおかしい方が調査しやすいので
@@ -6603,15 +6446,15 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 
 	// Opaqueマテリアルのメッシュの描画
 	// TODO: MeshManagerではOpaqueとMaskedを分類して新たなIndirectArgとMeshletListを作るのが面倒なので両方Maskedマテリアルで描画している
-	if (!m_useMeshManager)
+	if (!m_useMeshlet)
 	{
 		pCmdList->SetPipelineState(m_pDepthPSO.Get());
-		DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+		DrawDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
 	}
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pDepthMaskPSO.Get());
-	DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+	DrawDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 
 	DirectX::TransitionResource(pCmdList, m_DirLightShadowMapTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
@@ -6632,15 +6475,15 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 
 	// Opaqueマテリアルのメッシュの描画
 	// TODO: MeshManagerではOpaqueとMaskedを分類して新たなIndirectArgとMeshletListを作るのが面倒なので両方Maskedマテリアルで描画している
-	if (!m_useMeshManager)
+	if (!m_useMeshlet)
 	{
 		pCmdList->SetPipelineState(m_pDepthPSO.Get());
-		DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
+		DrawDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
 	}
 
 	// Mask, DoubleSidedマテリアルのメッシュの描画
 	pCmdList->SetPipelineState(m_pDepthMaskPSO.Get());
-	DrawMeshToDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+	DrawDepthBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 }
 
 void SampleApp::DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList)
@@ -6798,7 +6641,6 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	}
 
 	// DispatchIndirectArg、VisibleMeshletListクリア
-	if (m_useMeshManager)
 	{
 		uint32_t clearValue[4] = {0, 0, 0, 0};
 		// 本来はX=0、Y=1、Z=1にしたいが、ClearUavWithUintValue()とByteAddressBufferではそれができないようだ。[0]の値ですべてクリアされてしまう。よってY=1、Z=1はシェーダで入れる。
@@ -6814,69 +6656,35 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 		m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().BarrierUAV(pCmdList);
 		m_MeshManager.GetDrawMaskedMeshletIndicesBB().BarrierUAV(pCmdList);
 	}
-	else
-	{
-		for (const Model* model : m_pModels)
-		{
-			for (size_t m = 0; m < model->GetMeshCount(); m++)
-			{
-				const Mesh* pMesh = model->GetMesh(m);
-				pMesh->ClearDrawMeshletBBs(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
-			}
-		}
-	}
 
 	pCmdList->SetComputeRootSignature(m_MeshletCullingRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pMeshletCullingPSO.Get());
 
-	if (m_useMeshManager)
-	{
-		pCmdList->SetComputeRoot32BitConstant(0, static_cast<UINT>(m_MeshManager.GetMeshletCount()), 0);
-		pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(3, m_CullingCB.GetHandle()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleUAV()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRoot32BitConstant(0, static_cast<UINT>(m_MeshManager.GetMeshletCount()), 0);
+	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_CullingCB.GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleUAV()->HandleGPU);
 
-		// シェーダ側と合わせている
-		constexpr size_t GROUP_SIZE_X = 64;
-		// グループ数は切り上げ
-		UINT NumGroupX = static_cast<UINT>((m_MeshManager.GetMeshletCount() + GROUP_SIZE_X - 1) / GROUP_SIZE_X);
-		pCmdList->Dispatch(NumGroupX, 1, 1);
+	// シェーダ側と合わせている
+	constexpr size_t GROUP_SIZE_X = 64;
+	// グループ数は切り上げ
+	UINT NumGroupX = static_cast<UINT>((m_MeshManager.GetMeshletCount() + GROUP_SIZE_X - 1) / GROUP_SIZE_X);
+	pCmdList->Dispatch(NumGroupX, 1, 1);
 
-		m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().BarrierUAV(pCmdList);
-		m_MeshManager.GetDrawOpaqueMeshletIndicesBB().BarrierUAV(pCmdList);
-		m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().BarrierUAV(pCmdList);
-		m_MeshManager.GetDrawMaskedMeshletIndicesBB().BarrierUAV(pCmdList);
-	}
-	else
-	{
-		pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(2, m_CullingCB.GetHandle()->HandleGPU);
-
-		for (const Model* model : m_pModels)
-		{
-			for (size_t m = 0; m < model->GetMeshCount(); m++)
-			{
-				const Mesh* pMesh = model->GetMesh(m);
-
-				pCmdList->SetComputeRootDescriptorTable(3, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-				pCmdList->SetComputeRootDescriptorTable(4, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
-				pCmdList->SetComputeRootDescriptorTable(5, pMesh->GetDrawMeshletIndirectArgBBHandle().HandleGPU);
-				pCmdList->SetComputeRootDescriptorTable(6, pMesh->GetDrawMeshletListBBUavHandle().HandleGPU);
-
-				pMesh->DoMeshletCulling(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
-			}
-		}
-	}
+	m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().BarrierUAV(pCmdList);
+	m_MeshManager.GetDrawOpaqueMeshletIndicesBB().BarrierUAV(pCmdList);
+	m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().BarrierUAV(pCmdList);
+	m_MeshManager.GetDrawMaskedMeshletIndicesBB().BarrierUAV(pCmdList);
 }
 
 void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
 {
-	assert(m_useMeshlet && m_useVBuffer);
+	assert(m_useMeshlet);
 
 	::PIXScopedEvent(pCmdList, 0, L"DrawVBuffer");
 
@@ -6902,73 +6710,59 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		pCmdList->ResourceBarrier(1, &b);
 	}
 
+	//TODO: if-elseでもう少し共通の処理をブロックの外に出せそう
 	if (m_useSWRasterizer)
 	{
 		pCmdList->SetComputeRootSignature(m_DrawVBufferSWRasRootSig.GetPtr());
 
-		// TODO: m_useSWRasterizerとm_useMeshManagerのifは逆の順番の方がいいかも
-		// 処理の共通化の量的に
-		if (m_useMeshManager)
+		// Opaqueマテリアルのメッシュの描画
 		{
-			// Opaqueマテリアルのメッシュの描画
-			{
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-				pCmdList->SetComputeRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-				pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-				pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
-				pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-				pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-				pCmdList->SetComputeRootDescriptorTable(5, m_DrawVBufferSWRasCB.GetHandle()->HandleGPU);
-				pCmdList->SetComputeRootDescriptorTable(6, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
-
-				pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
-				pCmdList->ExecuteIndirect
-				(
-					m_MeshManager.GetSWRasCmdSig().Get(),
-					1,
-					m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
-					0,
-					nullptr,
-					0
-				);
-
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			}
-
-			// AlphaMask, DoubleSidedマテリアルのメッシュの描画
-			{
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-				pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleSRV()->HandleGPU);
-
-				pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
-				pCmdList->ExecuteIndirect
-				(
-					m_MeshManager.GetHWRasCmdSig().Get(),
-					1,
-					m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
-					0,
-					nullptr,
-					0
-				);
-
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			}
-		}
-		else
-		{
-			uint32_t meshIdx = 0;
+			pCmdList->SetComputeRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(5, m_DrawVBufferSWRasCB.GetHandle()->HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(6, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
 
 			pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
-			DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+			pCmdList->ExecuteIndirect
+			(
+				m_MeshManager.GetSWRasCmdSig().Get(),
+				1,
+				m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
+				0,
+				nullptr,
+				0
+			);
+
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
+
+		// AlphaMask, DoubleSidedマテリアルのメッシュの描画
+		{
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+			pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 
 			pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
-			DrawMeshToVBufferBySWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+			pCmdList->ExecuteIndirect
+			(
+				m_MeshManager.GetHWRasCmdSig().Get(),
+				1,
+				m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
+				0,
+				nullptr,
+				0
+			);
+
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 
 		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -6989,66 +6783,53 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 		pCmdList->SetGraphicsRootSignature(m_DrawVBufferHWRasRootSig.GetPtr());
 
-		if (m_useMeshManager)
+		// Opaqueマテリアルのメッシュの描画
 		{
-			// Opaqueマテリアルのメッシュの描画
-			{
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-				pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(5, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-
-				pCmdList->SetPipelineState(m_pDrawVBufferHWRasOpaquePSO.Get());
-				pCmdList->ExecuteIndirect
-				(
-					m_MeshManager.GetHWRasCmdSig().Get(),
-					1,
-					m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
-					0,
-					nullptr,
-					0
-				);
-
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			}
-
-			// AlphaMask, DoubleSidedマテリアルのメッシュの描画
-			{
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-				pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleSRV()->HandleGPU);
-
-				pCmdList->SetPipelineState(m_pDrawVBufferHWRasMaskPSO.Get());
-				pCmdList->ExecuteIndirect
-				(
-					m_MeshManager.GetHWRasCmdSig().Get(),
-					1,
-					m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
-					0,
-					nullptr,
-					0
-				);
-
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			}
-		}
-		else
-		{
-			uint32_t meshIdx = 0;
+			pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(5, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 
 			pCmdList->SetPipelineState(m_pDrawVBufferHWRasOpaquePSO.Get());
-			DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+			pCmdList->ExecuteIndirect
+			(
+				m_MeshManager.GetHWRasCmdSig().Get(),
+				1,
+				m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
+				0,
+				nullptr,
+				0
+			);
+
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
+
+		// AlphaMask, DoubleSidedマテリアルのメッシュの描画
+		{
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 
 			pCmdList->SetPipelineState(m_pDrawVBufferHWRasMaskPSO.Get());
-			DrawMeshToVBufferByHWRasterizer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK, meshIdx, meshletsDescHeapIndices, materialsDescHeapIndices);
+			pCmdList->ExecuteIndirect
+			(
+				m_MeshManager.GetHWRasCmdSig().Get(),
+				1,
+				m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
+				0,
+				nullptr,
+				0
+			);
+
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 
 		DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -7083,26 +6864,6 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-	}
-
-	// GBufferFromVBuffer専用の定数バッファ更新
-	if (!m_useMeshManager)
-	{
-		{
-			CbMeshletsDescHeapIndices* ptr = m_MeshletsDescHeapIndicesCB.GetPtr<CbMeshletsDescHeapIndices>();
-			*ptr = meshletsDescHeapIndices;
-		}
-
-		{
-			CbMaterialsDescHeapIndices* ptr = m_MaterialsDescHeapIndicesCB.GetPtr<CbMaterialsDescHeapIndices>();
-			*ptr = materialsDescHeapIndices;
-		}
-
-		{
-			CbGBufferFromVBuffer* ptr = m_GBufferFromVBufferCB.GetPtr<CbGBufferFromVBuffer>();
-			ptr->ViewMatrix = view;
-			ptr->InvProjMatrix = proj.Invert();
-		}
 	}
 
 	// カメラバッファの更新
@@ -7163,16 +6924,8 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 
 	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
 
-	if (m_useMeshManager)
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshletsDescHeapIndicesCB.GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_MaterialsDescHeapIndicesCB.GetHandle()->HandleGPU);
-	}
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
@@ -7200,10 +6953,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 			pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 		}
 
-		if (m_useMeshManager)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + 2 * NUM_SPOT_LIGHTS, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-		}
+		pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + 2 * NUM_SPOT_LIGHTS, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 	}
 	else
 	{
@@ -7212,11 +6962,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
-
-		if (m_useMeshManager)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(10, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-		}
+		pCmdList->SetGraphicsRootDescriptorTable(10, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 	}
 
 	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
@@ -7262,6 +7008,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 
 void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
 {
+	assert(!m_useMeshlet);
 	::PIXScopedEvent(pCmdList, 0, L"BasePass");
 
 	// 変換行列用の定数バッファの更新
@@ -7447,150 +7194,9 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
+void SampleApp::DrawDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
 {
-	assert(m_useMeshlet && m_useVBuffer && m_useSWRasterizer);
-
-	std::vector<uint32_t> descHeapIndices(6 + m_meshletRootParamCount);
-
-	descHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-
-	for (const Model* model : m_pModels)
-	{
-		for (size_t m = 0; m < model->GetMeshCount(); m++)
-		{
-			const Mesh* pMesh = model->GetMesh(m);
-
-			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
-
-			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
-			{
-				continue;
-			}
-			else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
-			{
-				continue;
-			}
-
-			CbMesh* ptr = pMesh->MapConstantBuffer<CbMesh>(m_FrameIndex);
-			//TODO: uint32_t&型のままだと、なぜかこの時点で値の代入が発生せずmeshIdxを遅延して参照が発生するようなので期待した値にならなくなっていた。先に確実にメモリコピーを発生させる
-			uint32_t tmpMeshIdx = meshIdx;
-			ptr->MeshIdx = tmpMeshIdx;
-			pMesh->UnmapConstantBuffer(m_FrameIndex);
-
-			DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-			descHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();
-			descHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
-			descHeapIndices[3] = pMesh->GetDrawMeshletListBBSrvHandle().GetDescriptorIndex();
-			descHeapIndices[4] = pMesh->GetMeshletsSBHandle().GetDescriptorIndex();
-			descHeapIndices[5] = pMesh->GetMeshletsVerticesSBHandle().GetDescriptorIndex();
-			descHeapIndices[6] = pMesh->GetMeshletsTrianglesBBHandle().GetDescriptorIndex();
-
-			meshletsDescHeapIndices.CbMesh[meshIdx] = descHeapIndices[1];
-			meshletsDescHeapIndices.SbVertexBuffer[meshIdx] = descHeapIndices[2];
-			meshletsDescHeapIndices.BbDrawMeshletListBuffer[meshIdx] = descHeapIndices[3];
-			meshletsDescHeapIndices.SbMeshletBuffer[meshIdx] = descHeapIndices[4];
-			meshletsDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = descHeapIndices[5];
-			meshletsDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = descHeapIndices[6];
-
-			descHeapIndices[7] = pMaterial->GetCBHandle().GetDescriptorIndex();
-			descHeapIndices[8] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
-			descHeapIndices[9] = m_DrawVBufferSWRasCB.GetHandle()->GetDescriptorIndex();
-			descHeapIndices[10] = m_VBufferTarget.GetHandleUAVs()[0]->GetDescriptorIndex();
-
-			materialsDescHeapIndices.CbMaterial[meshIdx] = descHeapIndices[7];
-			materialsDescHeapIndices.BaseColorMap[meshIdx] = descHeapIndices[8];
-			materialsDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
-			materialsDescHeapIndices.NormalMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
-			materialsDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
-			materialsDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
-
-			pCmdList->SetComputeRoot32BitConstants(0, static_cast<UINT>(descHeapIndices.size()), descHeapIndices.data(), 0);
-
-			pMesh->DrawBySWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
-
-			DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-			meshIdx++;
-		}
-	}
-}
-
-void SampleApp::DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
-{
-	assert(m_useMeshlet && m_useVBuffer && !m_useSWRasterizer);
-
-	std::vector<uint32_t> gsDescHeapIndices(2 + m_meshletRootParamCount);
-	std::vector<uint32_t> psDescHeapIndices(2);
-
-	gsDescHeapIndices[0] = m_TransformCB[m_FrameIndex].GetHandle()->GetDescriptorIndex();
-
-	for (const Model* model : m_pModels)
-	{
-		for (size_t m = 0; m < model->GetMeshCount(); m++)
-		{
-			const Mesh* pMesh = model->GetMesh(m);
-
-			// TODO:Materialはとりあえず最初は一種類しか作らない。テクスチャの差し替えで使いまわす
-			const Material* pMaterial = model->GetMaterial(pMesh->GetMaterialIdx());
-
-			if (AlphaMode == ALPHA_MODE::ALPHA_MODE_OPAQUE && pMaterial->GetDoubleSided())
-			{
-				continue;
-			}
-			else if (AlphaMode == ALPHA_MODE::ALPHA_MODE_MASK && !pMaterial->GetDoubleSided())
-			{
-				continue;
-			}
-
-			CbMesh* ptr = pMesh->MapConstantBuffer<CbMesh>(m_FrameIndex);
-			//TODO: uint32_t&型のままだと、なぜかこの時点で値の代入が発生せずmeshIdxを遅延して参照が発生するようなので期待した値にならなくなっていた。先に確実にメモリコピーを発生させる
-			uint32_t tmpMeshIdx = meshIdx;
-			ptr->MeshIdx = tmpMeshIdx;
-			pMesh->UnmapConstantBuffer(m_FrameIndex);
-
-			DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-			gsDescHeapIndices[1] = pMesh->GetConstantBufferHandle(m_FrameIndex).GetDescriptorIndex();
-			gsDescHeapIndices[2] = pMesh->GetVertexBufferSBHandle().GetDescriptorIndex();
-			gsDescHeapIndices[3] = pMesh->GetDrawMeshletListBBSrvHandle().GetDescriptorIndex();
-			gsDescHeapIndices[4] = pMesh->GetMeshletsSBHandle().GetDescriptorIndex();
-			gsDescHeapIndices[5] = pMesh->GetMeshletsVerticesSBHandle().GetDescriptorIndex();
-			gsDescHeapIndices[6] = pMesh->GetMeshletsTrianglesBBHandle().GetDescriptorIndex();
-
-			meshletsDescHeapIndices.CbMesh[meshIdx] = gsDescHeapIndices[1];
-			meshletsDescHeapIndices.SbVertexBuffer[meshIdx] = gsDescHeapIndices[2];
-			meshletsDescHeapIndices.BbDrawMeshletListBuffer[meshIdx] = gsDescHeapIndices[3];
-			meshletsDescHeapIndices.SbMeshletBuffer[meshIdx] = gsDescHeapIndices[4];
-			meshletsDescHeapIndices.SbMeshletVerticesBuffer[meshIdx] = gsDescHeapIndices[5];
-			meshletsDescHeapIndices.SbMeshletTrianglesBuffer[meshIdx] = gsDescHeapIndices[6];
-
-			psDescHeapIndices[0] = pMaterial->GetCBHandle().GetDescriptorIndex();
-			psDescHeapIndices[1] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).GetDescriptorIndex();
-			materialsDescHeapIndices.CbMaterial[meshIdx] = psDescHeapIndices[0];
-			materialsDescHeapIndices.BaseColorMap[meshIdx] = psDescHeapIndices[1];
-			materialsDescHeapIndices.MetallicRoughnessMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).GetDescriptorIndex();
-			materialsDescHeapIndices.NormalMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).GetDescriptorIndex();
-			materialsDescHeapIndices.EmissiveMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).GetDescriptorIndex();
-			materialsDescHeapIndices.AOMap[meshIdx] = pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).GetDescriptorIndex();
-
-			pCmdList->SetGraphicsRoot32BitConstants(0, static_cast<UINT>(gsDescHeapIndices.size()), gsDescHeapIndices.data(), 0);
-			pCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(psDescHeapIndices.size()), psDescHeapIndices.data(), 0);
-
-			pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
-
-			DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-			meshIdx++;
-		}
-	}
-}
-
-void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
-{
-	if (m_useMeshManager)
+	if (m_useMeshlet)
 	{
 		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
@@ -7619,11 +7225,6 @@ void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA
 					continue;
 				}
 
-				if (m_useMeshlet)
-				{
-					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-				}
-
 				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
 
 				// -1はカリングしてないのでdrawMeshletListをバインドしていない分
@@ -7631,22 +7232,8 @@ void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA
 				pCmdList->SetGraphicsRootDescriptorTable(2 + meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
 				pCmdList->SetGraphicsRootDescriptorTable(3 + meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
 
-				if (m_useMeshlet)
-				{
-					// カリングしてないのでdrawMeshletListをバインドしない
-					pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMeshletsSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
-				}
-
 				// 現状ではDepthのみ描画するケースでカリングを有効にするケースがない
-				pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), false);
-
-				if (m_useMeshlet)
-				{
-					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				}
+				pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 			}
 		}
 	}
@@ -7654,7 +7241,7 @@ void SampleApp::DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA
 
 void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE AlphaMode)
 {
-	if (m_useMeshManager)
+	if (m_useMeshlet)
 	{
 		//TODO:実装
 	}
@@ -7678,22 +7265,7 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 					continue;
 				}
 
-				if (m_useMeshlet)
-				{
-					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-				}
-
 				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-
-				if (m_useMeshlet)
-				{
-					pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetVertexBufferSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(6, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
-				}
-
 				pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
 
 				if (m_drawSponza)
@@ -7713,12 +7285,7 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 					pCmdList->SetGraphicsRootDescriptorTable(9 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
 				}
 
-				pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
-
-				if (m_useMeshlet)
-				{
-					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				}
+				pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 			}
 		}
 	}
@@ -7935,7 +7502,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	pCmdList->SetPipelineState(m_pObjectVelocityPSO.Get());
 
 	// Movableなものだけ描画
-	if (m_useMeshManager)
+	if (m_useMeshlet)
 	{
 		//TODO:実装
 	}
@@ -7951,23 +7518,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 					continue;
 				}
 
-				if (m_useMeshlet)
-				{
-					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-					pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetVertexBufferSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetDrawMeshletListBBSrvHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(3, pMesh->GetMeshletsSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(4, pMesh->GetMeshletsVerticesSBHandle().HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(5, pMesh->GetMeshletsTrianglesBBHandle().HandleGPU);
-				}
-
-				pMesh->DrawByHWRasterizer(static_cast<ID3D12GraphicsCommandList6*>(pCmdList), true);
-
-				if (m_useMeshlet)
-				{
-					DirectX::TransitionResource(pCmdList, pMesh->GetDrawMeshletListBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				}
+				pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 			}
 		}
 	}
@@ -8699,73 +8250,53 @@ void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const Direc
 	pCmdList->SetGraphicsRootSignature(m_MeshletAABBRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pMeshletAABB_PSO.Get());
 
-	if (m_useMeshManager)
+	// Opaqueマテリアルのメッシュの描画
 	{
-		// Opaqueマテリアルのメッシュの描画
-		{
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-			pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetUnitCubeVB().GetHandleSRV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(5, m_MeshManager.GetUnitCubeIB().GetHandleSRV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(6, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(7, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetUnitCubeVB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_MeshManager.GetUnitCubeIB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(6, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(7, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 
-			pCmdList->ExecuteIndirect
-			(
-				m_MeshManager.GetHWRasCmdSig().Get(),
-				1,
-				m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
-				0,
-				nullptr,
-				0
-			);
+		pCmdList->ExecuteIndirect
+		(
+			m_MeshManager.GetHWRasCmdSig().Get(),
+			1,
+			m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(),
+			0,
+			nullptr,
+			0
+		);
 
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		}
-
-		// AlphaMask, DoubleSidedマテリアルのメッシュの描画
-		{
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleSRV()->HandleGPU);
-
-			pCmdList->ExecuteIndirect
-			(
-				m_MeshManager.GetHWRasCmdSig().Get(),
-				1,
-				m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
-				0,
-				nullptr,
-				0
-			);
-
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		}
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	}
-	else
+
+	// AlphaMask, DoubleSidedマテリアルのメッシュの描画
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-		for (const Model* model : m_pModels)
-		{
-			for (size_t i = 0; i < model->GetMeshCount(); i++)
-			{
-				const Mesh* pMesh = model->GetMesh(i);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 
-				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(2, pMesh->GetMeshletsAABBInfosSBHandle().HandleGPU);
+		pCmdList->ExecuteIndirect
+		(
+			m_MeshManager.GetHWRasCmdSig().Get(),
+			1,
+			m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
+			0,
+			nullptr,
+			0
+		);
 
-				pMesh->DrawMeshletAABB(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
-			}
-		}
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	}
 
 	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

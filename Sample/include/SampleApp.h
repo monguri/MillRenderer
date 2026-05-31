@@ -55,14 +55,10 @@ private:
 	// true:IBL下でのモデルビューワ
 	// false:ハードコーディングで配置した解析的ライトやとSkyBoxを使ってSponzaを描画
 	bool m_drawSponza = false;
-	// true:meshletとmsでのジオメトリ処理、false:vsでのジオメトリ処理
+	// true:meshletを使用するかどうか
 	bool m_useMeshlet = false;
-	// true:meshとmaterialを一元管理しシングルDispatch、false:meshごとにDispatch
-	bool m_useMeshManager = false;
 	// true:meshlet分割にMetisを使用、false:meshlet分割にmeshOptimizerのみを使用
 	bool m_useMetis = false;
-	// Visibility Bufferを使った描画をやるかどうか
-	bool m_useVBuffer = false;
 	// Visibility BufferをSW Rasterizeするかどうか
 	bool m_useSWRasterizer = false;
 
@@ -284,9 +280,7 @@ private:
 	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices);
 	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices);
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential);
-	void DrawMeshToVBufferBySWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices);
-	void DrawMeshToVBufferByHWRasterizer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode, uint32_t& meshIdx, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices);
-	void DrawMeshToDepthBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode);
+	void DrawDepthBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode);
 	void DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode);
 	void DrawDepthBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawHCB(ID3D12GraphicsCommandList* pCmdList);
