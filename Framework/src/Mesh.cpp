@@ -150,6 +150,7 @@ const DescriptorHandle& Mesh::GetConstantBufferHandle(uint32_t frameIndex) const
 {
 	return *m_CB[frameIndex].GetHandleCBV();
 }
+
 uint32_t Mesh::GetMaterialIdx() const
 {
 	return m_MaterialIdx;
