@@ -6753,7 +6753,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 			pCmdList->SetPipelineState(m_pDrawVBufferSWRasMaskPSO.Get());
 			pCmdList->ExecuteIndirect
 			(
-				m_MeshManager.GetHWRasCmdSig().Get(),
+				m_MeshManager.GetSWRasCmdSig().Get(),
 				1,
 				m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetResource(),
 				0,
