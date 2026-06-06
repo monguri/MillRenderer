@@ -50,7 +50,6 @@ struct RootConstants
 struct Mesh
 {
 	float4x4 World;
-	uint MeshIdx;
 };
 
 struct Transform

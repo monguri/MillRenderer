@@ -122,8 +122,6 @@ namespace
 	struct alignas(256) CbMesh
 	{
 		Matrix World;
-		unsigned int MeshIdx;
-		float Padding[3];
 	};
 
 	struct alignas(256) CbTransform
@@ -938,7 +936,6 @@ bool SampleApp::OnInit(HWND hWnd)
 				{
 					CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
 					ptr->World = Matrix::Identity;
-					ptr->MeshIdx = 0;
 					mesh->UnmapConstantBuffer(frameIndex);
 				}
 
@@ -1106,7 +1103,6 @@ bool SampleApp::OnInit(HWND hWnd)
 				{
 					CbMesh* ptr = mesh->MapConstantBuffer<CbMesh>(frameIndex);
 					ptr->World = worldMat;
-					ptr->MeshIdx = 0;
 					mesh->UnmapConstantBuffer(frameIndex);
 				}
 

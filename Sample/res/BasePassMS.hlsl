@@ -90,7 +90,6 @@ struct Transform
 struct Mesh
 {
 	float4x4 World;
-	uint MeshIdx;
 };
 
 ConstantBuffer<Transform> CbTransform : register(b0);

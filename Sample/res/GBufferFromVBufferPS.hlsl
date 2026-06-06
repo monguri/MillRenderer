@@ -208,7 +208,6 @@ struct PSOutput
 struct Mesh
 {
 	float4x4 World;
-	uint MeshIdx;
 };
 
 struct meshopt_Meshlet
