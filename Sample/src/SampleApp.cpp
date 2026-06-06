@@ -6677,8 +6677,8 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleUAV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetDrawMovableMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(9, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(9, m_MeshManager.GetDrawMovableMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(10, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	constexpr size_t GROUP_SIZE_X = 64;
@@ -7518,7 +7518,25 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 	// Movableなものだけ描画
 	if (m_useMeshlet)
 	{
-		//TODO:実装
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMovableMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+
+		pCmdList->ExecuteIndirect
+		(
+			m_MeshManager.GetHWRasCmdSig().Get(),
+			1,
+			m_MeshManager.GetDrawMovableMeshletIndirectArgBB().GetResource(),
+			0,
+			nullptr,
+			0
+		);
+
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMovableMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	}
 	else
 	{
