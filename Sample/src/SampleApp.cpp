@@ -6170,8 +6170,11 @@ void SampleApp::OnRender()
 
 	if (m_useMeshlet)
 	{
-		// 戻り値はチェックしない
-		m_MeshManager.SetMovableWorldMatrix(m_pDevice.Get(), pCmd, worldForMovable);
+		if (m_drawSponza)
+		{
+			// 戻り値はチェックしない
+			m_MeshManager.SetMovableWorldMatrix(m_pDevice.Get(), pCmd, worldForMovable);
+		}
 	}
 	else
 	{
@@ -6235,7 +6238,7 @@ void SampleApp::OnRender()
 				DrawDepthBufferFromVBuffer(pCmd);
 			}
 
-			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential, meshletsDescHeapIndices, materialsDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjWithJitter, meshletsDescHeapIndices, materialsDescHeapIndices);
 		}
 		else
 		{
@@ -6246,20 +6249,22 @@ void SampleApp::OnRender()
 				DrawDepthBufferFromVBuffer(pCmd);
 			}
 
-			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential, meshletsDescHeapIndices, materialsDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd, lightForward, viewProjNoJitter, meshletsDescHeapIndices, materialsDescHeapIndices);
 		}
 	}
 	else
 	{
 		if (m_enableTemporalAA)
 		{
-			DrawGBuffer(pCmd, lightForward, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
+			DrawGBuffer(pCmd, lightForward, viewProjWithJitter);
 		}
 		else
 		{
-			DrawGBuffer(pCmd, lightForward, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, skyViewLutReferential);
+			DrawGBuffer(pCmd, lightForward, viewProjNoJitter);
 		}
 	}
+
+	DrawSkyBox(pCmd, lightForward, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
 
 	DrawHCB(pCmd);
 
@@ -6834,7 +6839,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	}
 }
 
-void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
+void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const Matrix& viewProj, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
 {
 	::PIXScopedEvent(pCmdList, 0, L"DrawGBufferFromVBuffer");
 
@@ -6973,40 +6978,16 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	// SkyBoxや環境マップのBoxの描画はVBufferに加えていないので、ここで描画する
-	if (m_drawSponza)
-	{
-		// UEのDirectionalLightComponent::GetOuterSpaceLuminance()を参考にしている
-		const Vector3& discLuminance = GetSunLightDiscLuminance(m_directionalLightIntensity, Vector3::One);
-		m_SkyBox.DrawSkyAtmosphere(
-			pCmdList,
-			m_SkyViewLUT_Target,
-			m_SkyTransmittanceLUT_Target,
-			view,
-			proj,
-			viewRotProj,
-			SKY_BOX_HALF_EXTENT,
-			skyViewLutReferential,
-			PLANET_BOTTOM_RADIUS_KM,
-			-lightForward, // これはDirectionalLightの方向でなく、カメラから見た太陽の方向なので符号を逆にする
-			discLuminance
-		);
-	}
-	else
-	{
-		m_SkyBox.DrawEnvironmentCubeMap(pCmdList, m_SphereMapConverter.GetHandleGPU(), view, proj, SKY_BOX_HALF_EXTENT);
-	}
-
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
+void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const Matrix& viewProj)
 {
 	assert(!m_useMeshlet);
-	::PIXScopedEvent(pCmdList, 0, L"BasePass");
+	::PIXScopedEvent(pCmdList, 0, L"DrawGBuffer");
 
 	// 変換行列用の定数バッファの更新
 	{
@@ -7161,6 +7142,32 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 		pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
 	}
 	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
+
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawSkyBox(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
+{
+	::PIXScopedEvent(pCmdList, 0, L"DrawSkyBox");
+
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
+		m_SceneColorTarget.GetHandleRTV()->HandleCPU,
+		m_SceneNormalTarget.GetHandleRTV()->HandleCPU, 
+		m_SceneMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
+	};
+	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
+
+	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, &handleDSV->HandleCPU);
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
 
 	if (m_drawSponza)
 	{
