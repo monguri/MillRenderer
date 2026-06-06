@@ -19,6 +19,8 @@
 ", DescriptorTable(UAV(u1), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u2), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u3), visibility = SHADER_VISIBILITY_ALL)"\
+", DescriptorTable(UAV(u4), visibility = SHADER_VISIBILITY_ALL)"\
+", DescriptorTable(UAV(u5), visibility = SHADER_VISIBILITY_ALL)"\
 
 //TODO: GBufferFromVBufferPS.hlslと共通化できる定数は共通ヘッダに移す
 // C++側の定義と値の一致が必要
@@ -92,6 +94,8 @@ RWByteAddressBuffer DrawOpaqueMeshletIndirectArgBB : register(u0);
 RWByteAddressBuffer DrawOpaqueMeshletIndicesBB : register(u1);
 RWByteAddressBuffer DrawMaskedMeshletIndirectArgBB : register(u2);
 RWByteAddressBuffer DrawMaskedMeshletIndicesBB : register(u3);
+RWByteAddressBuffer DrawMovableMeshletIndirectArgBB : register(u4);
+RWByteAddressBuffer DrawMovableMeshletIndicesBB : register(u5);
 
 uint GetCbMeshDescHeapIndex(uint meshIdx)
 {
@@ -205,6 +209,13 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 			uint drawMeshletIdx;
 			DrawMaskedMeshletIndirectArgBB.InterlockedAdd(0, 1, drawMeshletIdx);
 			DrawMaskedMeshletIndicesBB.Store(drawMeshletIdx * 4, meshletIdx);
+		}
+
+		if (CbMesh.bMovable == 1)
+		{
+			uint drawMeshletIdx;
+			DrawMovableMeshletIndirectArgBB.InterlockedAdd(0, 1, drawMeshletIdx);
+			DrawMovableMeshletIndicesBB.Store(drawMeshletIdx * 4, meshletIdx);
 		}
 	}
 }

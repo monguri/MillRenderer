@@ -6657,6 +6657,12 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 		m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().BarrierUAV(pCmdList);
 		m_MeshManager.GetDrawMaskedMeshletIndicesBB().BarrierUAV(pCmdList);
+
+		m_MeshManager.GetDrawMovableMeshletIndirectArgBB().ClearUavWithUintValue(pCmdList, clearValue);
+		m_MeshManager.GetDrawMovableMeshletIndicesBB().ClearUavWithUintValue(pCmdList, clearValue);
+
+		m_MeshManager.GetDrawMovableMeshletIndirectArgBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawMovableMeshletIndicesBB().BarrierUAV(pCmdList);
 	}
 
 	pCmdList->SetComputeRootSignature(m_MeshletCullingRootSig.GetPtr());
@@ -6671,6 +6677,8 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleUAV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetDrawMovableMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(9, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	constexpr size_t GROUP_SIZE_X = 64;
@@ -6682,6 +6690,8 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 	m_MeshManager.GetDrawOpaqueMeshletIndicesBB().BarrierUAV(pCmdList);
 	m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().BarrierUAV(pCmdList);
 	m_MeshManager.GetDrawMaskedMeshletIndicesBB().BarrierUAV(pCmdList);
+	m_MeshManager.GetDrawMovableMeshletIndirectArgBB().BarrierUAV(pCmdList);
+	m_MeshManager.GetDrawMovableMeshletIndicesBB().BarrierUAV(pCmdList);
 }
 
 void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
