@@ -35,6 +35,8 @@ public:
 	const Resource& GetDrawOpaqueMeshletIndicesBB() const;
 	const Resource& GetDrawMaskedMeshletIndirectArgBB() const;
 	const Resource& GetDrawMaskedMeshletIndicesBB() const;
+	const Resource& GetDrawMovableMeshletIndirectArgBB() const;
+	const Resource& GetDrawMovableMeshletIndicesBB() const;
 	const Resource& GetMeshletMeshMaterialTableSB() const;
 	const Resource& GetMeshesDescHeapIndicesCB() const;
 	const Resource& GetMaterialsDescHeapIndicesCB() const;
@@ -73,6 +75,8 @@ private:
 	Resource m_DrawOpaqueMeshletIndicesBB;
 	Resource m_DrawMaskedMeshletIndirectArgBB;
 	Resource m_DrawMaskedMeshletIndicesBB;
+	Resource m_DrawMovableMeshletIndirectArgBB;
+	Resource m_DrawMovableMeshletIndicesBB;
 
 	Resource m_MeshesDescHeapIndicesCB;
 	Resource m_MaterialsDescHeapIndicesCB;

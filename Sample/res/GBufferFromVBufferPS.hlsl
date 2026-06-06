@@ -208,6 +208,7 @@ struct PSOutput
 struct Mesh
 {
 	float4x4 World;
+	uint bMovable;
 };
 
 struct meshopt_Meshlet

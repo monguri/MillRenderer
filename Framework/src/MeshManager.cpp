@@ -16,7 +16,7 @@ namespace
 	struct alignas(256) CbMesh
 	{
 		Matrix World;
-		unsigned int MeshIdx;
+		unsigned int bMovable;
 		float Padding[3];
 	};
 
@@ -214,6 +214,8 @@ void MeshManager::Term()
 	m_DrawOpaqueMeshletIndicesBB.Term();
 	m_DrawMaskedMeshletIndirectArgBB.Term();
 	m_DrawMaskedMeshletIndicesBB.Term();
+	m_DrawMovableMeshletIndirectArgBB.Term();
+	m_DrawMovableMeshletIndicesBB.Term();
 
 	for (Resource& CB : m_MaterialCBs)
 	{
@@ -357,7 +359,8 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			return false;
 		}
 
-		CbMesh cbMesh = {m_worldMatrices[meshIdx], static_cast<uint32_t>(validMeshIdx)};
+		uint32_t bMovable = (validMeshIdx == MOVABLE_MESH_INDEX) ? 1 : 0;
+		CbMesh cbMesh = {m_worldMatrices[meshIdx], bMovable};
 		if (!m_MeshCBs[validMeshIdx].UploadBufferTypeData<CbMesh>(
 			pDevice,
 			pCmdList,
@@ -654,7 +657,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
-		L"DrawMeshletIndirectArgBB"
+		L"DrawOpaqueMeshletIndirectArgBB"
 	))
 	{
 		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
@@ -673,7 +676,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
-		L"DrawMeshletIndicesBB"
+		L"DrawOpaqueMeshletIndicesBB"
 	))
 	{
 		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
@@ -692,7 +695,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
-		L"DrawMeshletIndirectArgBB"
+		L"DrawMaskedMeshletIndirectArgBB"
 	))
 	{
 		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
@@ -711,7 +714,7 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
-		L"DrawMeshletIndicesBB"
+		L"DrawMaskedMeshletIndicesBB"
 	))
 	{
 		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
@@ -719,6 +722,44 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 	}
 
 	DirectX::TransitionResource(pCmdList, m_DrawMaskedMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	// MovableのMeshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
+	if (!m_DrawMovableMeshletIndirectArgBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		3 * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMovableMeshletIndirectArgBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawMovableMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	// MovableのMeshlet描画用のカリング済みMeshletIdxリストの生成
+	if (!m_DrawMovableMeshletIndicesBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		m_MeshletCount * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMovableMeshletIndicesBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawMovableMeshletIndicesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	if (!m_MeshesDescHeapIndicesCB.InitAsConstantBuffer<CbMeshesDescHeapIndices>(
 		pDevice,
@@ -905,7 +946,8 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 
 bool MeshManager::SetMovableWorldMatrix(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& worldMat)
 {
-	CbMesh cbMesh = {worldMat, MOVABLE_MESH_INDEX};
+	uint32_t bMovable = 1;
+	CbMesh cbMesh = {worldMat, bMovable};
 	if (!m_MeshCBs[MOVABLE_MESH_INDEX].UploadBufferTypeData<CbMesh>(
 		pDevice,
 		pCmdList,
@@ -938,6 +980,16 @@ const Resource& MeshManager::GetDrawMaskedMeshletIndirectArgBB() const
 const Resource& MeshManager::GetDrawMaskedMeshletIndicesBB() const
 {
 	return m_DrawMaskedMeshletIndicesBB;
+}
+
+const Resource& MeshManager::GetDrawMovableMeshletIndirectArgBB() const
+{
+	return m_DrawMovableMeshletIndirectArgBB;
+}
+
+const Resource& MeshManager::GetDrawMovableMeshletIndicesBB() const
+{
+	return m_DrawMovableMeshletIndicesBB;
 }
 
 const Resource& MeshManager::GetMeshletMeshMaterialTableSB() const

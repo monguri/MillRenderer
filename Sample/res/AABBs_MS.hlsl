@@ -64,6 +64,7 @@ struct VSOutput
 struct Mesh
 {
 	float4x4 World;
+	uint bMoveable;
 };
 
 struct Transform
