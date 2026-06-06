@@ -738,7 +738,7 @@ PSOutput main(VSOutput input)
 		discard;
 	}
 
-	uint meshletIdx = (visibility.x >> 7) & 0xffff; // 16bit
+	uint meshletIdx = (visibility.x >> 7) & 0x1ffffff; // 25bit
 	uint triangleIdx = visibility.x & 0x7f; // 7bit
 
 	MeshletMeshMaterial meshMaterial = SbMeshletMeshMaterialTable[meshletIdx];

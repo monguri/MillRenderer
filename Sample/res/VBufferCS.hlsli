@@ -73,7 +73,6 @@ struct VertexData
 
 struct PrimitiveData
 {
-	uint MeshIdx : MESH_INDEX;
 	uint MeshletIdx : MESHLET_INDEX;
 	uint TriangleIdx : TRIANGLE_INDEX;
 	uint MaterialIdx : MATERIAL_INDEX;
@@ -259,7 +258,7 @@ void renderPixel(int2 pixelPos, float3 baryCentricCrd, VertexData v0, VertexData
 	//assert(deviceZ >= 0 && deviceZ <= 1);
 
 	uint2 value;
-	value.x = (primData.MeshIdx << 23) | ((primData.MeshletIdx & 0xffff) << 7) | (primData.TriangleIdx & 0x7f);
+	value.x = ((primData.MeshletIdx & 0x1ffffff) << 7) | (primData.TriangleIdx & 0x7f);
 	value.y = asuint(deviceZ);
 
 	uint64_t packedValue = (uint64_t(value.y) << 32) | uint64_t(value.x);
@@ -476,7 +475,6 @@ void main
 		origTri.v2 = outVerts[SbMeshletsTriangles[triBaseIdx + 2]];
 
 		PrimitiveData primData;
-		primData.MeshIdx = meshIdx;
 		primData.MeshletIdx = meshletIdx;
 		primData.TriangleIdx = gtid;
 		primData.MaterialIdx = meshMaterial.MaterialIdx;

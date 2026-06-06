@@ -70,7 +70,6 @@ struct VertexData
 
 struct PrimitiveData
 {
-	uint MeshIdx : MESH_INDEX;
 	uint MeshletIdx : MESHLET_INDEX;
 	uint TriangleIdx : TRIANGLE_INDEX;
 };
@@ -168,7 +167,6 @@ void main
 	if (gtid < meshlet.TriCount)
 	{
 		PrimitiveData p;
-		p.MeshIdx = meshIdx;
 		p.MeshletIdx = meshletIdx;
 		p.TriangleIdx = gtid;
 		outPrims[gtid] = p;
