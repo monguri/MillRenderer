@@ -10,6 +10,16 @@ using namespace DirectX::SimpleMath;
 
 namespace
 {
+	// Sponzaのときに花瓶を決め打ちで動かすためのインデックス
+	static constexpr uint32_t MOVABLE_MESH_INDEX = 2;
+
+	struct alignas(256) CbMesh
+	{
+		Matrix World;
+		unsigned int MeshIdx;
+		float Padding[3];
+	};
+
 	// シェーダ側の定義と値の一致が必要
 	static constexpr uint32_t MAX_MESH_COUNT = 256;
 
@@ -306,13 +316,6 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 	m_MeshletsVerticesSBs.resize(meshCount);
 	m_MeshletsTrianglesSBs.resize(meshCount);
 	m_MeshletsAABBInfosSBs.resize(meshCount);
-
-	struct alignas(256) CbMesh
-	{
-		Matrix World;
-		unsigned int MeshIdx;
-		float Padding[3];
-	};
 
 	struct MeshletMeshMaterial
 	{
@@ -896,6 +899,23 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 
 	m_pPoolCpuVisible = pPoolCpuVisible;
 	m_pPoolCpuVisible->AddRef();
+
+	return true;
+}
+
+bool MeshManager::SetMovableWorldMatrix(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& worldMat)
+{
+	CbMesh cbMesh = {worldMat, MOVABLE_MESH_INDEX};
+	if (!m_MeshCBs[MOVABLE_MESH_INDEX].UploadBufferTypeData<CbMesh>(
+		pDevice,
+		pCmdList,
+		1,
+		&cbMesh
+	))
+	{
+		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+		return false;
+	}
 
 	return true;
 }

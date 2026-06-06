@@ -6167,12 +6167,15 @@ void SampleApp::OnRender()
 		skyViewLutReferential = skyViewLutReferential.Transpose();
 	}
 
-	//TODO: MovableなメッシュをVelocityのテストのためサインカーブで動かす
+	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+
+	// MovableなメッシュをVelocityのテストのためサインカーブで動かす
 	const Matrix& worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
 
 	if (m_useMeshlet)
 	{
-		//TODO:実装
+		// 戻り値はチェックしない
+		m_MeshManager.SetMovableWorldMatrix(m_pDevice.Get(), pCmd, worldForMovable);
 	}
 	else
 	{
@@ -6190,8 +6193,6 @@ void SampleApp::OnRender()
 			}
 		}
 	}
-
-	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
 
 	ID3D12DescriptorHeap* const pHeaps[] = {
 		m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->GetHeap()

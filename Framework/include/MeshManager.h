@@ -29,6 +29,8 @@ public:
 		const class Texture& dummyTexture
 	);
 
+	bool SetMovableWorldMatrix(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& worldMat);
+
 	const Resource& GetDrawOpaqueMeshletIndirectArgBB() const;
 	const Resource& GetDrawOpaqueMeshletIndicesBB() const;
 	const Resource& GetDrawMaskedMeshletIndirectArgBB() const;
