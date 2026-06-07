@@ -153,12 +153,6 @@
     <FxCompile Include="..\res\VolumetricCloudCS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\BasePassMS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
-    <FxCompile Include="..\res\SponzaMS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
     <FxCompile Include="..\res\ObjectVelocityMS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
