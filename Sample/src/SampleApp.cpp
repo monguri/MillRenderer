@@ -47,7 +47,7 @@ enum class DEBUG_VIEW_MODE : int
 {
 	NONE = 0,
 	DEPTH,
-	ALBEDO,
+	BASECOLOR,
 	NORMAL,
 	VELOCITY,
 	SSAO_FULL_RES,
@@ -1666,11 +1666,11 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-	// GBuffer用アルベドターゲットの生成
+	// GBuffer用ベースカラーターゲットの生成
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_GBufferAlbedoTarget.InitRenderTarget
+		if (!m_GBufferBaseColorTarget.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -5762,7 +5762,7 @@ void SampleApp::OnTerm()
 	m_CloudTracingDepthTarget.Term();
 
 	m_SceneColorTarget.Term();
-	m_GBufferAlbedoTarget.Term();
+	m_GBufferBaseColorTarget.Term();
 	m_GBufferNormalTarget.Term();
 	m_GBufferMetallicRoughnessTarget.Term();
 	m_VBufferTarget.Term();
@@ -8297,8 +8297,8 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		case DEPTH:
 			renderTargetName = L"SceneDepth";
 			break;
-		case ALBEDO:
-			renderTargetName = L"GBufferAlbedo";
+		case BASECOLOR:
+			renderTargetName = L"GBufferBaseColor";
 			break;
 		case NORMAL:
 			renderTargetName = L"GBufferNormal";
@@ -8334,7 +8334,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		{
 			using enum DEBUG_VIEW_MODE;
 			case NONE:
-			case ALBEDO:
+			case BASECOLOR:
 			case SSGI:
 			case TRIANGLE_INDEX:
 			case MESHLET_INDEX:
@@ -8390,8 +8390,8 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		case DEPTH:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 			break;
-		case ALBEDO:
-			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferAlbedoTarget.GetHandleSRV()->HandleGPU);
+		case BASECOLOR:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferBaseColorTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case NORMAL:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
@@ -8477,7 +8477,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		ImGui::RadioButton("Depth", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(DEPTH));
 		if (m_useDeferred)
 		{
-			ImGui::RadioButton("Albedo", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(ALBEDO));
+			ImGui::RadioButton("BaseColor", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(BASECOLOR));
 		}
 		ImGui::RadioButton("Normal", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(NORMAL));
 		ImGui::RadioButton("Velocity", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(VELOCITY));
