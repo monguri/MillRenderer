@@ -1669,7 +1669,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_SceneNormalTarget.InitRenderTarget
+		if (!m_GBufferNormalTarget.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -1689,7 +1689,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_SceneMetallicRoughnessTarget.InitRenderTarget
+		if (!m_GBufferMetallicRoughnessTarget.InitRenderTarget
 		(
 			m_pDevice.Get(),
 			m_pPool[POOL_TYPE_RTV],
@@ -2831,8 +2831,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 			desc.NumRenderTargets = 3;
 			desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
-			desc.RTVFormats[1] = m_SceneNormalTarget.GetRTVDesc().Format;
-			desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
+			desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
+			desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
 			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 
 			desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
@@ -2967,8 +2967,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
 		desc.NumRenderTargets = 3;
 		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
-		desc.RTVFormats[1] = m_SceneNormalTarget.GetRTVDesc().Format;
-		desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
+		desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
+		desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 
 		desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
@@ -3669,8 +3669,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
 		desc.NumRenderTargets = 3;
 		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
-		desc.RTVFormats[1] = m_SceneNormalTarget.GetRTVDesc().Format;
-		desc.RTVFormats[2] = m_SceneMetallicRoughnessTarget.GetRTVDesc().Format;
+		desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
+		desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -5498,8 +5498,8 @@ bool SampleApp::OnInit(HWND hWnd)
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				m_SceneColorTarget.GetRTVDesc().Format,
-				m_SceneNormalTarget.GetRTVDesc().Format,
-				m_SceneMetallicRoughnessTarget.GetRTVDesc().Format,
+				m_GBufferNormalTarget.GetRTVDesc().Format,
+				m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format,
 				m_SceneDepthTarget.GetDSVDesc().Format,
 				SKY_VIEW_LUT_WIDTH,
 				SKY_VIEW_LUT_HEIGHT,
@@ -5612,8 +5612,8 @@ bool SampleApp::OnInit(HWND hWnd)
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 				m_SceneColorTarget.GetRTVDesc().Format,
-				m_SceneNormalTarget.GetRTVDesc().Format,
-				m_SceneMetallicRoughnessTarget.GetRTVDesc().Format,
+				m_GBufferNormalTarget.GetRTVDesc().Format,
+				m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format,
 				m_SceneDepthTarget.GetDSVDesc().Format
 			))
 			{
@@ -5741,8 +5741,8 @@ void SampleApp::OnTerm()
 	m_CloudTracingDepthTarget.Term();
 
 	m_SceneColorTarget.Term();
-	m_SceneNormalTarget.Term();
-	m_SceneMetallicRoughnessTarget.Term();
+	m_GBufferNormalTarget.Term();
+	m_GBufferMetallicRoughnessTarget.Term();
 	m_VBufferTarget.Term();
 	m_SceneDepthTarget.Term();
 
@@ -6742,22 +6742,22 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
 		m_SceneColorTarget.GetHandleRTV()->HandleCPU,
-		m_SceneNormalTarget.GetHandleRTV()->HandleCPU, 
-		m_SceneMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
+		m_GBufferNormalTarget.GetHandleRTV()->HandleCPU, 
+		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
 	};
 	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
 
 	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, &handleDSV->HandleCPU);
 
 	m_SceneColorTarget.ClearView(pCmdList);
-	m_SceneNormalTarget.ClearView(pCmdList);
-	m_SceneMetallicRoughnessTarget.ClearView(pCmdList);
+	m_GBufferNormalTarget.ClearView(pCmdList);
+	m_GBufferMetallicRoughnessTarget.ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
 
@@ -6814,8 +6814,8 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -6883,22 +6883,22 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& 
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
 		m_SceneColorTarget.GetHandleRTV()->HandleCPU,
-		m_SceneNormalTarget.GetHandleRTV()->HandleCPU, 
-		m_SceneMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
+		m_GBufferNormalTarget.GetHandleRTV()->HandleCPU, 
+		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
 	};
 	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
 
 	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, &handleDSV->HandleCPU);
 
 	m_SceneColorTarget.ClearView(pCmdList);
-	m_SceneNormalTarget.ClearView(pCmdList);
-	m_SceneMetallicRoughnessTarget.ClearView(pCmdList);
+	m_GBufferNormalTarget.ClearView(pCmdList);
+	m_GBufferMetallicRoughnessTarget.ClearView(pCmdList);
 	m_SceneDepthTarget.ClearView(pCmdList);
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -6979,8 +6979,8 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& 
 	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -6989,14 +6989,14 @@ void SampleApp::DrawSkyBox(ID3D12GraphicsCommandList* pCmdList, const Vector3& l
 	::PIXScopedEvent(pCmdList, 0, L"DrawSkyBox");
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
 		m_SceneColorTarget.GetHandleRTV()->HandleCPU,
-		m_SceneNormalTarget.GetHandleRTV()->HandleCPU, 
-		m_SceneMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
+		m_GBufferNormalTarget.GetHandleRTV()->HandleCPU, 
+		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
 	};
 	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
 
@@ -7028,8 +7028,8 @@ void SampleApp::DrawSkyBox(ID3D12GraphicsCommandList* pCmdList, const Vector3& l
 	}
 
 	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -7430,7 +7430,7 @@ void SampleApp::DrawSSAOSetup(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_SSAOSetupRootSig.GetPtr());
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSAOSetupCB.GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pSSAOSetupPSO.Get());
 
 	D3D12_VIEWPORT halfResViewport = m_Viewport;
@@ -7531,7 +7531,7 @@ void SampleApp::DrawSSAO(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_SSAOSetupTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_SSAO_RandomizationTex.GetHandleSRVPtr()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(4, m_SSAO_HalfResTarget.GetHandleSRV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(5, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
 		pCmdList->SetPipelineState(m_pSSAO_PSO.Get());
 
 		pCmdList->RSSetViewports(1, &m_Viewport);
@@ -7562,7 +7562,7 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 	DirectX::TransitionResource(pCmdList, m_HCB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	pCmdList->SetComputeRootSignature(m_SSGI_RootSig.GetPtr());
@@ -7570,7 +7570,7 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 	pCmdList->SetComputeRootDescriptorTable(0, m_SSGI_CB.GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_HCB_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(2, m_HZB_Target.GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, m_SSGI_Target.GetHandleUAVs()[0]->HandleGPU);
 
 	// シェーダ側と合わせている
@@ -7587,7 +7587,7 @@ void SampleApp::DrawSSGI(ID3D12GraphicsCommandList* pCmdList, const DirectX::Sim
 
 	DirectX::TransitionResource(pCmdList, m_HCB_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_HZB_Target.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneNormalTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SSGI_Target.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -7710,8 +7710,8 @@ void SampleApp::DrawSSR(ID3D12GraphicsCommandList* pCmdList, const DirectX::Simp
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_SSR_CB.GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_AmbientLightTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(3, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(4, m_SceneMetallicRoughnessTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(3, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferMetallicRoughnessTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(5, m_HZB_Target.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pSSR_PSO.Get());
 
@@ -8365,7 +8365,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case NORMAL:
-			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneNormalTarget.GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case SSAO_FULL_RES:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);

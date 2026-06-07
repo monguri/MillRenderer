@@ -152,8 +152,8 @@ private:
 	ColorTarget m_CloudSecondaryTracingTarget;
 	ColorTarget m_CloudTracingDepthTarget;
 	ColorTarget m_SceneColorTarget;
-	ColorTarget m_SceneNormalTarget;
-	ColorTarget m_SceneMetallicRoughnessTarget;
+	ColorTarget m_GBufferNormalTarget;
+	ColorTarget m_GBufferMetallicRoughnessTarget;
 	ColorTarget m_VBufferTarget;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_HCB_Target;
