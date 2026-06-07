@@ -158,6 +158,8 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 		DrawOpaqueMeshletIndirectArgBB.Store(8, 1);
 		DrawMaskedMeshletIndirectArgBB.Store(4, 1);
 		DrawMaskedMeshletIndirectArgBB.Store(8, 1);
+		DrawMovableMeshletIndirectArgBB.Store(4, 1);
+		DrawMovableMeshletIndirectArgBB.Store(8, 1);
 	}
 
 	if (meshletIdx >= CbRootConst.MeshletCount)
