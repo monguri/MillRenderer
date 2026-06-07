@@ -278,7 +278,7 @@ bool App::InitD3D()
 		}
 
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		desc.NumDescriptors = 128;
+		desc.NumDescriptors = 256;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		if (!DescriptorPool::Create(m_pDevice.Get(), &desc, &m_pPool[POOL_TYPE_RTV]))
 		{
