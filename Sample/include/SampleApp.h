@@ -100,6 +100,8 @@ private:
 	RootSignature m_DepthBufferFromVBufferRootSig;
 	ComPtr<ID3D12PipelineState> m_pGBufferFromVBufferPSO;
 	RootSignature m_GBufferFromVBufferRootSig;
+	ComPtr<ID3D12PipelineState> m_pDeferredShadingPSO;
+	RootSignature m_DeferredShadingRootSig;
 	ComPtr<ID3D12PipelineState> m_pHCB_PSO;
 	RootSignature m_HCB_RootSig;
 	ComPtr<ID3D12PipelineState> m_pHZB_PSO;

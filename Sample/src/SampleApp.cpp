@@ -3819,6 +3819,87 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// ディファードシェーディングパス用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring vsPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+		ComPtr<ID3DBlob> pVSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		std::wstring psPath;
+		if (!SearchFilePath(L"DeferredLightingPS.hlsl", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		std::vector<const wchar_t*> compileArgs =
+		{
+			L"-T ps_6_7",
+			L"-I", L"../res",
+#if defined(DEBUG) || defined(_DEBUG)
+			L"-Zi",
+			L"-Qembed_debug",
+			L"-Od"
+#endif
+		};
+		if (m_drawSponza)
+		{
+			compileArgs.push_back(L"-D DRAW_SPONZA");
+		}
+
+		ComPtr<IDxcBlob> pPSBlob;
+		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pPSBlob))
+		{
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_DeferredShadingRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_DeferredShadingRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.NumRenderTargets = 1;
+		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pDeferredShadingPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
     // CameraVelocity用ルートシグニチャとパイプラインステートの生成
 	{
 		std::wstring vsPath;
@@ -5970,6 +6051,9 @@ void SampleApp::OnTerm()
 
 	m_pGBufferFromVBufferPSO.Reset();
 	m_GBufferFromVBufferRootSig.Term();
+
+	m_pDeferredShadingPSO.Reset();
+	m_DeferredShadingRootSig.Term();
 
 	m_pHCB_PSO.Reset();
 	m_HCB_RootSig.Term();
