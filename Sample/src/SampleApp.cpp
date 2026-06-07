@@ -6224,11 +6224,11 @@ void SampleApp::OnRender()
 	{
 		if (m_enableTemporalAA)
 		{
-			DrawGBuffer(pCmd, lightForward, viewProjWithJitter);
+			DoForwardShading(pCmd, lightForward, viewProjWithJitter);
 		}
 		else
 		{
-			DrawGBuffer(pCmd, lightForward, viewProjNoJitter);
+			DoForwardShading(pCmd, lightForward, viewProjNoJitter);
 		}
 	}
 
@@ -6827,7 +6827,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
 		// ViewProjはDrawVBuffer()で更新済み
 
-		//TODO: DrawGBuffer()と共通化
+		//TODO: DoForwardShading()と共通化
 		float zNear = 0.0f;
 		float zFar = 40.0f;
 		float widthHeight = 40.0f;
@@ -6962,10 +6962,10 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const Matrix& viewProj)
+void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const Matrix& viewProj)
 {
 	assert(!m_useMeshlet);
-	::PIXScopedEvent(pCmdList, 0, L"DrawGBuffer");
+	::PIXScopedEvent(pCmdList, 0, L"DoForwardShading");
 
 	// 変換行列用の定数バッファの更新
 	{
