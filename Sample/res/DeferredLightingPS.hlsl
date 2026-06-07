@@ -1,0 +1,41 @@
+#ifdef DRAW_SPONZA
+#include "ShadowMap.hlsli"
+#endif
+
+#include "BRDF.hlsli"
+
+#ifdef DRAW_SPONZA
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+" | DENY_MESH_SHADER_ROOT_ACCESS"\
+")"
+#else // #ifdef DRAW_SPONZA
+#define ROOT_SIGNATURE ""\
+"RootFlags"\
+"("\
+"ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT"\
+" | DENY_HULL_SHADER_ROOT_ACCESS"\
+" | DENY_DOMAIN_SHADER_ROOT_ACCESS"\
+" | DENY_GEOMETRY_SHADER_ROOT_ACCESS"\
+" | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
+" | DENY_MESH_SHADER_ROOT_ACCESS"\
+")"
+#endif // #ifdef DRAW_SPONZA
+
+struct VSOutput
+{
+	float4 Position : SV_POSITION;
+	float2 TexCoord : TEXCOORD;
+};
+
+[RootSignature(ROOT_SIGNATURE)]
+float4 main(VSOutput input) : SV_TARGET
+{
+	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+}
