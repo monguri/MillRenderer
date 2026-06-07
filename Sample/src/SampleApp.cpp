@@ -6198,10 +6198,12 @@ void SampleApp::OnRender()
 			if (m_enableTemporalAA)
 			{
 				DrawGBuffer(pCmd, viewProjWithJitter);
+				DoDeferredShading(pCmd, lightForward, viewProjWithJitter);
 			}
 			else
 			{
 				DrawGBuffer(pCmd, viewProjNoJitter);
+				DoDeferredShading(pCmd, lightForward, viewProjNoJitter);
 			}
 		}
 	}
@@ -7207,6 +7209,11 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj)
+{
+	::PIXScopedEvent(pCmdList, 0, L"DeferredShading");
 }
 
 void SampleApp::DrawSkyBox(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
