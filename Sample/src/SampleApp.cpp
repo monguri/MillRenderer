@@ -7341,6 +7341,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 
+#if 0 // TODO: 現在これをやるとPixキャプチャでエラーが出るので一旦コメントアウトしている。原因は不明。velocityも描画されない。
 		pCmdList->ExecuteIndirect
 		(
 			m_MeshManager.GetHWRasCmdSig().Get(),
@@ -7350,6 +7351,7 @@ void SampleApp::DrawObjectVelocity(ID3D12GraphicsCommandList* pCmdList, const Di
 			nullptr,
 			0
 		);
+#endif
 
 		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMovableMeshletIndirectArgBB().GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
