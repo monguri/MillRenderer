@@ -61,6 +61,8 @@ private:
 	bool m_useMetis = false;
 	// Visibility Buffer‚ðSW Rasterize‚·‚é‚©‚Ç‚¤‚©
 	bool m_useSWRasterizer = false;
+	// Deferred Lighting‚ð‚·‚é‚©‚Ç‚¤‚©
+	bool m_useDeferred = false;
 
 	uint32_t m_meshletRootParamCount = 0;
 

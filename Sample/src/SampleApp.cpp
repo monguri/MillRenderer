@@ -800,6 +800,10 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		{
 			m_useSWRasterizer = true;
 		}
+		else if (wcscmp(argv[a], L"--deferred") == 0)
+		{
+			m_useDeferred = true;
+		}
 	}
 
 	if (m_useMeshlet)
