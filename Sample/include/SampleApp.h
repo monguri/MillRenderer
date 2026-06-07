@@ -85,6 +85,9 @@ private:
 	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
 	RootSignature m_SceneRootSig;
+	ComPtr<ID3D12PipelineState> m_pGBufferOpaquePSO;
+	ComPtr<ID3D12PipelineState> m_pGBufferMaskPSO;
+	RootSignature m_GBufferRootSig;
 	ComPtr<ID3D12PipelineState> m_pMeshletCullingPSO;
 	RootSignature m_MeshletCullingRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferSWRasOpaquePSO;

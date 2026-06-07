@@ -2586,154 +2586,334 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 
     // シーン用ルートシグニチャとパイプラインステートの生成
-	if (m_drawSponza)
+	if (!m_useDeferred)
 	{
-		// AlphaModeがMaskのシャドウマップ描画用
-		std::wstring psPath;
-		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
+		if (m_drawSponza)
 		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pOpaquePSBlob;
-		HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		// AlphaModeがMaskのマテリアル用
-		if (!SearchFilePath(L"SponzaMaskPS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pMaskPSBlob;
-		hr = D3DReadFileToBlob(psPath.c_str(), pMaskPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		if (m_useMeshlet)
-		{
-			if (!SearchFilePath(L"DepthMeshesMaskPS.cso", psPath))
+			// AlphaModeがMaskのシャドウマップ描画用
+			std::wstring psPath;
+			if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
 			{
 				ELOG("Error : Pixel Shader Not Found");
 				return false;
 			}
 
-			ComPtr<ID3DBlob> pDepthMaskPSBlob;
-			HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
+			ComPtr<ID3DBlob> pOpaquePSBlob;
+			HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
 				return false;
 			}
 
-			// AlphaModeがOpaqueのシャドウマップ描画用
-			std::wstring msPath;
-			if (!SearchFilePath(L"DepthMeshesMS.cso", msPath))
-			{
-				ELOG("Error : Mesh Shader Not Found");
-				return false;
-			}
-
-			ComPtr<ID3DBlob> pMSBlob;
-			hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
-				return false;
-			}
-
-			ComPtr<ID3DBlob> pRSBlob;
-			hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
-				return false;
-			}
-
-			if (!m_DepthRootSig.Init(m_pDevice.Get(), pRSBlob))
-			{
-				ELOG("Error : RootSignature::Init() Failed.");
-				return false;
-			}
-
-			// シャドウマップ描画用のパイプラインステートディスクリプタ
-			D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
-			desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
-			desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
-			// PSは実行しないので設定しない
-
-			desc.pRootSignature = m_DepthRootSig.GetPtr();
-			desc.BlendState = DirectX::CommonStates::Opaque;
-			desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
-			desc.SampleMask = UINT_MAX;
-			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			desc.NumRenderTargets = 0;
-			desc.DSVFormat = m_DirLightShadowMapTarget.GetDSVDesc().Format;
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
-
-			// TODO:SponzaRendererの数字を何も考えずに使っている
-			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-			desc.RasterizerState.DepthBias = 100;
-
-			CD3DX12_PIPELINE_MESH_STATE_STREAM psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
-			D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
-			streamDesc.pPipelineStateSubobjectStream = &psoStream;
-			streamDesc.SizeInBytes = sizeof(psoStream);
-
-			hr = m_pDevice->CreatePipelineState(
-				&streamDesc,
-				IID_PPV_ARGS(m_pDepthPSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
-
-			desc.PS.pShaderBytecode = pDepthMaskPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
-			desc.RasterizerState = DirectX::CommonStates::CullNone;
-
-			// TODO: MeshManagerではOpaqueとMaskedを分類して新たなIndirectArgとMeshletListを作るのが面倒なので両方Maskedマテリアルで描画している
-
-			// TODO:SponzaRendererの数字を何も考えずに使っている
-			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-			desc.RasterizerState.DepthBias = 100;
-
-			psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
-			streamDesc.pPipelineStateSubobjectStream = &psoStream;
-
-			hr = m_pDevice->CreatePipelineState(
-				&streamDesc,
-				IID_PPV_ARGS(m_pDepthMaskPSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
-		}
-		else // if (m_useMeshlet)
-		{
-			if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
+			// AlphaModeがMaskのマテリアル用
+			if (!SearchFilePath(L"SponzaMaskPS.cso", psPath))
 			{
 				ELOG("Error : Pixel Shader Not Found");
 				return false;
 			}
 
-			ComPtr<ID3DBlob> pDepthMaskPSBlob;
-			hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
+			ComPtr<ID3DBlob> pMaskPSBlob;
+			hr = D3DReadFileToBlob(psPath.c_str(), pMaskPSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+				return false;
+			}
+
+			if (m_useMeshlet)
+			{
+				if (!SearchFilePath(L"DepthMeshesMaskPS.cso", psPath))
+				{
+					ELOG("Error : Pixel Shader Not Found");
+					return false;
+				}
+
+				ComPtr<ID3DBlob> pDepthMaskPSBlob;
+				HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
+				if (FAILED(hr))
+				{
+					ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+					return false;
+				}
+
+				// AlphaModeがOpaqueのシャドウマップ描画用
+				std::wstring msPath;
+				if (!SearchFilePath(L"DepthMeshesMS.cso", msPath))
+				{
+					ELOG("Error : Mesh Shader Not Found");
+					return false;
+				}
+
+				ComPtr<ID3DBlob> pMSBlob;
+				hr = D3DReadFileToBlob(msPath.c_str(), pMSBlob.GetAddressOf());
+				if (FAILED(hr))
+				{
+					ELOG("Error : D3DReadFileToBlob Failed. path = %ls", msPath.c_str());
+					return false;
+				}
+
+				ComPtr<ID3DBlob> pRSBlob;
+				hr = D3DGetBlobPart(pMSBlob->GetBufferPointer(), pMSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+				if (FAILED(hr))
+				{
+					ELOG("Error : D3DGetBlobPart Failed. path = %ls", msPath.c_str());
+					return false;
+				}
+
+				if (!m_DepthRootSig.Init(m_pDevice.Get(), pRSBlob))
+				{
+					ELOG("Error : RootSignature::Init() Failed.");
+					return false;
+				}
+
+				// シャドウマップ描画用のパイプラインステートディスクリプタ
+				D3DX12_MESH_SHADER_PIPELINE_STATE_DESC desc = {};
+				desc.MS.pShaderBytecode = pMSBlob->GetBufferPointer();
+				desc.MS.BytecodeLength = pMSBlob->GetBufferSize();
+				// PSは実行しないので設定しない
+
+				desc.pRootSignature = m_DepthRootSig.GetPtr();
+				desc.BlendState = DirectX::CommonStates::Opaque;
+				desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+				desc.SampleMask = UINT_MAX;
+				desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+				desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+				desc.NumRenderTargets = 0;
+				desc.DSVFormat = m_DirLightShadowMapTarget.GetDSVDesc().Format;
+				desc.SampleDesc.Count = 1;
+				desc.SampleDesc.Quality = 0;
+
+				// TODO:SponzaRendererの数字を何も考えずに使っている
+				desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+				desc.RasterizerState.DepthBias = 100;
+
+				CD3DX12_PIPELINE_MESH_STATE_STREAM psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+				D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
+				streamDesc.pPipelineStateSubobjectStream = &psoStream;
+				streamDesc.SizeInBytes = sizeof(psoStream);
+
+				hr = m_pDevice->CreatePipelineState(
+					&streamDesc,
+					IID_PPV_ARGS(m_pDepthPSO.GetAddressOf())
+				);
+				if (FAILED(hr))
+				{
+					ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+					return false;
+				}
+
+				desc.PS.pShaderBytecode = pDepthMaskPSBlob->GetBufferPointer();
+				desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
+				desc.RasterizerState = DirectX::CommonStates::CullNone;
+
+				// TODO: MeshManagerではOpaqueとMaskedを分類して新たなIndirectArgとMeshletListを作るのが面倒なので両方Maskedマテリアルで描画している
+
+				// TODO:SponzaRendererの数字を何も考えずに使っている
+				desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+				desc.RasterizerState.DepthBias = 100;
+
+				psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(desc);
+				streamDesc.pPipelineStateSubobjectStream = &psoStream;
+
+				hr = m_pDevice->CreatePipelineState(
+					&streamDesc,
+					IID_PPV_ARGS(m_pDepthMaskPSO.GetAddressOf())
+				);
+				if (FAILED(hr))
+				{
+					ELOG("Error : ID3D12Device::CreatePipelineState Failed. retcode = 0x%x", hr);
+					return false;
+				}
+			}
+			else // if (m_useMeshlet)
+			{
+				if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
+				{
+					ELOG("Error : Pixel Shader Not Found");
+					return false;
+				}
+
+				ComPtr<ID3DBlob> pDepthMaskPSBlob;
+				hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
+				if (FAILED(hr))
+				{
+					ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+					return false;
+				}
+
+				D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+				desc.InputLayout = MeshVertex::InputLayout;
+
+				// AlphaModeがOpaqueのシャドウマップ描画用
+				std::wstring vsPath;
+				if (!SearchFilePath(L"DepthVS.cso", vsPath))
+				{
+					ELOG("Error : Vertex Shader Not Found");
+					return false;
+				}
+
+				ComPtr<ID3DBlob> pVSBlob;
+				HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+				if (FAILED(hr))
+				{
+					ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+					return false;
+				}
+
+				desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+				desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+				// PSは実行しないので設定しない
+
+				ComPtr<ID3DBlob> pRSBlob;
+				hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+				if (FAILED(hr))
+				{
+					ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
+					return false;
+				}
+
+				if (!m_DepthRootSig.Init(m_pDevice.Get(), pRSBlob))
+				{
+					ELOG("Error : RootSignature::Init() Failed.");
+					return false;
+				}
+
+				desc.pRootSignature = m_DepthRootSig.GetPtr();
+				desc.BlendState = DirectX::CommonStates::Opaque;
+				desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+				desc.SampleMask = UINT_MAX;
+				desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+				desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+				desc.NumRenderTargets = 0;
+				desc.DSVFormat = m_DirLightShadowMapTarget.GetDSVDesc().Format;
+				desc.SampleDesc.Count = 1;
+				desc.SampleDesc.Quality = 0;
+
+				// TODO:SponzaRendererの数字を何も考えずに使っている
+				desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+				desc.RasterizerState.DepthBias = 100;
+
+				hr = m_pDevice->CreateGraphicsPipelineState(
+					&desc,
+					IID_PPV_ARGS(m_pDepthPSO.GetAddressOf())
+				);
+				if (FAILED(hr))
+				{
+					ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+					return false;
+				}
+
+				desc.PS.pShaderBytecode = pDepthMaskPSBlob->GetBufferPointer();
+				desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
+				desc.RasterizerState = DirectX::CommonStates::CullNone;
+
+				hr = m_pDevice->CreateGraphicsPipelineState(
+					&desc,
+					IID_PPV_ARGS(m_pDepthMaskPSO.GetAddressOf())
+				);
+				if (FAILED(hr))
+				{
+					ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+					return false;
+				}
+
+				// AlphaModeがOpaqueのマテリアル用
+				if (!SearchFilePath(L"SponzaVS.cso", vsPath))
+				{
+					ELOG("Error : Vertex Shader Not Found");
+					return false;
+				}
+
+				hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+				if (FAILED(hr))
+				{
+					ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+					return false;
+				}
+
+				desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+				desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+
+				hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+				if (FAILED(hr))
+				{
+					ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
+					return false;
+				}
+
+				if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
+				{
+					ELOG("Error : RootSignature::Init() Failed.");
+					return false;
+				}
+
+				desc.pRootSignature = m_SponzaRootSig.GetPtr();
+				// SceneDepthはReverseZ
+				desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
+				desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+				desc.NumRenderTargets = 3;
+				desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
+				desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
+				desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
+				desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+
+				desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
+				desc.PS.BytecodeLength = pOpaquePSBlob->GetBufferSize();
+
+				hr = m_pDevice->CreateGraphicsPipelineState(
+					&desc,
+					IID_PPV_ARGS(m_pSponzaOpaquePSO.GetAddressOf())
+				);
+				if (FAILED(hr))
+				{
+					ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+					return false;
+				}
+
+				desc.PS.pShaderBytecode = pMaskPSBlob->GetBufferPointer();
+				desc.PS.BytecodeLength = pMaskPSBlob->GetBufferSize();
+				//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
+				desc.RasterizerState = DirectX::CommonStates::CullNone;
+
+				hr = m_pDevice->CreateGraphicsPipelineState(
+					&desc,
+					IID_PPV_ARGS(m_pSponzaMaskPSO.GetAddressOf())
+				);
+				if (FAILED(hr))
+				{
+					ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+					return false;
+				}
+			}
+		}
+		else
+		{
+			// AlphaModeがOpaqueのマテリアル用
+			std::wstring psPath;
+			if (!SearchFilePath(L"BasePassOpaquePS.cso", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pOpaquePSBlob;
+			HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+				return false;
+			}
+
+			// AlphaModeがMaskのマテリアル用
+			if (!SearchFilePath(L"BasePassMaskPS.cso", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pMaskPSBlob;
+			hr = D3DReadFileToBlob(psPath.c_str(), pMaskPSBlob.GetAddressOf());
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
@@ -2743,25 +2923,33 @@ bool SampleApp::OnInit(HWND hWnd)
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 			desc.InputLayout = MeshVertex::InputLayout;
 
+			desc.BlendState = DirectX::CommonStates::Opaque;
+			desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+			desc.SampleMask = UINT_MAX;
+			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
+
+			// TODO:SponzaRendererの数字を何も考えずに使っている
+			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+			desc.RasterizerState.DepthBias = 100;
+
 			// AlphaModeがOpaqueのシャドウマップ描画用
 			std::wstring vsPath;
-			if (!SearchFilePath(L"DepthVS.cso", vsPath))
+			if (!SearchFilePath(L"BasePassVS.cso", vsPath))
 			{
 				ELOG("Error : Vertex Shader Not Found");
 				return false;
 			}
 
 			ComPtr<ID3DBlob> pVSBlob;
-			HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+			hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
 				return false;
 			}
-
-			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-			// PSは実行しないので設定しない
 
 			ComPtr<ID3DBlob> pRSBlob;
 			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
@@ -2771,82 +2959,17 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			if (!m_DepthRootSig.Init(m_pDevice.Get(), pRSBlob))
+			if (!m_SceneRootSig.Init(m_pDevice.Get(), pRSBlob))
 			{
 				ELOG("Error : RootSignature::Init() Failed.");
 				return false;
 			}
 
-			desc.pRootSignature = m_DepthRootSig.GetPtr();
-			desc.BlendState = DirectX::CommonStates::Opaque;
-			desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
-			desc.SampleMask = UINT_MAX;
-			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			desc.NumRenderTargets = 0;
-			desc.DSVFormat = m_DirLightShadowMapTarget.GetDSVDesc().Format;
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
-
-			// TODO:SponzaRendererの数字を何も考えずに使っている
-			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-			desc.RasterizerState.DepthBias = 100;
-
-			hr = m_pDevice->CreateGraphicsPipelineState(
-				&desc,
-				IID_PPV_ARGS(m_pDepthPSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
-
-			desc.PS.pShaderBytecode = pDepthMaskPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pDepthMaskPSBlob->GetBufferSize();
-			desc.RasterizerState = DirectX::CommonStates::CullNone;
-
-			hr = m_pDevice->CreateGraphicsPipelineState(
-				&desc,
-				IID_PPV_ARGS(m_pDepthMaskPSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
-
-			// AlphaModeがOpaqueのマテリアル用
-			if (!SearchFilePath(L"SponzaVS.cso", vsPath))
-			{
-				ELOG("Error : Vertex Shader Not Found");
-				return false;
-			}
-
-			hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-				return false;
-			}
-
+			desc.pRootSignature = m_SceneRootSig.GetPtr();
 			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 
-			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
-				return false;
-			}
-
-			if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
-			{
-				ELOG("Error : RootSignature::Init() Failed.");
-				return false;
-			}
-
-			desc.pRootSignature = m_SponzaRootSig.GetPtr();
+			// AlphaModeがOpaqueのマテリアル用
 			// SceneDepthはReverseZ
 			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
@@ -2861,7 +2984,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreateGraphicsPipelineState(
 				&desc,
-				IID_PPV_ARGS(m_pSponzaOpaquePSO.GetAddressOf())
+				IID_PPV_ARGS(m_pSceneOpaquePSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -2869,6 +2992,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
+			// AlphaModeがMaskのマテリアル用
 			desc.PS.pShaderBytecode = pMaskPSBlob->GetBufferPointer();
 			desc.PS.BytecodeLength = pMaskPSBlob->GetBufferSize();
 			//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
@@ -2876,7 +3000,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			hr = m_pDevice->CreateGraphicsPipelineState(
 				&desc,
-				IID_PPV_ARGS(m_pSponzaMaskPSO.GetAddressOf())
+				IID_PPV_ARGS(m_pSceneMaskPSO.GetAddressOf())
 			);
 			if (FAILED(hr))
 			{
@@ -2885,140 +3009,134 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 		}
 	}
-	else
+
+	// GBuffer描画用ルートシグニチャとパイプラインステートの生成
+	if (m_useDeferred)
 	{
-		std::vector<const wchar_t*> compileArgs =
-		{
-			L"-T ps_6_7",
-			L"-I", L"../res",
-#if defined(DEBUG) || defined(_DEBUG)
-			L"-Zi",
-			L"-Qembed_debug",
-			L"-Od"
-#endif
-		};
 		if (m_useMeshlet)
 		{
-			compileArgs.push_back(L"-D USE_MESHLET");
+			// TODO: 実装
 		}
-
-		// AlphaModeがOpaqueのマテリアル用
-		std::wstring psPath;
-		if (!SearchFilePath(L"BasePassOpaquePS.hlsl", psPath))
+		else
 		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
+			// AlphaModeがOpaqueのマテリアル用
+			std::wstring psPath;
+			if (!SearchFilePath(L"GBufferOpaquePS.cso", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
 
-		ComPtr<IDxcBlob> pOpaquePSBlob;
-		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pOpaquePSBlob))
-		{
-			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
-			return false;
-		}
+			ComPtr<ID3DBlob> pOpaquePSBlob;
+			HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+				return false;
+			}
 
-		// AlphaModeがMaskのマテリアル用
-		if (!SearchFilePath(L"BasePassMaskPS.hlsl", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
+			// AlphaModeがMaskのマテリアル用
+			if (!SearchFilePath(L"GBufferMaskPS.cso", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
 
-		ComPtr<IDxcBlob> pMaskPSBlob;
-		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pMaskPSBlob))
-		{
-			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
-			return false;
-		}
+			ComPtr<ID3DBlob> pMaskPSBlob;
+			hr = D3DReadFileToBlob(psPath.c_str(), pMaskPSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+				return false;
+			}
 
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-		desc.InputLayout = MeshVertex::InputLayout;
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+			desc.InputLayout = MeshVertex::InputLayout;
 
-		desc.BlendState = DirectX::CommonStates::Opaque;
-		desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
-		desc.SampleMask = UINT_MAX;
-		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		desc.NumRenderTargets = 0;
-		desc.DSVFormat = m_DirLightShadowMapTarget.GetDSVDesc().Format;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
+			desc.BlendState = DirectX::CommonStates::Opaque;
+			desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
+			desc.SampleMask = UINT_MAX;
+			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
 
-		// TODO:SponzaRendererの数字を何も考えずに使っている
-		desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-		desc.RasterizerState.DepthBias = 100;
+			// TODO:SponzaRendererの数字を何も考えずに使っている
+			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
+			desc.RasterizerState.DepthBias = 100;
 
-		// AlphaModeがOpaqueのシャドウマップ描画用
-		std::wstring vsPath;
-		if (!SearchFilePath(L"BasePassVS.cso", vsPath))
-		{
-			ELOG("Error : Vertex Shader Not Found");
-			return false;
-		}
+			// AlphaModeがOpaqueのシャドウマップ描画用
+			std::wstring vsPath;
+			if (!SearchFilePath(L"GBufferVS.cso", vsPath))
+			{
+				ELOG("Error : Vertex Shader Not Found");
+				return false;
+			}
 
-		ComPtr<ID3DBlob> pVSBlob;
-		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-			return false;
-		}
+			ComPtr<ID3DBlob> pVSBlob;
+			hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+				return false;
+			}
 
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
-			return false;
-		}
+			ComPtr<ID3DBlob> pRSBlob;
+			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
+				return false;
+			}
 
-		if (!m_SceneRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
+			if (!m_GBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
 
-		desc.pRootSignature = m_SceneRootSig.GetPtr();
-		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+			desc.pRootSignature = m_GBufferRootSig.GetPtr();
+			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 
-		// AlphaModeがOpaqueのマテリアル用
-		// SceneDepthはReverseZ
-		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
-		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.NumRenderTargets = 3;
-		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
-		desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
-		desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
-		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
+			// AlphaModeがOpaqueのマテリアル用
+			// GBufferDepthはReverseZ
+			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
+			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
+			desc.NumRenderTargets = 3;
+			desc.RTVFormats[0] = m_GBufferBaseColorTarget.GetRTVDesc().Format;
+			desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
+			desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
+			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 
-		desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pOpaquePSBlob->GetBufferSize();
+			desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pOpaquePSBlob->GetBufferSize();
 
-		hr = m_pDevice->CreateGraphicsPipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pSceneOpaquePSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
+			hr = m_pDevice->CreateGraphicsPipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pGBufferOpaquePSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 
-		// AlphaModeがMaskのマテリアル用
-		desc.PS.pShaderBytecode = pMaskPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pMaskPSBlob->GetBufferSize();
-		//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
-		desc.RasterizerState = DirectX::CommonStates::CullNone;
+			// AlphaModeがMaskのマテリアル用
+			desc.PS.pShaderBytecode = pMaskPSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pMaskPSBlob->GetBufferSize();
+			//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
+			desc.RasterizerState = DirectX::CommonStates::CullNone;
 
-		hr = m_pDevice->CreateGraphicsPipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pSceneMaskPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-			return false;
+			hr = m_pDevice->CreateGraphicsPipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pGBufferMaskPSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 	}
 
@@ -5840,8 +5958,11 @@ void SampleApp::OnTerm()
 
 	m_pSceneOpaquePSO.Reset();
 	m_pSceneMaskPSO.Reset();
-
 	m_SceneRootSig.Term();
+
+	m_pGBufferOpaquePSO.Reset();
+	m_pGBufferMaskPSO.Reset();
+	m_GBufferRootSig.Term();
 
 	m_pMeshletCullingPSO.Reset();
 	m_MeshletCullingRootSig.Term();
