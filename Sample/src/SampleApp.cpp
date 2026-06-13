@@ -49,6 +49,7 @@ enum class DEBUG_VIEW_MODE : int
 	DEPTH,
 	BASECOLOR,
 	NORMAL,
+	EMISSIVE,
 	VELOCITY,
 	SSAO_FULL_RES,
 	SSAO_HALF_RES,
@@ -1726,6 +1727,26 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// GBuffer用エミッシブターゲットの生成
+	{
+		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		if (!m_GBufferEmissiveTarget.InitRenderTarget
+		(
+			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RTV],
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			m_Width,
+			m_Height,
+			DXGI_FORMAT_R11G11B10_FLOAT,
+			clearColor
+		))
+		{
+			ELOG("Error : ColorTarget::Init() Failed.");
+			return false;
+		}
+	}
+
 	// VisibilyBufferの生成
 	if (m_useMeshlet)
 	{
@@ -3100,10 +3121,11 @@ bool SampleApp::OnInit(HWND hWnd)
 			// GBufferDepthはReverseZ
 			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-			desc.NumRenderTargets = 3;
+			desc.NumRenderTargets = 4;
 			desc.RTVFormats[0] = m_GBufferBaseColorTarget.GetRTVDesc().Format;
 			desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
 			desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
+			desc.RTVFormats[3] = m_GBufferEmissiveTarget.GetRTVDesc().Format;
 			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 
 			desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
@@ -5961,6 +5983,7 @@ void SampleApp::OnTerm()
 	m_GBufferBaseColorTarget.Term();
 	m_GBufferNormalTarget.Term();
 	m_GBufferMetallicRoughnessTarget.Term();
+	m_GBufferEmissiveTarget.Term();
 	m_VBufferTarget.Term();
 	m_SceneDepthTarget.Term();
 
@@ -7252,20 +7275,23 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferEmissiveTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[4] = {
 		m_GBufferBaseColorTarget.GetHandleRTV()->HandleCPU,
 		m_GBufferNormalTarget.GetHandleRTV()->HandleCPU, 
-		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
+		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU,
+		m_GBufferEmissiveTarget.GetHandleRTV()->HandleCPU 
 	};
 	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
 
-	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, &handleDSV->HandleCPU);
+	pCmdList->OMSetRenderTargets(4, rtvs, FALSE, &handleDSV->HandleCPU);
 
 	m_GBufferBaseColorTarget.ClearView(pCmdList);
 	m_GBufferNormalTarget.ClearView(pCmdList);
 	m_GBufferMetallicRoughnessTarget.ClearView(pCmdList);
+	m_GBufferEmissiveTarget.ClearView(pCmdList);
 	m_SceneDepthTarget.ClearView(pCmdList);
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
@@ -7292,6 +7318,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferEmissiveTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -7424,6 +7451,7 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 				pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
 				pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
 				pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(7 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
 			}
 			else
 			{
@@ -8606,6 +8634,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		case NORMAL:
 			renderTargetName = L"GBufferNormal";
 			break;
+		case EMISSIVE:
+			renderTargetName = L"GBufferEmissive";
+			break;
 		case SSAO_FULL_RES:
 			renderTargetName = L"SSAO Full Res";
 			break;
@@ -8638,6 +8669,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			using enum DEBUG_VIEW_MODE;
 			case NONE:
 			case BASECOLOR:
+			case EMISSIVE:
 			case SSGI:
 			case TRIANGLE_INDEX:
 			case MESHLET_INDEX:
@@ -8698,6 +8730,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			break;
 		case NORMAL:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
+			break;
+		case EMISSIVE:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferEmissiveTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case SSAO_FULL_RES:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SSAO_FullResTarget.GetHandleSRV()->HandleGPU);
@@ -8783,6 +8818,10 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 			ImGui::RadioButton("BaseColor", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(BASECOLOR));
 		}
 		ImGui::RadioButton("Normal", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(NORMAL));
+		if (m_useDeferred)
+		{
+			ImGui::RadioButton("Emissive", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(EMISSIVE));
+		}
 		ImGui::RadioButton("Velocity", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(VELOCITY));
 		ImGui::RadioButton("SSAO FullRes", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSAO_FULL_RES));
 		ImGui::RadioButton("SSAO HalfRes", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSAO_HALF_RES));

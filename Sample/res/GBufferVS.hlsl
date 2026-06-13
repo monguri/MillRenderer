@@ -15,6 +15,7 @@
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(SRV(t3), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", StaticSampler"\
 "("\
 "s0"\

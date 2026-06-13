@@ -12,6 +12,7 @@ struct PSOutput
 	float4 BaseColor : SV_TARGET0;
 	float4 Normal : SV_TARGET1;
 	float2 MetallicRoughness : SV_TARGET2;
+	float3 Emissive : SV_TARGET3;
 };
 
 struct Camera
@@ -38,6 +39,7 @@ ConstantBuffer<Material> CbMaterial : register(b1);
 Texture2D BaseColorMap : register(t0);
 Texture2D MetallicRoughnessMap : register(t1);
 Texture2D NormalMap : register(t2);
+Texture2D EmissiveMap : register(t3);
 
 SamplerState AnisotropicWrapSmp : register(s0);
 
@@ -69,6 +71,13 @@ PSOutput main(VSOutput input , uint primitiveID : SV_PrimitiveID)
 
 	N = mul(input.InvTangentBasis, N);
 
+	float3 emissive = 0;
+	if (CbMaterial.bExistEmissiveTex)
+	{
+		emissive = EmissiveMap.Sample(AnisotropicWrapSmp, input.TexCoord).rgb;
+		emissive *= CbMaterial.EmissiveFactor;
+	}
+
 	switch (CbCamera.DebugViewType)
 	{
 		case DEBUG_VIEW_TYPE_NONE:
@@ -94,5 +103,7 @@ PSOutput main(VSOutput input , uint primitiveID : SV_PrimitiveID)
 
 	output.MetallicRoughness.r = metallic;
 	output.MetallicRoughness.g = roughness;
+
+	output.Emissive = emissive;
 	return output;
 }

@@ -160,6 +160,7 @@ private:
 	ColorTarget m_GBufferBaseColorTarget;
 	ColorTarget m_GBufferNormalTarget;
 	ColorTarget m_GBufferMetallicRoughnessTarget;
+	ColorTarget m_GBufferEmissiveTarget;
 	ColorTarget m_VBufferTarget;
 	DepthTarget m_SceneDepthTarget;
 	ColorTarget m_HCB_Target;
