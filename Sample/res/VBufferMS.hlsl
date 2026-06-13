@@ -88,7 +88,7 @@ struct meshopt_Meshlet
 	uint TriCount;
 };
 
-struct Transform
+struct Camera
 {
 	float4x4 ViewProj;
 };
@@ -102,7 +102,7 @@ struct MeshletMeshMaterial
 };
 
 ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b0);
-ConstantBuffer<Transform> CbTransform : register(b1);
+ConstantBuffer<Camera> CbCamera : register(b1);
 ByteAddressBuffer BbDrawMeshletIndices : register(t0);
 StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t1);
 
@@ -147,7 +147,7 @@ void main
 
 		float4 localPos = float4(input.Position, 1.0f);
 		float4 worldPos = mul(CbMesh.World, localPos);
-		float4 projPos = mul(CbTransform.ViewProj, worldPos);
+		float4 projPos = mul(CbCamera.ViewProj, worldPos);
 
 		VertexData v;
 		v.Position = projPos;

@@ -129,7 +129,6 @@ namespace
 
 	struct alignas(256) CbShadowTransform
 	{
-		Matrix ViewProj;
 		Matrix WorldToDirLightShadowMap;
 		Matrix WorldToSpotLight1ShadowMap;
 		Matrix WorldToSpotLight2ShadowMap;
@@ -193,6 +192,7 @@ namespace
 
 	struct alignas(256) CbCamera
 	{
+		Matrix ViewProj;
 		Vector3 CameraPosition;
 		// TODO: 新規にCBを作りたくないので間借り。増えたら新規CBを作る。
 		unsigned int DebugViewType;
@@ -1349,7 +1349,7 @@ bool SampleApp::OnInit(HWND hWnd)
 					return false;
 				}
 
-				if (!m_SpotLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbShadowTransform)))
+				if (!m_SpotLightCameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbCamera)))
 				{
 					ELOG("Error : ConstantBuffer::Init() Failed.");
 					return false;
@@ -1361,7 +1361,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 			// 少し赤っぽい光
 			*ptr = ComputeSpotLight(0, SpotLight1Dir, SpotLight1Pos, 20.0f, Vector3(1.0f, 0.5f, 0.5f), m_spotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
-			CbShadowTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbShadowTransform>();
+			CbCamera* tptr = m_SpotLightCameraCB[0].GetPtr<CbCamera>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight1Dir, SpotLight1Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 
 			const Vector3& SpotLight2Dir = Vector3(0.0f, -10.0f, 2.0f);
@@ -1370,7 +1370,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			// 少し緑っぽい光
 			*ptr = ComputeSpotLight(0, SpotLight2Dir, SpotLight2Pos, 20.0f, Vector3(0.5f, 1.0f, 0.5f), m_spotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
-			tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbShadowTransform>();
+			tptr = m_SpotLightCameraCB[1].GetPtr<CbCamera>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight2Dir, SpotLight2Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 
 			const Vector3& SpotLight3Dir = Vector3(20.0f, -4.0f, 0.0f);
@@ -1379,7 +1379,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			// 少し青っぽい光
 			*ptr = ComputeSpotLight(0, SpotLight3Dir, SpotLight3Pos, 20.0f, Vector3(0.5f, 0.5f, 1.0f), m_spotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
-			tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbShadowTransform>();
+			tptr = m_SpotLightCameraCB[2].GetPtr<CbCamera>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight3Dir, SpotLight3Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 		}
 	}
@@ -1431,6 +1431,15 @@ bool SampleApp::OnInit(HWND hWnd)
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
+
+			constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
+			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
+
+			const Matrix& view = m_CameraManipulator.GetView();
+			const Matrix& proj = CreatePerspectiveFieldOfViewInfinityFarReverseZ(fovY, aspect, CAMERA_NEAR);
+
+			CbCamera* ptr = m_CameraCB[i].GetPtr<CbCamera>();
+			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		}
 	}
 
@@ -5651,31 +5660,25 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_DirLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbShadowTransform)))
+			if (!m_DirLightCameraCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbCamera)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
 
-			CbShadowTransform* ptr = m_DirLightShadowMapTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
+			CbCamera* ptr = m_DirLightCameraCB[m_FrameIndex].GetPtr<CbCamera>();
 			ptr->ViewProj = dirLightShadowViewProj;
 		}
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_TransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbShadowTransform), L"CbShadowTransform"))
+			if (!m_ShadowTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbShadowTransform), L"CbShadowTransform"))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
 
-			constexpr float fovY = DirectX::XMConvertToRadians(CAMERA_FOV_Y_DEGREE);
-			float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
-
-			const Matrix& view = m_CameraManipulator.GetView();
-			const Matrix& proj = CreatePerspectiveFieldOfViewInfinityFarReverseZ(fovY, aspect, CAMERA_NEAR);
-			CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
-			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			CbShadowTransform* ptr = m_ShadowTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 
 			// プロジェクション座標の[-1,-1]*[-1,1]*[0,1]をシャドウマップ用座標[0,1]*[1,0]*[0,1]に変換する
 			const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
@@ -5684,9 +5687,9 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			if (m_drawSponza)
 			{
-				ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-				ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-				ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->WorldToSpotLight1ShadowMap = m_SpotLightCameraCB[0].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->WorldToSpotLight2ShadowMap = m_SpotLightCameraCB[1].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->WorldToSpotLight3ShadowMap = m_SpotLightCameraCB[2].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 			}
 		}
 	}
@@ -5887,8 +5890,8 @@ void SampleApp::OnTerm()
 	{
 		m_DirectionalLightCB[i].Term();
 		m_CameraCB[i].Term();
-		m_DirLightShadowMapTransformCB[i].Term();
-		m_TransformCB[i].Term();
+		m_DirLightCameraCB[i].Term();
+		m_ShadowTransformCB[i].Term();
 		m_ObjectVelocityCB[i].Term();
 		m_CameraVelocityCB[i].Term();
 		m_SSAO_HalfResCB[i].Term();
@@ -5908,7 +5911,7 @@ void SampleApp::OnTerm()
 	for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 	{
 		m_SpotLightCB[i].Term();
-		m_SpotLightShadowMapTransformCB[i].Term();
+		m_SpotLightCameraCB[i].Term();
 	}
 
 	for (ConstantBuffer* cb : m_pHZB_CBs)
@@ -6516,7 +6519,7 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 		float zFar = 40.0f;
 		float widthHeight = 40.0f;
 
-		CbShadowTransform* ptr = m_DirLightShadowMapTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
+		CbCamera* ptr = m_DirLightCameraCB[m_FrameIndex].GetPtr<CbCamera>();
 
 		const Matrix& view = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
 		const Matrix& proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
@@ -6535,7 +6538,7 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 	pCmdList->RSSetScissorRects(1, &m_DirLightShadowMapScissor);
 	pCmdList->SetGraphicsRootSignature(m_DepthRootSig.GetPtr());
 
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightShadowMapTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_DirLightCameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 	if (!m_useMeshlet)
 	{
@@ -6564,7 +6567,7 @@ void SampleApp::DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint
 	::PIXScopedEvent(pCmdList, 0, L"SpotLightShadowMap%d", spotLightIdx);
 
 	pCmdList->SetGraphicsRootSignature(m_DepthRootSig.GetPtr());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightShadowMapTransformCB[spotLightIdx].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_SpotLightCameraCB[spotLightIdx].GetHandle()->HandleGPU);
 
 	if (!m_useMeshlet)
 	{
@@ -6729,7 +6732,7 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 	// 定数バッファの更新
 	{
-		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
+		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
 		ptr->ViewProj = viewProj;
 
 		CbCulling* ptrCulling = m_CullingCB.GetPtr<CbCulling>();
@@ -6766,7 +6769,7 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 	pCmdList->SetComputeRoot32BitConstant(0, static_cast<UINT>(m_MeshManager.GetMeshletCount()), 0);
 	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_CullingCB.GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
@@ -6798,7 +6801,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 	// 変換行列用の定数バッファの更新
 	{
-		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
+		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
 		ptr->ViewProj = viewProj;
 	}
 
@@ -6829,7 +6832,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 			pCmdList->SetComputeRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-			pCmdList->SetComputeRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 			pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 			pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 			pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
@@ -6897,7 +6900,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 			DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 			pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 			pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
@@ -6952,7 +6955,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	// 変換行列用の定数バッファの更新
 	if (m_drawSponza)
 	{
-		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
+		CbShadowTransform* ptr = m_ShadowTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 		// ViewProjはDrawVBuffer()で更新済み
 
 		//TODO: DoForwardShading()と共通化
@@ -6969,9 +6972,9 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		// World行列はMatrix::Identityとする
 		ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
-		ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight1ShadowMap = m_SpotLightCameraCB[0].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight2ShadowMap = m_SpotLightCameraCB[1].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight3ShadowMap = m_SpotLightCameraCB[2].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
 	// カメラバッファの更新
@@ -7034,7 +7037,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
 
@@ -7095,10 +7098,14 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 	assert(!m_useMeshlet);
 	::PIXScopedEvent(pCmdList, 0, L"DoForwardShading");
 
-	// 変換行列用の定数バッファの更新
+	// 定数バッファの更新
 	{
-		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
-		ptr->ViewProj = viewProj;
+		{
+			CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+			ptr->ViewProj = viewProj;
+			ptr->CameraPosition = m_CameraManipulator.GetPosition();
+			ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
+		}
 
 		if (m_drawSponza)
 		{
@@ -7112,20 +7119,14 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 
 			// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
 			const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
+
+			CbShadowTransform* ptr = m_ShadowTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 			// World行列はMatrix::Identityとする
 			ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
-			ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->WorldToSpotLight1ShadowMap = m_SpotLightCameraCB[0].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->WorldToSpotLight2ShadowMap = m_SpotLightCameraCB[1].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->WorldToSpotLight3ShadowMap = m_SpotLightCameraCB[2].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		}
-	}
-
-	// カメラバッファの更新
-	{
-		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		ptr->CameraPosition = m_CameraManipulator.GetPosition();
-		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
 	}
 
 	// ライトバッファの更新
@@ -7185,34 +7186,38 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 		pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
 	}
 
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2 + m_meshletRootParamCount, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 	if (m_drawSponza)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+
+		pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+
+		pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount + i, m_PointLightCB[i].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount + i, m_PointLightCB[i].GetHandle()->HandleGPU);
 		}
 
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(9 + m_meshletRootParamCount + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(10 + m_meshletRootParamCount + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
 		}
 	}
 	else
 	{
+		pCmdList->SetGraphicsRootDescriptorTable(2 + m_meshletRootParamCount, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, m_IBL_CB.GetHandle()->HandleGPU);
 	}
 
 	if (m_drawSponza)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(17 + m_meshletRootParamCount, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(18 + m_meshletRootParamCount, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(18 + m_meshletRootParamCount + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(19 + m_meshletRootParamCount + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 		}
 	}
 	else
@@ -7222,10 +7227,7 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 		pCmdList->SetGraphicsRootDescriptorTable(12 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
 	}
 
-	if (!m_useMeshlet)
-	{
-		pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	}
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Opaqueマテリアルのメッシュの描画
 	if (m_drawSponza)
@@ -7260,15 +7262,10 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	assert(!m_useMeshlet);
 	::PIXScopedEvent(pCmdList, 0, L"DrawGBuffer");
 
-	// 変換行列用の定数バッファの更新
-	{
-		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
-		ptr->ViewProj = viewProj;
-	}
-
-	// カメラバッファの更新
+	// 定数バッファの更新
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+		ptr->ViewProj = viewProj;
 		ptr->CameraPosition = m_CameraManipulator.GetPosition();
 		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
 	}
@@ -7300,7 +7297,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 	pCmdList->SetGraphicsRootSignature(m_GBufferRootSig.GetPtr());
 
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2 + m_meshletRootParamCount, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 	if (!m_useMeshlet)
@@ -7444,11 +7441,12 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 				continue;
 			}
 
-			pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-			pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(0, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
 
 			if (m_useDeferred)
 			{
+				pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+
 				pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
 				pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
 				pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
@@ -7458,14 +7456,18 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 			{
 				if (m_drawSponza)
 				{
-					pCmdList->SetGraphicsRootDescriptorTable(12 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(13 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(14 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(15 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(16 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+
+					pCmdList->SetGraphicsRootDescriptorTable(13 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(14 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(15 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(16 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(17 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
 				}
 				else
 				{
+					pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+
 					pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
 					pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
 					pCmdList->SetGraphicsRootDescriptorTable(7 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
@@ -8114,7 +8116,7 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 		pCmdList->SetComputeRootDescriptorTable(2 + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
 	}
 	pCmdList->SetComputeRootDescriptorTable(2 + NUM_SPOT_LIGHTS, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_ShadowTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 	pCmdList->SetComputeRootDescriptorTable(4 + NUM_SPOT_LIGHTS, prevTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(5 + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
@@ -8464,7 +8466,7 @@ void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const Direc
 		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_TransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_ShadowTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetUnitCubeVB().GetHandleSRV()->HandleGPU);

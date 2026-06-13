@@ -40,13 +40,9 @@ struct VSOutput
 	float2 TexCoord : TEXCOORD;
 };
 
-struct ShadowTransform
+struct Camera
 {
 	float4x4 ViewProj;
-	float4x4 WorldToDirLightShadowMap;
-	float4x4 WorldToSpotLight1ShadowMap;
-	float4x4 WorldToSpotLight2ShadowMap;
-	float4x4 WorldToSpotLight3ShadowMap;
 };
 
 struct Mesh
@@ -55,7 +51,7 @@ struct Mesh
 	uint MeshIdx;
 };
 
-ConstantBuffer<ShadowTransform> CbShadowTransform : register(b0);
+ConstantBuffer<Camera> CbCamera : register(b0);
 ConstantBuffer<Mesh> CbMesh : register(b1);
 
 [RootSignature(ROOT_SIGNATURE)]
@@ -65,7 +61,7 @@ VSOutput main(VSInput input)
 
 	float4 localPos = float4(input.Position, 1.0f);
 	float4 worldPos = mul(CbMesh.World, localPos);
-	float4 projPos = mul(CbShadowTransform.ViewProj, worldPos);
+	float4 projPos = mul(CbCamera.ViewProj, worldPos);
 
 	output.Position = projPos;
 	output.TexCoord = input.TexCoord;

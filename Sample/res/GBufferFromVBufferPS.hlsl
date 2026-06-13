@@ -221,7 +221,6 @@ struct meshopt_Meshlet
 
 struct ShadowTransform
 {
-	float4x4 ViewProj;
 	float4x4 WorldToDirLightShadowMap;
 	float4x4 WorldToSpotLight1ShadowMap;
 	float4x4 WorldToSpotLight2ShadowMap;
@@ -230,6 +229,7 @@ struct ShadowTransform
 
 struct Camera
 {
+	float4x4 ViewProj;
 	float3 CameraPosition;
 	uint DebugViewType;
 };
@@ -797,9 +797,9 @@ PSOutput main(VSOutput input)
 	RayIntersectPlane(float3(0, 0, 0), normalize(viewPos - cameraPos), viewPos, triNormal, hitT);
 #endif
 
-	float4 clipPos0 = mul(CbShadowTransform.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
-	float4 clipPos1 = mul(CbShadowTransform.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
-	float4 clipPos2 = mul(CbShadowTransform.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
+	float4 clipPos0 = mul(CbCamera.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
+	float4 clipPos1 = mul(CbCamera.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
+	float4 clipPos2 = mul(CbCamera.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
 
 	BarycentricDeriv barycentricDeriv = CalcFullBary(clipPos0, clipPos1, clipPos2, screenPos, float2(CbGBufferFromVBuffer.Width, CbGBufferFromVBuffer.Height));
 	//TODO: SponzaVS.hlslÇ®ÇÊÇ—SponzaPS.hlsliÇÃèàóùÇ∆èdï°Ç∑ÇÈÇÃÇ≈ã§í âªÇ™ïKóv

@@ -13,6 +13,7 @@
 	")"\
 	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
 	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_VERTEX)"\
+	", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_VERTEX)"\
 	", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
 	", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
 	", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -70,6 +71,7 @@
 		")"\
 		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
 		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_VERTEX)"\
+		", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_VERTEX)"\
 		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
 		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
 		", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -126,6 +128,7 @@
 		")"\
 		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_VERTEX)"\
 		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_VERTEX)"\
+		", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_VERTEX)"\
 		", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
 		", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
 		", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -194,22 +197,27 @@ struct VSOutput
 	uint MeshletID : MESHLET_ID;
 };
 
-struct ShadowTransform
+struct Mesh
+{
+	float4x4 World;
+};
+
+struct Camera
 {
 	float4x4 ViewProj;
+};
+
+struct ShadowTransform
+{
 	float4x4 WorldToDirLightShadowMap;
 	float4x4 WorldToSpotLight1ShadowMap;
 	float4x4 WorldToSpotLight2ShadowMap;
 	float4x4 WorldToSpotLight3ShadowMap;
 };
 
-struct Mesh
-{
-	float4x4 World;
-};
-
-ConstantBuffer<ShadowTransform> CbShadowTransform : register(b0);
-ConstantBuffer<Mesh> CbMesh : register(b1);
+ConstantBuffer<Mesh> CbMesh : register(b0);
+ConstantBuffer<Camera> CbCamera : register(b1);
+ConstantBuffer<ShadowTransform> CbShadowTransform : register(b2);
 
 [RootSignature(ROOT_SIGNATURE)]
 VSOutput main(VSInput input)
@@ -218,7 +226,7 @@ VSOutput main(VSInput input)
 
 	float4 localPos = float4(input.Position, 1.0f);
 	float4 worldPos = mul(CbMesh.World, localPos);
-	float4 projPos = mul(CbShadowTransform.ViewProj, worldPos);
+	float4 projPos = mul(CbCamera.ViewProj, worldPos);
 
 	output.Position = projPos;
 	output.TexCoord = input.TexCoord;

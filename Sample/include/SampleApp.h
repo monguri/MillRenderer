@@ -196,11 +196,11 @@ private:
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
 	ConstantBuffer m_SpotLightCB[NUM_SPOT_LIGHTS];
 	ConstantBuffer m_CameraCB[FRAME_COUNT];
-	ConstantBuffer m_DirLightShadowMapTransformCB[FRAME_COUNT];
-	ConstantBuffer m_SpotLightShadowMapTransformCB[NUM_SPOT_LIGHTS];
+	ConstantBuffer m_DirLightCameraCB[FRAME_COUNT];
+	ConstantBuffer m_SpotLightCameraCB[NUM_SPOT_LIGHTS];
 	ConstantBuffer m_SkyAtmosphereCB[FRAME_COUNT];
 	ConstantBuffer m_VolumetricCloudCB;
-	ConstantBuffer m_TransformCB[FRAME_COUNT];
+	ConstantBuffer m_ShadowTransformCB[FRAME_COUNT];
 	ConstantBuffer m_HCB_CB;
 	std::vector<ConstantBuffer*> m_pHZB_CBs;
 	ConstantBuffer m_ObjectVelocityCB[FRAME_COUNT];

@@ -63,7 +63,7 @@ struct VSOutput
 	uint MeshletID : MESHLET_ID;
 };
 
-struct Transform
+struct Camera
 {
 	float4x4 ViewProj;
 };
@@ -73,8 +73,8 @@ struct Mesh
 	float4x4 World;
 };
 
-ConstantBuffer<Transform> CbTransform : register(b0);
-ConstantBuffer<Mesh> CbMesh : register(b1);
+ConstantBuffer<Mesh> CbMesh : register(b0);
+ConstantBuffer<Camera> CbCamera : register(b1);
 
 [RootSignature(ROOT_SIGNATURE)]
 VSOutput main(VSInput input)
@@ -83,7 +83,7 @@ VSOutput main(VSInput input)
 
 	float4 localPos = float4(input.Position, 1.0f);
 	float4 worldPos = mul(CbMesh.World, localPos);
-	float4 projPos = mul(CbTransform.ViewProj, worldPos);
+	float4 projPos = mul(CbCamera.ViewProj, worldPos);
 
 	output.Position = projPos;
 	output.TexCoord = input.TexCoord;
