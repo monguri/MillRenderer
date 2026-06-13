@@ -127,7 +127,7 @@ namespace
 		Matrix World;
 	};
 
-	struct alignas(256) CbTransform
+	struct alignas(256) CbShadowTransform
 	{
 		Matrix ViewProj;
 		Matrix WorldToDirLightShadowMap;
@@ -1349,7 +1349,7 @@ bool SampleApp::OnInit(HWND hWnd)
 					return false;
 				}
 
-				if (!m_SpotLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbTransform)))
+				if (!m_SpotLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbShadowTransform)))
 				{
 					ELOG("Error : ConstantBuffer::Init() Failed.");
 					return false;
@@ -1361,7 +1361,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			CbSpotLight* ptr = m_SpotLightCB[0].GetPtr<CbSpotLight>();
 			// 少し赤っぽい光
 			*ptr = ComputeSpotLight(0, SpotLight1Dir, SpotLight1Pos, 20.0f, Vector3(1.0f, 0.5f, 0.5f), m_spotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
-			CbTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>();
+			CbShadowTransform* tptr = m_SpotLightShadowMapTransformCB[0].GetPtr<CbShadowTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight1Dir, SpotLight1Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 
 			const Vector3& SpotLight2Dir = Vector3(0.0f, -10.0f, 2.0f);
@@ -1370,7 +1370,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			// 少し緑っぽい光
 			*ptr = ComputeSpotLight(0, SpotLight2Dir, SpotLight2Pos, 20.0f, Vector3(0.5f, 1.0f, 0.5f), m_spotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
-			tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>();
+			tptr = m_SpotLightShadowMapTransformCB[1].GetPtr<CbShadowTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight2Dir, SpotLight2Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 
 			const Vector3& SpotLight3Dir = Vector3(20.0f, -4.0f, 0.0f);
@@ -1379,7 +1379,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			// 少し青っぽい光
 			*ptr = ComputeSpotLight(0, SpotLight3Dir, SpotLight3Pos, 20.0f, Vector3(0.5f, 0.5f, 1.0f), m_spotLightIntensity, DirectX::XMConvertToRadians(5.0f), DirectX::XMConvertToRadians(10.0f), SPOT_LIGHT_SHADOW_MAP_SIZE);
 
-			tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>();
+			tptr = m_SpotLightShadowMapTransformCB[2].GetPtr<CbShadowTransform>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight3Dir, SpotLight3Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 		}
 	}
@@ -5651,19 +5651,19 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_DirLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbTransform)))
+			if (!m_DirLightShadowMapTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbShadowTransform)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
 
-			CbTransform* ptr = m_DirLightShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
+			CbShadowTransform* ptr = m_DirLightShadowMapTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 			ptr->ViewProj = dirLightShadowViewProj;
 		}
 
 		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_TransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbTransform), L"CbTransform"))
+			if (!m_TransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbShadowTransform), L"CbShadowTransform"))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
@@ -5674,7 +5674,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			const Matrix& view = m_CameraManipulator.GetView();
 			const Matrix& proj = CreatePerspectiveFieldOfViewInfinityFarReverseZ(fovY, aspect, CAMERA_NEAR);
-			CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+			CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
 			// プロジェクション座標の[-1,-1]*[-1,1]*[0,1]をシャドウマップ用座標[0,1]*[1,0]*[0,1]に変換する
@@ -5684,9 +5684,9 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			if (m_drawSponza)
 			{
-				ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-				ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-				ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+				ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 			}
 		}
 	}
@@ -6516,7 +6516,7 @@ void SampleApp::DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdLis
 		float zFar = 40.0f;
 		float widthHeight = 40.0f;
 
-		CbTransform* ptr = m_DirLightShadowMapTransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		CbShadowTransform* ptr = m_DirLightShadowMapTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 
 		const Matrix& view = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
 		const Matrix& proj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
@@ -6729,7 +6729,7 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 	// 定数バッファの更新
 	{
-		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 		ptr->ViewProj = viewProj;
 
 		CbCulling* ptrCulling = m_CullingCB.GetPtr<CbCulling>();
@@ -6798,7 +6798,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 	// 変換行列用の定数バッファの更新
 	{
-		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 		ptr->ViewProj = viewProj;
 	}
 
@@ -6952,7 +6952,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	// 変換行列用の定数バッファの更新
 	if (m_drawSponza)
 	{
-		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 		// ViewProjはDrawVBuffer()で更新済み
 
 		//TODO: DoForwardShading()と共通化
@@ -6969,9 +6969,9 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		// World行列はMatrix::Identityとする
 		ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
-		ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
 	// カメラバッファの更新
@@ -7097,7 +7097,7 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 
 	// 変換行列用の定数バッファの更新
 	{
-		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 		ptr->ViewProj = viewProj;
 
 		if (m_drawSponza)
@@ -7115,9 +7115,9 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 			// World行列はMatrix::Identityとする
 			ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
-			ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->WorldToSpotLight1ShadowMap = m_SpotLightShadowMapTransformCB[0].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->WorldToSpotLight2ShadowMap = m_SpotLightShadowMapTransformCB[1].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->WorldToSpotLight3ShadowMap = m_SpotLightShadowMapTransformCB[2].GetPtr<CbShadowTransform>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		}
 	}
 
@@ -7262,7 +7262,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 
 	// 変換行列用の定数バッファの更新
 	{
-		CbTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbTransform>();
+		CbShadowTransform* ptr = m_TransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
 		ptr->ViewProj = viewProj;
 	}
 

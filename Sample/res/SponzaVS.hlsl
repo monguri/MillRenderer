@@ -194,7 +194,7 @@ struct VSOutput
 	uint MeshletID : MESHLET_ID;
 };
 
-struct Transform
+struct ShadowTransform
 {
 	float4x4 ViewProj;
 	float4x4 WorldToDirLightShadowMap;
@@ -208,7 +208,7 @@ struct Mesh
 	float4x4 World;
 };
 
-ConstantBuffer<Transform> CbTransform : register(b0);
+ConstantBuffer<ShadowTransform> CbShadowTransform : register(b0);
 ConstantBuffer<Mesh> CbMesh : register(b1);
 
 [RootSignature(ROOT_SIGNATURE)]
@@ -218,23 +218,23 @@ VSOutput main(VSInput input)
 
 	float4 localPos = float4(input.Position, 1.0f);
 	float4 worldPos = mul(CbMesh.World, localPos);
-	float4 projPos = mul(CbTransform.ViewProj, worldPos);
+	float4 projPos = mul(CbShadowTransform.ViewProj, worldPos);
 
 	output.Position = projPos;
 	output.TexCoord = input.TexCoord;
 	output.WorldPos = worldPos.xyz;
 
-	float4 dirLightShadowPos = mul(CbTransform.WorldToDirLightShadowMap, worldPos);
+	float4 dirLightShadowPos = mul(CbShadowTransform.WorldToDirLightShadowMap, worldPos);
 	// dividing by w is not necessary because it is 1 by orthogonal.
 	output.DirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
 
-	float4 spotLight1ShadowPos = mul(CbTransform.WorldToSpotLight1ShadowMap, worldPos);
+	float4 spotLight1ShadowPos = mul(CbShadowTransform.WorldToSpotLight1ShadowMap, worldPos);
 	output.SpotLight1ShadowCoord = spotLight1ShadowPos.xyz / spotLight1ShadowPos.w;
 
-	float4 spotLight2ShadowPos = mul(CbTransform.WorldToSpotLight2ShadowMap, worldPos);
+	float4 spotLight2ShadowPos = mul(CbShadowTransform.WorldToSpotLight2ShadowMap, worldPos);
 	output.SpotLight2ShadowCoord = spotLight2ShadowPos.xyz / spotLight2ShadowPos.w;
 
-	float4 spotLight3ShadowPos = mul(CbTransform.WorldToSpotLight3ShadowMap, worldPos);
+	float4 spotLight3ShadowPos = mul(CbShadowTransform.WorldToSpotLight3ShadowMap, worldPos);
 	output.SpotLight3ShadowCoord = spotLight3ShadowPos.xyz / spotLight3ShadowPos.w;
 
 	float3 N = normalize(mul((float3x3)CbMesh.World, input.Normal));

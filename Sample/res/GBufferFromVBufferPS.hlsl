@@ -219,7 +219,7 @@ struct meshopt_Meshlet
 	uint TriCount;
 };
 
-struct Transform
+struct ShadowTransform
 {
 	float4x4 ViewProj;
 	float4x4 WorldToDirLightShadowMap;
@@ -300,7 +300,7 @@ struct MeshletMeshMaterial
 
 ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b0);
 ConstantBuffer<MaterialsDescHeapIndices> CbMaterialsDescHeapIndices : register(b1);
-ConstantBuffer<Transform> CbTransform : register(b2);
+ConstantBuffer<ShadowTransform> CbShadowTransform : register(b2);
 ConstantBuffer<Camera> CbCamera : register(b3);
 ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer : register(b4);
 
@@ -797,9 +797,9 @@ PSOutput main(VSOutput input)
 	RayIntersectPlane(float3(0, 0, 0), normalize(viewPos - cameraPos), viewPos, triNormal, hitT);
 #endif
 
-	float4 clipPos0 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
-	float4 clipPos1 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
-	float4 clipPos2 = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
+	float4 clipPos0 = mul(CbShadowTransform.ViewProj, mul(CbMesh.World, float4(vertex0.Position, 1.0f)));
+	float4 clipPos1 = mul(CbShadowTransform.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
+	float4 clipPos2 = mul(CbShadowTransform.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
 
 	BarycentricDeriv barycentricDeriv = CalcFullBary(clipPos0, clipPos1, clipPos2, screenPos, float2(CbGBufferFromVBuffer.Width, CbGBufferFromVBuffer.Height));
 	//TODO: SponzaVS.hlslおよびSponzaPS.hlsliの処理と重複するので共通化が必要
@@ -811,16 +811,16 @@ PSOutput main(VSOutput input)
 	float4 worldPos = mul(CbMesh.World, float4(localPos, 1.0f));
 
 	//TODO: ShadowMapをSample()でサンプルするケースではShadowPosのddx/ddyがシャドウマップのSampleGrad()に必要
-	float4 dirLightShadowPos = mul(CbTransform.WorldToDirLightShadowMap, worldPos);
+	float4 dirLightShadowPos = mul(CbShadowTransform.WorldToDirLightShadowMap, worldPos);
 	float3 dirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
 
-	float4 spotLight1ShadowPos = mul(CbTransform.WorldToSpotLight1ShadowMap, worldPos);
+	float4 spotLight1ShadowPos = mul(CbShadowTransform.WorldToSpotLight1ShadowMap, worldPos);
 	float3 spotLight1ShadowCoord = spotLight1ShadowPos.xyz / spotLight1ShadowPos.w;
 
-	float4 spotLight2ShadowPos = mul(CbTransform.WorldToSpotLight2ShadowMap, worldPos);
+	float4 spotLight2ShadowPos = mul(CbShadowTransform.WorldToSpotLight2ShadowMap, worldPos);
 	float3 spotLight2ShadowCoord = spotLight2ShadowPos.xyz / spotLight2ShadowPos.w;
 
-	float4 spotLight3ShadowPos = mul(CbTransform.WorldToSpotLight3ShadowMap, worldPos);
+	float4 spotLight3ShadowPos = mul(CbShadowTransform.WorldToSpotLight3ShadowMap, worldPos);
 	float3 spotLight3ShadowCoord = spotLight3ShadowPos.xyz / spotLight3ShadowPos.w;
 
 	float3 normal = normalize(Baryinterpolate3(barycentricDeriv, vertex0.Normal, vertex1.Normal, vertex2.Normal));

@@ -55,7 +55,7 @@ struct Mesh
 	uint bMovable;
 };
 
-struct Transform
+struct ShadowTransform
 {
 	float4x4 ViewProj;
 	float4x4 WorldToDirLightShadowMap;
@@ -87,7 +87,7 @@ struct MeshletMeshMaterial
 
 ConstantBuffer<RootConstants> CbRootConst : register(b0);
 ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b1);
-ConstantBuffer<Transform> CbTransform : register(b2);
+ConstantBuffer<ShadowTransform> CbShadowTransform : register(b2);
 ConstantBuffer<Culling> CbCulling : register(b3);
 StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t0);
 RWByteAddressBuffer DrawOpaqueMeshletIndirectArgBB : register(u0);
@@ -188,7 +188,7 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 	// ƒ‚ƒfƒ‹À•W‚©‚çNDCÀ•W‚Ö‚Ì•ÏŠ·
 	for (uint i = 0; i < 8; i++)
 	{
-		float4 clipPos = mul(CbTransform.ViewProj, mul(CbMesh.World, float4(vertices[i], 1.0f)));
+		float4 clipPos = mul(CbShadowTransform.ViewProj, mul(CbMesh.World, float4(vertices[i], 1.0f)));
 		vertices[i] = clipPos.xyz / clipPos.w;
 	}
 

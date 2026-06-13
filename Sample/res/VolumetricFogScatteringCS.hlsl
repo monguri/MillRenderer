@@ -115,7 +115,7 @@ cbuffer CbCamera : register(b5)
 	float3 CameraPosition : packoffset(c0);
 };
 
-cbuffer CbTransform : register(b6)
+cbuffer CbShadowTransform : register(b6)
 {
 	float4x4 ViewProj : packoffset(c0);
 	float4x4 WorldToDirLightShadowMap : packoffset(c4);
