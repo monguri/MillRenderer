@@ -52,8 +52,8 @@ private:
 		uint32_t AOMap[MAX_MESH_COUNT];
 	};
 
-	// true:IBL下でのモデルビューワ
-	// false:ハードコーディングで配置した解析的ライトやとSkyBoxを使ってSponzaを描画
+	// true:ハードコーディングで配置した解析的ライトやとSkyBoxを使ってSponzaを描画
+	// false:IBL下でのモデルビューワ
 	bool m_drawSponza = false;
 	// true:meshletを使用するかどうか
 	bool m_useMeshlet = false;
