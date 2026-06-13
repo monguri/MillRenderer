@@ -49,6 +49,7 @@ enum class DEBUG_VIEW_MODE : int
 	DEPTH,
 	BASECOLOR,
 	NORMAL,
+	METALLIC_ROUGHNESS,
 	EMISSIVE,
 	VELOCITY,
 	SSAO_FULL_RES,
@@ -8634,6 +8635,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		case NORMAL:
 			renderTargetName = L"GBufferNormal";
 			break;
+		case METALLIC_ROUGHNESS:
+			renderTargetName = L"GBufferMetallicRoughness";
+			break;
 		case EMISSIVE:
 			renderTargetName = L"GBufferEmissive";
 			break;
@@ -8669,6 +8673,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			using enum DEBUG_VIEW_MODE;
 			case NONE:
 			case BASECOLOR:
+			case METALLIC_ROUGHNESS:
 			case EMISSIVE:
 			case SSGI:
 			case TRIANGLE_INDEX:
@@ -8730,6 +8735,9 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			break;
 		case NORMAL:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
+			break;
+		case METALLIC_ROUGHNESS:
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferMetallicRoughnessTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case EMISSIVE:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferEmissiveTarget.GetHandleSRV()->HandleGPU);
@@ -8818,6 +8826,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 			ImGui::RadioButton("BaseColor", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(BASECOLOR));
 		}
 		ImGui::RadioButton("Normal", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(NORMAL));
+		ImGui::RadioButton("MetallicRoughness", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(METALLIC_ROUGHNESS));
 		if (m_useDeferred)
 		{
 			ImGui::RadioButton("Emissive", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(EMISSIVE));
