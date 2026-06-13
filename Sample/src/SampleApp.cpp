@@ -808,15 +808,6 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 			m_useDeferred = true;
 		}
 	}
-
-	if (m_useMeshlet)
-	{
-		m_meshletRootParamCount = 5;
-	}
-	else
-	{
-		m_meshletRootParamCount = 0;
-	}
 }
 
 SampleApp::~SampleApp()
@@ -7192,39 +7183,39 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 	{
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
 
-		pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 
-		pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount + i, m_PointLightCB[i].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(6 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
 		}
 
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(10 + m_meshletRootParamCount + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(10 + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
 		}
 	}
 	else
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(2 + m_meshletRootParamCount, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, m_IBL_CB.GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_IBL_CB.GetHandle()->HandleGPU);
 	}
 
 	if (m_drawSponza)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(18 + m_meshletRootParamCount, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(18, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(19 + m_meshletRootParamCount + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(19 + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 		}
 	}
 	else
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(10 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(11 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(12 + m_meshletRootParamCount, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(10, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(11, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(12, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
 	}
 
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -7298,7 +7289,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	pCmdList->SetGraphicsRootSignature(m_GBufferRootSig.GetPtr());
 
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2 + m_meshletRootParamCount, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 	if (!m_useMeshlet)
 	{
@@ -7407,10 +7398,8 @@ void SampleApp::DrawDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE 
 
 				pCmdList->SetGraphicsRootDescriptorTable(1, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
 
-				// -1はカリングしてないのでdrawMeshletListをバインドしていない分
-				int32_t meshletRootParamCount = std::max(static_cast<int32_t>(m_meshletRootParamCount) - 1, 0);
-				pCmdList->SetGraphicsRootDescriptorTable(2 + meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(3 + meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(2, pMaterial->GetCBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
 
 				// 現状ではDepthのみ描画するケースでカリングを有効にするケースがない
 				pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
@@ -7445,34 +7434,34 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 
 			if (m_useDeferred)
 			{
-				pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetCBHandle().HandleGPU);
 
-				pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(7 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(4, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(5, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(6, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(7, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
 			}
 			else
 			{
 				if (m_drawSponza)
 				{
-					pCmdList->SetGraphicsRootDescriptorTable(4 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(4, pMaterial->GetCBHandle().HandleGPU);
 
-					pCmdList->SetGraphicsRootDescriptorTable(13 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(14 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(15 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(16 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(17 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(13, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(14, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(15, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(16, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(17, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
 				}
 				else
 				{
-					pCmdList->SetGraphicsRootDescriptorTable(3 + m_meshletRootParamCount, pMaterial->GetCBHandle().HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetCBHandle().HandleGPU);
 
-					pCmdList->SetGraphicsRootDescriptorTable(5 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(6 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(7 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(8 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(9 + m_meshletRootParamCount, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(5, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(6, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(7, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(8, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
+					pCmdList->SetGraphicsRootDescriptorTable(9, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
 				}
 			}
 

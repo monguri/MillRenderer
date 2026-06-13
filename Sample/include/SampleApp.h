@@ -64,8 +64,6 @@ private:
 	// Deferred Lighting‚ð‚·‚é‚©‚Ç‚¤‚©
 	bool m_useDeferred = false;
 
-	uint32_t m_meshletRootParamCount = 0;
-
 	ShaderCompiler m_ShaderCompiler;
 	Texture m_DummyTexture;
 	ComPtr<ID3D12PipelineState> m_pSkyTransmittanceLUT_PSO;
