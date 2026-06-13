@@ -201,10 +201,12 @@ PSOutput main(VSOutput input , uint primitiveID : SV_PrimitiveID)
 	}
 
 	float AO = 1;
+#if 0
 	if (CbMaterial.bExistAOTex)
 	{
 		AO = AOMap.Sample(AnisotropicWrapSmp, input.TexCoord).r;
 	}
+#endif
 
 	switch (CbCamera.DebugViewType)
 	{
