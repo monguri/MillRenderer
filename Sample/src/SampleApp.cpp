@@ -6479,7 +6479,7 @@ void SampleApp::OnRender()
 
 	if (m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB))
 	{
-		DrawMeshletAABB(pCmd, viewProjNoJitter);
+		DrawMeshletAABB(pCmd);
 	}
 
 	DrawBackBuffer(pCmd);
@@ -8397,7 +8397,7 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProjNoJitter)
+void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList)
 {
 	assert(m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB));
 
@@ -8422,7 +8422,7 @@ void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const Direc
 		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_ShadowTransformCB.GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetUnitCubeVB().GetHandleSRV()->HandleGPU);

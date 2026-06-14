@@ -67,7 +67,7 @@ struct Mesh
 	uint bMoveable;
 };
 
-struct Transform
+struct Camera
 {
 	float4x4 ViewProj;
 };
@@ -87,7 +87,7 @@ struct AABB
 };
 
 ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b0);
-ConstantBuffer<Transform> CbTransform : register(b1);
+ConstantBuffer<Camera> CbCamera : register(b1);
 ByteAddressBuffer BbDrawMeshletIndices : register(t0);
 StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t1);
 StructuredBuffer<float3> SbUnitCubeVertices : register(t2);
@@ -132,7 +132,7 @@ void main
 		localPos *= aabb.HalfExtent;
 		localPos += aabb.Center;
 		float4 worldPos = mul(CbMesh.World, float4(localPos, 1));
-		float4 projPos = mul(CbTransform.ViewProj, worldPos);
+		float4 projPos = mul(CbCamera.ViewProj, worldPos);
 
 		VSOutput v;
 		v.Position = projPos;
