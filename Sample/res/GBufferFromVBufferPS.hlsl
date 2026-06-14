@@ -28,7 +28,6 @@
 ", DescriptorTable(CBV(b9), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(CBV(b10), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(CBV(b11), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(CBV(b12), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -88,7 +87,6 @@
 ", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(CBV(b4), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(CBV(b5), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -232,6 +230,12 @@ struct Camera
 	float4x4 ViewProj;
 	float3 CameraPosition;
 	uint DebugViewType;
+	float4x4 View;
+	float4x4 InvProj;
+	uint Width;
+	uint Height;
+	float Near;
+	float Padding[1];
 };
 
 struct Material
@@ -244,15 +248,6 @@ struct Material
 	float AlphaCutoff;
 	uint bExistEmissiveTex;
 	uint bExistAOTex;
-};
-
-struct GBufferFromVBuffer
-{
-	float4x4 ViewMatrix;
-	float4x4 InvProjMatrix;
-	int Width;
-	int Height;
-	float Near;
 };
 
 struct DirectionalLight
@@ -302,21 +297,20 @@ ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b0);
 ConstantBuffer<MaterialsDescHeapIndices> CbMaterialsDescHeapIndices : register(b1);
 ConstantBuffer<ShadowTransform> CbShadowTransform : register(b2);
 ConstantBuffer<Camera> CbCamera : register(b3);
-ConstantBuffer<GBufferFromVBuffer> CbGBufferFromVBuffer : register(b4);
 
 #ifdef DRAW_SPONZA
-ConstantBuffer<DirectionalLight> CbDirectionalLight : register(b5);
+ConstantBuffer<DirectionalLight> CbDirectionalLight : register(b4);
 
-ConstantBuffer<PointLight> CbPointLight1 : register(b6);
-ConstantBuffer<PointLight> CbPointLight2 : register(b7);
-ConstantBuffer<PointLight> CbPointLight3 : register(b8);
-ConstantBuffer<PointLight> CbPointLight4 : register(b9);
+ConstantBuffer<PointLight> CbPointLight1 : register(b5);
+ConstantBuffer<PointLight> CbPointLight2 : register(b6);
+ConstantBuffer<PointLight> CbPointLight3 : register(b7);
+ConstantBuffer<PointLight> CbPointLight4 : register(b8);
 
-ConstantBuffer<SpotLight> CbSpotLight1 : register(b10);
-ConstantBuffer<SpotLight> CbSpotLight2 : register(b11);
-ConstantBuffer<SpotLight> CbSpotLight3 : register(b12);
+ConstantBuffer<SpotLight> CbSpotLight1 : register(b9);
+ConstantBuffer<SpotLight> CbSpotLight2 : register(b10);
+ConstantBuffer<SpotLight> CbSpotLight3 : register(b11);
 #else // ifdef DRAW_SPONZA
-ConstantBuffer<IBL> CbIBL : register(b5);
+ConstantBuffer<IBL> CbIBL : register(b4);
 #endif // ifdef DRAW_SPONZA
 
 Texture2D<uint2> VBuffer : register(t0);
@@ -779,12 +773,12 @@ PSOutput main(VSOutput input)
 	Texture2D DepthBuffer = ResourceDescriptorHeap[CbMeshesDescHeapIndices.DepthBuffer];
 	float deviceZ = DepthBuffer.Sample(PointClampSmp, input.TexCoord).r;
 	float4 ndcPos = float4(screenPos, deviceZ, 1);
-	float3 viewPos = ConverFromNDCToVS(ndcPos, CbGBufferFromVBuffer.Near, CbGBufferFromVBuffer.InvProjMatrix);
+	float3 viewPos = ConverFromNDCToVS(ndcPos, CbCamera.Near, CbCamera.InvProj);
 
 
-	float3 vsPos0 = mul(CbGBufferFromVBuffer.ViewMatrix, mul(CbMesh.World, float4(vertex0.Position, 1.0f))).xyz;
-	float3 vsPos1 = mul(CbGBufferFromVBuffer.ViewMatrix, mul(CbMesh.World, float4(vertex1.Position, 1.0f))).xyz;
-	float3 vsPos2 = mul(CbGBufferFromVBuffer.ViewMatrix, mul(CbMesh.World, float4(vertex2.Position, 1.0f))).xyz;
+	float3 vsPos0 = mul(CbCamera.View, mul(CbMesh.World, float4(vertex0.Position, 1.0f))).xyz;
+	float3 vsPos1 = mul(CbCamera.View, mul(CbMesh.World, float4(vertex1.Position, 1.0f))).xyz;
+	float3 vsPos2 = mul(CbCamera.View, mul(CbMesh.World, float4(vertex2.Position, 1.0f))).xyz;
 
 	float3 triNormal = normalize(cross(vsPos1 - vsPos0, vsPos2 - vsPos0));
 
@@ -801,7 +795,7 @@ PSOutput main(VSOutput input)
 	float4 clipPos1 = mul(CbCamera.ViewProj, mul(CbMesh.World, float4(vertex1.Position, 1.0f)));
 	float4 clipPos2 = mul(CbCamera.ViewProj, mul(CbMesh.World, float4(vertex2.Position, 1.0f)));
 
-	BarycentricDeriv barycentricDeriv = CalcFullBary(clipPos0, clipPos1, clipPos2, screenPos, float2(CbGBufferFromVBuffer.Width, CbGBufferFromVBuffer.Height));
+	BarycentricDeriv barycentricDeriv = CalcFullBary(clipPos0, clipPos1, clipPos2, screenPos, float2(CbCamera.Width, CbCamera.Height));
 	//TODO: SponzaVS.hlslおよびSponzaPS.hlsliの処理と重複するので共通化が必要
 	// SponzaVSOutputとSponzaPSOutputを用意して共通関数をhlsliにまとめよう
 	// IBL版も同様

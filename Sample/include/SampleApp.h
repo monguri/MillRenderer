@@ -188,7 +188,6 @@ private:
 	ConstantBuffer m_CullingCB;
 	ConstantBuffer m_MeshletsDescHeapIndicesCB;
 	ConstantBuffer m_MaterialsDescHeapIndicesCB;
-	ConstantBuffer m_GBufferFromVBufferCB;
 	ConstantBuffer m_DirectionalLightCB[FRAME_COUNT];
 	ConstantBuffer m_PointLightCB[NUM_POINT_LIGHTS];
 	ConstantBuffer m_SpotLightCB[NUM_SPOT_LIGHTS];

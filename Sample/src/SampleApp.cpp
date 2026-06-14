@@ -227,17 +227,6 @@ namespace
 		float Padding[1];
 	};
 
-	// TODO: SS系のパスの多くで同じ変数を別のCBに入れているので共通化したい
-	struct alignas(256) CbGBufferFromVBuffer
-	{
-		Matrix ViewMatrix;
-		Matrix InvProjMatrix;
-		int Width;
-		int Height;
-		float Near;
-		float Padding[1];
-	};
-
 	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
 	struct alignas(256) CbHZB
 	{
@@ -1254,19 +1243,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			ELOG("Error : ConstantBuffer::Init() Failed.");
 			return false;
 		}
-
-		if (!m_GBufferFromVBufferCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbGBufferFromVBuffer), L"CbGBufferFromVBuffer"))
-		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
-
-		CbGBufferFromVBuffer* ptr = m_GBufferFromVBufferCB.GetPtr<CbGBufferFromVBuffer>();
-		ptr->ViewMatrix = Matrix::Identity;
-		ptr->InvProjMatrix = Matrix::Identity;
-		ptr->Width = m_Width;
-		ptr->Height = m_Height;
-		ptr->Near = CAMERA_NEAR;
 	}
 
 	if (m_drawSponza)
@@ -7034,41 +7010,40 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB.GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
 
 	if (m_drawSponza)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(5, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
 
 		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(6 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(5 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
 		}
 
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(5 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
 		}
 
-		pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_VBufferTarget.GetHandleSRV()->HandleGPU);
 
-		pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
 
 		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
 		{
-			pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
 		}
 
-		pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + 2 * NUM_SPOT_LIGHTS, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + 2 * NUM_SPOT_LIGHTS, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 	}
 	else
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(5, m_IBL_CB.GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(6, m_VBufferTarget.GetHandleSRV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(10, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_IBL_CB.GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(6, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(9, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 	}
 
 	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
