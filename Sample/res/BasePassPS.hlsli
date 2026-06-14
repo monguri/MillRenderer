@@ -18,6 +18,7 @@ struct PSOutput
 
 struct Camera
 {
+	float4x4 ViewProj;
 	float3 CameraPosition;
 	uint DebugViewType;
 };
