@@ -6174,7 +6174,7 @@ void SampleApp::OnRender()
 		viewRotProjWithJitter = viewRot * projWithJitter;
 	}
 
-	// カメラバッファの更新
+	// カメラ定数バッファの更新
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
 		if (m_enableTemporalAA)
@@ -6212,6 +6212,30 @@ void SampleApp::OnRender()
 
 	// ディレクショナルライト方向の更新
 	Vector3 lightForward = m_DirLightManipulator.GetForward();
+
+	// シャドウ定数バッファの更新
+	if (m_drawSponza)
+	{
+		CbShadowTransform* ptr = m_ShadowTransformCB.GetPtr<CbShadowTransform>();
+		// ViewProjはDrawVBuffer()で更新済み
+
+		float zNear = 0.0f;
+		float zFar = 40.0f;
+		float widthHeight = 40.0f;
+
+		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+		// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
+		const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
+		// World行列はMatrix::Identityとする
+		ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+
+		ptr->WorldToSpotLight1ShadowMap = m_SpotLightCameraCB[0].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight2ShadowMap = m_SpotLightCameraCB[1].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight3ShadowMap = m_SpotLightCameraCB[2].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+	}
 
 	// 空描画のLUTの座標系への変換行列
 	Matrix skyViewLutReferential;
@@ -6320,39 +6344,18 @@ void SampleApp::OnRender()
 			CbMeshletsDescHeapIndices meshletsDescHeapIndices = {};
 			CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
 
-			if (m_enableTemporalAA)
+			DrawVBuffer(pCmd, meshletsDescHeapIndices, materialsDescHeapIndices);
+
+			if (m_useSWRasterizer)
 			{
-				DrawVBuffer(pCmd, viewProjWithJitter, viewRotProjWithJitter, view, projWithJitter, meshletsDescHeapIndices, materialsDescHeapIndices);
-
-				if (m_useSWRasterizer)
-				{
-					DrawDepthBufferFromVBuffer(pCmd);
-				}
-
-				DrawGBufferFromVBuffer(pCmd, lightForward, viewProjWithJitter, meshletsDescHeapIndices, materialsDescHeapIndices);
+				DrawDepthBufferFromVBuffer(pCmd);
 			}
-			else
-			{
-				DrawVBuffer(pCmd, viewProjNoJitter, viewRotProjNoJitter, view, projNoJitter, meshletsDescHeapIndices, materialsDescHeapIndices);
 
-				if (m_useSWRasterizer)
-				{
-					DrawDepthBufferFromVBuffer(pCmd);
-				}
-
-				DrawGBufferFromVBuffer(pCmd, lightForward, viewProjNoJitter, meshletsDescHeapIndices, materialsDescHeapIndices);
-			}
+			DrawGBufferFromVBuffer(pCmd, lightForward, meshletsDescHeapIndices, materialsDescHeapIndices);
 		}
 		else
 		{
-			if (m_enableTemporalAA)
-			{
-				DoForwardShading(pCmd, lightForward, viewProjWithJitter);
-			}
-			else
-			{
-				DoForwardShading(pCmd, lightForward, viewProjNoJitter);
-			}
+			DoForwardShading(pCmd, lightForward);
 		}
 	}
 
@@ -6783,17 +6786,11 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList)
 	m_MeshManager.GetDrawMovableMeshletIndicesBB().BarrierUAV(pCmdList);
 }
 
-void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
+void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
 {
 	assert(m_useMeshlet);
 
 	::PIXScopedEvent(pCmdList, 0, L"DrawVBuffer");
-
-	// 変換行列用の定数バッファの更新
-	{
-		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		ptr->ViewProj = viewProj;
-	}
 
 	// VBufferクリア
 	{
@@ -6937,34 +6934,9 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	}
 }
 
-void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const Matrix& viewProj, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
+void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
 {
 	::PIXScopedEvent(pCmdList, 0, L"DrawGBufferFromVBuffer");
-
-	// 変換行列用の定数バッファの更新
-	if (m_drawSponza)
-	{
-		CbShadowTransform* ptr = m_ShadowTransformCB.GetPtr<CbShadowTransform>();
-		// ViewProjはDrawVBuffer()で更新済み
-
-		//TODO: DoForwardShading()と共通化
-		float zNear = 0.0f;
-		float zFar = 40.0f;
-		float widthHeight = 40.0f;
-
-		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
-		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
-		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
-		// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
-		const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
-		// World行列はMatrix::Identityとする
-		ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
-		ptr->WorldToSpotLight1ShadowMap = m_SpotLightCameraCB[0].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->WorldToSpotLight2ShadowMap = m_SpotLightCameraCB[1].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->WorldToSpotLight3ShadowMap = m_SpotLightCameraCB[2].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-	}
 
 	// ライトバッファの更新
 	if (m_drawSponza)
@@ -7068,32 +7040,10 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const Matrix& viewProj)
+void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
 {
 	assert(!m_useMeshlet);
 	::PIXScopedEvent(pCmdList, 0, L"DoForwardShading");
-
-	// 定数バッファの更新
-	if (m_drawSponza)
-	{
-		float zNear = 0.0f;
-		float zFar = 40.0f;
-		float widthHeight = 40.0f;
-
-		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
-		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
-		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-
-		// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
-		const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
-
-		CbShadowTransform* ptr = m_ShadowTransformCB.GetPtr<CbShadowTransform>();
-		// World行列はMatrix::Identityとする
-		ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->WorldToSpotLight1ShadowMap = m_SpotLightCameraCB[0].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->WorldToSpotLight2ShadowMap = m_SpotLightCameraCB[1].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		ptr->WorldToSpotLight3ShadowMap = m_SpotLightCameraCB[2].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-	}
 
 	// ライトバッファの更新
 	if (m_drawSponza)
