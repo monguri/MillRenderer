@@ -228,14 +228,6 @@ namespace
 	};
 
 	// TODO: SS系のパスの多くで同じ変数を別のCBに入れているので共通化したい
-	struct alignas(256) CbDrawVBufferSWRas
-	{
-		int Width;
-		int Height;
-		float Padding[2];
-	};
-
-	// TODO: SS系のパスの多くで同じ変数を別のCBに入れているので共通化したい
 	struct alignas(256) CbGBufferFromVBuffer
 	{
 		Matrix ViewMatrix;
@@ -1247,19 +1239,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->bEnableFrustumCulling = m_enableFrustomCulling ? 1 : 0;
 		ptr->bEnableOcclusionCulling = m_enableOcclusionCulling ? 1 : 0;
 		ptr->bEnableBackFaceCulling = m_enableBackFaceCulling ? 1 : 0;
-	}
-
-	if (m_useMeshlet && m_useSWRasterizer)
-	{
-		if (!m_DrawVBufferSWRasCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbDrawVBufferSWRas), L"CbDrawVBufferSWRas"))
-		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
-
-		CbDrawVBufferSWRas* ptr = m_DrawVBufferSWRasCB.GetPtr<CbDrawVBufferSWRas>();
-		ptr->Width = m_Width;
-		ptr->Height = m_Height;
 	}
 
 	if (m_useMeshlet)
@@ -6866,8 +6845,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 			pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 			pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 			pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-			pCmdList->SetComputeRootDescriptorTable(5, m_DrawVBufferSWRasCB.GetHandle()->HandleGPU);
-			pCmdList->SetComputeRootDescriptorTable(6, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
+			pCmdList->SetComputeRootDescriptorTable(5, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
 
 			pCmdList->SetPipelineState(m_pDrawVBufferSWRasOpaquePSO.Get());
 			pCmdList->ExecuteIndirect

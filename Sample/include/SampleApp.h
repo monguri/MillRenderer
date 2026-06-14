@@ -186,7 +186,6 @@ private:
 	ColorTarget m_FXAA_Target;
 	VertexBuffer m_QuadVB;
 	ConstantBuffer m_CullingCB;
-	ConstantBuffer m_DrawVBufferSWRasCB;
 	ConstantBuffer m_MeshletsDescHeapIndicesCB;
 	ConstantBuffer m_MaterialsDescHeapIndicesCB;
 	ConstantBuffer m_GBufferFromVBufferCB;

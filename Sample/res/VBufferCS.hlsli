@@ -16,7 +16,6 @@
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_ALL)"\
-", DescriptorTable(CBV(b3), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u0), visibility = SHADER_VISIBILITY_ALL)"\
 ", StaticSampler"\
 "("\
@@ -95,6 +94,14 @@ struct meshopt_Meshlet
 struct Camera
 {
 	float4x4 ViewProj;
+	float3 CameraPosition;
+	uint DebugViewType;
+	float4x4 View;
+	float4x4 InvProj;
+	uint Width;
+	uint Height;
+	float Near;
+	float Padding[1];
 };
 
 struct MeshletMeshMaterial
@@ -137,12 +144,6 @@ struct MaterialsDescHeapIndices
 	uint4 Indices[MAX_MATERIAL_COUNT * EACH_MATERIAL_DESCRIPTOR_COUNT / 4];
 };
 
-struct DrawVBufferSWRas
-{
-	int Width;
-	int Height;
-};
-
 struct Material
 {
 	float3 BaseColorFactor;
@@ -156,7 +157,6 @@ struct Material
 };
 
 ConstantBuffer<MaterialsDescHeapIndices> CbMaterialsDescHeapIndices : register(b2);
-ConstantBuffer<DrawVBufferSWRas> CbDrawVBufferSWRas : register(b3);
 RWTexture2D<uint64_t> VBuffer : register(u0);
 SamplerState AnisotropicWrapSmp : register(s0);
 
@@ -491,14 +491,14 @@ void main
 		case CLIP_RESULT_OUTSIDE:
 			return;
 		case CLIP_RESULT_INSIDE_1_VERTEX:
-			softwareRasterize(newTri1.v0, newTri1.v1, newTri1.v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
+			softwareRasterize(newTri1.v0, newTri1.v1, newTri1.v2, primData, CbCamera.Width, CbCamera.Height);
 			return;
 		case CLIP_RESULT_INSIDE_2_VERTEX:
-			softwareRasterize(newTri1.v0, newTri1.v1, newTri1.v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
-			softwareRasterize(newTri2.v0, newTri2.v1, newTri2.v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
+			softwareRasterize(newTri1.v0, newTri1.v1, newTri1.v2, primData, CbCamera.Width, CbCamera.Height);
+			softwareRasterize(newTri2.v0, newTri2.v1, newTri2.v2, primData, CbCamera.Width, CbCamera.Height);
 			return;
 		case CLIP_RESULT_INSIDE_3_VERTEX:
-			softwareRasterize(origTri.v0, origTri.v1, origTri.v2, primData, CbDrawVBufferSWRas.Width, CbDrawVBufferSWRas.Height);
+			softwareRasterize(origTri.v0, origTri.v1, origTri.v2, primData, CbCamera.Width, CbCamera.Height);
 			return;
 		default:
 			// ‚±‚±‚É‚Í—ˆ‚È‚¢‚Í‚¸
