@@ -194,8 +194,16 @@ namespace
 	{
 		Matrix ViewProj;
 		Vector3 CameraPosition;
-		// TODO: 新規にCBを作りたくないので間借り。増えたら新規CBを作る。
+		// TODO: 新規にCBを作りたくないので間借り。デバッグ系変数が増えたら新規CBを作る。
 		unsigned int DebugViewType;
+		Matrix ViewMatrix;
+		Matrix InvProjMatrix;
+		unsigned int Width;
+		unsigned int Height;
+		float Near;
+		float Padding[1];
+		Matrix ProjMatrix;
+		Matrix ClipToPrevClip;
 	};
 
 	struct alignas(256) CbMaterial
@@ -1431,6 +1439,20 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			CbCamera* ptr = m_CameraCB[i].GetPtr<CbCamera>();
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			ptr->CameraPosition = m_CameraManipulator.GetPosition();
+			ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
+			// AABB表示のときはMeshlet Index表示も同時に行う
+			if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)
+			{
+				ptr->DebugViewType = static_cast<int>(DEBUG_VIEW_MODE::MESHLET_INDEX) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE);
+			}
+			ptr->ViewMatrix = view;
+			ptr->InvProjMatrix = proj.Invert();
+			ptr->Width = m_Width;
+			ptr->Height = m_Height;
+			ptr->Near = CAMERA_NEAR;
+			ptr->ProjMatrix = proj;
+			ptr->ClipToPrevClip = Matrix::Identity;
 		}
 	}
 
@@ -6192,6 +6214,42 @@ void SampleApp::OnRender()
 		viewRotProjWithJitter = viewRot * projWithJitter;
 	}
 
+	// カメラバッファの更新
+	{
+		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
+		if (m_enableTemporalAA)
+		{
+			ptr->ViewProj = viewProjWithJitter;
+		}
+		else
+		{
+			ptr->ViewProj = viewProjNoJitter;
+		}
+		ptr->CameraPosition = m_CameraManipulator.GetPosition();
+		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
+		// AABB表示のときはMeshlet Index表示も同時に行う
+		if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)
+		{
+			ptr->DebugViewType = static_cast<int>(DEBUG_VIEW_MODE::MESHLET_INDEX) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE);
+		}
+		ptr->ViewMatrix = view;
+		Matrix proj;
+		if (m_enableTemporalAA)
+		{
+			proj = projWithJitter;
+		}
+		else
+		{
+			proj = projNoJitter;
+		}
+		ptr->InvProjMatrix = proj.Invert();
+		ptr->Width = m_Width;
+		ptr->Height = m_Height;
+		ptr->Near = CAMERA_NEAR;
+		ptr->ProjMatrix = proj;
+		ptr->ClipToPrevClip = viewProjNoJitter.Invert() * m_PrevViewProjNoJitter;
+	}
+
 	// ディレクショナルライト方向の更新
 	Vector3 lightForward = m_DirLightManipulator.GetForward();
 
@@ -6278,14 +6336,7 @@ void SampleApp::OnRender()
 
 	if (m_useMeshlet)
 	{
-		if (m_enableTemporalAA)
-		{
-			DoMeshletCulling(pCmd, viewProjWithJitter);
-		}
-		else
-		{
-			DoMeshletCulling(pCmd, viewProjNoJitter);
-		}
+		DoMeshletCulling(pCmd);
 	}
 
 	if (m_useDeferred)
@@ -6296,16 +6347,8 @@ void SampleApp::OnRender()
 		}
 		else
 		{
-			if (m_enableTemporalAA)
-			{
-				DrawGBuffer(pCmd, viewProjWithJitter);
-				DoDeferredShading(pCmd, lightForward, viewProjWithJitter);
-			}
-			else
-			{
-				DrawGBuffer(pCmd, viewProjNoJitter);
-				DoDeferredShading(pCmd, lightForward, viewProjNoJitter);
-			}
+			DrawGBuffer(pCmd);
+			DoDeferredShading(pCmd, lightForward);
 		}
 	}
 	else
@@ -6709,7 +6752,7 @@ void SampleApp::DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_CloudTracingDepthTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj)
+void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList)
 {
 	assert(m_useMeshlet);
 
@@ -6722,9 +6765,6 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList, const Dire
 
 	// 定数バッファの更新
 	{
-		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		ptr->ViewProj = viewProj;
-
 		CbCulling* ptrCulling = m_CullingCB.GetPtr<CbCulling>();
 		ptrCulling->bEnableFrustumCulling = m_enableFrustomCulling ? 1 : 0;
 		ptrCulling->bEnableOcclusionCulling = m_enableOcclusionCulling ? 1 : 0;
@@ -6967,19 +7007,6 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		ptr->WorldToSpotLight3ShadowMap = m_SpotLightCameraCB[2].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
-	// カメラバッファの更新
-	{
-		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		ptr->CameraPosition = m_CameraManipulator.GetPosition();
-		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
-
-		// AABB表示のときはMeshlet Index表示も同時に行う
-		if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)
-		{
-			ptr->DebugViewType = static_cast<int>(DEBUG_VIEW_MODE::MESHLET_INDEX) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE);
-		}
-	}
-
 	// ライトバッファの更新
 	if (m_drawSponza)
 	{
@@ -7089,34 +7116,25 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 	::PIXScopedEvent(pCmdList, 0, L"DoForwardShading");
 
 	// 定数バッファの更新
+	if (m_drawSponza)
 	{
-		{
-			CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-			ptr->ViewProj = viewProj;
-			ptr->CameraPosition = m_CameraManipulator.GetPosition();
-			ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
-		}
+		float zNear = 0.0f;
+		float zFar = 40.0f;
+		float widthHeight = 40.0f;
 
-		if (m_drawSponza)
-		{
-			float zNear = 0.0f;
-			float zFar = 40.0f;
-			float widthHeight = 40.0f;
+		const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
+		const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
+		const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 
-			const Matrix& shadowView = Matrix::CreateLookAt(Vector3::Zero - lightForward * (zFar - zNear) * 0.5f, Vector3::Zero, Vector3::UnitY);
-			const Matrix& shadowProj = Matrix::CreateOrthographic(widthHeight, widthHeight, zNear, zFar);
-			const Matrix& shadowViewProj = shadowView * shadowProj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
+		const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
 
-			// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
-			const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
-
-			CbShadowTransform* ptr = m_ShadowTransformCB.GetPtr<CbShadowTransform>();
-			// World行列はMatrix::Identityとする
-			ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->WorldToSpotLight1ShadowMap = m_SpotLightCameraCB[0].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->WorldToSpotLight2ShadowMap = m_SpotLightCameraCB[1].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			ptr->WorldToSpotLight3ShadowMap = m_SpotLightCameraCB[2].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		}
+		CbShadowTransform* ptr = m_ShadowTransformCB.GetPtr<CbShadowTransform>();
+		// World行列はMatrix::Identityとする
+		ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight1ShadowMap = m_SpotLightCameraCB[0].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight2ShadowMap = m_SpotLightCameraCB[1].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		ptr->WorldToSpotLight3ShadowMap = m_SpotLightCameraCB[2].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 	}
 
 	// ライトバッファの更新
@@ -7247,18 +7265,10 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& viewProj)
+void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
 	assert(!m_useMeshlet);
 	::PIXScopedEvent(pCmdList, 0, L"DrawGBuffer");
-
-	// 定数バッファの更新
-	{
-		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		ptr->ViewProj = viewProj;
-		ptr->CameraPosition = m_CameraManipulator.GetPosition();
-		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
-	}
 
 	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -7310,7 +7320,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewProj)
+void SampleApp::DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward)
 {
 	::PIXScopedEvent(pCmdList, 0, L"DeferredShading");
 }
