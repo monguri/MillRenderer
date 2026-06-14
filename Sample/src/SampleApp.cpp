@@ -5661,15 +5661,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			ptr->ViewProj = dirLightShadowViewProj;
 		}
 
-		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
 		{
-			if (!m_ShadowTransformCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbShadowTransform), L"CbShadowTransform"))
+			if (!m_ShadowTransformCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbShadowTransform), L"CbShadowTransform"))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
 
-			CbShadowTransform* ptr = m_ShadowTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
+			CbShadowTransform* ptr = m_ShadowTransformCB.GetPtr<CbShadowTransform>();
 
 			// プロジェクション座標の[-1,-1]*[-1,1]*[0,1]をシャドウマップ用座標[0,1]*[1,0]*[0,1]に変換する
 			const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
@@ -5882,7 +5881,6 @@ void SampleApp::OnTerm()
 		m_DirectionalLightCB[i].Term();
 		m_CameraCB[i].Term();
 		m_DirLightCameraCB[i].Term();
-		m_ShadowTransformCB[i].Term();
 		m_ObjectVelocityCB[i].Term();
 		m_CameraVelocityCB[i].Term();
 		m_SSAO_HalfResCB[i].Term();
@@ -5893,6 +5891,7 @@ void SampleApp::OnTerm()
 	}
 
 	m_VolumetricCloudCB.Term();
+	m_ShadowTransformCB.Term();
 
 	for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
 	{
@@ -6946,7 +6945,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	// 変換行列用の定数バッファの更新
 	if (m_drawSponza)
 	{
-		CbShadowTransform* ptr = m_ShadowTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
+		CbShadowTransform* ptr = m_ShadowTransformCB.GetPtr<CbShadowTransform>();
 		// ViewProjはDrawVBuffer()で更新済み
 
 		//TODO: DoForwardShading()と共通化
@@ -7028,7 +7027,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB.GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferFromVBufferCB.GetHandle()->HandleGPU);
 
@@ -7111,7 +7110,7 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 			// プロジェクション座標の[-0.5,0.5]*[-0.5,0.5]*[0,1]をシャドウマップ用座標[-1,1]*[-1,1]*[0,1]に変換する
 			const Matrix& toShadowMap = Matrix::CreateScale(0.5f, -0.5f, 1.0f) * Matrix::CreateTranslation(0.5f, 0.5f, 0.0f);
 
-			CbShadowTransform* ptr = m_ShadowTransformCB[m_FrameIndex].GetPtr<CbShadowTransform>();
+			CbShadowTransform* ptr = m_ShadowTransformCB.GetPtr<CbShadowTransform>();
 			// World行列はMatrix::Identityとする
 			ptr->WorldToDirLightShadowMap = shadowViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 			ptr->WorldToSpotLight1ShadowMap = m_SpotLightCameraCB[0].GetPtr<CbCamera>()->ViewProj * toShadowMap; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
@@ -7181,7 +7180,7 @@ void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vect
 
 	if (m_drawSponza)
 	{
-		pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB.GetHandle()->HandleGPU);
 
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 
@@ -8105,7 +8104,7 @@ void SampleApp::DrawVolumetricFogScattering(ID3D12GraphicsCommandList* pCmdList,
 		pCmdList->SetComputeRootDescriptorTable(2 + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
 	}
 	pCmdList->SetComputeRootDescriptorTable(2 + NUM_SPOT_LIGHTS, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_ShadowTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3 + NUM_SPOT_LIGHTS, m_ShadowTransformCB.GetHandle()->HandleGPU);
 
 	pCmdList->SetComputeRootDescriptorTable(4 + NUM_SPOT_LIGHTS, prevTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(5 + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
@@ -8455,7 +8454,7 @@ void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList, const Direc
 		DirectX::TransitionResource(pCmdList, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(1, m_ShadowTransformCB[m_FrameIndex].GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_ShadowTransformCB.GetHandle()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(2, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetUnitCubeVB().GetHandleSRV()->HandleGPU);
