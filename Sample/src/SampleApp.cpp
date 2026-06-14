@@ -183,6 +183,7 @@ namespace
 		float Padding2[1];
 	};
 
+	//TODO: CbCameraを利用して削除できる
 	struct alignas(256) CbVolumetricCloud
 	{
 		int Width;
@@ -227,7 +228,6 @@ namespace
 		float Padding[1];
 	};
 
-	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
 	struct alignas(256) CbHZB
 	{
 		int DstMip0Width;
@@ -243,11 +243,13 @@ namespace
 		Matrix PrevWVPNoJitter;
 	};
 
+	//TODO: CbCameraを利用して削除できる
 	struct alignas(256) CbCameraVelocity
 	{
 		Matrix ClipToPrevClip;
 	};
 
+	//TODO: CbCameraを利用して削除できる
 	struct alignas(256) CbSSAOSetup
 	{
 		int Width;
@@ -256,6 +258,7 @@ namespace
 		float Padding[1];
 	};
 
+	//TODO: CbCameraを併用すればメンバ変数を減らせる
 	struct alignas(256) CbSSAO
 	{
 		Matrix ViewMatrix;
@@ -272,7 +275,7 @@ namespace
 		float Padding[1];
 	};
 
-	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	//TODO: CbCameraを併用すればメンバ変数を減らせる
 	struct alignas(256) CbSSGI
 	{
 		Matrix ProjMatrix;
@@ -286,7 +289,7 @@ namespace
 		float Padding[3];
 	};
 
-	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	//TODO: CbCameraを利用して削除できる
 	struct alignas(256) CbSSGI_Denoise
 	{
 		int Width;
@@ -294,6 +297,7 @@ namespace
 		float Padding[2];
 	};
 
+	//TODO: CbCameraを併用すればメンバ変数を減らせる
 	struct alignas(256) CbSSR
 	{
 		Matrix ProjMatrix;
@@ -323,6 +327,7 @@ namespace
 		float Padding[2];
 	};
 
+	//TODO: CbCameraを併用すればメンバ変数を減らせる
 	struct alignas(256) CbTemporalAA
 	{
 		Vector4 PlusWeights[TEMPORAL_AA_NUM_PLUS_VECTOR4];
@@ -332,7 +337,7 @@ namespace
 		float Padding;
 	};
 
-	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	//TODO: CbCameraを併用すればメンバ変数を減らせる
 	struct alignas(256) CbMotionBlur
 	{
 		int Width;
@@ -351,7 +356,7 @@ namespace
 		float Padding[3];
 	};
 
-	// TODO: Width/Heightは多くのSSシェーダで定数バッファにしているので共通化したい
+	//TODO: CbCameraを併用すればメンバ変数を減らせる
 	struct alignas(256) CbFXAA
 	{
 		int Width;
