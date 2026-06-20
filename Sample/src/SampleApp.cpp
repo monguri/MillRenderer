@@ -7234,6 +7234,62 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList)
 void SampleApp::DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward)
 {
 	::PIXScopedEvent(pCmdList, 0, L"DeferredShading");
+
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	const DescriptorHandle* handleRTV = m_SceneColorTarget.GetHandleRTV();
+	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
+
+	m_SceneColorTarget.ClearView(pCmdList);
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+	pCmdList->SetGraphicsRootSignature(m_DeferredShadingRootSig.GetPtr());
+
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+
+	if (m_drawSponza)
+	{
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_ShadowTransformCB.GetHandle()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
+
+		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(3 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
+		}
+
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(3 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
+		}
+
+		pCmdList->SetGraphicsRootDescriptorTable(3 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(4 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_GBufferBaseColorTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_GBufferMetallicRoughnessTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_GBufferEmissiveTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(8 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
+
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			pCmdList->SetGraphicsRootDescriptorTable(9 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
+		}
+	}
+	else
+	{
+		//TODO: 実装
+	}
+
+	pCmdList->SetPipelineState(m_pDeferredShadingPSO.Get());
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawSkyBox(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const Matrix& viewRotProj, const Matrix& view, const Matrix& proj, const Matrix& skyViewLutReferential)
