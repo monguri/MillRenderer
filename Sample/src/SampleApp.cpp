@@ -3762,6 +3762,75 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		std::wstring psPath;
+		if (!SearchFilePath(L"GBufferFromVBufferPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pPSBlob;
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_GBufferFromVBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_GBufferFromVBufferRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.NumRenderTargets = 3;
+		desc.RTVFormats[0] = m_GBufferBaseColorTarget.GetRTVDesc().Format;
+		desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
+		desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pGBufferFromVBufferPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
+	// VBufferからのライティング描画パス用ルートシグニチャとパイプラインステートの生成
+	{
+		std::wstring vsPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+		ComPtr<ID3DBlob> pVSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		std::wstring psPath;
 		if (!SearchFilePath(L"LightingFromVBufferPS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
@@ -6049,6 +6118,9 @@ void SampleApp::OnTerm()
 	m_pDrawVBufferHWRasOpaquePSO.Reset();
 	m_pDrawVBufferHWRasMaskPSO.Reset();
 	m_DrawVBufferHWRasRootSig.Term();
+
+	m_pGBufferFromVBufferPSO.Reset();
+	m_GBufferFromVBufferRootSig.Term();
 
 	m_pLightingFromVBufferPSO.Reset();
 	m_LightingFromVBufferRootSig.Term();
