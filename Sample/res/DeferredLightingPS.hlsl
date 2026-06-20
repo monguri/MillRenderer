@@ -61,6 +61,14 @@ struct Camera
 	float Padding[1];
 };
 
+struct ShadowTransform
+{
+	float4x4 WorldToDirLightShadowMap;
+	float4x4 WorldToSpotLight1ShadowMap;
+	float4x4 WorldToSpotLight2ShadowMap;
+	float4x4 WorldToSpotLight3ShadowMap;
+};
+
 struct DirectionalLight
 {
 	float3 DirLightColor;
@@ -92,16 +100,17 @@ struct SpotLight
 ConstantBuffer<Camera> CbCamera : register(b0);
 
 #ifdef DRAW_SPONZA
-ConstantBuffer<DirectionalLight> CbDirectionalLight : register(b1);
+ConstantBuffer<ShadowTransform> CbShadowTransform : register(b1);
+ConstantBuffer<DirectionalLight> CbDirectionalLight : register(b2);
 
-ConstantBuffer<PointLight> CbPointLight1 : register(b2);
-ConstantBuffer<PointLight> CbPointLight2 : register(b3);
-ConstantBuffer<PointLight> CbPointLight3 : register(b4);
-ConstantBuffer<PointLight> CbPointLight4 : register(b5);
+ConstantBuffer<PointLight> CbPointLight1 : register(b3);
+ConstantBuffer<PointLight> CbPointLight2 : register(b4);
+ConstantBuffer<PointLight> CbPointLight3 : register(b5);
+ConstantBuffer<PointLight> CbPointLight4 : register(b6);
 
-ConstantBuffer<SpotLight> CbSpotLight1 : register(b6);
-ConstantBuffer<SpotLight> CbSpotLight2 : register(b7);
-ConstantBuffer<SpotLight> CbSpotLight3 : register(b8);
+ConstantBuffer<SpotLight> CbSpotLight1 : register(b7);
+ConstantBuffer<SpotLight> CbSpotLight2 : register(b8);
+ConstantBuffer<SpotLight> CbSpotLight3 : register(b9);
 #else // #ifdef DRAW_SPONZA
 #endif // #ifdef DRAW_SPONZA
 
@@ -141,7 +150,7 @@ float ConvertFromDeviceZtoViewZ(float deviceZ)
 	return -CbCamera.Near / max(deviceZ, DEVICE_Z_MIN_VALUE);
 }
 
-float3 ConverFromNDCToVS(float4 ndcPos)
+float3 ConverFromNDCToWS(float4 ndcPos)
 {
 	// referenced.
 	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
@@ -152,7 +161,7 @@ float3 ConverFromNDCToVS(float4 ndcPos)
 	float viewPosZ = ConvertFromDeviceZtoViewZ(deviceZ);
 	float clipPosW = -viewPosZ;
 	float4 clipPos = ndcPos * clipPosW;
-	float4 viewPos = mul(CbCamera.InvProj, clipPos);
+	float4 viewPos = mul(CbCamera.InvViewProj, clipPos);
 	
 	return viewPos.xyz;
 }
@@ -359,14 +368,189 @@ float3 EvaluateSpotLightReflection
 [RootSignature(ROOT_SIGNATURE)]
 float4 main(VSOutput input) : SV_TARGET
 {
-	float4 baseColor = GBufferBaseColor.Sample(PointClampSamp, input.TexCoord);
+	float deviceZ = DepthMap.Sample(PointClampSamp, input.TexCoord);
+	// [-1,1]x[-1,1]
+	float2 screenPos = input.TexCoord * float2(2, -2) + float2(-1, 1);
+	float4 ndcPos = float4(screenPos, deviceZ, 1);
+	float3 worldPos = ConverFromNDCToWS(ndcPos);
+
+	float3 baseColor = GBufferBaseColor.Sample(PointClampSamp, input.TexCoord).rgb;
 	float2 metallicRoughness = GBufferMetallicRoughness.Sample(PointClampSamp, input.TexCoord);
 	float metallic = metallicRoughness.x;
 	float roughness = metallicRoughness.y;
 	float3 N = GBufferNormal.Sample(PointClampSamp, input.TexCoord).xyz * 2.0f - 1.0f;
+	float3 emissive = GBufferEmissive.Sample(PointClampSamp, input.TexCoord).rgb;
 
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float3 V = normalize(CbCamera.CameraPosition - worldPos);
+	float NV = saturate(dot(N, V));
+
 #ifdef DRAW_SPONZA
+	// directional light
+	float3 dirLightL = normalize(-CbDirectionalLight.DirLightForward);
+	float3 dirLightH = normalize(V + dirLightL);
+	float dirLightVH = saturate(dot(V, dirLightH));
+	float dirLightNH = saturate(dot(N, dirLightH));
+	float dirLightNL = saturate(dot(N, dirLightL));
+	float3 dirLightBRDF = ComputeBRDF
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		dirLightVH,
+		dirLightNH,
+		NV,
+		dirLightNL 
+	);
+
+	float4 dirLightShadowPos = mul(CbShadowTransform.WorldToDirLightShadowMap, float4(worldPos, 1));
+	// dividing by w is not necessary because it is 1 by orthogonal.
+	float3 dirLightShadowCoord = dirLightShadowPos.xyz / dirLightShadowPos.w;
+	float transitionScale = DIRECTIONAL_LIGHT_SHADOW_SOFT_TRANSITION_SCALE * lerp(DIRECTIONAL_LIGHT_PROJECTION_DEPTH_BIAS, 1, dirLightNL);
+	float dirLightShadowMult = GetShadowMultiplier(DirLightShadowMap, ShadowSmp, CbDirectionalLight.DirLightShadowMapSize, dirLightShadowCoord, transitionScale);
+	float3 dirLightReflection = dirLightBRDF * CbDirectionalLight.DirLightColor * dirLightShadowMult;
+
+	// 4 point light
+	float3 pointLight1Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos,
+		CbPointLight1.PointLightPosition,
+		CbPointLight1.PointLightInvSqrRadius,
+		CbPointLight1.PointLightColor,
+		CbPointLight1.PointLightIntensity
+	);
+
+	float3 pointLight2Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos,
+		CbPointLight2.PointLightPosition,
+		CbPointLight2.PointLightInvSqrRadius,
+		CbPointLight2.PointLightColor,
+		CbPointLight2.PointLightIntensity
+	);
+
+	float3 pointLight3Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos,
+		CbPointLight3.PointLightPosition,
+		CbPointLight3.PointLightInvSqrRadius,
+		CbPointLight3.PointLightColor,
+		CbPointLight3.PointLightIntensity
+	);
+
+	float3 pointLight4Reflection = EvaluatePointLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos,
+		CbPointLight4.PointLightPosition,
+		CbPointLight4.PointLightInvSqrRadius,
+		CbPointLight4.PointLightColor,
+		CbPointLight4.PointLightIntensity
+	);
+
+	// 3 spot light
+	float4 spotLight1ShadowPos = mul(CbShadowTransform.WorldToSpotLight1ShadowMap, float4(worldPos, 1));
+	float3 spotLight1ShadowCoord = spotLight1ShadowPos.xyz / spotLight1ShadowPos.w;
+
+	float3 spotLight1Reflection = EvaluateSpotLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos,
+		CbSpotLight1.SpotLightPosition,
+		CbSpotLight1.SpotLightInvSqrRadius,
+		CbSpotLight1.SpotLightForward,
+		CbSpotLight1.SpotLightColor,
+		CbSpotLight1.SpotLightAngleScale,
+		CbSpotLight1.SpotLightAngleOffset,
+		CbSpotLight1.SpotLightIntensity,
+		SpotLight1ShadowMap,
+		ShadowSmp,
+		CbSpotLight1.SpotLightShadowMapSize,
+		spotLight1ShadowCoord
+	);
+
+	float4 spotLight2ShadowPos = mul(CbShadowTransform.WorldToSpotLight2ShadowMap, float4(worldPos, 1));
+	float3 spotLight2ShadowCoord = spotLight2ShadowPos.xyz / spotLight2ShadowPos.w;
+
+	float3 spotLight2Reflection = EvaluateSpotLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos,
+		CbSpotLight2.SpotLightPosition,
+		CbSpotLight2.SpotLightInvSqrRadius,
+		CbSpotLight2.SpotLightForward,
+		CbSpotLight2.SpotLightColor,
+		CbSpotLight2.SpotLightAngleScale,
+		CbSpotLight2.SpotLightAngleOffset,
+		CbSpotLight2.SpotLightIntensity,
+		SpotLight2ShadowMap,
+		ShadowSmp,
+		CbSpotLight2.SpotLightShadowMapSize,
+		spotLight2ShadowCoord 
+	);
+
+	float4 spotLight3ShadowPos = mul(CbShadowTransform.WorldToSpotLight3ShadowMap, float4(worldPos, 1));
+	float3 spotLight3ShadowCoord = spotLight3ShadowPos.xyz / spotLight3ShadowPos.w;
+
+	float3 spotLight3Reflection = EvaluateSpotLightReflection
+	(
+		baseColor.rgb,
+		metallic,
+		roughness,
+		N,
+		V,
+		worldPos,
+		CbSpotLight3.SpotLightPosition,
+		CbSpotLight3.SpotLightInvSqrRadius,
+		CbSpotLight3.SpotLightForward,
+		CbSpotLight3.SpotLightColor,
+		CbSpotLight3.SpotLightAngleScale,
+		CbSpotLight3.SpotLightAngleOffset,
+		CbSpotLight3.SpotLightIntensity,
+		SpotLight3ShadowMap,
+		ShadowSmp,
+		CbSpotLight3.SpotLightShadowMapSize,
+		spotLight3ShadowCoord
+	);
+
+	float3 lit = 
+		dirLightReflection
+		+ pointLight1Reflection
+		+ pointLight2Reflection
+		+ pointLight3Reflection
+		+ pointLight4Reflection
+		+ spotLight1Reflection
+		+ spotLight2Reflection
+		+ spotLight3Reflection;
+
+	return float4(lit + emissive, 1.0f);
 #else // #ifdef DRAW_SPONZA
+	return float4(1.0f, 1.0f, 1.0f, 1.0f);
 #endif // #ifdef DRAW_SPONZA
 }
