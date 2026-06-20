@@ -232,6 +232,7 @@ struct Camera
 	uint DebugViewType;
 	float4x4 View;
 	float4x4 InvProj;
+	float4x4 InvViewProj;
 	uint Width;
 	uint Height;
 	float Near;

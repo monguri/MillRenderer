@@ -199,6 +199,7 @@ namespace
 		unsigned int DebugViewType;
 		Matrix ViewMatrix;
 		Matrix InvProjMatrix;
+		Matrix InvViewProjMatrix;
 		unsigned int Width;
 		unsigned int Height;
 		float Near;
@@ -1408,6 +1409,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 			ptr->ViewMatrix = view;
 			ptr->InvProjMatrix = proj.Invert();
+			ptr->InvViewProjMatrix = ptr->ViewProj.Invert();
 			ptr->Width = m_Width;
 			ptr->Height = m_Height;
 			ptr->Near = CAMERA_NEAR;
@@ -6203,6 +6205,7 @@ void SampleApp::OnRender()
 			proj = projNoJitter;
 		}
 		ptr->InvProjMatrix = proj.Invert();
+		ptr->InvViewProjMatrix = ptr->ViewProj.Invert();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
 		ptr->Near = CAMERA_NEAR;
