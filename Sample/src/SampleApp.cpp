@@ -6326,21 +6326,13 @@ void SampleApp::OnRender()
 		DoMeshletCulling(pCmd);
 	}
 
-	if (m_useDeferred)
+	if (m_useMeshlet)
 	{
-		if (m_useMeshlet)
+		if (m_useDeferred)
 		{
 			//TODO: 実装
 		}
 		else
-		{
-			DrawGBuffer(pCmd);
-			DoDeferredShading(pCmd, lightForward);
-		}
-	}
-	else
-	{
-		if (m_useMeshlet)
 		{
 			// Indexは0初期化してシェーダ側で使用するインデックスがずれてもGPUクラッシュさせないようにする
 			// GPUクラッシュするより絵がおかしい方が調査しやすいので
@@ -6355,6 +6347,14 @@ void SampleApp::OnRender()
 			}
 
 			DrawGBufferFromVBuffer(pCmd, lightForward, meshletsDescHeapIndices, materialsDescHeapIndices);
+		}
+	}
+	else
+	{
+		if (m_useDeferred)
+		{
+			DrawGBuffer(pCmd);
+			DoDeferredShading(pCmd, lightForward);
 		}
 		else
 		{
