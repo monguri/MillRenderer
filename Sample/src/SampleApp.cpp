@@ -1236,21 +1236,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		ptr->bEnableBackFaceCulling = m_enableBackFaceCulling ? 1 : 0;
 	}
 
-	if (m_useMeshlet)
-	{
-		if (!m_MeshletsDescHeapIndicesCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbMeshletsDescHeapIndices)))
-		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
-
-		if (!m_MaterialsDescHeapIndicesCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbMaterialsDescHeapIndices)))
-		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
-	}
-
 	if (m_drawSponza)
 	{
 		// ディレクショナルライトバッファの設定
@@ -6400,12 +6385,7 @@ void SampleApp::OnRender()
 
 	if (m_useMeshlet)
 	{
-		// Indexは0初期化してシェーダ側で使用するインデックスがずれてもGPUクラッシュさせないようにする
-		// GPUクラッシュするより絵がおかしい方が調査しやすいので
-		CbMeshletsDescHeapIndices meshletsDescHeapIndices = {};
-		CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
-
-		DrawVBuffer(pCmd, meshletsDescHeapIndices, materialsDescHeapIndices);
+		DrawVBuffer(pCmd);
 
 		if (m_useSWRasterizer)
 		{
@@ -6414,12 +6394,12 @@ void SampleApp::OnRender()
 
 		if (m_useDeferred)
 		{
-			DrawGBufferFromVBuffer(pCmd, meshletsDescHeapIndices, materialsDescHeapIndices);
+			DrawGBufferFromVBuffer(pCmd);
 			DoDeferredShading(pCmd, lightForward);
 		}
 		else
 		{
-			DoShadingFromVBuffer(pCmd, lightForward, meshletsDescHeapIndices, materialsDescHeapIndices);
+			DoShadingFromVBuffer(pCmd, lightForward);
 		}
 	}
 	else
@@ -6862,7 +6842,7 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList)
 	m_MeshManager.GetDrawMovableMeshletIndicesBB().BarrierUAV(pCmdList);
 }
 
-void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices)
+void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
 	assert(m_useMeshlet);
 
@@ -7010,7 +6990,7 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, CbMeshletsDescH
 	}
 }
 
-void SampleApp::DoShadingFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
+void SampleApp::DoShadingFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
 {
 	::PIXScopedEvent(pCmdList, 0, L"DoShadingFromVBuffer");
 
@@ -7305,11 +7285,52 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
+void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
+	assert(m_useDeferred && m_useMeshlet);
 	::PIXScopedEvent(pCmdList, 0, L"DrawGBufferFromVBuffer");
 
-	//TODO: 実装
+
+	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_GBufferEmissiveTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
+		m_GBufferBaseColorTarget.GetHandleRTV()->HandleCPU,
+		m_GBufferNormalTarget.GetHandleRTV()->HandleCPU, 
+		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU
+	};
+
+	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, nullptr);
+
+	m_GBufferBaseColorTarget.ClearView(pCmdList);
+	m_GBufferNormalTarget.ClearView(pCmdList);
+	m_GBufferMetallicRoughnessTarget.ClearView(pCmdList);
+	m_GBufferEmissiveTarget.ClearView(pCmdList);
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(3, m_VBufferTarget.GetHandleSRV()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+
+	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
+
+	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferEmissiveTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward)
