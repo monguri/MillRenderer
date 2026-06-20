@@ -286,6 +286,7 @@ private:
 	void DoShadingFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices);
 	void DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList);
+	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices);
 	void DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawSkyBox(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const DirectX::SimpleMath::Matrix& viewRotProj, const DirectX::SimpleMath::Matrix& view, const DirectX::SimpleMath::Matrix& proj, const DirectX::SimpleMath::Matrix& skyViewLutReferential);
 	void DrawDepthBuffer(ID3D12GraphicsCommandList* pCmdList, enum ALPHA_MODE AlphaMode);

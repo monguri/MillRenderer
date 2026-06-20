@@ -6328,24 +6328,25 @@ void SampleApp::OnRender()
 
 	if (m_useMeshlet)
 	{
+		// Indexは0初期化してシェーダ側で使用するインデックスがずれてもGPUクラッシュさせないようにする
+		// GPUクラッシュするより絵がおかしい方が調査しやすいので
+		CbMeshletsDescHeapIndices meshletsDescHeapIndices = {};
+		CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
+
+		DrawVBuffer(pCmd, meshletsDescHeapIndices, materialsDescHeapIndices);
+
+		if (m_useSWRasterizer)
+		{
+			DrawDepthBufferFromVBuffer(pCmd);
+		}
+
 		if (m_useDeferred)
 		{
-			//TODO: 実装
+			DrawGBufferFromVBuffer(pCmd, meshletsDescHeapIndices, materialsDescHeapIndices);
+			DoDeferredShading(pCmd, lightForward);
 		}
 		else
 		{
-			// Indexは0初期化してシェーダ側で使用するインデックスがずれてもGPUクラッシュさせないようにする
-			// GPUクラッシュするより絵がおかしい方が調査しやすいので
-			CbMeshletsDescHeapIndices meshletsDescHeapIndices = {};
-			CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
-
-			DrawVBuffer(pCmd, meshletsDescHeapIndices, materialsDescHeapIndices);
-
-			if (m_useSWRasterizer)
-			{
-				DrawDepthBufferFromVBuffer(pCmd);
-			}
-
 			DoShadingFromVBuffer(pCmd, lightForward, meshletsDescHeapIndices, materialsDescHeapIndices);
 		}
 	}
@@ -7230,6 +7231,13 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_GBufferEmissiveTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
+{
+	::PIXScopedEvent(pCmdList, 0, L"DrawGBufferFromVBuffer");
+
+	//TODO: 実装
 }
 
 void SampleApp::DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward)
@@ -9183,4 +9191,3 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 
 	return true;
 }
-
