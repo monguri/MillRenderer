@@ -182,6 +182,8 @@
 " | DENY_MESH_SHADER_ROOT_ACCESS"\
 ")"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
+", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -249,6 +251,7 @@ struct Camera
 	float Padding[1];
 };
 
+#ifdef DRAW_SPONZA
 struct ShadowTransform
 {
 	float4x4 WorldToDirLightShadowMap;
@@ -284,6 +287,14 @@ struct SpotLight
 	int SpotLightType;
 	float2 SpotLightShadowMapSize; // x is pixel size, y is texel size on UV.
 };
+#else // #ifdef DRAW_SPONZA
+struct IBL
+{
+	float TextureSize;
+	float MipCount;
+	float LightIntensity;
+};
+#endif // #ifdef DRAW_SPONZA
 
 ConstantBuffer<Camera> CbCamera : register(b0);
 
@@ -300,6 +311,7 @@ ConstantBuffer<SpotLight> CbSpotLight1 : register(b7);
 ConstantBuffer<SpotLight> CbSpotLight2 : register(b8);
 ConstantBuffer<SpotLight> CbSpotLight3 : register(b9);
 #else // #ifdef DRAW_SPONZA
+ConstantBuffer<IBL> CbIBL : register(b2);
 #endif // #ifdef DRAW_SPONZA
 
 Texture2D<float> DepthMap : register(t0);
@@ -314,9 +326,13 @@ Texture2D SpotLight1ShadowMap : register(t6);
 Texture2D SpotLight2ShadowMap : register(t7);
 Texture2D SpotLight3ShadowMap : register(t8);
 #else // #ifdef DRAW_SPONZA
+Texture2D DFGMap : register(t5);
+TextureCube DiffuseLDMap : register(t6);
+TextureCube SpecularLDMap : register(t7);
 #endif // #ifdef DRAW_SPONZA
 
 SamplerState PointClampSamp : register(s0);
+
 #ifdef DRAW_SPONZA
 	#ifdef USE_COMPARISON_SAMPLER_FOR_SHADOW_MAP
 	SamplerComparisonState ShadowSmp : register(s1);
@@ -324,6 +340,7 @@ SamplerState PointClampSamp : register(s0);
 	SamplerState ShadowSmp : register(s1);
 	#endif
 #else // #ifdef DRAW_SPONZA
+SamplerState LinearWrapSmp : register(s1);
 #endif // #ifdef DRAW_SPONZA
 
 float ConvertViewZtoDeviceZ(float viewZ)
@@ -411,7 +428,7 @@ float3 EvaluatePointLightReflection
 	float3 H = normalize(V + L);
 	float VH = saturate(dot(V, H));
 	float NH = saturate(dot(N, H));
-	float NV = saturate(dot(N, V));
+	float NdotV = saturate(dot(N, V));
 	float NL = saturate(dot(N, L));
 	float3 brdf = ComputeBRDF
 	(
@@ -420,7 +437,7 @@ float3 EvaluatePointLightReflection
 		roughness,
 		VH,
 		NH,
-		NV,
+		NdotV,
 		NL 
 	);
 	float3 light = EvaluatePointLight(N, worldPos, lightPos, invRadiusSq, color) * intensity;
@@ -530,7 +547,7 @@ float3 EvaluateSpotLightReflection
 	float3 H = normalize(V + L);
 	float VH = saturate(dot(V, H));
 	float NH = saturate(dot(N, H));
-	float NV = saturate(dot(N, V));
+	float NdotV = saturate(dot(N, V));
 	float NL = saturate(dot(N, L));
 	float3 brdf = ComputeBRDF
 	(
@@ -539,7 +556,7 @@ float3 EvaluateSpotLightReflection
 		roughness,
 		VH,
 		NH,
-		NV,
+		NdotV,
 		NL 
 	);
 
@@ -550,6 +567,90 @@ float3 EvaluateSpotLightReflection
 	return brdf * light * shadow;
 }
 #else // #ifdef DRAW_SPONZA
+float3 GetSpecularDominantDir(float3 N, float3 R, float roughness)
+{
+	float smoothness = saturate(1.0f - roughness);
+	float lerpFactor = smoothness * (sqrt(smoothness) + roughness);
+	return lerp(N, R, lerpFactor);
+}
+
+float3 EvaluateIBLDiffuse(float3 N)
+{
+	return DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
+}
+
+// Referenced glTF-Sample-Viewer ibl.glsl
+float3 GetIBLRadianceLambertian(float3 N, float3 NdotV, float roughness, float3 diffuseColor, float3 F0, float3 Fr, float2 f_ab)
+{
+	float3 irradiance = DiffuseLDMap.Sample(LinearWrapSmp, N).rgb;
+
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+
+	float3 k_S = F0 + Fr * pow(1.0f - NdotV, 5.0f);
+	float3 FssEss = k_S * f_ab.x + f_ab.y; // <--- GGX / specular light contribution (scale it down if the specularWeight is low)
+
+    // Multiple scattering, from Fdez-Aguera
+	float Ems = (1.0f - (f_ab.x + f_ab.y));
+	float3 F_avg = (F0 + (1.0f - F0) / 21.0f);
+	float3 FmsEms = Ems * FssEss * F_avg / (1.0f - F_avg * Ems);
+	float3 k_D = diffuseColor * (1.0f - FssEss + FmsEms); // we use +FmsEms as indicated by the formula in the blog post (might be a typo in the implementation)
+
+	return (FmsEms + k_D) * irradiance;
+}
+
+float RoughnessToMipLevel(float linearRoughness, float mipCount)
+{
+	return (mipCount - 1) * linearRoughness;
+}
+
+float3 EvaluateIBLSpecular
+(
+	float NdotV,
+	float3 N,
+	float3 R,
+	float3 f0,
+	float roughness,
+	float textureSize,
+	float mipCount
+)
+{
+	float a = roughness * roughness;
+	float3 dominantR = GetSpecularDominantDir(N, R, a);
+
+    // 関数を再構築.
+    // L * D * (f0 * Gvis * (1 - Fc) + Gvis * Fc) * cosTheta / (4 * NdotL * NdotV).
+	NdotV = max(NdotV, 0.5f / textureSize);
+	float mipLevel = RoughnessToMipLevel(roughness, mipCount);
+	float3 preLD = SpecularLDMap.SampleLevel(LinearWrapSmp, dominantR, mipLevel).xyz;
+
+    // 事前積分したDFGをサンプルする.
+    // Fc = ( 1 - HdotL )^5
+    // PreIntegratedDFG.r = Gvis * (1 - Fc)
+    // PreIntegratedDFG.g = Gvis * Fc
+	float2 preDFG = DFGMap.SampleLevel(LinearWrapSmp, float2(NdotV, roughness), 0).xy;
+
+    // LD * (f0 * Gvis * (1 - Fc) + Gvis * Fc)
+	return preLD * (f0 * preDFG.x + preDFG.y);
+}
+
+// Referenced glTF-Sample-Viewer ibl.glsl
+float3 GetIBLRadianceGGX(float3 N, float3 R, float3 NdotV, float roughness, float3 F0, float3 Fr, float2 f_ab, float mipCount)
+{
+	// TODO: float3 dominantR = GetSpecularDominantDir(N, R, a);なし
+	float mipLevel = RoughnessToMipLevel(roughness, mipCount);
+
+	// TODO: NdotV = max(NdotV, 0.5f / textureSize);なし
+	// glTF-Sample-Viewer is not using GetSpecularDominantDir()
+	float3 specularLight = SpecularLDMap.SampleLevel(LinearWrapSmp, R, mipLevel).xyz;
+	
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+	float3 k_S = F0 + Fr * pow(1.0f - NdotV, 5.0f);
+	float3 FssEss = k_S * f_ab.x + f_ab.y;
+
+	return specularLight * FssEss;
+}
 #endif // #ifdef DRAW_SPONZA
 
 
@@ -570,7 +671,7 @@ float4 main(VSOutput input) : SV_TARGET
 	float3 emissive = GBufferEmissive.Sample(PointClampSamp, input.TexCoord).rgb;
 
 	float3 V = normalize(CbCamera.CameraPosition - worldPos);
-	float NV = saturate(dot(N, V));
+	float NdotV = saturate(dot(N, V));
 
 #ifdef DRAW_SPONZA
 	// directional light
@@ -586,7 +687,7 @@ float4 main(VSOutput input) : SV_TARGET
 		roughness,
 		dirLightVH,
 		dirLightNH,
-		NV,
+		NdotV,
 		dirLightNL 
 	);
 
@@ -739,6 +840,18 @@ float4 main(VSOutput input) : SV_TARGET
 
 	return float4(lit + emissive, 1.0f);
 #else // #ifdef DRAW_SPONZA
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float3 R = normalize(reflect(-V, N));
+
+	float3 cDiff = lerp(baseColor, 0.0f, metallic);;
+	float3 F0 = ComputeF0(baseColor, metallic);
+	float3 Fr = max(1.0f - roughness, F0) - F0;
+	
+	float2 f_ab = DFGMap.SampleLevel(LinearWrapSmp, float2(NdotV, roughness), 0).xy;
+
+	float3 diffuse = GetIBLRadianceLambertian(N, NdotV, roughness, cDiff, F0, Fr, f_ab);
+	float3 specular = GetIBLRadianceGGX(N, R, NdotV, roughness, F0, Fr, f_ab, CbIBL.MipCount);
+	float3 lit = diffuse + specular;
+
+	return float4(lit * CbIBL.LightIntensity + emissive, 1);
 #endif // #ifdef DRAW_SPONZA
 }
