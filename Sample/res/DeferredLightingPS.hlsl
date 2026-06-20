@@ -183,7 +183,6 @@
 ")"\
 ", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(CBV(b1), visibility = SHADER_VISIBILITY_PIXEL)"\
-", DescriptorTable(CBV(b2), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_PIXEL)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_PIXEL)"\
@@ -311,7 +310,7 @@ ConstantBuffer<SpotLight> CbSpotLight1 : register(b7);
 ConstantBuffer<SpotLight> CbSpotLight2 : register(b8);
 ConstantBuffer<SpotLight> CbSpotLight3 : register(b9);
 #else // #ifdef DRAW_SPONZA
-ConstantBuffer<IBL> CbIBL : register(b2);
+ConstantBuffer<IBL> CbIBL : register(b1);
 #endif // #ifdef DRAW_SPONZA
 
 Texture2D<float> DepthMap : register(t0);
@@ -326,9 +325,9 @@ Texture2D SpotLight1ShadowMap : register(t6);
 Texture2D SpotLight2ShadowMap : register(t7);
 Texture2D SpotLight3ShadowMap : register(t8);
 #else // #ifdef DRAW_SPONZA
-Texture2D DFGMap : register(t5);
-TextureCube DiffuseLDMap : register(t6);
-TextureCube SpecularLDMap : register(t7);
+Texture2D<float2> DFGMap : register(t5);
+TextureCube<float4> DiffuseLDMap : register(t6);
+TextureCube<float4> SpecularLDMap : register(t7);
 #endif // #ifdef DRAW_SPONZA
 
 SamplerState PointClampSamp : register(s0);

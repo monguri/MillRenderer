@@ -7208,6 +7208,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->SetGraphicsRootSignature(m_GBufferRootSig.GetPtr());
 
+	// VS、PSの両方で使用しているため両方にセット
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 
@@ -7278,7 +7279,16 @@ void SampleApp::DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const Dir
 	}
 	else
 	{
-		//TODO: 実装
+		pCmdList->SetGraphicsRootDescriptorTable(1, m_IBL_CB.GetHandle()->HandleGPU);
+
+		pCmdList->SetGraphicsRootDescriptorTable(2, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(3, m_GBufferBaseColorTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(4, m_GBufferNormalTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(5, m_GBufferMetallicRoughnessTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(6, m_GBufferEmissiveTarget.GetHandleSRV()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(9, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
 	}
 
 	pCmdList->SetPipelineState(m_pDeferredShadingPSO.Get());
