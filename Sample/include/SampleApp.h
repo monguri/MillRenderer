@@ -96,8 +96,8 @@ private:
 	RootSignature m_DrawVBufferHWRasRootSig;
 	ComPtr<ID3D12PipelineState> m_pDepthBufferFromVBufferPSO;
 	RootSignature m_DepthBufferFromVBufferRootSig;
-	ComPtr<ID3D12PipelineState> m_pGBufferFromVBufferPSO;
-	RootSignature m_GBufferFromVBufferRootSig;
+	ComPtr<ID3D12PipelineState> m_pLightingFromVBufferPSO;
+	RootSignature m_LightingFromVBufferRootSig;
 	ComPtr<ID3D12PipelineState> m_pDeferredShadingPSO;
 	RootSignature m_DeferredShadingRootSig;
 	ComPtr<ID3D12PipelineState> m_pHCB_PSO;
@@ -283,7 +283,7 @@ private:
 	void DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList);
 	void DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList);
 	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, CbMeshletsDescHeapIndices& meshletsDescHeapIndices, CbMaterialsDescHeapIndices& materialsDescHeapIndices);
-	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices);
+	void DoShadingFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices);
 	void DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);

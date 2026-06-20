@@ -3762,7 +3762,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		std::wstring psPath;
-		if (!SearchFilePath(L"GBufferFromVBufferPS.hlsl", psPath))
+		if (!SearchFilePath(L"LightingFromVBufferPS.hlsl", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -3798,14 +3798,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!m_GBufferFromVBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
+		if (!m_LightingFromVBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_GBufferFromVBufferRootSig.GetPtr();
+		desc.pRootSignature = m_LightingFromVBufferRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
@@ -3817,7 +3817,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pGBufferFromVBufferPSO.GetAddressOf())
+			IID_PPV_ARGS(m_pLightingFromVBufferPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -6050,8 +6050,8 @@ void SampleApp::OnTerm()
 	m_pDrawVBufferHWRasMaskPSO.Reset();
 	m_DrawVBufferHWRasRootSig.Term();
 
-	m_pGBufferFromVBufferPSO.Reset();
-	m_GBufferFromVBufferRootSig.Term();
+	m_pLightingFromVBufferPSO.Reset();
+	m_LightingFromVBufferRootSig.Term();
 
 	m_pDeferredShadingPSO.Reset();
 	m_DeferredShadingRootSig.Term();
@@ -6346,7 +6346,7 @@ void SampleApp::OnRender()
 				DrawDepthBufferFromVBuffer(pCmd);
 			}
 
-			DrawGBufferFromVBuffer(pCmd, lightForward, meshletsDescHeapIndices, materialsDescHeapIndices);
+			DoShadingFromVBuffer(pCmd, lightForward, meshletsDescHeapIndices, materialsDescHeapIndices);
 		}
 	}
 	else
@@ -6937,9 +6937,9 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList, CbMeshletsDescH
 	}
 }
 
-void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
+void SampleApp::DoShadingFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward, const CbMeshletsDescHeapIndices& meshletsDescHeapIndices, const CbMaterialsDescHeapIndices& materialsDescHeapIndices)
 {
-	::PIXScopedEvent(pCmdList, 0, L"DrawGBufferFromVBuffer");
+	::PIXScopedEvent(pCmdList, 0, L"DoShadingFromVBuffer");
 
 	// ライトバッファの更新
 	if (m_drawSponza)
@@ -6984,7 +6984,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 	m_GBufferNormalTarget.ClearView(pCmdList);
 	m_GBufferMetallicRoughnessTarget.ClearView(pCmdList);
 
-	pCmdList->SetGraphicsRootSignature(m_GBufferFromVBufferRootSig.GetPtr());
+	pCmdList->SetGraphicsRootSignature(m_LightingFromVBufferRootSig.GetPtr());
 
 	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
@@ -7026,7 +7026,7 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList, cons
 		pCmdList->SetGraphicsRootDescriptorTable(9, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 	}
 
-	pCmdList->SetPipelineState(m_pGBufferFromVBufferPSO.Get());
+	pCmdList->SetPipelineState(m_pLightingFromVBufferPSO.Get());
 
 	pCmdList->RSSetViewports(1, &m_Viewport);
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
