@@ -3781,10 +3781,11 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.NumRenderTargets = 3;
+		desc.NumRenderTargets = 4;
 		desc.RTVFormats[0] = m_GBufferBaseColorTarget.GetRTVDesc().Format;
 		desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
 		desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
+		desc.RTVFormats[3] = m_GBufferEmissiveTarget.GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -7296,13 +7297,14 @@ void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	DirectX::TransitionResource(pCmdList, m_GBufferEmissiveTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[4] = {
 		m_GBufferBaseColorTarget.GetHandleRTV()->HandleCPU,
 		m_GBufferNormalTarget.GetHandleRTV()->HandleCPU, 
-		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU
+		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU,
+		m_GBufferEmissiveTarget.GetHandleRTV()->HandleCPU
 	};
 
-	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, nullptr);
+	pCmdList->OMSetRenderTargets(4, rtvs, FALSE, nullptr);
 
 	m_GBufferBaseColorTarget.ClearView(pCmdList);
 	m_GBufferNormalTarget.ClearView(pCmdList);
