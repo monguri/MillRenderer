@@ -20,11 +20,14 @@
 
 static const float M_TO_KM = 0.001f;
 
-cbuffer CbCamera
+struct Camera
 {
-	float3 CameraPosition : packoffset(c0);
+	float4x4 ViewProj;
+	float3 CameraPosition;
+	uint DebugViewType;
 };
 
+ConstantBuffer<Camera> CbCamera : register(b1);
 RWTexture2D<float3> OutResult : register(u0);
 
 static const uint TILE_PIXEL_SIZE_X = 8;
@@ -122,7 +125,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	float3x3 localReferencial = (float3x3)SkyViewLutReferential;
 
 	// This is the LUT camera height and position in the local referential
-	float viewHeight = CameraPosition.y * M_TO_KM + BottomRadiusKm;
+	float viewHeight = CbCamera.CameraPosition.y * M_TO_KM + BottomRadiusKm;
 	float3 worldPos = float3(0, viewHeight, 0);
 
 	// Get the view direction in this local referential
