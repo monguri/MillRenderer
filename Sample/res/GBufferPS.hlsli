@@ -44,7 +44,7 @@ Texture2D EmissiveMap : register(t3);
 
 SamplerState AnisotropicWrapSmp : register(s0);
 
-PSOutput main(VSOutput input , uint primitiveID : SV_PrimitiveID)
+PSOutput main(VSOutput input, uint primitiveID : SV_PrimitiveID)
 {
 	PSOutput output = (PSOutput)0;
 
