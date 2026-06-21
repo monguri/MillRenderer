@@ -6015,6 +6015,31 @@ void SampleApp::OnRender()
 	// ディレクショナルライト方向の更新
 	Vector3 lightForward = m_DirLightManipulator.GetForward();
 
+	// ライトバッファの更新
+	if (m_drawSponza)
+	{
+		{
+			const Vector3& transmittanceTowardSun = GetTransmittanceAtGroundLevel(m_CameraManipulator.GetPosition(), -lightForward);
+
+			CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
+			ptr->LightColor = transmittanceTowardSun * GetSunLightOuterSpaceIlluminance(m_directionalLightIntensity, Vector3::One); // 白色光源
+			ptr->LightForward = lightForward;
+			ptr->ShadowMapSize = Vector2((float)DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE, 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE);
+		}
+
+		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
+		{
+			CbPointLight* ptr = m_PointLightCB[i].GetPtr<CbPointLight>();
+			ptr->LightIntensity = m_pointLightIntensity;
+		}
+
+		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
+		{
+			CbSpotLight* ptr = m_SpotLightCB[i].GetPtr<CbSpotLight>();
+			ptr->LightIntensity = m_spotLightIntensity;
+		}
+	}
+
 	// シャドウ定数バッファの更新
 	if (m_drawSponza)
 	{
