@@ -138,9 +138,6 @@
     <FxCompile Include="..\res\ObjectVelocityMS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\LightingFromVBufferPS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
     <FxCompile Include="..\res\DepthBufferFromVBufferPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
