@@ -193,7 +193,14 @@ bool RTSampleApp::OnInit(HWND hWnd)
 			Vector3(-0.866f, -0.5f, 0),
 		};
 
-		if (!m_TriangleVB.InitAsVertexBuffer<Vector3>(m_pDevice.Get(), 3))
+		if (!m_TriangleVB.InitAsVertexBuffer<Vector3>(
+			m_pDevice.Get(),
+			3,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COMMON,
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			L"TriangleVB"
+		))
 		{
 			ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
 			return false;
