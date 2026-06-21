@@ -41,8 +41,6 @@ private:
 	bool m_useMetis = false;
 	// Visibility Buffer‚ðSW Rasterize‚·‚é‚©‚Ç‚¤‚©
 	bool m_useSWRasterizer = false;
-	// Deferred Lighting‚ð‚·‚é‚©‚Ç‚¤‚©
-	bool m_useDeferred = false;
 
 	ShaderCompiler m_ShaderCompiler;
 	Texture m_DummyTexture;
@@ -57,12 +55,6 @@ private:
 	ComPtr<ID3D12PipelineState> m_pDepthPSO;
 	ComPtr<ID3D12PipelineState> m_pDepthMaskPSO;
 	RootSignature m_DepthRootSig;
-	ComPtr<ID3D12PipelineState> m_pSponzaOpaquePSO;
-	ComPtr<ID3D12PipelineState> m_pSponzaMaskPSO;
-	RootSignature m_SponzaRootSig;
-	ComPtr<ID3D12PipelineState> m_pSceneOpaquePSO;
-	ComPtr<ID3D12PipelineState> m_pSceneMaskPSO;
-	RootSignature m_SceneRootSig;
 	ComPtr<ID3D12PipelineState> m_pGBufferOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pGBufferMaskPSO;
 	RootSignature m_GBufferRootSig;
@@ -78,8 +70,6 @@ private:
 	RootSignature m_DepthBufferFromVBufferRootSig;
 	ComPtr<ID3D12PipelineState> m_pGBufferFromVBufferPSO;
 	RootSignature m_GBufferFromVBufferRootSig;
-	ComPtr<ID3D12PipelineState> m_pLightingFromVBufferPSO;
-	RootSignature m_LightingFromVBufferRootSig;
 	ComPtr<ID3D12PipelineState> m_pDeferredShadingPSO;
 	RootSignature m_DeferredShadingRootSig;
 	ComPtr<ID3D12PipelineState> m_pHCB_PSO;
@@ -265,8 +255,6 @@ private:
 	void DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList);
 	void DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList);
 	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList);
-	void DoShadingFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
-	void DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DoDeferredShading(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);

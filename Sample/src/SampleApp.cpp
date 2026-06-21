@@ -798,10 +798,6 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		{
 			m_useSWRasterizer = true;
 		}
-		else if (wcscmp(argv[a], L"--deferred") == 0)
-		{
-			m_useDeferred = true;
-		}
 	}
 }
 
@@ -2571,42 +2567,12 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // シーン用ルートシグニチャとパイプラインステートの生成
+    // デプスだけの描画用ルートシグニチャとパイプラインステートの生成
 	if (m_drawSponza)
 	{
-		// AlphaModeがMaskのシャドウマップ描画用
-		std::wstring psPath;
-		if (!SearchFilePath(L"SponzaOpaquePS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pOpaquePSBlob;
-		HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		// AlphaModeがMaskのマテリアル用
-		if (!SearchFilePath(L"SponzaMaskPS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pMaskPSBlob;
-		hr = D3DReadFileToBlob(psPath.c_str(), pMaskPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
 		if (m_useMeshlet)
 		{
+			std::wstring psPath;
 			if (!SearchFilePath(L"DepthMeshesMaskPS.cso", psPath))
 			{
 				ELOG("Error : Pixel Shader Not Found");
@@ -2712,6 +2678,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 		else // if (m_useMeshlet)
 		{
+			std::wstring psPath;
 			if (!SearchFilePath(L"DepthMaskPS.cso", psPath))
 			{
 				ELOG("Error : Pixel Shader Not Found");
@@ -2719,7 +2686,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 
 			ComPtr<ID3DBlob> pDepthMaskPSBlob;
-			hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
+			HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pDepthMaskPSBlob.GetAddressOf());
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
@@ -2738,7 +2705,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 
 			ComPtr<ID3DBlob> pVSBlob;
-			HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+			hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
 			if (FAILED(hr))
 			{
 				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
@@ -2801,81 +2768,15 @@ bool SampleApp::OnInit(HWND hWnd)
 				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 				return false;
 			}
-
-			// AlphaModeがOpaqueのマテリアル用
-			if (!SearchFilePath(L"SponzaVS.cso", vsPath))
-			{
-				ELOG("Error : Vertex Shader Not Found");
-				return false;
-			}
-
-			hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-				return false;
-			}
-
-			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-
-			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
-				return false;
-			}
-
-			if (!m_SponzaRootSig.Init(m_pDevice.Get(), pRSBlob))
-			{
-				ELOG("Error : RootSignature::Init() Failed.");
-				return false;
-			}
-
-			desc.pRootSignature = m_SponzaRootSig.GetPtr();
-			// SceneDepthはReverseZ
-			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
-			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-			desc.NumRenderTargets = 3;
-			desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
-			desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
-			desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
-			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
-
-			desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pOpaquePSBlob->GetBufferSize();
-
-			hr = m_pDevice->CreateGraphicsPipelineState(
-				&desc,
-				IID_PPV_ARGS(m_pSponzaOpaquePSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
-
-			desc.PS.pShaderBytecode = pMaskPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pMaskPSBlob->GetBufferSize();
-			//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
-			desc.RasterizerState = DirectX::CommonStates::CullNone;
-
-			hr = m_pDevice->CreateGraphicsPipelineState(
-				&desc,
-				IID_PPV_ARGS(m_pSponzaMaskPSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
 		}
 	}
-	else
+
+	// GBuffer描画用ルートシグニチャとパイプラインステートの生成
+	if (!m_useMeshlet)
 	{
 		// AlphaModeがOpaqueのマテリアル用
 		std::wstring psPath;
-		if (!SearchFilePath(L"BasePassOpaquePS.cso", psPath))
+		if (!SearchFilePath(L"GBufferOpaquePS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -2890,7 +2791,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 
 		// AlphaModeがMaskのマテリアル用
-		if (!SearchFilePath(L"BasePassMaskPS.cso", psPath))
+		if (!SearchFilePath(L"GBufferMaskPS.cso", psPath))
 		{
 			ELOG("Error : Pixel Shader Not Found");
 			return false;
@@ -2921,7 +2822,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// AlphaModeがOpaqueのシャドウマップ描画用
 		std::wstring vsPath;
-		if (!SearchFilePath(L"BasePassVS.cso", vsPath))
+		if (!SearchFilePath(L"GBufferVS.cso", vsPath))
 		{
 			ELOG("Error : Vertex Shader Not Found");
 			return false;
@@ -2943,24 +2844,25 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!m_SceneRootSig.Init(m_pDevice.Get(), pRSBlob))
+		if (!m_GBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
-		desc.pRootSignature = m_SceneRootSig.GetPtr();
+		desc.pRootSignature = m_GBufferRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 
 		// AlphaModeがOpaqueのマテリアル用
-		// SceneDepthはReverseZ
+		// GBufferDepthはReverseZ
 		desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
 		desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-		desc.NumRenderTargets = 3;
-		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
+		desc.NumRenderTargets = 4;
+		desc.RTVFormats[0] = m_GBufferBaseColorTarget.GetRTVDesc().Format;
 		desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
 		desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
+		desc.RTVFormats[3] = m_GBufferEmissiveTarget.GetRTVDesc().Format;
 		desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
 
 		desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
@@ -2968,7 +2870,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pSceneOpaquePSO.GetAddressOf())
+			IID_PPV_ARGS(m_pGBufferOpaquePSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -2984,143 +2886,12 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pSceneMaskPSO.GetAddressOf())
+			IID_PPV_ARGS(m_pGBufferMaskPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
 			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
 			return false;
-		}
-	}
-
-	// GBuffer描画用ルートシグニチャとパイプラインステートの生成
-	if (m_useDeferred)
-	{
-		if (m_useMeshlet)
-		{
-			// TODO: 実装
-		}
-		else
-		{
-			// AlphaModeがOpaqueのマテリアル用
-			std::wstring psPath;
-			if (!SearchFilePath(L"GBufferOpaquePS.cso", psPath))
-			{
-				ELOG("Error : Pixel Shader Not Found");
-				return false;
-			}
-
-			ComPtr<ID3DBlob> pOpaquePSBlob;
-			HRESULT hr = D3DReadFileToBlob(psPath.c_str(), pOpaquePSBlob.GetAddressOf());
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-				return false;
-			}
-
-			// AlphaModeがMaskのマテリアル用
-			if (!SearchFilePath(L"GBufferMaskPS.cso", psPath))
-			{
-				ELOG("Error : Pixel Shader Not Found");
-				return false;
-			}
-
-			ComPtr<ID3DBlob> pMaskPSBlob;
-			hr = D3DReadFileToBlob(psPath.c_str(), pMaskPSBlob.GetAddressOf());
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-				return false;
-			}
-
-			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-			desc.InputLayout = MeshVertex::InputLayout;
-
-			desc.BlendState = DirectX::CommonStates::Opaque;
-			desc.DepthStencilState = DirectX::CommonStates::DepthDefault;
-			desc.SampleMask = UINT_MAX;
-			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
-
-			// TODO:SponzaRendererの数字を何も考えずに使っている
-			desc.RasterizerState.SlopeScaledDepthBias = 1.5f;
-			desc.RasterizerState.DepthBias = 100;
-
-			// AlphaModeがOpaqueのシャドウマップ描画用
-			std::wstring vsPath;
-			if (!SearchFilePath(L"GBufferVS.cso", vsPath))
-			{
-				ELOG("Error : Vertex Shader Not Found");
-				return false;
-			}
-
-			ComPtr<ID3DBlob> pVSBlob;
-			hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-				return false;
-			}
-
-			ComPtr<ID3DBlob> pRSBlob;
-			hr = D3DGetBlobPart(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-			if (FAILED(hr))
-			{
-				ELOG("Error : D3DGetBlobPart Failed. path = %ls", vsPath.c_str());
-				return false;
-			}
-
-			if (!m_GBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
-			{
-				ELOG("Error : RootSignature::Init() Failed.");
-				return false;
-			}
-
-			desc.pRootSignature = m_GBufferRootSig.GetPtr();
-			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-
-			// AlphaModeがOpaqueのマテリアル用
-			// GBufferDepthはReverseZ
-			desc.DepthStencilState = DirectX::CommonStates::DepthReverseZ;
-			desc.RasterizerState = DirectX::CommonStates::CullClockwise;
-			desc.NumRenderTargets = 4;
-			desc.RTVFormats[0] = m_GBufferBaseColorTarget.GetRTVDesc().Format;
-			desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
-			desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
-			desc.RTVFormats[3] = m_GBufferEmissiveTarget.GetRTVDesc().Format;
-			desc.DSVFormat = m_SceneDepthTarget.GetDSVDesc().Format;
-
-			desc.PS.pShaderBytecode = pOpaquePSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pOpaquePSBlob->GetBufferSize();
-
-			hr = m_pDevice->CreateGraphicsPipelineState(
-				&desc,
-				IID_PPV_ARGS(m_pGBufferOpaquePSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
-
-			// AlphaModeがMaskのマテリアル用
-			desc.PS.pShaderBytecode = pMaskPSBlob->GetBufferPointer();
-			desc.PS.BytecodeLength = pMaskPSBlob->GetBufferSize();
-			//TODO: MaskマテリアルはDoubleSidedであるという前提にしている
-			desc.RasterizerState = DirectX::CommonStates::CullNone;
-
-			hr = m_pDevice->CreateGraphicsPipelineState(
-				&desc,
-				IID_PPV_ARGS(m_pGBufferMaskPSO.GetAddressOf())
-			);
-			if (FAILED(hr))
-			{
-				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-				return false;
-			}
 		}
 	}
 
@@ -3785,89 +3556,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
 			IID_PPV_ARGS(m_pGBufferFromVBufferPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
-
-	// VBufferからのライティング描画パス用ルートシグニチャとパイプラインステートの生成
-	{
-		std::wstring vsPath;
-
-		if (!SearchFilePath(L"QuadVS.cso", vsPath))
-		{
-			ELOG("Error : Vertex Shader Not Found");
-			return false;
-		}
-		ComPtr<ID3DBlob> pVSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-			return false;
-		}
-
-		std::wstring psPath;
-		if (!SearchFilePath(L"LightingFromVBufferPS.hlsl", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		std::vector<const wchar_t*> compileArgs =
-		{
-			L"-T ps_6_7",
-			L"-I", L"../res",
-#if defined(DEBUG) || defined(_DEBUG)
-			L"-Zi",
-			L"-Qembed_debug",
-			L"-Od"
-#endif
-		};
-		if (m_drawSponza)
-		{
-			compileArgs.push_back(L"-D DRAW_SPONZA");
-		}
-
-		ComPtr<IDxcBlob> pPSBlob;
-		if (!m_ShaderCompiler.Compile(psPath.c_str(), compileArgs, pPSBlob))
-		{
-			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		if (!m_LightingFromVBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_LightingFromVBufferRootSig.GetPtr();
-		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.NumRenderTargets = 3;
-		desc.RTVFormats[0] = m_SceneColorTarget.GetRTVDesc().Format;
-		desc.RTVFormats[1] = m_GBufferNormalTarget.GetRTVDesc().Format;
-		desc.RTVFormats[2] = m_GBufferMetallicRoughnessTarget.GetRTVDesc().Format;
-
-		hr = m_pDevice->CreateGraphicsPipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pLightingFromVBufferPSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -6150,14 +5838,6 @@ void SampleApp::OnTerm()
 	m_pDepthMaskPSO.Reset();
 	m_DepthRootSig.Term();
 
-	m_pSponzaOpaquePSO.Reset();
-	m_pSponzaMaskPSO.Reset();
-	m_SponzaRootSig.Term();
-
-	m_pSceneOpaquePSO.Reset();
-	m_pSceneMaskPSO.Reset();
-	m_SceneRootSig.Term();
-
 	m_pGBufferOpaquePSO.Reset();
 	m_pGBufferMaskPSO.Reset();
 	m_GBufferRootSig.Term();
@@ -6171,9 +5851,6 @@ void SampleApp::OnTerm()
 
 	m_pGBufferFromVBufferPSO.Reset();
 	m_GBufferFromVBufferRootSig.Term();
-
-	m_pLightingFromVBufferPSO.Reset();
-	m_LightingFromVBufferRootSig.Term();
 
 	m_pDeferredShadingPSO.Reset();
 	m_DeferredShadingRootSig.Term();
@@ -6457,27 +6134,13 @@ void SampleApp::OnRender()
 			DrawDepthBufferFromVBuffer(pCmd);
 		}
 
-		if (m_useDeferred)
-		{
-			DrawGBufferFromVBuffer(pCmd);
-			DoDeferredShading(pCmd, lightForward);
-		}
-		else
-		{
-			DoShadingFromVBuffer(pCmd, lightForward);
-		}
+		DrawGBufferFromVBuffer(pCmd);
+		DoDeferredShading(pCmd, lightForward);
 	}
 	else
 	{
-		if (m_useDeferred)
-		{
-			DrawGBuffer(pCmd);
-			DoDeferredShading(pCmd, lightForward);
-		}
-		else
-		{
-			DoForwardShading(pCmd, lightForward);
-		}
+		DrawGBuffer(pCmd);
+		DoDeferredShading(pCmd, lightForward);
 	}
 
 	DrawSkyBox(pCmd, lightForward, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
@@ -7082,245 +6745,6 @@ void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList)
 	}
 }
 
-void SampleApp::DoShadingFromVBuffer(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
-{
-	::PIXScopedEvent(pCmdList, 0, L"DoShadingFromVBuffer");
-
-	// ライトバッファの更新
-	if (m_drawSponza)
-	{
-		{
-			const Vector3& transmittanceTowardSun = GetTransmittanceAtGroundLevel(m_CameraManipulator.GetPosition(), -m_DirLightManipulator.GetForward());
-
-			CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
-			ptr->LightColor = transmittanceTowardSun * GetSunLightOuterSpaceIlluminance(m_directionalLightIntensity, Vector3::One); // 白色光源
-			ptr->LightForward = lightForward;
-			ptr->ShadowMapSize = Vector2((float)DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE, 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE);
-		}
-
-		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-		{
-			CbPointLight* ptr = m_PointLightCB[i].GetPtr<CbPointLight>();
-			ptr->LightIntensity = m_pointLightIntensity;
-		}
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			CbSpotLight* ptr = m_SpotLightCB[i].GetPtr<CbSpotLight>();
-			ptr->LightIntensity = m_spotLightIntensity;
-		}
-	}
-
-	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
-		m_SceneColorTarget.GetHandleRTV()->HandleCPU,
-		m_GBufferNormalTarget.GetHandleRTV()->HandleCPU, 
-		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
-	};
-	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
-
-	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, &handleDSV->HandleCPU);
-
-	m_SceneColorTarget.ClearView(pCmdList);
-	m_GBufferNormalTarget.ClearView(pCmdList);
-	m_GBufferMetallicRoughnessTarget.ClearView(pCmdList);
-
-	pCmdList->SetGraphicsRootSignature(m_LightingFromVBufferRootSig.GetPtr());
-
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB.GetHandle()->HandleGPU);
-	pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-
-	if (m_drawSponza)
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(4, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
-
-		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(5 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
-		}
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(5 + NUM_POINT_LIGHTS + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
-		}
-
-		pCmdList->SetGraphicsRootDescriptorTable(5 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_VBufferTarget.GetHandleSRV()->HandleGPU);
-
-		pCmdList->SetGraphicsRootDescriptorTable(6 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
-		}
-
-		pCmdList->SetGraphicsRootDescriptorTable(7 + NUM_POINT_LIGHTS + 2 * NUM_SPOT_LIGHTS, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(4, m_IBL_CB.GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(5, m_VBufferTarget.GetHandleSRV()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(6, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(7, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(8, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(9, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-	}
-
-	pCmdList->SetPipelineState(m_pLightingFromVBufferPSO.Get());
-
-	pCmdList->RSSetViewports(1, &m_Viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
-
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
-	pCmdList->IASetVertexBuffers(0, 1, &VBV);
-
-	pCmdList->DrawInstanced(3, 1, 0, 0);
-
-	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-}
-
-void SampleApp::DoForwardShading(ID3D12GraphicsCommandList* pCmdList, const Vector3& lightForward)
-{
-	assert(!m_useMeshlet);
-	::PIXScopedEvent(pCmdList, 0, L"DoForwardShading");
-
-	// ライトバッファの更新
-	if (m_drawSponza)
-	{
-		{
-			const Vector3& transmittanceTowardSun = GetTransmittanceAtGroundLevel(m_CameraManipulator.GetPosition(), -m_DirLightManipulator.GetForward());
-
-			CbDirectionalLight* ptr = m_DirectionalLightCB[m_FrameIndex].GetPtr<CbDirectionalLight>();
-			ptr->LightColor = transmittanceTowardSun * GetSunLightOuterSpaceIlluminance(m_directionalLightIntensity, Vector3::One); // 白色光源
-			ptr->LightForward = lightForward;
-			ptr->ShadowMapSize = Vector2((float)DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE, 1.0f / DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE);
-		}
-
-		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-		{
-			CbPointLight* ptr = m_PointLightCB[i].GetPtr<CbPointLight>();
-			ptr->LightIntensity = m_pointLightIntensity;
-		}
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			CbSpotLight* ptr = m_SpotLightCB[i].GetPtr<CbSpotLight>();
-			ptr->LightIntensity = m_spotLightIntensity;
-		}
-	}
-
-	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
-		m_SceneColorTarget.GetHandleRTV()->HandleCPU,
-		m_GBufferNormalTarget.GetHandleRTV()->HandleCPU, 
-		m_GBufferMetallicRoughnessTarget.GetHandleRTV()->HandleCPU 
-	};
-	const DescriptorHandle* handleDSV = m_SceneDepthTarget.GetHandleDSV();
-
-	pCmdList->OMSetRenderTargets(3, rtvs, FALSE, &handleDSV->HandleCPU);
-
-	m_SceneColorTarget.ClearView(pCmdList);
-	m_GBufferNormalTarget.ClearView(pCmdList);
-	m_GBufferMetallicRoughnessTarget.ClearView(pCmdList);
-	m_SceneDepthTarget.ClearView(pCmdList);
-
-	pCmdList->RSSetViewports(1, &m_Viewport);
-	pCmdList->RSSetScissorRects(1, &m_Scissor);
-
-	//TODO:DrawDirectionalLightShadowMapと重複してるがとりあえず
-	if (m_drawSponza)
-	{
-		pCmdList->SetGraphicsRootSignature(m_SponzaRootSig.GetPtr());
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootSignature(m_SceneRootSig.GetPtr());
-	}
-
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-
-	if (m_drawSponza)
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(2, m_ShadowTransformCB.GetHandle()->HandleGPU);
-
-		pCmdList->SetGraphicsRootDescriptorTable(3, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-
-		pCmdList->SetGraphicsRootDescriptorTable(5, m_DirectionalLightCB[m_FrameIndex].GetHandle()->HandleGPU);
-
-		for (uint32_t i = 0u; i < NUM_POINT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(6 + i, m_PointLightCB[i].GetHandle()->HandleGPU);
-		}
-
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(10 + i, m_SpotLightCB[i].GetHandle()->HandleGPU);
-		}
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(4, m_IBL_CB.GetHandle()->HandleGPU);
-	}
-
-	if (m_drawSponza)
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(18, m_DirLightShadowMapTarget.GetHandleSRV()->HandleGPU);
-		for (uint32_t i = 0u; i < NUM_SPOT_LIGHTS; i++)
-		{
-			pCmdList->SetGraphicsRootDescriptorTable(19 + i, m_SpotLightShadowMapTarget[i].GetHandleSRV()->HandleGPU);
-		}
-	}
-	else
-	{
-		pCmdList->SetGraphicsRootDescriptorTable(10, m_IBLBaker.GetHandleSRV_DFG()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(11, m_IBLBaker.GetHandleSRV_DiffuseLD()->HandleGPU);
-		pCmdList->SetGraphicsRootDescriptorTable(12, m_IBLBaker.GetHandleSRV_SpecularLD()->HandleGPU);
-	}
-
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// Opaqueマテリアルのメッシュの描画
-	if (m_drawSponza)
-	{
-		pCmdList->SetPipelineState(m_pSponzaOpaquePSO.Get());
-	}
-	else
-	{
-		pCmdList->SetPipelineState(m_pSceneOpaquePSO.Get());
-	}
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_OPAQUE);
-
-	// Mask, DoubleSidedマテリアルのメッシュの描画
-	if (m_drawSponza)
-	{
-		pCmdList->SetPipelineState(m_pSponzaMaskPSO.Get());
-	}
-	else
-	{
-		pCmdList->SetPipelineState(m_pSceneMaskPSO.Get());
-	}
-	DrawMeshToGBuffer(pCmdList, ALPHA_MODE::ALPHA_MODE_MASK);
-
-	DirectX::TransitionResource(pCmdList, m_SceneColorTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	DirectX::TransitionResource(pCmdList, m_SceneDepthTarget.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-}
-
 void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
 	assert(!m_useMeshlet);
@@ -7379,7 +6803,7 @@ void SampleApp::DrawGBuffer(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
-	assert(m_useDeferred && m_useMeshlet);
+	assert(m_useMeshlet);
 	::PIXScopedEvent(pCmdList, 0, L"DrawGBufferFromVBuffer");
 
 
@@ -7611,39 +7035,11 @@ void SampleApp::DrawMeshToGBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MOD
 			}
 
 			pCmdList->SetGraphicsRootDescriptorTable(0, pMesh->GetConstantBufferHandle(m_FrameIndex).HandleGPU);
-
-			if (m_useDeferred)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetCBHandle().HandleGPU);
-
-				pCmdList->SetGraphicsRootDescriptorTable(4, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(5, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(6, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-				pCmdList->SetGraphicsRootDescriptorTable(7, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-			}
-			else
-			{
-				if (m_drawSponza)
-				{
-					pCmdList->SetGraphicsRootDescriptorTable(4, pMaterial->GetCBHandle().HandleGPU);
-
-					pCmdList->SetGraphicsRootDescriptorTable(13, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(14, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(15, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(16, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(17, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
-				}
-				else
-				{
-					pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetCBHandle().HandleGPU);
-
-					pCmdList->SetGraphicsRootDescriptorTable(5, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(6, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(7, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(8, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
-					pCmdList->SetGraphicsRootDescriptorTable(9, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_AMBIENT_OCCLUSION).HandleGPU);
-				}
-			}
+			pCmdList->SetGraphicsRootDescriptorTable(3, pMaterial->GetCBHandle().HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(4, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_BASE_COLOR).HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(5, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_METALLIC_ROUGHNESS).HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(6, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_NORMAL).HandleGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(7, pMaterial->GetTextureSrvHandle(Material::TEXTURE_USAGE_EMISSIVE).HandleGPU);
 
 			pMesh->Draw(static_cast<ID3D12GraphicsCommandList6*>(pCmdList));
 		}
@@ -9039,16 +8435,10 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		// TODO:ラジオボタンだと面積を大きく撮るのでドロップダウンリストにしたい
 		ImGui::RadioButton("No Debug View", reinterpret_cast<int*>(& m_debugViewMode), static_cast<int>(NONE));
 		ImGui::RadioButton("Depth", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(DEPTH));
-		if (m_useDeferred)
-		{
-			ImGui::RadioButton("BaseColor", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(BASECOLOR));
-		}
+		ImGui::RadioButton("BaseColor", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(BASECOLOR));
 		ImGui::RadioButton("Normal", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(NORMAL));
 		ImGui::RadioButton("MetallicRoughness", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(METALLIC_ROUGHNESS));
-		if (m_useDeferred)
-		{
-			ImGui::RadioButton("Emissive", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(EMISSIVE));
-		}
+		ImGui::RadioButton("Emissive", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(EMISSIVE));
 		ImGui::RadioButton("Velocity", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(VELOCITY));
 		ImGui::RadioButton("SSAO FullRes", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSAO_FULL_RES));
 		ImGui::RadioButton("SSAO HalfRes", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(SSAO_HALF_RES));

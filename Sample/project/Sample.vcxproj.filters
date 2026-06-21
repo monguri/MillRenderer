@@ -21,12 +21,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\res\SponzaOpaquePS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
-    <FxCompile Include="..\res\SponzaVS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
     <FxCompile Include="..\res\TonemapPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
@@ -52,9 +46,6 @@
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\SkyBoxPS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
-    <FxCompile Include="..\res\SponzaMaskPS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\DepthMaskPS.hlsl">
@@ -97,15 +88,6 @@
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\ObjectVelocityPS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
-    <FxCompile Include="..\res\BasePassVS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
-    <FxCompile Include="..\res\BasePassMaskPS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
-    <FxCompile Include="..\res\BasePassOpaquePS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="..\res\SSR_PS.hlsl">
@@ -217,12 +199,6 @@
       <Filter>リソース ファイル</Filter>
     </None>
     <None Include="..\res\BakeUtil.hlsli">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="..\res\SponzaPS.hlsli">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="..\res\BasePassPS.hlsli">
       <Filter>リソース ファイル</Filter>
     </None>
     <None Include="..\res\ShadowMap.hlsli">
