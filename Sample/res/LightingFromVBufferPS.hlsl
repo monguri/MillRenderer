@@ -1044,32 +1044,7 @@ PSOutput main(VSOutput input)
 		AO = AOMap.SampleGrad(AnisotropicWrapSmp, texCoord, texCoordDdx, texCoordDdy).r;
 	}
 
-	switch (CbCamera.DebugViewType)
-	{
-		case DEBUG_VIEW_TYPE_NONE:
-		default:
-			output.Color.rgb = lit * AO + emissive;
-			break;
-		case DEBUG_VIEW_TYPE_TRIANGLE_INDEX:
-		{
-			uint globalTriIndex = triBaseIdx / 3;
-			output.Color.rgb = float3
-			(
-				float((globalTriIndex & 1) + 1) * 0.5f, // (globalTriIndex % 2 + 1) / 2.0
-				float((globalTriIndex & 3) + 1) * 0.25f, // (globalTriIndex % 4 + 1) / 4.0
-				float((globalTriIndex & 7) + 1) * 0.125f // (globalTriIndex % 8 + 1) / 8.0
-			);
-		}
-			break;
-		case DEBUG_VIEW_TYPE_MESHLET_INDEX:
-			output.Color.rgb = float3
-			(
-				float((meshletIdx & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
-				float((meshletIdx & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
-				float((meshletIdx & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
-			);
-			break;
-	}
+	output.Color.rgb = lit * AO + emissive;
 	output.Color.a = 1.0f;
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;

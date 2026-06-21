@@ -1387,11 +1387,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			ptr->ViewProj = view * proj; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 			ptr->CameraPosition = m_CameraManipulator.GetPosition();
 			ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
-			// AABB表示のときはMeshlet Index表示も同時に行う
-			if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)
-			{
-				ptr->DebugViewType = static_cast<int>(DEBUG_VIEW_MODE::MESHLET_INDEX) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE);
-			}
 			ptr->ViewMatrix = view;
 			ptr->InvProjMatrix = proj.Invert();
 			ptr->InvViewProjMatrix = ptr->ViewProj.Invert();
@@ -4950,7 +4945,76 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-	// Meshlet Bounding Sphere/AABB表示用ルートシグニチャとパイプラインステートの生成
+	// VBuffer関連デバッグ描画用ルートシグニチャとパイプラインステートの生成
+	if (m_useMeshlet)
+	{
+		std::wstring vsPath;
+		std::wstring psPath;
+
+		if (!SearchFilePath(L"QuadVS.cso", vsPath))
+		{
+			ELOG("Error : Vertex Shader Not Found");
+			return false;
+		}
+
+		if (!SearchFilePath(L"DebugVBufferPS.cso", psPath))
+		{
+			ELOG("Error : Pixel Shader Not Found");
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pVSBlob;
+		ComPtr<ID3DBlob> pPSBlob;
+
+		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+			return false;
+		}
+
+		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+			return false;
+		}
+
+		if (!m_MeshletAABBRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+		desc.pRootSignature = m_MeshletAABBRootSig.GetPtr();
+		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+		desc.RTVFormats[0] = m_FXAA_Target.GetRTVDesc().Format;
+
+		hr = m_pDevice->CreateGraphicsPipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pMeshletAABB_PSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
+
+	// Meshlet AABB表示用ルートシグニチャとパイプラインステートの生成
 	if (m_useMeshlet)
 	{
 		std::wstring msPath;
@@ -6171,6 +6235,11 @@ void SampleApp::OnTerm()
 	m_pFXAA_PSO.Reset();
 	m_FXAA_RootSig.Term();
 
+	m_pDebugVBuffer_PSO.Reset();
+	m_DebugVBufferRootSig.Term();
+	m_pMeshletAABB_PSO.Reset();
+	m_MeshletAABBRootSig.Term();
+
 	m_pDownsamplePSO.Reset();
 	m_DownsampleRootSig.Term();
 
@@ -6247,11 +6316,6 @@ void SampleApp::OnRender()
 		}
 		ptr->CameraPosition = m_CameraManipulator.GetPosition();
 		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
-		// AABB表示のときはMeshlet Index表示も同時に行う
-		if (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)
-		{
-			ptr->DebugViewType = static_cast<int>(DEBUG_VIEW_MODE::MESHLET_INDEX) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE);
-		}
 		ptr->ViewMatrix = view;
 		Matrix proj;
 		if (m_enableTemporalAA)
@@ -6537,9 +6601,36 @@ void SampleApp::OnRender()
 
 	DrawFXAA(pCmd);
 
-	if (m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB))
+	if (m_useMeshlet)
 	{
-		DrawMeshletAABB(pCmd);
+		switch (m_debugViewMode)
+		{
+			using enum DEBUG_VIEW_MODE;
+			case TRIANGLE_INDEX:
+			case MESHLET_INDEX:
+				DrawDebugVBuffer(pCmd);
+				break;
+			case MESHLET_AABB:
+				// AABBのときはMeshletIdxも同時に表示する
+				DrawDebugVBuffer(pCmd);
+				DrawMeshletAABB(pCmd);
+				break;
+			case NONE:
+			case DEPTH:
+			case BASECOLOR:
+			case NORMAL:
+			case METALLIC_ROUGHNESS:
+			case EMISSIVE:
+			case SSAO_FULL_RES:
+			case SSAO_HALF_RES:
+			case SSGI:
+			case VELOCITY:
+				// 何もしない
+				break;
+			default:
+				assert(false);
+				break;
+		}
 	}
 
 	DrawBackBuffer(pCmd);
@@ -8519,6 +8610,26 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
+void SampleApp::DrawDebugVBuffer(ID3D12GraphicsCommandList* pCmdList)
+{
+	assert(m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_INDEX));
+
+	::PIXScopedEvent(pCmdList, 0, L"Debug VBuffer");
+
+	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_FXAA_Target.GetHandleRTV()->HandleCPU;
+	pCmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+
+	pCmdList->RSSetViewports(1, &m_Viewport);
+	pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+	pCmdList->SetGraphicsRootSignature(m_DebugVBufferRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pDebugVBuffer_PSO.Get());
+
+	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
 void SampleApp::DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList)
 {
 	assert(m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB));
@@ -8703,6 +8814,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
+		case MESHLET_INDEX:
 		case MESHLET_AABB:
 			renderTargetName = L"Final Result";
 			break;
@@ -8734,7 +8846,6 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			renderTargetName = L"Velocity";
 			break;
 		case TRIANGLE_INDEX:
-		case MESHLET_INDEX:
 			renderTargetName = L"SceneColor";
 			break;
 		default:
@@ -8804,6 +8915,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
+		case MESHLET_INDEX:
 		case MESHLET_AABB:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
@@ -8835,7 +8947,6 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case TRIANGLE_INDEX:
-		case MESHLET_INDEX:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
 			break;
 		default:

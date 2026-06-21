@@ -120,6 +120,8 @@ private:
 	RootSignature m_TonemapRootSig;
 	ComPtr<ID3D12PipelineState> m_pFXAA_PSO;
 	RootSignature m_FXAA_RootSig;
+	ComPtr<ID3D12PipelineState> m_pDebugVBuffer_PSO;
+	RootSignature m_DebugVBufferRootSig;
 	ComPtr<ID3D12PipelineState> m_pMeshletAABB_PSO;
 	RootSignature m_MeshletAABBRootSig;
 	ComPtr<ID3D12PipelineState> m_pDownsamplePSO;
@@ -291,6 +293,7 @@ private:
 	void DrawBloomSetup(ID3D12GraphicsCommandList* pCmdList);
 	void DrawTonemap(ID3D12GraphicsCommandList* pCmdList);
 	void DrawFXAA(ID3D12GraphicsCommandList* pCmdList);
+	void DrawDebugVBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawMeshletAABB(ID3D12GraphicsCommandList* pCmdList);
 	void DrawDownsample(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& DstColor, uint32_t CBIdx);
 	void DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarget& SrcColor, const ColorTarget& IntermediateColor, const ColorTarget& DstColor, const ColorTarget& DownerResultColor, const ConstantBuffer& HorizontalConstantBuffer, const ConstantBuffer& VerticalConstantBuffer);
