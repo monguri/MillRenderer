@@ -522,14 +522,6 @@ PSOutput main(VSOutput input , uint primitiveID : SV_PrimitiveID)
 			);
 		}
 			break;
-		case DEBUG_VIEW_TYPE_MESHLET_INDEX:
-			output.Color.rgb = float3
-			(
-				float((input.MeshletID & 1) + 1) * 0.5f, // (MeshletID % 2 + 1) / 2.0
-				float((input.MeshletID & 3) + 1) * 0.25f, // (MeshletID % 4 + 1) / 4.0
-				float((input.MeshletID & 7) + 1) * 0.125f // (MeshletID % 8 + 1) / 8.0
-			);
-			break;
 	}
 	output.Color.a = 1.0f;
 
