@@ -19,6 +19,10 @@
 static const uint DEBUG_VIEW_TYPE_NONE = 0;
 static const uint DEBUG_VIEW_TYPE_TRIANGLE_INDEX = 1;
 static const uint DEBUG_VIEW_TYPE_MESHLET_INDEX = 2;
+static const uint DEBUG_VIEW_TYPE_MESHLET_AABB = 3;
+
+// C++側の定義と値の一致が必要
+static const float INVALID_VISIBILITY = 0xffffffff;
 
 /**
  * Returns near intersection in x, far intersection in y, or both -1 if no intersection.

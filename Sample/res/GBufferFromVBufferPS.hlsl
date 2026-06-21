@@ -191,9 +191,6 @@ uint GetMaterialDescHeapIndex(uint matIdx)
 SamplerState PointClampSmp : register(s0);
 SamplerState AnisotropicWrapSmp : register(s1);
 
-// C++側の定義と値の一致が必要
-static const float INVALID_VISIBILITY = 0xffffffff;
-
 // http://filmicworlds.com/blog/visibility-buffer-rendering-with-material-graphs/
 // からコードをとってきた
 struct BarycentricDeriv

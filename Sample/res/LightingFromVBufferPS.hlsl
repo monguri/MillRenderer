@@ -358,9 +358,6 @@ SamplerState ShadowSmp : register(s2);
 SamplerState LinearWrapSmp : register(s2);
 #endif // #ifdef DRAW_SPONZA
 
-// C++側の定義と値の一致が必要
-static const float INVALID_VISIBILITY = 0xffffffff;
-
 #if 0
 // https://shikihuiku.github.io/post/projection_matrix/
 // deviceZ = -Near / viewZ

@@ -4988,14 +4988,14 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 
-		if (!m_MeshletAABBRootSig.Init(m_pDevice.Get(), pRSBlob))
+		if (!m_DebugVBufferRootSig.Init(m_pDevice.Get(), pRSBlob))
 		{
 			ELOG("Error : RootSignature::Init() Failed.");
 			return false;
 		}
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_MeshletAABBRootSig.GetPtr();
+		desc.pRootSignature = m_DebugVBufferRootSig.GetPtr();
 		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
@@ -5004,7 +5004,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
-			IID_PPV_ARGS(m_pMeshletAABB_PSO.GetAddressOf())
+			IID_PPV_ARGS(m_pDebugVBuffer_PSO.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -8612,7 +8612,12 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawDebugVBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
-	assert(m_useMeshlet && (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_INDEX));
+	assert(m_useMeshlet);
+	assert(
+		(m_debugViewMode == DEBUG_VIEW_MODE::TRIANGLE_INDEX)
+		|| (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_INDEX)
+		|| (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_AABB)
+	);
 
 	::PIXScopedEvent(pCmdList, 0, L"Debug VBuffer");
 
@@ -8625,7 +8630,15 @@ void SampleApp::DrawDebugVBuffer(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->RSSetScissorRects(1, &m_Scissor);
 
 	pCmdList->SetGraphicsRootSignature(m_DebugVBufferRootSig.GetPtr());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_VBufferTarget.GetHandleSRV()->HandleGPU);
 	pCmdList->SetPipelineState(m_pDebugVBuffer_PSO.Get());
+	
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_VERTEX_BUFFER_VIEW& VBV = m_QuadVB.GetView();
+	pCmdList->IASetVertexBuffers(0, 1, &VBV);
+
+	pCmdList->DrawInstanced(3, 1, 0, 0);
 
 	DirectX::TransitionResource(pCmdList, m_FXAA_Target.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
@@ -8846,7 +8859,14 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			renderTargetName = L"Velocity";
 			break;
 		case TRIANGLE_INDEX:
-			renderTargetName = L"SceneColor";
+			if (m_useMeshlet)
+			{
+				renderTargetName = L"Final Result";
+			}
+			else
+			{
+				renderTargetName = L"SceneColor";
+			}
 			break;
 		default:
 			assert(false);
@@ -8947,7 +8967,14 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case TRIANGLE_INDEX:
-			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
+			if (m_useMeshlet)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
+			}
+			else
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
+			}
 			break;
 		default:
 			assert(false);
