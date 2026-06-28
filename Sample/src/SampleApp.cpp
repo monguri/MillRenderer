@@ -806,6 +806,10 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		{
 			m_useSWRasterizer = true;
 		}
+		else if (wcscmp(argv[a], L"--pathtracing") == 0)
+		{
+			m_usePathTracing = true;
+		}
 	}
 }
 
@@ -1196,6 +1200,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	m_pModels.shrink_to_fit();
+
 	if (m_useMeshlet)
 	{
 		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
@@ -1222,8 +1228,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		// Wait command queue finishing.
 		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 	}
-
-	m_pModels.shrink_to_fit();
 
 	// カリングフラグ定数バッファの生成
 	if (m_useMeshlet)
@@ -1331,44 +1335,44 @@ bool SampleApp::OnInit(HWND hWnd)
 			tptr = m_SpotLightCameraCB[2].GetPtr<CbCamera>();
 			tptr->ViewProj = ComputeSpotLightViewProj(SpotLight3Dir, SpotLight3Pos, 20.0f, DirectX::XMConvertToRadians(10.0f));
 		}
-	}
 
-	// 空の描画用のバッファの設定
-	{
-		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
+		// 空の描画用のバッファの設定
 		{
-			if (!m_SkyAtmosphereCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSkyAtmosphere)))
+			for (uint32_t i = 0u; i < FRAME_COUNT; i++)
+			{
+				if (!m_SkyAtmosphereCB[i].Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbSkyAtmosphere)))
+				{
+					ELOG("Error : ConstantBuffer::Init() Failed.");
+					return false;
+				}
+
+				CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[i].GetPtr<CbSkyAtmosphere>();
+				ptr->TransmittanceLUT_Width = SKY_TRANSMITTANCE_LUT_WIDTH;
+				ptr->TransmittanceLUT_Height = SKY_TRANSMITTANCE_LUT_HEIGHT;
+				ptr->MultiScatteringLUT_Width = SKY_MULTI_SCATTERING_LUT_WIDTH;
+				ptr->MultiScatteringLUT_Height = SKY_MULTI_SCATTERING_LUT_HEIGHT;
+				ptr->ViewLUT_Width = SKY_VIEW_LUT_WIDTH;
+				ptr->ViewLUT_Height = SKY_VIEW_LUT_HEIGHT;
+				ptr->BottomRadiusKm = PLANET_BOTTOM_RADIUS_KM;
+				ptr->TopRadiusKm = PLANET_TOP_RADIUS_KM;
+				ptr->SkyViewLutReferential = Matrix::Identity;
+				ptr->AtmosphereLightDirection = Vector3(0, -1, 0); // TODO: 後から制御可能にする
+				ptr->AtmosphereLightIlluminanceOuterSpace = m_directionalLightIntensity * Vector3(1, 1, 1);
+			}
+		}
+
+		// 雲のレイマーチング用のバッファの設定
+		{
+			if (!m_VolumetricCloudCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbVolumetricCloud)))
 			{
 				ELOG("Error : ConstantBuffer::Init() Failed.");
 				return false;
 			}
 
-			CbSkyAtmosphere* ptr = m_SkyAtmosphereCB[i].GetPtr<CbSkyAtmosphere>();
-			ptr->TransmittanceLUT_Width = SKY_TRANSMITTANCE_LUT_WIDTH;
-			ptr->TransmittanceLUT_Height = SKY_TRANSMITTANCE_LUT_HEIGHT;
-			ptr->MultiScatteringLUT_Width = SKY_MULTI_SCATTERING_LUT_WIDTH;
-			ptr->MultiScatteringLUT_Height = SKY_MULTI_SCATTERING_LUT_HEIGHT;
-			ptr->ViewLUT_Width = SKY_VIEW_LUT_WIDTH;
-			ptr->ViewLUT_Height = SKY_VIEW_LUT_HEIGHT;
-			ptr->BottomRadiusKm = PLANET_BOTTOM_RADIUS_KM;
-			ptr->TopRadiusKm = PLANET_TOP_RADIUS_KM;
-			ptr->SkyViewLutReferential = Matrix::Identity;
-			ptr->AtmosphereLightDirection = Vector3(0, -1, 0); // TODO: 後から制御可能にする
-			ptr->AtmosphereLightIlluminanceOuterSpace = m_directionalLightIntensity * Vector3(1, 1, 1);
+			CbVolumetricCloud* ptr = m_VolumetricCloudCB.GetPtr<CbVolumetricCloud>();
+			ptr->Width = m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR;
+			ptr->Height = m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR;
 		}
-	}
-
-	// 雲のレイマーチング用のバッファの設定
-	{
-		if (!m_VolumetricCloudCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbVolumetricCloud)))
-		{
-			ELOG("Error : ConstantBuffer::Init() Failed.");
-			return false;
-		}
-
-		CbVolumetricCloud* ptr = m_VolumetricCloudCB.GetPtr<CbVolumetricCloud>();
-		ptr->Width = m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR;
-		ptr->Height = m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR;
 	}
 
 	// カメラバッファの設定
@@ -1490,129 +1494,129 @@ bool SampleApp::OnInit(HWND hWnd)
 				m_SpotLightShadowMapScissor.bottom = (LONG)m_SpotLightShadowMapTarget[0].GetDesc().Height;
 			}
 		}
-	}
 
-	// 空の透過率LUT用カラーターゲットの生成
-	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-		if (!m_SkyTransmittanceLUT_Target.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			nullptr,
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			SKY_TRANSMITTANCE_LUT_WIDTH,
-			SKY_TRANSMITTANCE_LUT_HEIGHT,
-			DXGI_FORMAT_R11G11B10_FLOAT,
-			clearColor
-		))
+		// 空の透過率LUT用カラーターゲットの生成
 		{
-			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
-			return false;
-		}
-	}
+			float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-	// 空の多重散乱LUT用カラーターゲットの生成
-	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-		if (!m_SkyMultiScatteringLUT_Target.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			nullptr,
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			SKY_MULTI_SCATTERING_LUT_WIDTH,
-			SKY_MULTI_SCATTERING_LUT_HEIGHT,
-			DXGI_FORMAT_R11G11B10_FLOAT,
-			clearColor
-		))
-		{
-			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
-			return false;
-		}
-	}
-
-	// 空のLUT用カラーターゲットの生成
-	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-		if (!m_SkyViewLUT_Target.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			nullptr,
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			SKY_VIEW_LUT_WIDTH,
-			SKY_VIEW_LUT_HEIGHT,
-			DXGI_FORMAT_R11G11B10_FLOAT,
-			clearColor
-		))
-		{
-			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
-			return false;
-		}
-	}
-
-	// 雲のレイマーチ用のカラーターゲット3枚の作成
-	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-
-		if (!m_CloudTracingTarget.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			nullptr,
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
-			m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
-			DXGI_FORMAT_R16G16B16A16_FLOAT,
-			clearColor
-		))
-		{
-			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
-			return false;
+			if (!m_SkyTransmittanceLUT_Target.InitUnorderedAccessTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				nullptr,
+				nullptr, // RTVは作らない。クリアする必要がないので
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				SKY_TRANSMITTANCE_LUT_WIDTH,
+				SKY_TRANSMITTANCE_LUT_HEIGHT,
+				DXGI_FORMAT_R11G11B10_FLOAT,
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+				return false;
+			}
 		}
 
-		if (!m_CloudSecondaryTracingTarget.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			nullptr,
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
-			m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
-			DXGI_FORMAT_R16G16B16A16_FLOAT,
-			clearColor
-		))
+		// 空の多重散乱LUT用カラーターゲットの生成
 		{
-			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
-			return false;
+			float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+			if (!m_SkyMultiScatteringLUT_Target.InitUnorderedAccessTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				nullptr,
+				nullptr, // RTVは作らない。クリアする必要がないので
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				SKY_MULTI_SCATTERING_LUT_WIDTH,
+				SKY_MULTI_SCATTERING_LUT_HEIGHT,
+				DXGI_FORMAT_R11G11B10_FLOAT,
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+				return false;
+			}
 		}
 
-		float clearDepth[4] = {HALF_MAX, HALF_MAX, HALF_MAX, HALF_MAX};
-
-		if (!m_CloudTracingDepthTarget.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			nullptr,
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
-			m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
-			DXGI_FORMAT_R16G16B16A16_FLOAT,
-			clearDepth
-		))
+		// 空のLUT用カラーターゲットの生成
 		{
-			ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
-			return false;
+			float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+			if (!m_SkyViewLUT_Target.InitUnorderedAccessTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				nullptr,
+				nullptr, // RTVは作らない。クリアする必要がないので
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				SKY_VIEW_LUT_WIDTH,
+				SKY_VIEW_LUT_HEIGHT,
+				DXGI_FORMAT_R11G11B10_FLOAT,
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+				return false;
+			}
+		}
+
+		// 雲のレイマーチ用のカラーターゲット3枚の作成
+		{
+			float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+			if (!m_CloudTracingTarget.InitUnorderedAccessTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				nullptr,
+				nullptr, // RTVは作らない。クリアする必要がないので
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+				m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+				DXGI_FORMAT_R16G16B16A16_FLOAT,
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+				return false;
+			}
+
+			if (!m_CloudSecondaryTracingTarget.InitUnorderedAccessTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				nullptr,
+				nullptr, // RTVは作らない。クリアする必要がないので
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+				m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+				DXGI_FORMAT_R16G16B16A16_FLOAT,
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+				return false;
+			}
+
+			float clearDepth[4] = {HALF_MAX, HALF_MAX, HALF_MAX, HALF_MAX};
+
+			if (!m_CloudTracingDepthTarget.InitUnorderedAccessTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				nullptr,
+				nullptr, // RTVは作らない。クリアする必要がないので
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				m_Width / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+				m_Height / CLOUD_MAIN_DOWN_SAMPLE_FACTOR / CLOUD_TRACE_DOWN_SAMPLE_FACTOR,
+				DXGI_FORMAT_R16G16B16A16_FLOAT,
+				clearDepth
+			))
+			{
+				ELOG("Error : ColorTarget::InitUnorderedAccessTarget() Failed.");
+				return false;
+			}
 		}
 	}
 
@@ -2131,16 +2135,43 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-	const uint32_t volumetricFogGridSizeX = DivideAndRoundUp(m_Width, VOLUMETRIC_FOG_GRID_PIXEL_SIZE);
-	const uint32_t volumetricFogGridSizeY = DivideAndRoundUp(m_Height, VOLUMETRIC_FOG_GRID_PIXEL_SIZE);
-
-	// VolumetricFog Scattering用カラーターゲットの生成
+	if (m_drawSponza)
 	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+		const uint32_t volumetricFogGridSizeX = DivideAndRoundUp(m_Width, VOLUMETRIC_FOG_GRID_PIXEL_SIZE);
+		const uint32_t volumetricFogGridSizeY = DivideAndRoundUp(m_Height, VOLUMETRIC_FOG_GRID_PIXEL_SIZE);
 
-		for (uint32_t i = 0u; i < FRAME_COUNT; i++)
+		// VolumetricFog Scattering用カラーターゲットの生成
 		{
-			if (!m_VolumetricFogScatteringTarget[i].InitUnorderedAccessTarget
+			float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+			for (uint32_t i = 0u; i < FRAME_COUNT; i++)
+			{
+				if (!m_VolumetricFogScatteringTarget[i].InitUnorderedAccessTarget
+				(
+					m_pDevice.Get(),
+					m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+					nullptr,
+					nullptr, // RTVは作らない。クリアする必要がないので
+					m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+					volumetricFogGridSizeX,
+					volumetricFogGridSizeY,
+					DXGI_FORMAT_R16G16B16A16_FLOAT,
+					clearColor,
+					1,
+					VOLUMETRIC_FOG_GRID_SIZE_Z
+				))
+				{
+					ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
+					return false;
+				}
+			}
+		}
+
+		// VolumetricFog Integration用カラーターゲットの生成
+		{
+			float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+			if (!m_VolumetricFogIntegrationTarget.InitUnorderedAccessTarget
 			(
 				m_pDevice.Get(),
 				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
@@ -2159,49 +2190,25 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 		}
-	}
 
-	// VolumetricFog Integration用カラーターゲットの生成
-	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-		if (!m_VolumetricFogIntegrationTarget.InitUnorderedAccessTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			nullptr,
-			nullptr, // RTVは作らない。クリアする必要がないので
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			volumetricFogGridSizeX,
-			volumetricFogGridSizeY,
-			DXGI_FORMAT_R16G16B16A16_FLOAT,
-			clearColor,
-			1,
-			VOLUMETRIC_FOG_GRID_SIZE_Z
-		))
+		// VolumetricFog Composition用カラーターゲットの生成
 		{
-			ELOG("Error : InitUnorderedAccessTarget::Init() Failed.");
-			return false;
-		}
-	}
+			float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-	// VolumetricFog Composition用カラーターゲットの生成
-	{
-		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-
-		if (!m_VolumetricCompositionTarget.InitRenderTarget
-		(
-			m_pDevice.Get(),
-			m_pPool[POOL_TYPE_RTV],
-			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-			m_Width,
-			m_Height,
-			DXGI_FORMAT_R10G10B10A2_UNORM,
-			clearColor
-		))
-		{
-			ELOG("Error : ColorTarget::Init() Failed.");
-			return false;
+			if (!m_VolumetricCompositionTarget.InitRenderTarget
+			(
+				m_pDevice.Get(),
+				m_pPool[POOL_TYPE_RTV],
+				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+				m_Width,
+				m_Height,
+				DXGI_FORMAT_R10G10B10A2_UNORM,
+				clearColor
+			))
+			{
+				ELOG("Error : ColorTarget::Init() Failed.");
+				return false;
+			}
 		}
 	}
 
@@ -2363,215 +2370,218 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // 空の透過率LUT用ルートシグニチャとパイプラインステートの生成
+	if (m_drawSponza)
 	{
-		std::wstring csPath;
-
-		if (!SearchFilePath(L"SkyTransmittanceLUT_CS.cso", csPath))
+		// 空の透過率LUT用ルートシグニチャとパイプラインステートの生成
 		{
-			ELOG("Error : Compute Shader Not Found");
-			return false;
+			std::wstring csPath;
+
+			if (!SearchFilePath(L"SkyTransmittanceLUT_CS.cso", csPath))
+			{
+				ELOG("Error : Compute Shader Not Found");
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pCSBlob;
+
+			HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pRSBlob;
+			hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			if (!m_SkyTransmittanceLUT_RootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
+
+			D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+			desc.pRootSignature = m_SkyTransmittanceLUT_RootSig.GetPtr();
+			desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+			desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+			desc.NodeMask = 0;
+			desc.CachedPSO.pCachedBlob = nullptr;
+			desc.CachedPSO.CachedBlobSizeInBytes = 0;
+			desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+			hr = m_pDevice->CreateComputePipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pSkyTransmittanceLUT_PSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 
-		ComPtr<ID3DBlob> pCSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
-		if (FAILED(hr))
+		// 空の多重散乱LUT用ルートシグニチャとパイプラインステートの生成
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
-			return false;
+			std::wstring csPath;
+
+			if (!SearchFilePath(L"SkyMultiScatteringLUT_CS.cso", csPath))
+			{
+				ELOG("Error : Compute Shader Not Found");
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pCSBlob;
+
+			HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pRSBlob;
+			hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			if (!m_SkyMultiScatteringLUT_RootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
+
+			D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+			desc.pRootSignature = m_SkyMultiScatteringLUT_RootSig.GetPtr();
+			desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+			desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+			desc.NodeMask = 0;
+			desc.CachedPSO.pCachedBlob = nullptr;
+			desc.CachedPSO.CachedBlobSizeInBytes = 0;
+			desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+			hr = m_pDevice->CreateComputePipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pSkyMultiScatteringLUT_PSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
+		// 空のLUT用ルートシグニチャとパイプラインステートの生成
 		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
-			return false;
+			std::wstring csPath;
+
+			if (!SearchFilePath(L"SkyViewLUT_CS.cso", csPath))
+			{
+				ELOG("Error : Compute Shader Not Found");
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pCSBlob;
+
+			HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pRSBlob;
+			hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			if (!m_SkyViewLUT_RootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
+
+			D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+			desc.pRootSignature = m_SkyViewLUT_RootSig.GetPtr();
+			desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+			desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+			desc.NodeMask = 0;
+			desc.CachedPSO.pCachedBlob = nullptr;
+			desc.CachedPSO.CachedBlobSizeInBytes = 0;
+			desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+			hr = m_pDevice->CreateComputePipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pSkyViewLUT_PSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 
-		if (!m_SkyTransmittanceLUT_RootSig.Init(m_pDevice.Get(), pRSBlob))
+		// 雲のレイマーチ描画用のルートシグニチャとパイプラインステートの生成
 		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
+			std::wstring csPath;
 
-		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_SkyTransmittanceLUT_RootSig.GetPtr();
-		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
-		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
-		desc.NodeMask = 0;
-		desc.CachedPSO.pCachedBlob = nullptr;
-		desc.CachedPSO.CachedBlobSizeInBytes = 0;
-		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+			if (!SearchFilePath(L"VolumetricCloudCS.cso", csPath))
+			{
+				ELOG("Error : Compute Shader Not Found");
+				return false;
+			}
 
-		hr = m_pDevice->CreateComputePipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pSkyTransmittanceLUT_PSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
+			ComPtr<ID3DBlob> pCSBlob;
 
-    // 空の多重散乱LUT用ルートシグニチャとパイプラインステートの生成
-	{
-		std::wstring csPath;
+			HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+				return false;
+			}
 
-		if (!SearchFilePath(L"SkyMultiScatteringLUT_CS.cso", csPath))
-		{
-			ELOG("Error : Compute Shader Not Found");
-			return false;
-		}
+			ComPtr<ID3DBlob> pRSBlob;
+			hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+				return false;
+			}
 
-		ComPtr<ID3DBlob> pCSBlob;
+			if (!m_VolumetricCloudRootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
 
-		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
-			return false;
-		}
+			D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+			desc.pRootSignature = m_VolumetricCloudRootSig.GetPtr();
+			desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+			desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+			desc.NodeMask = 0;
+			desc.CachedPSO.pCachedBlob = nullptr;
+			desc.CachedPSO.CachedBlobSizeInBytes = 0;
+			desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
-			return false;
-		}
-
-		if (!m_SkyMultiScatteringLUT_RootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_SkyMultiScatteringLUT_RootSig.GetPtr();
-		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
-		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
-		desc.NodeMask = 0;
-		desc.CachedPSO.pCachedBlob = nullptr;
-		desc.CachedPSO.CachedBlobSizeInBytes = 0;
-		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-
-		hr = m_pDevice->CreateComputePipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pSkyMultiScatteringLUT_PSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
-
-    // 空のLUT用ルートシグニチャとパイプラインステートの生成
-	{
-		std::wstring csPath;
-
-		if (!SearchFilePath(L"SkyViewLUT_CS.cso", csPath))
-		{
-			ELOG("Error : Compute Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pCSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
-			return false;
-		}
-
-		if (!m_SkyViewLUT_RootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_SkyViewLUT_RootSig.GetPtr();
-		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
-		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
-		desc.NodeMask = 0;
-		desc.CachedPSO.pCachedBlob = nullptr;
-		desc.CachedPSO.CachedBlobSizeInBytes = 0;
-		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-
-		hr = m_pDevice->CreateComputePipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pSkyViewLUT_PSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
-
-	// 雲のレイマーチ描画用のルートシグニチャとパイプラインステートの生成
-	{
-		std::wstring csPath;
-
-		if (!SearchFilePath(L"VolumetricCloudCS.cso", csPath))
-		{
-			ELOG("Error : Compute Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pCSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
-			return false;
-		}
-
-		if (!m_VolumetricCloudRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_VolumetricCloudRootSig.GetPtr();
-		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
-		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
-		desc.NodeMask = 0;
-		desc.CachedPSO.pCachedBlob = nullptr;
-		desc.CachedPSO.CachedBlobSizeInBytes = 0;
-		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-
-		hr = m_pDevice->CreateComputePipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pVolumetricCloudPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
-			return false;
+			hr = m_pDevice->CreateComputePipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pVolumetricCloudPSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 	}
 
@@ -4147,176 +4157,179 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-    // VolumetricFog Scattering用ルートシグニチャとパイプラインステートの生成
+	if (m_drawSponza)
 	{
-		std::wstring csPath;
-
-		if (!SearchFilePath(L"VolumetricFogScatteringCS.cso", csPath))
+		// VolumetricFog Scattering用ルートシグニチャとパイプラインステートの生成
 		{
-			ELOG("Error : Compute Shader Not Found");
-			return false;
+			std::wstring csPath;
+
+			if (!SearchFilePath(L"VolumetricFogScatteringCS.cso", csPath))
+			{
+				ELOG("Error : Compute Shader Not Found");
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pCSBlob;
+
+			HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pRSBlob;
+			hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			if (!m_VolumetricFogScatteringRootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
+
+			D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+			desc.pRootSignature = m_VolumetricFogScatteringRootSig.GetPtr();
+			desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+			desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+			desc.NodeMask = 0;
+			desc.CachedPSO.pCachedBlob = nullptr;
+			desc.CachedPSO.CachedBlobSizeInBytes = 0;
+			desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+			hr = m_pDevice->CreateComputePipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pVolumetricFogScatteringPSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 
-		ComPtr<ID3DBlob> pCSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
-		if (FAILED(hr))
+		// VolumetricFog Integration用ルートシグニチャとパイプラインステートの生成
 		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
-			return false;
+			std::wstring csPath;
+
+			if (!SearchFilePath(L"VolumetricFogIntegrationCS.cso", csPath))
+			{
+				ELOG("Error : Compute Shader Not Found");
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pCSBlob;
+
+			HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			ComPtr<ID3DBlob> pRSBlob;
+			hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+				return false;
+			}
+
+			if (!m_VolumetricFogIntegrationRootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
+
+			D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+			desc.pRootSignature = m_VolumetricFogIntegrationRootSig.GetPtr();
+			desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+			desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+			desc.NodeMask = 0;
+			desc.CachedPSO.pCachedBlob = nullptr;
+			desc.CachedPSO.CachedBlobSizeInBytes = 0;
+			desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+			hr = m_pDevice->CreateComputePipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pVolumetricFogIntegrationPSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
+		// VolumetricFog Composition用パイプラインステートの生成
 		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
-			return false;
-		}
+			std::wstring vsPath;
+			std::wstring psPath;
 
-		if (!m_VolumetricFogScatteringRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
+			if (!SearchFilePath(L"QuadVS.cso", vsPath))
+			{
+				ELOG("Error : Vertex Shader Not Found");
+				return false;
+			}
 
-		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_VolumetricFogScatteringRootSig.GetPtr();
-		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
-		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
-		desc.NodeMask = 0;
-		desc.CachedPSO.pCachedBlob = nullptr;
-		desc.CachedPSO.CachedBlobSizeInBytes = 0;
-		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+			if (!SearchFilePath(L"VolumetricFogCompositionPS.cso", psPath))
+			{
+				ELOG("Error : Pixel Shader Not Found");
+				return false;
+			}
 
-		hr = m_pDevice->CreateComputePipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pVolumetricFogScatteringPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
+			ComPtr<ID3DBlob> pVSBlob;
+			ComPtr<ID3DBlob> pPSBlob;
 
-    // VolumetricFog Integration用ルートシグニチャとパイプラインステートの生成
-	{
-		std::wstring csPath;
+			HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
+				return false;
+			}
 
-		if (!SearchFilePath(L"VolumetricFogIntegrationCS.cso", csPath))
-		{
-			ELOG("Error : Compute Shader Not Found");
-			return false;
-		}
+			hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
+				return false;
+			}
 
-		ComPtr<ID3DBlob> pCSBlob;
+			ComPtr<ID3DBlob> pRSBlob;
+			hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
+				return false;
+			}
 
-		HRESULT hr = D3DReadFileToBlob(csPath.c_str(), pCSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", csPath.c_str());
-			return false;
-		}
+			if (!m_VolumetricFogCompositionRootSig.Init(m_pDevice.Get(), pRSBlob))
+			{
+				ELOG("Error : RootSignature::Init() Failed.");
+				return false;
+			}
 
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
-			return false;
-		}
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
+			desc.pRootSignature = m_VolumetricFogCompositionRootSig.GetPtr();
+			desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
+			desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
+			desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
+			desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
+			desc.RTVFormats[0] = m_VolumetricCompositionTarget.GetRTVDesc().Format;
 
-		if (!m_VolumetricFogIntegrationRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-		desc.pRootSignature = m_VolumetricFogIntegrationRootSig.GetPtr();
-		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
-		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
-		desc.NodeMask = 0;
-		desc.CachedPSO.pCachedBlob = nullptr;
-		desc.CachedPSO.CachedBlobSizeInBytes = 0;
-		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-
-		hr = m_pDevice->CreateComputePipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pVolumetricFogIntegrationPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
-			return false;
-		}
-	}
-
-    // VolumetricFog Composition用パイプラインステートの生成
-	{
-		std::wstring vsPath;
-		std::wstring psPath;
-
-		if (!SearchFilePath(L"QuadVS.cso", vsPath))
-		{
-			ELOG("Error : Vertex Shader Not Found");
-			return false;
-		}
-
-		if (!SearchFilePath(L"VolumetricFogCompositionPS.cso", psPath))
-		{
-			ELOG("Error : Pixel Shader Not Found");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pVSBlob;
-		ComPtr<ID3DBlob> pPSBlob;
-
-		HRESULT hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", vsPath.c_str());
-			return false;
-		}
-
-		hr = D3DReadFileToBlob(psPath.c_str(), pPSBlob.GetAddressOf());
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DReadFileToBlob Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		ComPtr<ID3DBlob> pRSBlob;
-		hr = D3DGetBlobPart(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
-		if (FAILED(hr))
-		{
-			ELOG("Error : D3DGetBlobPart Failed. path = %ls", psPath.c_str());
-			return false;
-		}
-
-		if (!m_VolumetricFogCompositionRootSig.Init(m_pDevice.Get(), pRSBlob))
-		{
-			ELOG("Error : RootSignature::Init() Failed.");
-			return false;
-		}
-
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = SSPassPSODescCommon;
-		desc.pRootSignature = m_VolumetricFogCompositionRootSig.GetPtr();
-		desc.VS.pShaderBytecode = pVSBlob->GetBufferPointer();
-		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
-		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
-		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_VolumetricCompositionTarget.GetRTVDesc().Format;
-
-		hr = m_pDevice->CreateGraphicsPipelineState(
-			&desc,
-			IID_PPV_ARGS(m_pVolumetricFogCompositionPSO.GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
-			return false;
+			hr = m_pDevice->CreateGraphicsPipelineState(
+				&desc,
+				IID_PPV_ARGS(m_pVolumetricFogCompositionPSO.GetAddressOf())
+			);
+			if (FAILED(hr))
+			{
+				ELOG("Error : ID3D12Device::CreateGraphicsPipelineState Failed. retcode = 0x%x", hr);
+				return false;
+			}
 		}
 	}
 
@@ -4708,7 +4721,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 	}
-
 
 	// Meshlet AABB表示用ルートシグニチャとパイプラインステートの生成
 	if (m_useMeshlet)
@@ -5226,6 +5238,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	}
 
 	// VolumetricFog用定数バッファの作成
+	if (m_drawSponza)
 	{
 		if (!m_VolumetricFogCB.Init(m_pDevice.Get(), m_pPool[POOL_TYPE_RES_GPU_VISIBLE], sizeof(CbVolumetricFog)))
 		{
@@ -6145,13 +6158,13 @@ void SampleApp::OnRender()
 	if (m_drawSponza)
 	{
 		DrawDirectionalLightShadowMap(pCmd, lightForward);
+
+		DrawSkyTransmittanceLUT(pCmd);
+		DrawSkyMultiScatteringLUT(pCmd);
+		DrawSkyViewLUT(pCmd, skyViewLutReferential, lightForward);
+
+		DrawVolumetricCloud(pCmd);
 	}
-
-	DrawSkyTransmittanceLUT(pCmd);
-	DrawSkyMultiScatteringLUT(pCmd);
-	DrawSkyViewLUT(pCmd, skyViewLutReferential, lightForward);
-
-	DrawVolumetricCloud(pCmd);
 
 	if (m_useMeshlet)
 	{
@@ -6234,11 +6247,11 @@ void SampleApp::OnRender()
 		DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
 	}
 
-	const ColorTarget& volumetricFogScatteringPrevTarget = m_VolumetricFogScatteringTarget[m_FrameIndex];
-	const ColorTarget& volumetricFogScatteringCurTarget = m_VolumetricFogScatteringTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
-
 	if (m_drawSponza)
 	{
+		const ColorTarget& volumetricFogScatteringPrevTarget = m_VolumetricFogScatteringTarget[m_FrameIndex];
+		const ColorTarget& volumetricFogScatteringCurTarget = m_VolumetricFogScatteringTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+
 		Matrix projNoJitterForVolumetricFog = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, VOLUMETRIC_FOG_FROXEL_NEAR, VOLUMETRIC_FOG_FROXEL_FAR);
 		Matrix viewProjNoJitterForVolumetricFog = view * projNoJitterForVolumetricFog; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
 		Matrix viewRotProjNoJitterForVolumetricFog = viewRot * projNoJitterForVolumetricFog;

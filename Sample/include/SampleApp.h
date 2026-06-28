@@ -41,6 +41,8 @@ private:
 	bool m_useMetis = false;
 	// Visibility BufferをSW Rasterizeするかどうか
 	bool m_useSWRasterizer = false;
+	// パストレーシングで描画するかどうか
+	bool m_usePathTracing = false;
 
 	ShaderCompiler m_ShaderCompiler;
 	Texture m_DummyTexture;
