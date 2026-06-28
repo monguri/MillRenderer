@@ -2,6 +2,7 @@
 #include "FileUtil.h"
 #include <cassert>
 #include <algorithm>
+#include <pix3.h>
 
 namespace
 {
@@ -149,21 +150,36 @@ void App::TermWnd()
 
 bool App::InitD3D()
 {
-	// To debug d3d.
 #if defined(DEBUG) || defined(_DEBUG)
+	// WinPixGpuCapturer.dllをPixキャプチャのためにロードする
+	HMODULE hmodule = PIXLoadLatestWinPixGpuCapturerLibrary();
+	if (hmodule == nullptr)
+	{
+		return false;
+	}
+#endif
+
+#if defined(DEBUG) || defined(_DEBUG)
+	if (m_enableDebugLayer || m_enableGpuBaseValidation)
 	{
 		ComPtr<ID3D12Debug1> pDebug;
 		HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(pDebug.GetAddressOf()));
 		if (SUCCEEDED(hr))
 		{
-			pDebug->EnableDebugLayer();
-
-			hr = pDebug->QueryInterface(IID_PPV_ARGS(pDebug.GetAddressOf()));
-			if (SUCCEEDED(hr))
+			if (m_enableDebugLayer)
 			{
-				// PSO検証を有効にする場合はここをtrueにする
-				// ただし、PSO検証はかなり重い処理で起動が遅くなるので普段は無効にしておく
-				pDebug->SetEnableGPUBasedValidation(false);
+				pDebug->EnableDebugLayer();
+			}
+
+			if (m_enableGpuBaseValidation)
+			{
+				hr = pDebug->QueryInterface(IID_PPV_ARGS(pDebug.GetAddressOf()));
+				if (SUCCEEDED(hr))
+				{
+					// PSO検証を有効にする
+					// ただし、PSO検証はかなり重い処理で起動が遅くなる
+					pDebug->SetEnableGPUBasedValidation(true);
+				}
 			}
 		}
 	}

@@ -43,6 +43,11 @@ protected:
 		POOL_COUNT,
 	};
 
+	// true:D3DのデバッグレイヤーおよびGPUベースの検証を有効化。PixのGPUキャプチャはできなくなる
+	bool m_enableDebugLayer = false;
+	// true:GPUベlースの検証を有効化
+	bool m_enableGpuBaseValidation = false;
+
 	// Window
 	HINSTANCE m_hInst;
 	HWND m_hWnd;

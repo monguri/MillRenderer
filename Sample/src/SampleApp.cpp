@@ -782,6 +782,14 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 {
 	for (int a = 0; a < argc; a++)
 	{
+		if (wcscmp(argv[a], L"--debuglayer") == 0)
+		{
+			m_enableDebugLayer = true;
+		}
+		if (wcscmp(argv[a], L"--gpuvalidation") == 0)
+		{
+			m_enableGpuBaseValidation = true;
+		}
 		if (wcscmp(argv[a], L"--IBL") == 0)
 		{
 			m_drawSponza = false;
@@ -8724,6 +8732,12 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 				case VK_ESCAPE:
 					PostQuitMessage(0);
 					break;
+			#if defined(DEBUG) || defined(_DEBUG)
+				case VK_INSERT:
+					// 次の1フレームをPresentToPresentでGPUキャプチャする
+					PIXGpuCaptureNextFrames(L"temp.wpix", 1);
+					break;
+			#endif
 				case 'H':
 					ChangeDisplayMode(true);
 					break;
