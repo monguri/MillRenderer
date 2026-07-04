@@ -322,7 +322,7 @@ bool App::InitD3D()
 	{
 		for (uint32_t i = 0u; i < FRAME_COUNT; ++i)
 		{
-			if (!m_ColorTarget[i].InitFromBackBuffer(m_pDevice.Get(), m_pPool[POOL_TYPE_RTV], true, i, m_pSwapChain.Get()))
+			if (!m_BackBuffer[i].InitFromBackBuffer(m_pDevice.Get(), m_pPool[POOL_TYPE_RTV], true, i, m_pSwapChain.Get()))
 			{
 				return false;
 			}
@@ -374,7 +374,7 @@ void App::TermD3D()
 
 	for (uint32_t i = 0u; i < FRAME_COUNT; ++i)
 	{
-		m_ColorTarget[i].Term();
+		m_BackBuffer[i].Term();
 	}
 
 	m_CommandList.Term();
@@ -637,7 +637,7 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 
 				for (uint32_t i = 0u; i < FRAME_COUNT; ++i)
 				{
-					instance->m_ColorTarget[i].Term();
+					instance->m_BackBuffer[i].Term();
 				}
 
 				// Formatˆø”‚ÆFlagsˆø”‚Í‰Šú‰»‚Éì‚Á‚½DXGI_SWAP_CHAIN_DESC‚Æ“¯‚¶’l‚É‚·‚é
@@ -650,7 +650,7 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 				// Re-Create render target view.
 				for (uint32_t i = 0u; i < FRAME_COUNT; ++i)
 				{
-					if (!instance->m_ColorTarget[i].InitFromBackBuffer(instance->m_pDevice.Get(), instance->m_pPool[POOL_TYPE_RTV], true, i, instance->m_pSwapChain.Get()))
+					if (!instance->m_BackBuffer[i].InitFromBackBuffer(instance->m_pDevice.Get(), instance->m_pPool[POOL_TYPE_RTV], true, i, instance->m_pSwapChain.Get()))
 					{
 						return false;
 					}

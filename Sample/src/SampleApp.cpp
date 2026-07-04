@@ -2397,7 +2397,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
-			m_ColorTarget[0].GetRTVDesc().Format,
+			m_BackBuffer[0].GetRTVDesc().Format,
 			clearColor
 		))
 		{
@@ -2417,7 +2417,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
 			m_Height,
-			m_ColorTarget[0].GetRTVDesc().Format,
+			m_BackBuffer[0].GetRTVDesc().Format,
 			clearColor
 		))
 		{
@@ -5053,7 +5053,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		desc.VS.BytecodeLength = pVSBlob->GetBufferSize();
 		desc.PS.pShaderBytecode = pPSBlob->GetBufferPointer();
 		desc.PS.BytecodeLength = pPSBlob->GetBufferSize();
-		desc.RTVFormats[0] = m_ColorTarget[0].GetRTVDesc().Format;
+		desc.RTVFormats[0] = m_BackBuffer[0].GetRTVDesc().Format;
 
 		hr = m_pDevice->CreateGraphicsPipelineState(
 			&desc,
@@ -8999,17 +8999,17 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	// R8_UNORMとR10G10B10A2_UNORMではCopyResourceでは非対応でエラーが出るのでシェーダでコピーする
 
 	//DirectX::TransitionResource(pCmd, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	//DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
-	//pCmd->CopyResource(m_ColorTarget[m_FrameIndex].GetResource(), m_SSAO_FullResTarget.GetResource());
+	//DirectX::TransitionResource(pCmd, m_BackBuffer[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
+	//pCmd->CopyResource(m_BackBuffer[m_FrameIndex].GetResource(), m_SSAO_FullResTarget.GetResource());
 	//DirectX::TransitionResource(pCmd, m_SSAO_FullResTarget.GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	//DirectX::TransitionResource(pCmd, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+	//DirectX::TransitionResource(pCmd, m_BackBuffer[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
 
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_BackBuffer[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
+	const DescriptorHandle* handleRTV = m_BackBuffer[m_FrameIndex].GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
-	m_ColorTarget[m_FrameIndex].ClearView(pCmdList);
+	m_BackBuffer[m_FrameIndex].ClearView(pCmdList);
 
 	pCmdList->SetGraphicsRootSignature(m_BackBufferRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pBackBufferPSO.Get());
@@ -9093,7 +9093,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 
 	pCmdList->DrawInstanced(3, 1, 0, 0);
 
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	DirectX::TransitionResource(pCmdList, m_BackBuffer[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
@@ -9101,9 +9101,9 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	::PIXScopedEvent(pCmdList, 0, L"ImGui");
 
 	// TODO: Transitionが直前のパスと重複している
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	DirectX::TransitionResource(pCmdList, m_BackBuffer[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	const DescriptorHandle* handleRTV = m_ColorTarget[m_FrameIndex].GetHandleRTV();
+	const DescriptorHandle* handleRTV = m_BackBuffer[m_FrameIndex].GetHandleRTV();
 	pCmdList->OMSetRenderTargets(1, &handleRTV->HandleCPU, FALSE, nullptr);
 
 	// https://github.com/ocornut/imgui/wiki/Getting-Started#example-if-you-are-using-raw-win32-api--directx12を参考にしている
@@ -9211,7 +9211,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 	ImGui::Render();
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCmdList);
 
-	DirectX::TransitionResource(pCmdList, m_ColorTarget[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	DirectX::TransitionResource(pCmdList, m_BackBuffer[m_FrameIndex].GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void SampleApp::ChangeDisplayMode(bool hdr)
