@@ -6796,190 +6796,197 @@ void SampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 	
-	if (m_drawSponza)
+	if (m_usePathTracing)
 	{
-		DrawDirectionalLightShadowMap(pCmd, lightForward);
-
-		DrawSkyTransmittanceLUT(pCmd);
-		DrawSkyMultiScatteringLUT(pCmd);
-		DrawSkyViewLUT(pCmd, skyViewLutReferential, lightForward);
-
-		DrawVolumetricCloud(pCmd);
-	}
-
-	if (m_useMeshlet)
-	{
-		DoMeshletCulling(pCmd);
-	}
-
-	if (m_useMeshlet)
-	{
-		DrawVBuffer(pCmd);
-
-		if (m_useSWRasterizer)
-		{
-			DrawDepthBufferFromVBuffer(pCmd);
-		}
-
-		DrawGBufferFromVBuffer(pCmd);
-		DoDeferredShading(pCmd, lightForward);
+		DoPathTracing(static_cast<ID3D12GraphicsCommandList4*>(pCmd));
 	}
 	else
 	{
-		DrawGBuffer(pCmd);
-		DoDeferredShading(pCmd, lightForward);
-	}
-
-	DrawSkyBox(pCmd, lightForward, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
-
-	DrawHCB(pCmd);
-
-	DrawHZB(pCmd);
-
-	if (m_enableVelocity)
-	{
-		if (m_enableTemporalAA)
+		if (m_drawSponza)
 		{
-			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+			DrawDirectionalLightShadowMap(pCmd, lightForward);
+
+			DrawSkyTransmittanceLUT(pCmd);
+			DrawSkyMultiScatteringLUT(pCmd);
+			DrawSkyViewLUT(pCmd, skyViewLutReferential, lightForward);
+
+			DrawVolumetricCloud(pCmd);
+		}
+
+		if (m_useMeshlet)
+		{
+			DoMeshletCulling(pCmd);
+		}
+
+		if (m_useMeshlet)
+		{
+			DrawVBuffer(pCmd);
+
+			if (m_useSWRasterizer)
+			{
+				DrawDepthBufferFromVBuffer(pCmd);
+			}
+
+			DrawGBufferFromVBuffer(pCmd);
+			DoDeferredShading(pCmd, lightForward);
 		}
 		else
 		{
-			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+			DrawGBuffer(pCmd);
+			DoDeferredShading(pCmd, lightForward);
 		}
 
-		DrawCameraVelocity(pCmd, viewProjNoJitter);
-	}
+		DrawSkyBox(pCmd, lightForward, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
 
-	DrawSSAOSetup(pCmd);
+		DrawHCB(pCmd);
 
-	if (m_enableTemporalAA)
-	{
-		DrawSSAO(pCmd, projWithJitter);
-	}
-	else
-	{
-		DrawSSAO(pCmd, projNoJitter);
-	}
+		DrawHZB(pCmd);
 
-	if (m_enableTemporalAA)
-	{
-		DrawSSGI(pCmd, projWithJitter, viewProjWithJitter);
-	}
-	else
-	{
-		DrawSSGI(pCmd, projNoJitter, viewProjNoJitter);
-	}
-
-	DrawSSGI_Denoise(pCmd);
-
-	const ColorTarget& SSGI_PrevTarget = m_SSGI_TemporalAccumulationTarget[m_FrameIndex];
-	const ColorTarget& SSGI_CurTarget = m_SSGI_TemporalAccumulationTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
-
-	DrawSSGI_TemporalAccumulation(pCmd, SSGI_PrevTarget, SSGI_CurTarget);
-
-	DrawAmbientLight(pCmd, SSGI_CurTarget);
-
-	if (m_enableTemporalAA)
-	{
-		DrawSSR(pCmd, projWithJitter, viewRotProjWithJitter);
-	}
-	else
-	{
-		DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
-	}
-
-	if (m_drawSponza)
-	{
-		const ColorTarget& volumetricFogScatteringPrevTarget = m_VolumetricFogScatteringTarget[m_FrameIndex];
-		const ColorTarget& volumetricFogScatteringCurTarget = m_VolumetricFogScatteringTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
-
-		Matrix projNoJitterForVolumetricFog = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, VOLUMETRIC_FOG_FROXEL_NEAR, VOLUMETRIC_FOG_FROXEL_FAR);
-		Matrix viewProjNoJitterForVolumetricFog = view * projNoJitterForVolumetricFog; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-		Matrix viewRotProjNoJitterForVolumetricFog = viewRot * projNoJitterForVolumetricFog;
-
-		DrawVolumetricFogScattering
-		(
-			pCmd,
-			viewRotProjNoJitterForVolumetricFog,
-			viewProjNoJitterForVolumetricFog,
-			m_PrevViewProjNoJitterForVolumetricFog,
-			volumetricFogScatteringPrevTarget,
-			volumetricFogScatteringCurTarget
-		);
-		DrawVolumetricFogIntegration(pCmd, volumetricFogScatteringCurTarget);
-		DrawVolumetricFogComposition(pCmd);
-
-		m_PrevViewProjNoJitterForVolumetricFog = viewProjNoJitterForVolumetricFog;
-	}
-
-	const ColorTarget& temporalAA_PrevTarget = m_TemporalAA_Target[m_FrameIndex];
-	const ColorTarget& temporalAA_CurTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
-
-	DrawTemporalAA(pCmd, temporalJitetrPixelsX, temporalJitetrPixelsY, temporalAA_PrevTarget, temporalAA_CurTarget);
-
-	DrawMotionBlur(pCmd, temporalAA_CurTarget);
-
-	DrawBloomSetup(pCmd);
-
-	{
-		::PIXScopedEvent(pCmd, 0, L"Downsample");
-
-		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
+		if (m_enableVelocity)
 		{
-			DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1], i);
-		}
-	}
-
-	{
-		::PIXScopedEvent(pCmd, 0, L"BloomGaussianFilter");
-
-		for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
-		{
-			if (i == (BLOOM_NUM_DOWN_SAMPLE - 1))
+			if (m_enableTemporalAA)
 			{
-				// m_SceneColorTargetをDownerResultColorとして使っているのはダミー
-				DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_SceneColorTarget, m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+				DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
 			}
 			else
 			{
-				DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_BloomVerticalTarget[i + 1], m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+				DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+			}
+
+			DrawCameraVelocity(pCmd, viewProjNoJitter);
+		}
+
+		DrawSSAOSetup(pCmd);
+
+		if (m_enableTemporalAA)
+		{
+			DrawSSAO(pCmd, projWithJitter);
+		}
+		else
+		{
+			DrawSSAO(pCmd, projNoJitter);
+		}
+
+		if (m_enableTemporalAA)
+		{
+			DrawSSGI(pCmd, projWithJitter, viewProjWithJitter);
+		}
+		else
+		{
+			DrawSSGI(pCmd, projNoJitter, viewProjNoJitter);
+		}
+
+		DrawSSGI_Denoise(pCmd);
+
+		const ColorTarget& SSGI_PrevTarget = m_SSGI_TemporalAccumulationTarget[m_FrameIndex];
+		const ColorTarget& SSGI_CurTarget = m_SSGI_TemporalAccumulationTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+
+		DrawSSGI_TemporalAccumulation(pCmd, SSGI_PrevTarget, SSGI_CurTarget);
+
+		DrawAmbientLight(pCmd, SSGI_CurTarget);
+
+		if (m_enableTemporalAA)
+		{
+			DrawSSR(pCmd, projWithJitter, viewRotProjWithJitter);
+		}
+		else
+		{
+			DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
+		}
+
+		if (m_drawSponza)
+		{
+			const ColorTarget& volumetricFogScatteringPrevTarget = m_VolumetricFogScatteringTarget[m_FrameIndex];
+			const ColorTarget& volumetricFogScatteringCurTarget = m_VolumetricFogScatteringTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+
+			Matrix projNoJitterForVolumetricFog = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, VOLUMETRIC_FOG_FROXEL_NEAR, VOLUMETRIC_FOG_FROXEL_FAR);
+			Matrix viewProjNoJitterForVolumetricFog = view * projNoJitterForVolumetricFog; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+			Matrix viewRotProjNoJitterForVolumetricFog = viewRot * projNoJitterForVolumetricFog;
+
+			DrawVolumetricFogScattering
+			(
+				pCmd,
+				viewRotProjNoJitterForVolumetricFog,
+				viewProjNoJitterForVolumetricFog,
+				m_PrevViewProjNoJitterForVolumetricFog,
+				volumetricFogScatteringPrevTarget,
+				volumetricFogScatteringCurTarget
+			);
+			DrawVolumetricFogIntegration(pCmd, volumetricFogScatteringCurTarget);
+			DrawVolumetricFogComposition(pCmd);
+
+			m_PrevViewProjNoJitterForVolumetricFog = viewProjNoJitterForVolumetricFog;
+		}
+
+		const ColorTarget& temporalAA_PrevTarget = m_TemporalAA_Target[m_FrameIndex];
+		const ColorTarget& temporalAA_CurTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+
+		DrawTemporalAA(pCmd, temporalJitetrPixelsX, temporalJitetrPixelsY, temporalAA_PrevTarget, temporalAA_CurTarget);
+
+		DrawMotionBlur(pCmd, temporalAA_CurTarget);
+
+		DrawBloomSetup(pCmd);
+
+		{
+			::PIXScopedEvent(pCmd, 0, L"Downsample");
+
+			for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
+			{
+				DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1], i);
 			}
 		}
-	}
 
-	DrawTonemap(pCmd);
-
-	DrawFXAA(pCmd);
-
-	if (m_useMeshlet)
-	{
-		switch (m_debugViewMode)
 		{
-			using enum DEBUG_VIEW_MODE;
-			case TRIANGLE_INDEX:
-			case MESHLET_INDEX:
-				DrawDebugVBuffer(pCmd);
-				break;
-			case MESHLET_AABB:
-				// AABBのときはMeshletIdxも同時に表示する
-				DrawDebugVBuffer(pCmd);
-				DrawMeshletAABB(pCmd);
-				break;
-			case NONE:
-			case DEPTH:
-			case BASECOLOR:
-			case NORMAL:
-			case METALLIC_ROUGHNESS:
-			case EMISSIVE:
-			case SSAO_FULL_RES:
-			case SSAO_HALF_RES:
-			case SSGI:
-			case VELOCITY:
-				// 何もしない
-				break;
-			default:
-				assert(false);
-				break;
+			::PIXScopedEvent(pCmd, 0, L"BloomGaussianFilter");
+
+			for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
+			{
+				if (i == (BLOOM_NUM_DOWN_SAMPLE - 1))
+				{
+					// m_SceneColorTargetをDownerResultColorとして使っているのはダミー
+					DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_SceneColorTarget, m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+				}
+				else
+				{
+					DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_BloomVerticalTarget[i + 1], m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
+				}
+			}
+		}
+
+		DrawTonemap(pCmd);
+
+		DrawFXAA(pCmd);
+
+		if (m_useMeshlet)
+		{
+			switch (m_debugViewMode)
+			{
+				using enum DEBUG_VIEW_MODE;
+				case TRIANGLE_INDEX:
+				case MESHLET_INDEX:
+					DrawDebugVBuffer(pCmd);
+					break;
+				case MESHLET_AABB:
+					// AABBのときはMeshletIdxも同時に表示する
+					DrawDebugVBuffer(pCmd);
+					DrawMeshletAABB(pCmd);
+					break;
+				case NONE:
+				case DEPTH:
+				case BASECOLOR:
+				case NORMAL:
+				case METALLIC_ROUGHNESS:
+				case EMISSIVE:
+				case SSAO_FULL_RES:
+				case SSAO_HALF_RES:
+				case SSGI:
+				case VELOCITY:
+					// 何もしない
+					break;
+				default:
+					assert(false);
+					break;
+			}
 		}
 	}
 
@@ -8903,6 +8910,48 @@ void SampleApp::DrawFilter(ID3D12GraphicsCommandList* pCmdList, const ColorTarge
 	}
 }
 
+void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
+{
+	::PIXScopedEvent(pCmdList, 0, L"PathTracing");
+
+	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	D3D12_DISPATCH_RAYS_DESC dispatchDesc;
+	dispatchDesc.Width = m_Width;
+	dispatchDesc.Height = m_Height;
+	dispatchDesc.Depth = 1;
+
+	dispatchDesc.RayGenerationShaderRecord.StartAddress = m_ShaderTableBB.GetResource()->GetGPUVirtualAddress() + 0 * m_ShaderTableEntrySize;
+	dispatchDesc.RayGenerationShaderRecord.SizeInBytes = m_ShaderTableEntrySize;
+
+	dispatchDesc.MissShaderTable.StartAddress = m_ShaderTableBB.GetResource()->GetGPUVirtualAddress() + 1 * m_ShaderTableEntrySize;
+	dispatchDesc.MissShaderTable.StrideInBytes = m_ShaderTableEntrySize;
+	dispatchDesc.MissShaderTable.SizeInBytes = m_ShaderTableEntrySize;
+
+	dispatchDesc.HitGroupTable.StartAddress = m_ShaderTableBB.GetResource()->GetGPUVirtualAddress() + 2 * m_ShaderTableEntrySize;
+	dispatchDesc.HitGroupTable.StrideInBytes = m_ShaderTableEntrySize;
+	dispatchDesc.HitGroupTable.SizeInBytes = m_ShaderTableEntrySize;
+
+	dispatchDesc.CallableShaderTable.StartAddress = 0;
+	dispatchDesc.CallableShaderTable.StrideInBytes = 0;
+	dispatchDesc.CallableShaderTable.SizeInBytes = 0;
+
+	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
+	pCmdList->SetPipelineState1(m_pStateObject.Get());
+#if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
+	// 試しにTLASをDesriptorTable方式でなくルートデスクリプタ方式にしてみる
+#if 1
+	pCmdList->SetComputeRootDescriptorTable(0, m_pTlasResultSrvHandle->HandleGPU);
+#else
+	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
+#endif
+	pCmdList->SetComputeRootDescriptorTable(1, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
+#endif
+	pCmdList->DispatchRays(&dispatchDesc);
+
+	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
 void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
 	std::wstring renderTargetName;
@@ -9018,6 +9067,15 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
+			if (m_usePathTracing)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(1, m_RTTarget.GetHandleSRV()->HandleGPU);
+			}
+			else
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
+			}
+			break;
 		case MESHLET_INDEX:
 		case MESHLET_AABB:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
