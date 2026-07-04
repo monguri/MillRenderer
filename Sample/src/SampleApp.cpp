@@ -9113,6 +9113,8 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 
 	ImGui::Begin("Render Settings");
 
+	ImGui::Text("Pix Gpu Capture : Ins");
+
 	// imgui_demo.cppを参考にしている。右列のラベル部分のサイズを固定する
     ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
 
