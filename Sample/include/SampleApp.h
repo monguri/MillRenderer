@@ -244,6 +244,17 @@ private:
 	bool m_enableFXAA_HighQuality;
 	bool m_isLightManipulateMode;
 
+	// パストレテスト用
+	Resource m_TriangleVB;
+	Resource m_BlasResultBB;
+	Resource m_TlasResultBB;
+	DescriptorHandle* m_pTlasResultSrvHandle = nullptr;
+	RootSignature m_GlobalRootSig;
+	ComPtr<ID3D12StateObject> m_pStateObject;
+	ColorTarget m_RTTarget;
+	Resource m_ShaderTableBB;
+	size_t m_ShaderTableEntrySize = 0;
+
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;
 	virtual void OnRender() override;
