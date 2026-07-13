@@ -813,6 +813,10 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		else if (wcscmp(argv[a], L"--pathtracing") == 0)
 		{
 			m_usePathTracing = true;
+			// MeshManagerを利用したい
+			m_useMeshlet = true;
+			// まずはIBLのModelViewerを実装する
+			m_drawSponza = false;
 		}
 	}
 }
@@ -5728,6 +5732,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		ID3D12GraphicsCommandList4* pCmd = m_CommandList.Reset();
 
+#if 0 // HelloTriangle
 		// テスト用VBの作成
 		{
 			const Vector3 triangleVertices[3] = {
@@ -5755,7 +5760,9 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 		}
+#endif
 
+#if 0 // HelloTriangle
 		// BLASの作成
 		Resource blasScratchBB;
 		{
@@ -6207,6 +6214,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 		}
 		// State Objectの作成
+#endif
 
 		// RT書き出し用テクスチャの作成
 		// ここで作ったUAVがPOOL_TYPE_RES_GPU_VISIBLEのディスクリプタプールでTLASのSRVの次に作るディスクリプタである必要がある
@@ -6231,6 +6239,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 		}
 
+#if 0 // HelloTriangle
 		// Shader Tableの作成
 		{
 			// 全シェーダ、最大サイズになるray-genシェーダに合わせる
@@ -6290,6 +6299,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 		}
+#endif
 
 		pCmd->Close();
 		ID3D12CommandList* pLists[] = {pCmd};
@@ -8914,6 +8924,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 {
 	::PIXScopedEvent(pCmdList, 0, L"PathTracing");
 
+#if 0 // HelloTriangle
 	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	D3D12_DISPATCH_RAYS_DESC dispatchDesc;
@@ -8950,6 +8961,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->DispatchRays(&dispatchDesc);
 
 	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+#endif
 }
 
 void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
