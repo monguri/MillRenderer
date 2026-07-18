@@ -303,7 +303,7 @@ bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worl
 	return true;
 }
 
-bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture)
+bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createBVH)
 {
 	assert(pDevice != nullptr);
 	assert(pQueue != nullptr);
@@ -527,6 +527,11 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 		}
 
 		m_MeshletCount += static_cast<uint32_t>(localMeshletCount);
+
+		if (createBVH)
+		{
+			//TODO: VB、IB、TLAS、BLASの生成を行う
+		}
 
 		validMeshIdx++;
 	}

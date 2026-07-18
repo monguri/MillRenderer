@@ -26,7 +26,8 @@ public:
 		ID3D12GraphicsCommandList* pCmdList,
 		class DescriptorPool* pPoolGpuVisible,
 		class DescriptorPool* pPoolCpuVisible,
-		const class Texture& dummyTexture
+		const class Texture& dummyTexture,
+		bool createBVH
 	);
 
 	bool SetMovableWorldMatrix(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& worldMat);
@@ -90,6 +91,10 @@ private:
 	std::vector<Texture> m_NormalMaps;
 	std::vector<Texture> m_EmissiveMaps;
 	std::vector<Texture> m_AOMaps;
+
+	// パストレ用
+	Resource m_BlasResultBB;
+	Resource m_TlasResultBB;
 
 	MeshManager(const MeshManager&) = delete;
 	void operator=(const MeshManager&) = delete;
