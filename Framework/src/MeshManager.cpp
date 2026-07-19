@@ -181,18 +181,6 @@ void MeshManager::Term()
 	}
 	m_VBs.clear();
 
-	for (Resource& VB : m_PositionVBs)
-	{
-		VB.Term();
-	}
-	m_PositionVBs.clear();
-
-	for (Resource& IB : m_IBs)
-	{
-		IB.Term();
-	}
-	m_IBs.clear();
-
 	for (Resource& SB : m_MeshletsSBs)
 	{
 		SB.Term();
@@ -264,6 +252,21 @@ void MeshManager::Term()
 		tex.Term();
 	}
 	m_AOMaps.clear();
+
+	for (Resource& VB : m_PositionVBs)
+	{
+		VB.Term();
+	}
+	m_PositionVBs.clear();
+
+	for (Resource& IB : m_IBs)
+	{
+		IB.Term();
+	}
+	m_IBs.clear();
+
+	m_BlasResultBB.Term();
+	m_TlasResultBB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -315,7 +318,7 @@ bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worl
 	return true;
 }
 
-bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createBVH)
+bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createBVH)
 {
 	assert(pDevice != nullptr);
 	assert(pQueue != nullptr);
@@ -613,6 +616,8 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 			geomDesc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
 			// TODO: ‰¼‚Å‚·‚×‚ÄOpaque‚Æ‚µ‚Ä‚¨‚­
 			geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
+			rtGeomDescs.emplace_back(geomDesc);
 		}
 
 		validMeshIdx++;
@@ -872,6 +877,60 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 
 	if (createBVH)
 	{
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
+		inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+		inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+		inputs.NumDescs = static_cast<UINT>(rtGeomDescs.size());
+		inputs.pGeometryDescs = rtGeomDescs.data();
+		inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildInfo;
+		pDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildInfo);
+
+		Resource blasScratchBB;
+		if (!blasScratchBB.InitAsByteAddressBuffer
+		(
+			pDevice,
+			preBuildInfo.ScratchDataSizeInBytes,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_BlasResultBB.InitAsByteAddressBuffer
+		(
+			pDevice,
+			preBuildInfo.ResultDataMaxSizeInBytes,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+			nullptr,
+			nullptr,
+			nullptr
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
+		asDesc.Inputs = inputs;
+		asDesc.DestAccelerationStructureData = m_BlasResultBB.GetResource()->GetGPUVirtualAddress();
+		asDesc.ScratchAccelerationStructureData = blasScratchBB.GetResource()->GetGPUVirtualAddress();
+		asDesc.SourceAccelerationStructureData = 0;
+
+		pCmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
+
+		D3D12_RESOURCE_BARRIER uavBarrier;
+		uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		uavBarrier.UAV.pResource = m_BlasResultBB.GetResource();
+		pCmdList->ResourceBarrier(1, &uavBarrier);
 	}
 
 	CbMaterialsDescHeapIndices materialsDescHeapIndices = {};

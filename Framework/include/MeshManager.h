@@ -21,9 +21,9 @@ public:
 
 	bool Update
 	(
-		ID3D12Device* pDevice,
+		ID3D12Device5* pDevice,
 		ID3D12CommandQueue* pQueue,
-		ID3D12GraphicsCommandList* pCmdList,
+		ID3D12GraphicsCommandList6* pCmdList,
 		class DescriptorPool* pPoolGpuVisible,
 		class DescriptorPool* pPoolCpuVisible,
 		const class Texture& dummyTexture,
