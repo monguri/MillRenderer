@@ -93,6 +93,8 @@ private:
 	std::vector<Texture> m_AOMaps;
 
 	// パストレ用
+	std::vector<Resource> m_PositionVBs;
+	std::vector<Resource> m_IBs;
 	Resource m_BlasResultBB;
 	Resource m_TlasResultBB;
 

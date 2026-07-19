@@ -181,6 +181,18 @@ void MeshManager::Term()
 	}
 	m_VBs.clear();
 
+	for (Resource& VB : m_PositionVBs)
+	{
+		VB.Term();
+	}
+	m_PositionVBs.clear();
+
+	for (Resource& IB : m_IBs)
+	{
+		IB.Term();
+	}
+	m_IBs.clear();
+
 	for (Resource& SB : m_MeshletsSBs)
 	{
 		SB.Term();
@@ -318,6 +330,8 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 	m_MeshletsVerticesSBs.resize(meshCount);
 	m_MeshletsTrianglesSBs.resize(meshCount);
 	m_MeshletsAABBInfosSBs.resize(meshCount);
+	m_PositionVBs.resize(meshCount);
+	m_IBs.resize(meshCount);
 
 	struct MeshletMeshMaterial
 	{
@@ -328,6 +342,8 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 	};
 
 	std::vector<MeshletMeshMaterial> meshletMeshMaterialTable;
+
+	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> rtGeomDescs;
 
 	CbMeshesDescHeapIndices meshesDescHeapIndices = {};
 
@@ -530,7 +546,73 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 
 		if (createBVH)
 		{
-			//TODO: VB、IB、TLAS、BLASの生成を行う
+			std::vector<Vector3> positions(resMesh.Vertices.size());
+			for (size_t i = 0; i < resMesh.Vertices.size(); i++)
+			{
+				positions[i] = resMesh.Vertices[i].Position;
+			}
+				
+			if (!m_PositionVBs[validMeshIdx].InitAsVertexBuffer<Vector3>(
+				pDevice,
+				positions.size(),
+				D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATE_COMMON,
+				nullptr,
+				L"PositionVB"
+			))
+			{
+				ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
+				return false;
+			}
+
+			if (!m_PositionVBs[validMeshIdx].UploadBufferTypeData<Vector3>(
+				pDevice,
+				pCmdList,
+				positions.size(),
+				positions.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
+
+			if (!m_IBs[validMeshIdx].InitAsIndexBuffer<uint32_t>(
+				pDevice,
+				DXGI_FORMAT_R32_UINT,
+				resMesh.Indices.size(),
+				D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATE_COMMON,
+				nullptr,
+				L"MeshIB"
+			))
+			{
+				ELOG("Error : Resource::InitAsIndexBuffer() Failed.");
+				return false;
+			}
+
+			if (!m_IBs[validMeshIdx].UploadBufferTypeData<uint32_t>(
+				pDevice,
+				pCmdList,
+				resMesh.Indices.size(),
+				resMesh.Indices.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
+
+			D3D12_RAYTRACING_GEOMETRY_DESC geomDesc = {};
+			geomDesc.Triangles.VertexBuffer.StartAddress = m_PositionVBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();
+			geomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vector3);
+			geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+			geomDesc.Triangles.VertexCount = static_cast<UINT>(positions.size());
+			// Transform3x4、IBの指定はオプション
+			geomDesc.Triangles.Transform3x4 = 0;
+			geomDesc.Triangles.IndexBuffer = m_IBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();;
+			geomDesc.Triangles.IndexCount = static_cast<UINT>(resMesh.Indices.size());
+			geomDesc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+			// TODO: 仮ですべてOpaqueとしておく
+			geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 		}
 
 		validMeshIdx++;
@@ -786,6 +868,10 @@ bool MeshManager::Update(ID3D12Device* pDevice, ID3D12CommandQueue* pQueue, ID3D
 	{
 		ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 		return false;
+	}
+
+	if (createBVH)
+	{
 	}
 
 	CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
