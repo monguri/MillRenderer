@@ -834,6 +834,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 #if defined(DEBUG) || defined(_DEBUG)
 	// nvapi初期化
+	if (m_usePathTracing)
 	{
 		NvAPI_Status status = NVAPI_OK;
 		NvAPI_ShortString szError = {0};
@@ -1264,7 +1265,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	if (m_useMeshlet)
 	{
-		ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+		ID3D12GraphicsCommandList6* pCmd = m_CommandList.Reset();
 
 		if (!m_MeshManager.Update
 		(
