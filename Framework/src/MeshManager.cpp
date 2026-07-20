@@ -900,7 +900,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				D3D12_RESOURCE_STATE_COMMON,
 				nullptr,
 				nullptr,
-				nullptr
+				nullptr,
+				L"BlasScratchBB"
 			))
 			{
 				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
@@ -909,15 +910,13 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 			DirectX::TransitionResource(pCmdList, m_BlasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-			if (!m_BlasResultBB.InitAsByteAddressBuffer
+			if (!m_BlasResultBB.InitAsAccelerationStructure
 			(
 				pDevice,
 				preBuildInfo.ResultDataMaxSizeInBytes,
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-				nullptr,
-				nullptr,
-				nullptr
+				pPoolGpuVisible,
+				L"BlasResultBB"
 			))
 			{
 				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
@@ -952,7 +951,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				D3D12_RESOURCE_STATE_COMMON,
 				nullptr,
 				nullptr,
-				nullptr
+				nullptr,
+				L"TlasInstanceDescBB"
 			))
 			{
 				ELOG("Error : StructuredBuffer::Init() Failed.");
@@ -983,7 +983,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				D3D12_RESOURCE_STATE_COMMON,
 				nullptr,
 				nullptr,
-				nullptr
+				nullptr,
+				L"TlasScratchBB"
 			))
 			{
 				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
@@ -991,14 +992,12 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			}
 			DirectX::TransitionResource(pCmdList, m_TlasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-			if (!m_TlasResultBB.InitAsByteAddressBuffer(
+			if (!m_TlasResultBB.InitAsAccelerationStructure(
 				pDevice,
 				preBuildInfo.ResultDataMaxSizeInBytes,
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 				pPoolGpuVisible,
-				nullptr,
-				nullptr
+				L"TlasResultBB"
 			))
 			{
 				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");

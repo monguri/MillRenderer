@@ -142,6 +142,15 @@ public:
 		LPCWSTR name = nullptr
 	);
 
+	bool InitAsAccelerationStructure
+	(
+		ID3D12Device* pDevice,
+		size_t size,
+		D3D12_RESOURCE_FLAGS flags,
+		DescriptorPool* pPoolSRV,
+		LPCWSTR name = nullptr
+	);
+
 	void Term();
 
 	template<typename T>

@@ -487,22 +487,12 @@ bool Resource::InitAsByteAddressBuffer
 	// 別のパターンのBBも作るなら引数を増やすこと。
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	if (state == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
-	{
-		// AS用のBBだった場合
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-		// srvDesc.RaytracingAccelerationStructureはID3D12Resourc作成後でないと設定できないのでInit()内で設定する
-	}
-	else
-	{
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-		srvDesc.Buffer.FirstElement = 0;
-		srvDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
-		srvDesc.Buffer.StructureByteStride = 0;
-		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
-	}
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
+	srvDesc.Buffer.StructureByteStride = 0;
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
@@ -527,6 +517,62 @@ bool Resource::InitAsByteAddressBuffer
 		uavDesc,
 		name
 	);
+}
+
+bool Resource::InitAsAccelerationStructure(ID3D12Device* pDevice, size_t size, D3D12_RESOURCE_FLAGS flags, DescriptorPool* pPoolSRV, LPCWSTR name)
+{
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProp.CreationNodeMask = 1;
+	heapProp.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Alignment = 0;
+	desc.Width = static_cast<UINT64>(size);
+	desc.Height = 1;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.Flags = flags;
+
+	D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	// srvDesc.RaytracingAccelerationStructureはID3D12Resourc作成後でないと設定できないのでInit()内で設定する
+
+	// ASにUAVは作らないがInit()の引数に必要がなので作る
+	D3D12_UNORDERED_ACCESS_VIEW_DESC dummyUavDesc = {};
+	dummyUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	dummyUavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	dummyUavDesc.Buffer.FirstElement = 0;
+	dummyUavDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
+	dummyUavDesc.Buffer.StructureByteStride = 0;
+	dummyUavDesc.Buffer.CounterOffsetInBytes = 0;
+	dummyUavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+
+	return Init(
+		pDevice,
+		size,
+		heapProp,
+		desc,
+		state,
+		pPoolSRV,
+		srvDesc,
+		nullptr,
+		nullptr,
+		dummyUavDesc,
+		name
+	);
+	return false;
 }
 
 void Resource::Term()
