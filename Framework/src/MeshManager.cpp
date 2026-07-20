@@ -1252,3 +1252,8 @@ uint32_t MeshManager::GetMeshletCount() const
 	return m_MeshletCount;
 }
 
+const Texture& MeshManager::GetBaseColorMap(uint32_t materialIdx) const
+{
+	return m_BaseColorMaps[materialIdx];
+}
+

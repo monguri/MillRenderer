@@ -1,6 +1,7 @@
 //TODO: hlslì‡RootSignatureíËã`ÇÕÇ«Ç§èëÇØÇŒÇ¢Ç¢Ç©ÇÌÇ©ÇÁÇ»Ç¢ÇÃÇ≈Ç∆ÇËÇ†Ç¶Ç∏Ç‚ÇÁÇ»Ç¢
-RaytracingAccelerationStructure gRtAS : register(t0);
-RWTexture2D<float4> gOutputTex : register(u0);
+RaytracingAccelerationStructure RtAS : register(t0);
+Texture2D<float4> BaseColorTex : register(t1);
+RWTexture2D<float4> OutTex : register(u0);
 
 float3 linearToSrgb(float3 color)
 {
@@ -42,10 +43,10 @@ void rayGeneration()
 	uint multiplierForGeometryContributionToHitGroupIndex = 0;
 	uint missShaderIndex = 0;
 
-	TraceRay(gRtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
+	TraceRay(RtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
 
 	float3 color = linearToSrgb(payload.color);
-	gOutputTex[rayIndex.xy] = float4(color, 1);
+	OutTex[rayIndex.xy] = float4(color, 1);
 
 }
 

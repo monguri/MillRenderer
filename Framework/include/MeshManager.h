@@ -51,6 +51,9 @@ public:
 
 	uint32_t GetMeshletCount() const;
 
+	//TODO:ƒpƒXƒgƒŒ‚ªBindless‘Î‰ž‚·‚é‚Ü‚Å‚Ì‰¼‚Ì‚à‚Ì
+	const Texture& GetBaseColorMap(uint32_t materialIdx) const;
+
 private:
 	std::vector<ResMesh> m_resMeshes;
 	std::vector<ResMaterial> m_resMaterials;

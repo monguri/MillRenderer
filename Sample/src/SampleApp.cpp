@@ -6136,7 +6136,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.Begin()
 #if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 				.SetSRV(ShaderStage::ALL, 0, 0)
-				.SetUAV(ShaderStage::ALL, 1, 0)
+				.SetSRV(ShaderStage::ALL, 1, 1)
+				.SetUAV(ShaderStage::ALL, 2, 0)
 #endif
 				.End();
 
@@ -9204,10 +9205,12 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	// 試しにTLASをDesriptorTable方式でなくルートデスクリプタ方式にしてみる
 #if 1
 	pCmdList->SetComputeRootDescriptorTable(0, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
+	//TODO:パストレがBindless対応するまでの仮のもの
+	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
 #else
 	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
 #endif
-	pCmdList->SetComputeRootDescriptorTable(1, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
 #endif
 	pCmdList->DispatchRays(&dispatchDesc);
 
