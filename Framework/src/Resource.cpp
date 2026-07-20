@@ -390,7 +390,6 @@ bool Resource::InitAsStructuredBuffer
 	size_t count,
 	size_t structureSize,
 	D3D12_RESOURCE_FLAGS flags,
-	D3D12_RESOURCE_STATES state,
 	DescriptorPool* pPoolSRV,
 	DescriptorPool* pPoolUAVGpuVisible,
 	LPCWSTR name
@@ -417,6 +416,10 @@ bool Resource::InitAsStructuredBuffer
 	desc.SampleDesc.Quality = 0;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	desc.Flags = flags;
+
+	// Resource作成時の初期状態はCommonにしておくのが推奨されており、しないとDebugLayerから警告が出る。
+	// 他のStateにするときはResourceBarrier()で遷移させる。
+	D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
@@ -456,7 +459,6 @@ bool Resource::InitAsByteAddressBuffer
 	ID3D12Device* pDevice,
 	size_t size,
 	D3D12_RESOURCE_FLAGS flags,
-	D3D12_RESOURCE_STATES state,
 	DescriptorPool* pPoolSRV,
 	DescriptorPool* pPoolUAVGpuVisible,
 	DescriptorPool* pPoolUAVCpuVisible,
@@ -485,6 +487,10 @@ bool Resource::InitAsByteAddressBuffer
 
 	// ClearUnorderedAccessViewUint()を使うためにRaw Bufferとして扱う形にしておく。
 	// 別のパターンのBBも作るなら引数を増やすこと。
+
+	// Resource作成時の初期状態はCommonにしておくのが推奨されており、しないとDebugLayerから警告が出る。
+	// 他のStateにするときはResourceBarrier()で遷移させる。
+	D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
@@ -519,7 +525,7 @@ bool Resource::InitAsByteAddressBuffer
 	);
 }
 
-bool Resource::InitAsAccelerationStructure(ID3D12Device* pDevice, size_t size, D3D12_RESOURCE_FLAGS flags, DescriptorPool* pPoolSRV, LPCWSTR name)
+bool Resource::InitAsAccelerationStructure(ID3D12Device* pDevice, size_t size, DescriptorPool* pPoolSRV, LPCWSTR name)
 {
 	D3D12_HEAP_PROPERTIES heapProp = {};
 	heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -539,7 +545,7 @@ bool Resource::InitAsAccelerationStructure(ID3D12Device* pDevice, size_t size, D
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	desc.Flags = flags;
+	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
 

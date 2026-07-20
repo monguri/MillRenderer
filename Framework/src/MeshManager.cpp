@@ -400,7 +400,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			pDevice,
 			resMesh.Vertices.size(),
 			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
 			pPoolGpuVisible,
 			nullptr,
 			L"SbVertexBuffer"
@@ -427,7 +426,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			pDevice,
 			localMeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
 			pPoolGpuVisible,
 			nullptr,
 			L"MeshletsSB"
@@ -454,7 +452,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			pDevice,
 			resMesh.MeshletsVertices.size(),
 			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
 			pPoolGpuVisible,
 			nullptr,
 			L"MeshletsVerticesSB"
@@ -489,7 +486,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			pDevice,
 			meshletsTriangles.size(),
 			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
 			pPoolGpuVisible,
 			nullptr,
 			L"MeshletsTrianglesBB"
@@ -518,7 +514,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			pDevice,
 			localMeshletCount,
 			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_COMMON,
 			pPoolGpuVisible,
 			nullptr,
 			L"AABBInfosSB"
@@ -632,7 +627,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		pDevice,
 		m_MeshletCount,
 		D3D12_RESOURCE_FLAG_NONE,
-		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
 		nullptr,
 		L"MeshletMeshMaterialTableSB"
@@ -748,7 +742,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		pDevice,
 		3 * sizeof(uint32_t),
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
@@ -767,7 +760,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		pDevice,
 		m_MeshletCount * sizeof(uint32_t),
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
@@ -786,7 +778,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		pDevice,
 		3 * sizeof(uint32_t),
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
@@ -805,7 +796,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		pDevice,
 		m_MeshletCount * sizeof(uint32_t),
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
@@ -824,7 +814,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		pDevice,
 		3 * sizeof(uint32_t),
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
@@ -843,7 +832,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		pDevice,
 		m_MeshletCount * sizeof(uint32_t),
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_COMMON,
 		pPoolGpuVisible,
 		pPoolGpuVisible,
 		pPoolCpuVisible,
@@ -897,7 +885,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				pDevice,
 				preBuildInfo.ScratchDataSizeInBytes,
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_COMMON,
 				nullptr,
 				nullptr,
 				nullptr,
@@ -914,12 +901,11 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			(
 				pDevice,
 				preBuildInfo.ResultDataMaxSizeInBytes,
-				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 				pPoolGpuVisible,
 				L"BlasResultBB"
 			))
 			{
-				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+				ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
 				return false;
 			}
 
@@ -948,7 +934,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				pDevice,
 				sizeof(instanceDesc),
 				D3D12_RESOURCE_FLAG_NONE,
-				D3D12_RESOURCE_STATE_COMMON,
 				nullptr,
 				nullptr,
 				nullptr,
@@ -980,7 +965,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				pDevice,
 				preBuildInfo.ScratchDataSizeInBytes,
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_COMMON,
 				nullptr,
 				nullptr,
 				nullptr,
@@ -995,12 +979,11 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			if (!m_TlasResultBB.InitAsAccelerationStructure(
 				pDevice,
 				preBuildInfo.ResultDataMaxSizeInBytes,
-				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 				pPoolGpuVisible,
 				L"TlasResultBB"
 			))
 			{
-				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+				ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
 				return false;
 			}
 

@@ -111,7 +111,6 @@ public:
 		ID3D12Device* pDevice,
 		size_t count,
 		D3D12_RESOURCE_FLAGS flags,
-		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
 		DescriptorPool* pPoolUAVGpuVisible,
 		LPCWSTR name = nullptr
@@ -123,7 +122,6 @@ public:
 			count,
 			sizeof(T),
 			flags,
-			state,
 			pPoolSRV,
 			pPoolUAVGpuVisible,
 			name
@@ -135,7 +133,6 @@ public:
 		ID3D12Device* pDevice,
 		size_t size,
 		D3D12_RESOURCE_FLAGS flags,
-		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
 		DescriptorPool* pPoolUAVGpuVisible,
 		DescriptorPool* pPoolUAVCpuVisible,
@@ -146,7 +143,6 @@ public:
 	(
 		ID3D12Device* pDevice,
 		size_t size,
-		D3D12_RESOURCE_FLAGS flags,
 		DescriptorPool* pPoolSRV,
 		LPCWSTR name = nullptr
 	);
@@ -240,7 +236,6 @@ private:
 		size_t count,
 		size_t structureSize,
 		D3D12_RESOURCE_FLAGS flags,
-		D3D12_RESOURCE_STATES state,
 		DescriptorPool* pPoolSRV,
 		DescriptorPool* pPoolUAVGpuVisible,
 		LPCWSTR name = nullptr
