@@ -96,11 +96,25 @@ bool Resource::Init
 
 	if (m_pHandleSRV != nullptr)
 	{
-		pDevice->CreateShaderResourceView(
-			m_pResource.Get(),
-			&srvDesc,
-			m_pHandleSRV->HandleCPU
-		);
+		if (srvDesc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
+		{
+			// AS用のバッファだった場合
+			srvDesc.RaytracingAccelerationStructure.Location = GetResource()->GetGPUVirtualAddress();
+			// この場合、ResourceのGpuVirtualAddressはなぜかRaytracingAccelerationStructure.Locationで与える仕様で、pResource引数はnullにする必要がある
+			pDevice->CreateShaderResourceView(
+				nullptr,
+				&srvDesc,
+				m_pHandleSRV->HandleCPU
+			);
+		}
+		else
+		{
+			pDevice->CreateShaderResourceView(
+				m_pResource.Get(),
+				&srvDesc,
+				m_pHandleSRV->HandleCPU
+			);
+		}
 	}
 
 	if (m_pHandleUAVGpuVisible != nullptr)
@@ -473,13 +487,23 @@ bool Resource::InitAsByteAddressBuffer
 	// 別のパターンのBBも作るなら引数を増やすこと。
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	if (state == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+	{
+		// AS用のBBだった場合
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		// srvDesc.RaytracingAccelerationStructureはID3D12Resourc作成後でないと設定できないのでInit()内で設定する
+	}
+	else
+	{
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		srvDesc.Buffer.FirstElement = 0;
+		srvDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
+		srvDesc.Buffer.StructureByteStride = 0;
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+	}
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Buffer.FirstElement = 0;
-	srvDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
-	srvDesc.Buffer.StructureByteStride = 0;
-	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -650,6 +674,7 @@ void Resource::BarrierUAV(ID3D12GraphicsCommandList* pCmdList) const
 {
 	D3D12_RESOURCE_BARRIER barrier = {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	barrier.UAV.pResource = m_pResource.Get();
 	pCmdList->ResourceBarrier(1, &barrier);
 }

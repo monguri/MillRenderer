@@ -97,6 +97,8 @@ private:
 	std::vector<Resource> m_IBs;
 	Resource m_BlasScratchBB;
 	Resource m_BlasResultBB;
+	Resource m_TlasScratchBB;
+	Resource m_TlasInstanceDescBB;
 	Resource m_TlasResultBB;
 
 	MeshManager(const MeshManager&) = delete;
