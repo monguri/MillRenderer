@@ -1242,6 +1242,11 @@ const ComPtr<ID3D12CommandSignature>& MeshManager::GetSWRasCmdSig() const
 	return m_pDrawBySWRasCmdSig;
 }
 
+const Resource& MeshManager::GetAccelerationStructure() const
+{
+	return m_TlasResultBB;
+}
+
 uint32_t MeshManager::GetMeshletCount() const
 {
 	return m_MeshletCount;

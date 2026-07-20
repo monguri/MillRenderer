@@ -47,6 +47,8 @@ public:
 	const ComPtr<ID3D12CommandSignature>& GetHWRasCmdSig() const;
 	const ComPtr<ID3D12CommandSignature>& GetSWRasCmdSig() const;
 
+	const Resource& GetAccelerationStructure() const;
+
 	uint32_t GetMeshletCount() const;
 
 private:
