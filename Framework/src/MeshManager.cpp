@@ -265,6 +265,7 @@ void MeshManager::Term()
 	}
 	m_IBs.clear();
 
+	m_BlasScratchBB.Term();
 	m_BlasResultBB.Term();
 	m_TlasResultBB.Term();
 }
@@ -887,13 +888,12 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildInfo;
 		pDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildInfo);
 
-		Resource blasScratchBB;
-		if (!blasScratchBB.InitAsByteAddressBuffer
+		if (!m_BlasScratchBB.InitAsByteAddressBuffer
 		(
 			pDevice,
 			preBuildInfo.ScratchDataSizeInBytes,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_COMMON,
 			nullptr,
 			nullptr,
 			nullptr
@@ -902,6 +902,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
 			return false;
 		}
+
+		DirectX::TransitionResource(pCmdList, m_BlasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		if (!m_BlasResultBB.InitAsByteAddressBuffer
 		(
@@ -921,7 +923,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
 		asDesc.Inputs = inputs;
 		asDesc.DestAccelerationStructureData = m_BlasResultBB.GetResource()->GetGPUVirtualAddress();
-		asDesc.ScratchAccelerationStructureData = blasScratchBB.GetResource()->GetGPUVirtualAddress();
+		asDesc.ScratchAccelerationStructureData = m_BlasScratchBB.GetResource()->GetGPUVirtualAddress();
 		asDesc.SourceAccelerationStructureData = 0;
 
 		pCmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);

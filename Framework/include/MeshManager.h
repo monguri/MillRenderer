@@ -95,6 +95,7 @@ private:
 	// パストレ用
 	std::vector<Resource> m_PositionVBs;
 	std::vector<Resource> m_IBs;
+	Resource m_BlasScratchBB;
 	Resource m_BlasResultBB;
 	Resource m_TlasResultBB;
 
