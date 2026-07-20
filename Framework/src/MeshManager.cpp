@@ -577,12 +577,11 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				return false;
 			}
 
-			if (!m_IBs[validMeshIdx].InitAsIndexBuffer<uint32_t>(
+			if (!m_IBs[validMeshIdx].InitAsStructuredBuffer<uint32_t>(
 				pDevice,
-				DXGI_FORMAT_R32_UINT,
 				resMesh.Indices.size(),
 				D3D12_RESOURCE_FLAG_NONE,
-				D3D12_RESOURCE_STATE_COMMON,
+				pPoolGpuVisible,
 				nullptr,
 				L"MeshIB"
 			))
@@ -1250,6 +1249,16 @@ const Resource& MeshManager::GetAccelerationStructure() const
 uint32_t MeshManager::GetMeshletCount() const
 {
 	return m_MeshletCount;
+}
+
+const Resource& MeshManager::GetVB(uint32_t meshIdx) const
+{
+	return m_VBs[meshIdx];
+}
+
+const Resource& MeshManager::GetIB(uint32_t meshIdx) const
+{
+	return m_IBs[meshIdx];
 }
 
 const Texture& MeshManager::GetBaseColorMap(uint32_t materialIdx) const

@@ -6137,7 +6137,9 @@ bool SampleApp::OnInit(HWND hWnd)
 #if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 				.SetSRV(ShaderStage::ALL, 0, 0)
 				.SetSRV(ShaderStage::ALL, 1, 1)
-				.SetUAV(ShaderStage::ALL, 2, 0)
+				.SetSRV(ShaderStage::ALL, 2, 2)
+				.SetSRV(ShaderStage::ALL, 3, 3)
+				.SetUAV(ShaderStage::ALL, 4, 0)
 #endif
 				.End();
 
@@ -9206,11 +9208,13 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 #if 1
 	pCmdList->SetComputeRootDescriptorTable(0, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 	//TODO:パストレがBindless対応するまでの仮のもの
-	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetVB(0).GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetIB(0).GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
 #else
 	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
 #endif
-	pCmdList->SetComputeRootDescriptorTable(2, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
 #endif
 	pCmdList->DispatchRays(&dispatchDesc);
 

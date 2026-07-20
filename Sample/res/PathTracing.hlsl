@@ -1,6 +1,15 @@
 //TODO: hlslì‡RootSignatureíËã`ÇÕÇ«Ç§èëÇØÇŒÇ¢Ç¢Ç©ÇÌÇ©ÇÁÇ»Ç¢ÇÃÇ≈Ç∆ÇËÇ†Ç¶Ç∏Ç‚ÇÁÇ»Ç¢
+struct MeshVertex
+{
+	float3 Position : POSITION;
+	float3 Normal : NORMAL;
+	float2 TexCoord : TEXCOORD;
+	float3 Tangent : TANGENT;
+};
+
 RaytracingAccelerationStructure RtAS : register(t0);
-Texture2D<float4> BaseColorTex : register(t1);
+StructuredBuffer<MeshVertex> VB : register(t1);
+StructuredBuffer<uint> IB : register(t2);
 RWTexture2D<float4> OutTex : register(u0);
 
 float3 linearToSrgb(float3 color)
