@@ -5940,12 +5940,263 @@ bool SampleApp::OnInit(HWND hWnd)
 			uavBarrier.UAV.pResource = m_TlasResultBB.GetResource();
 			pCmd->ResourceBarrier(1, &uavBarrier);
 		}
+#endif
 
 		static const WCHAR* HIT_GROUP_NAME = L"HitGroup";
 		static const WCHAR* RAY_GEN_SHADER_ENTRY_NAME = L"rayGeneration";
 		static const WCHAR* MISS_SHADER_ENTRY_NAME = L"miss";
 		static const WCHAR* CLOSEST_HIT_SHADER_ENTRY_NAME = L"closestHit";
 
+		static constexpr size_t SUB_OBJECT_COUNT = 10;
+		D3D12_STATE_SUBOBJECT subObjects[SUB_OBJECT_COUNT] = {};
+
+		// DXIL LibraryのSubObjectを作成
+		D3D12_DXIL_LIBRARY_DESC dxilLibDesc;
+		ComPtr<ID3DBlob> pLSBlob;
+		{
+			D3D12_EXPORT_DESC exportDescs[3];
+			exportDescs[0].Name = RAY_GEN_SHADER_ENTRY_NAME;
+			exportDescs[0].ExportToRename = nullptr;
+			exportDescs[0].Flags = D3D12_EXPORT_FLAG_NONE;
+			exportDescs[1].Name = MISS_SHADER_ENTRY_NAME;
+			exportDescs[1].ExportToRename = nullptr;
+			exportDescs[1].Flags = D3D12_EXPORT_FLAG_NONE;
+			exportDescs[2].Name = CLOSEST_HIT_SHADER_ENTRY_NAME;
+			exportDescs[2].ExportToRename = nullptr;
+			exportDescs[2].Flags = D3D12_EXPORT_FLAG_NONE;
+
+			std::wstring lsPath;
+			if (!SearchFilePath(L"PathTracing.cso", lsPath))
+			{
+				ELOG("Error : Compute Shader Not Found");
+				return false;
+			}
+
+			HRESULT hr = D3DReadFileToBlob(lsPath.c_str(), pLSBlob.GetAddressOf());
+			if (FAILED(hr))
+			{
+				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", lsPath.c_str());
+				return false;
+			}
+
+			D3D12_STATE_SUBOBJECT& subObjDxilLib = subObjects[0];
+			dxilLibDesc.DXILLibrary.pShaderBytecode = pLSBlob->GetBufferPointer();
+			dxilLibDesc.DXILLibrary.BytecodeLength = pLSBlob->GetBufferSize();
+			dxilLibDesc.NumExports = 3;
+			dxilLibDesc.pExports = exportDescs;
+
+			subObjDxilLib.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+			subObjDxilLib.pDesc = &dxilLibDesc;
+		}
+
+		// HitGroupのSubObjectを作成
+		D3D12_HIT_GROUP_DESC hitGroupDesc;
+		{
+			hitGroupDesc.HitGroupExport = HIT_GROUP_NAME;
+			hitGroupDesc.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES;
+			hitGroupDesc.AnyHitShaderImport = nullptr;
+			hitGroupDesc.ClosestHitShaderImport = CLOSEST_HIT_SHADER_ENTRY_NAME;
+			hitGroupDesc.IntersectionShaderImport = nullptr;
+
+			D3D12_STATE_SUBOBJECT& subObjHitGroup = subObjects[1];
+			subObjHitGroup.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
+			subObjHitGroup.pDesc = &hitGroupDesc;
+		}
+
+		// RayGenシェーダのLocal Root SignatureのSubObjectを作成
+		RootSignature rayGenRootSig;
+		ID3D12RootSignature* pRayGenRootSig = nullptr;
+		D3D12_STATE_SUBOBJECT& subObjRayGenLocalRootSig = subObjects[2];
+		{
+			RootSignature::Desc desc;
+			desc.Begin()
+#if 0 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
+				.SetSRV(ShaderStage::ALL, 0, 0)
+				.SetUAV(ShaderStage::ALL, 1, 0)
+#endif
+				.SetLocalRootSignature()
+				.End();
+
+			if (!rayGenRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+			{
+				ELOG("Error : RootSignature::Init() Failed");
+				return false;
+			}
+
+			subObjRayGenLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+			// なぜかID3D12RootSignature*の変数を保持せねばならない
+			pRayGenRootSig = rayGenRootSig.GetPtr();
+			subObjRayGenLocalRootSig.pDesc = &pRayGenRootSig;
+		}
+
+		// RayGenシェーダのExport AssociationのSubObjectを作成
+		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION rayGenExpAssociation;
+		{
+			rayGenExpAssociation.pSubobjectToAssociate = &subObjRayGenLocalRootSig;
+			rayGenExpAssociation.NumExports = 1;
+			rayGenExpAssociation.pExports = &RAY_GEN_SHADER_ENTRY_NAME;
+
+			D3D12_STATE_SUBOBJECT& subObjRayGenExpAssociation = subObjects[3];
+			subObjRayGenExpAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+			subObjRayGenExpAssociation.pDesc = &rayGenExpAssociation;
+		}
+
+		// MissシェーダとClosestHitシェーダのLocal Root SignatureのSubObjectを作成
+		// ルートシグネチャがひとつにまとめられるのでまとめている
+		RootSignature missClosestHitRootSig;
+		ID3D12RootSignature* pMissClosestHitRootSig = nullptr;
+		D3D12_STATE_SUBOBJECT& subObjMissClosestHitLocalRootSig = subObjects[4];
+		{
+			RootSignature::Desc desc;
+			desc.Begin()
+				.SetLocalRootSignature()
+				.End();
+
+			if (!missClosestHitRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+			{
+				ELOG("Error : RootSignature::Init() Failed");
+				return false;
+			}
+
+			subObjMissClosestHitLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+			pMissClosestHitRootSig = missClosestHitRootSig.GetPtr();
+			subObjMissClosestHitLocalRootSig.pDesc = &pMissClosestHitRootSig;
+		}
+			
+		// MissシェーダとClosestHitシェーダのExport AssociationのSubObjectを作成
+		// ルートシグネチャがひとつにまとめられるのでまとめている
+		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION missClosestHitExpAssociation;
+		const WCHAR* missClosestHitExportNames[] = {
+			MISS_SHADER_ENTRY_NAME,
+			CLOSEST_HIT_SHADER_ENTRY_NAME,
+		};
+		{
+			missClosestHitExpAssociation.pSubobjectToAssociate = &subObjMissClosestHitLocalRootSig;
+			missClosestHitExpAssociation.NumExports = 2;
+			missClosestHitExpAssociation.pExports = missClosestHitExportNames;
+
+			D3D12_STATE_SUBOBJECT& subObjMissCloesstHitExpAssociation = subObjects[5];
+			subObjMissCloesstHitExpAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+			subObjMissCloesstHitExpAssociation.pDesc = &missClosestHitExpAssociation;
+		}
+
+		// Shader Config（シェーダ間で受け渡すデータの上限サイズ情報）のSubObjectを作成
+		D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
+		D3D12_STATE_SUBOBJECT& subObjShaderConfig = subObjects[6];
+		{
+			//struct Payload
+			//{
+			//		float3 color;
+			//};
+			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 3;
+
+			// struct BuiltInTriangleIntersectionAttributes
+			// {
+			//		float2 barycentrics;
+			// };
+			shaderConfig.MaxAttributeSizeInBytes = sizeof(float) * 2;
+
+			subObjShaderConfig.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
+			subObjShaderConfig.pDesc = &shaderConfig;
+		}
+
+		// ShaderConfigのExportAssociationのSubObjectを作成
+		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderConfigExpAssociation;
+		const WCHAR* shaderConfigExportNames[] = {
+			MISS_SHADER_ENTRY_NAME,
+			CLOSEST_HIT_SHADER_ENTRY_NAME,
+			RAY_GEN_SHADER_ENTRY_NAME,
+		};
+		{
+			shaderConfigExpAssociation.pSubobjectToAssociate = &subObjShaderConfig;
+			shaderConfigExpAssociation.NumExports = 3;
+			shaderConfigExpAssociation.pExports = shaderConfigExportNames;
+
+			D3D12_STATE_SUBOBJECT& subObjShaderConfigExpAssociation = subObjects[7];
+			subObjShaderConfigExpAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+			subObjShaderConfigExpAssociation.pDesc = &shaderConfigExpAssociation;
+		}
+
+		// Pipeline ConfigのSubObjectを作成
+		D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
+		{
+			// primary rayのみ 
+			pipelineConfig.MaxTraceRecursionDepth = 1;
+
+			D3D12_STATE_SUBOBJECT& subObjPipelineConfig = subObjects[8];
+			subObjPipelineConfig.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
+			subObjPipelineConfig.pDesc = &pipelineConfig;
+		}
+
+		// Global Root SignatureのSubObjectを作成
+		ID3D12RootSignature* pGlobalRootSig = nullptr;
+		{
+#if 1 // RootSignatureのDescriptorTable方式でTdrが起きてるのかもしれないのでTLASをルートデスクリプタ方式にしてみる
+			RootSignature::Desc desc;
+			desc.Begin()
+#if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
+				.SetSRV(ShaderStage::ALL, 0, 0)
+				.SetUAV(ShaderStage::ALL, 1, 0)
+#endif
+				.End();
+
+			if (!m_GlobalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+			{
+				ELOG("Error : RootSignature::Init() Failed");
+				return false;
+			}
+#else
+			D3D12_DESCRIPTOR_RANGE range[1] = {};
+			range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+			range[0].NumDescriptors = 1;
+			range[0].BaseShaderRegister = 0;
+			range[0].RegisterSpace = 0;
+			range[0].OffsetInDescriptorsFromTableStart = 0;
+
+			D3D12_ROOT_PARAMETER param[2] = {};
+			param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+			param[0].Descriptor.ShaderRegister = 0;
+			param[0].Descriptor.RegisterSpace = 0;
+			param[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			// ディスクリプタテーブル方式にしないとTexture2Dのようなtyped-UAVが使えない
+			param[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			param[1].DescriptorTable.NumDescriptorRanges = 1;
+			param[1].DescriptorTable.pDescriptorRanges = &range[0];
+			param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+			D3D12_ROOT_SIGNATURE_DESC desc = {};
+			desc.NumParameters = _countof(param);
+			desc.pParameters = param;
+			desc.NumStaticSamplers = 0;
+			desc.pStaticSamplers = nullptr;
+
+			if (!m_GlobalRootSig.Init(m_pDevice.Get(), &desc))
+			{
+				ELOG("Error : RootSignature::Init() Failed");
+				return false;
+			}
+#endif
+
+			D3D12_STATE_SUBOBJECT& subObjGlobalRootSig = subObjects[9];
+			subObjGlobalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
+			pGlobalRootSig = m_GlobalRootSig.GetPtr();
+			subObjGlobalRootSig.pDesc = &pGlobalRootSig;
+		}
+
+		// RTPipelineのState Object作成
+		{
+			D3D12_STATE_OBJECT_DESC desc;
+			desc.NumSubobjects = static_cast<UINT>(SUB_OBJECT_COUNT);
+			desc.pSubobjects = subObjects;
+			desc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
+			HRESULT hr = m_pDevice->CreateStateObject(&desc, IID_PPV_ARGS(m_pStateObject.GetAddressOf()));
+			if (FAILED(hr))
+			{
+				ELOG("Error : CreateStateObject() Failed");
+				return false;
+			}
+		}
+#if 0 // HelloTriangle
 		// State Objectの作成
 		{
 			static constexpr size_t SUB_OBJECT_COUNT = 10;
