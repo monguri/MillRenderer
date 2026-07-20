@@ -245,10 +245,12 @@ private:
 	bool m_isLightManipulateMode;
 
 	// パストレテスト用
+#if 0
 	Resource m_TriangleVB;
 	Resource m_BlasResultBB;
 	Resource m_TlasResultBB;
 	DescriptorHandle* m_pTlasResultSrvHandle = nullptr;
+#endif
 	RootSignature m_GlobalRootSig;
 	ComPtr<ID3D12StateObject> m_pStateObject;
 	ColorTarget m_RTTarget;

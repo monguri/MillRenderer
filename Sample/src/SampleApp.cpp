@@ -6492,7 +6492,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 		}
 
-#if 0 // HelloTriangle
+#if 1 // HelloTriangle
 		// Shader Tableの作成
 		{
 			// 全シェーダ、最大サイズになるray-genシェーダに合わせる
@@ -6536,7 +6536,6 @@ bool SampleApp::OnInit(HWND hWnd)
 				m_pDevice.Get(),
 				shaderTblData.size(),
 				D3D12_RESOURCE_FLAG_NONE,
-				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				nullptr,
 				nullptr
@@ -9177,7 +9176,6 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 {
 	::PIXScopedEvent(pCmdList, 0, L"PathTracing");
 
-#if 0 // HelloTriangle
 	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	D3D12_DISPATCH_RAYS_DESC dispatchDesc;
@@ -9205,7 +9203,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 #if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 	// 試しにTLASをDesriptorTable方式でなくルートデスクリプタ方式にしてみる
 #if 1
-	pCmdList->SetComputeRootDescriptorTable(0, m_pTlasResultSrvHandle->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(0, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 #else
 	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
 #endif
@@ -9214,7 +9212,6 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->DispatchRays(&dispatchDesc);
 
 	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-#endif
 }
 
 void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
