@@ -1,4 +1,20 @@
 //TODO: hlsl内RootSignature定義はどう書けばいいかわからないのでとりあえずやらない
+struct Camera
+{
+	float4x4 ViewProj;
+	float3 CameraPosition;
+	uint DebugViewType;
+	float4x4 ViewMatrix;
+	float4x4 InvProjMatrix;
+	float4x4 InvViewMatrix;
+	uint Width;
+	uint Height;
+	float Near;
+	float Padding[1];
+	float4x4 ProjMatrix;
+	float4x4 ClipToPrevClip;
+};
+
 struct MeshVertex
 {
 	float3 Position : POSITION;
@@ -6,6 +22,8 @@ struct MeshVertex
 	float2 TexCoord : TEXCOORD;
 	float3 Tangent : TANGENT;
 };
+
+ConstantBuffer<Camera> CbCamera : register(b0);
 
 RaytracingAccelerationStructure RtAS : register(t0);
 StructuredBuffer<MeshVertex> VB : register(t1);
@@ -31,9 +49,10 @@ void rayGeneration()
 	float aspectRatio = float(screenDim.y) / float(screenDim.x);
 
 	RayDesc rayDesc;
-	// Triangleをちょうどいいカメラ位置で表示する
-	rayDesc.Origin = float3(0, 0, -2);
-	rayDesc.Direction = normalize(float3(normalXY.x, normalXY.y * aspectRatio, 1));
+	rayDesc.Origin = CbCamera.CameraPosition;
+
+	float3 rayDirection = normalize(mul((float3x3)CbCamera.InvViewMatrix, float3(normalXY.x, normalXY.y * aspectRatio, -1)));
+	rayDesc.Direction = rayDirection;
 
 	rayDesc.TMin = 0;
 	rayDesc.TMax = 100000;
