@@ -6140,6 +6140,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				.SetSRV(ShaderStage::ALL, 2, 2)
 				.SetSRV(ShaderStage::ALL, 3, 3)
 				.SetUAV(ShaderStage::ALL, 4, 0)
+				.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::PointClamp, 0)
 #endif
 				.End();
 

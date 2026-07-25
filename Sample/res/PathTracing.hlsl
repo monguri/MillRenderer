@@ -10,17 +10,10 @@ struct MeshVertex
 RaytracingAccelerationStructure RtAS : register(t0);
 StructuredBuffer<MeshVertex> VB : register(t1);
 StructuredBuffer<uint> IB : register(t2);
+Texture2D<float4> BaseColorMap : register(t3);
 RWTexture2D<float4> OutTex : register(u0);
 
-float3 linearToSrgb(float3 color)
-{
-    // http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
-	float3 sq1 = sqrt(color);
-	float3 sq2 = sqrt(sq1);
-	float3 sq3 = sqrt(sq2);
-	float3 srgb = 0.662002687 * sq1 + 0.684122060 * sq2 - 0.323583601 * sq3 - 0.0225411470 * color;
-	return srgb;
-}
+SamplerState PointClampSmp : register(s0);
 
 struct [raypayload] Payload
 {
@@ -54,8 +47,7 @@ void rayGeneration()
 
 	TraceRay(RtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
 
-	float3 color = linearToSrgb(payload.color);
-	OutTex[rayIndex.xy] = float4(color, 1);
+	OutTex[rayIndex.xy] = float4(payload.color, 1);
 
 }
 
@@ -69,8 +61,19 @@ void miss(inout Payload payload)
 [shader("closesthit")]
 void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attrs)
 {
-	payload.color =
-		float3(1, 0, 0) * (1 - attrs.barycentrics.x - attrs.barycentrics.y)
-		+ float3(0, 1, 0) * attrs.barycentrics.x
-		+ float3(0, 0, 1) * attrs.barycentrics.y;
+	uint primitiveIndex = PrimitiveIndex();
+	uint index0 = IB[primitiveIndex * 3 + 0];
+	uint index1 = IB[primitiveIndex * 3 + 1];
+	uint index2 = IB[primitiveIndex * 3 + 2];
+
+	float2 uv0 = VB[index0].TexCoord;
+	float2 uv1 = VB[index1].TexCoord;
+	float2 uv2 = VB[index2].TexCoord;
+
+	float2 uv = uv0 * (1 - attrs.barycentrics.x - attrs.barycentrics.y)
+		+ uv1 * attrs.barycentrics.x
+		+ uv2 * attrs.barycentrics.y;
+
+	float4 baseColor = BaseColorMap.SampleLevel(PointClampSmp, uv, 0);
+	payload.color = baseColor.rgb;
 }
