@@ -6,7 +6,7 @@ struct Camera
 	uint DebugViewType;
 	float4x4 ViewMatrix;
 	float4x4 InvProjMatrix;
-	float4x4 InvViewMatrix;
+	float4x4 InvViewProjMatrix;
 	uint Width;
 	uint Height;
 	float Near;
@@ -33,6 +33,34 @@ RWTexture2D<float4> OutTex : register(u0);
 
 SamplerState PointClampSmp : register(s0);
 
+// https://shikihuiku.github.io/post/projection_matrix/
+// deviceZ = -Near / viewZ
+// NearÇÕ0.1mÇ≠ÇÁÇ¢Ç…Ç∑ÇÈÇÃÇ≈ÅAviewZÇ100kmÇ‹Ç≈ëŒâûÇµÇƒÇ‡à¿ëSÇ»ílÇ…ÇµÇΩ
+#ifndef DEVICE_Z_MIN_VALUE
+#define DEVICE_Z_MIN_VALUE 1e-7f
+#endif //DEVICE_Z_FURTHEST
+
+float ConvertFromDeviceZtoViewZ(float deviceZ)
+{
+	// https://shikihuiku.github.io/post/projection_matrix/
+	return -CbCamera.Near / max(deviceZ, DEVICE_Z_MIN_VALUE);
+}
+
+float3 ConverFromNDCToWS(float4 ndcPos)
+{
+	// referenced.
+	// https://learn.microsoft.com/ja-jp/windows/win32/dxtecharts/the-direct3d-transformation-pipeline
+	// That is left-handed projection matrix.
+	// Matrix::CreatePerspectiveFieldOfView() transform right-handed viewspace to left-handed clip space.
+	// So, referenced that code.
+	float deviceZ = ndcPos.z;
+	float viewPosZ = ConvertFromDeviceZtoViewZ(deviceZ);
+	float clipPosW = -viewPosZ;
+	float4 clipPos = ndcPos * clipPosW;
+	float4 worldPos = mul(CbCamera.InvViewProjMatrix, clipPos);
+	return worldPos.xyz;
+}
+
 struct [raypayload] Payload
 {
 	float3 color : read(caller) : write(closesthit, miss);
@@ -45,13 +73,14 @@ void rayGeneration()
 	uint2 rayIndex = DispatchRaysIndex().xy;
 	uint2 screenDim = DispatchRaysDimensions().xy;
 
-	float2 normalXY = float2(rayIndex) / float2(screenDim) * 2 - 1;
-	float aspectRatio = float(screenDim.y) / float(screenDim.x);
+	float2 ndcXY = (float2(rayIndex) + 0.5f) / float2(screenDim) * float2(2, -2) + float2(-1, 1);
+	float4 ndcPos = float4(ndcXY, 1, 1);
+	float3 worldPos = ConverFromNDCToWS(ndcPos);
 
 	RayDesc rayDesc;
 	rayDesc.Origin = CbCamera.CameraPosition;
 
-	float3 rayDirection = normalize(mul((float3x3)CbCamera.InvViewMatrix, float3(normalXY.x, normalXY.y * aspectRatio, -1)));
+	float3 rayDirection = normalize(worldPos - CbCamera.CameraPosition);
 	rayDesc.Direction = rayDirection;
 
 	rayDesc.TMin = 0;
@@ -67,7 +96,6 @@ void rayGeneration()
 	TraceRay(RtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
 
 	OutTex[rayIndex.xy] = float4(payload.color, 1);
-
 }
 
 [shader("miss")]
