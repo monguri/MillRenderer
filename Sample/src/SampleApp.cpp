@@ -9210,7 +9210,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 #if 1
 	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB->GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
-	//TODO:パストレがBindless対応するまでの仮のもの
+	//TODO:パストレがBindless対応するまでの仮のもの。meshIdx=、materialIdx=0に固定
 	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetVB(0).GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetIB(0).GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
