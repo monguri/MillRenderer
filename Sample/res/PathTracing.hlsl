@@ -31,7 +31,7 @@ StructuredBuffer<uint> IB : register(t2);
 Texture2D<float4> BaseColorMap : register(t3);
 RWTexture2D<float4> OutTex : register(u0);
 
-SamplerState PointClampSmp : register(s0);
+SamplerState LinearWrapSmp : register(s0);
 
 // https://shikihuiku.github.io/post/projection_matrix/
 // deviceZ = -Near / viewZ
@@ -188,10 +188,6 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float2 uv1 = VB[index1].TexCoord;
 	float2 uv2 = VB[index2].TexCoord;
 
-	float2 uv = uv0 * (1 - attrs.barycentrics.x - attrs.barycentrics.y)
-		+ uv1 * attrs.barycentrics.x
-		+ uv2 * attrs.barycentrics.y;
-
 	// IBL晩なので、モデル座標がそのままワールド座標の前提
 	float3 posWS0 = VB[index0].Position;
 	float3 posWS1 = VB[index1].Position;
@@ -208,14 +204,9 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
 	BarycentricDeriv barycentricDeriv = CalcFullBary(posCS0, posCS1, posCS2, ndcXY, screenDim);
 
-	float2 dummy, ddx, ddy;
-	BaryInterpolateDeriv2(barycentricDeriv, uv0, uv1, uv2, dummy, ddx, ddy);
+	float2 uv, ddx, ddy;
+	BaryInterpolateDeriv2(barycentricDeriv, uv0, uv1, uv2, uv, ddx, ddy);
 
-#if 1
-	//float4 baseColor = BaseColorMap.SampleLevel(PointClampSmp, uv, 0);
-	float4 baseColor = BaseColorMap.SampleGrad(PointClampSmp, uv, ddx, ddy);
+	float4 baseColor = BaseColorMap.SampleGrad(LinearWrapSmp, frac(uv), ddx, ddy);
 	payload.color = baseColor.rgb;
-#else
-	payload.color = float3((1 - attrs.barycentrics.x - attrs.barycentrics.y), attrs.barycentrics.x, attrs.barycentrics.y);
-#endif
 }
