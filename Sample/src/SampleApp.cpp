@@ -9208,7 +9208,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 #if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 	// 試しにTLASをDesriptorTable方式でなくルートデスクリプタ方式にしてみる
 #if 1
-	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB->GetHandle()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 	//TODO:パストレがBindless対応するまでの仮のもの。meshIdx=、materialIdx=0に固定
 	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetVB(0).GetHandleSRV()->HandleGPU);
