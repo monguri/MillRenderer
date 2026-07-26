@@ -95,6 +95,11 @@ PSOutput main(VSOutput input, uint primitiveID : SV_PrimitiveID)
 			);
 		}
 			break;
+		case DEBUG_VIEW_TYPE_TEXCOORD:
+		{
+			output.BaseColor.rgb = float3(input.TexCoord, 0);
+		}
+			break;
 	}
 
 	output.BaseColor.a = 1.0f;

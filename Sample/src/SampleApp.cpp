@@ -63,6 +63,7 @@ enum class DEBUG_VIEW_MODE : int
 	TRIANGLE_INDEX,
 	MESHLET_INDEX,
 	MESHLET_AABB,
+	TEXCOORD,
 };
 
 namespace
@@ -7248,6 +7249,7 @@ void SampleApp::OnRender()
 				case SSAO_HALF_RES:
 				case SSGI:
 				case VELOCITY:
+				case TEXCOORD:
 					// 何もしない
 					break;
 				default:
@@ -9239,6 +9241,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			renderTargetName = L"SceneDepth";
 			break;
 		case BASECOLOR:
+		case TEXCOORD:
 			renderTargetName = L"GBufferBaseColor";
 			break;
 		case NORMAL:
@@ -9294,6 +9297,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			case TRIANGLE_INDEX:
 			case MESHLET_INDEX:
 			case MESHLET_AABB:
+			case TEXCOORD:
 				ptr->bOnlyRedChannel = 0;
 				ptr->Scale = 1.0f;
 				ptr->Bias = 0.0f;
@@ -9356,6 +9360,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneDepthTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case BASECOLOR:
+		case TEXCOORD:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferBaseColorTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case NORMAL:
@@ -9456,6 +9461,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		ImGui::RadioButton("Depth", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(DEPTH));
 		ImGui::RadioButton("BaseColor", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(BASECOLOR));
 		ImGui::RadioButton("Normal", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(NORMAL));
+		ImGui::RadioButton("TexCoord", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(TEXCOORD));
 		ImGui::RadioButton("MetallicRoughness", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(METALLIC_ROUGHNESS));
 		ImGui::RadioButton("Emissive", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(EMISSIVE));
 		ImGui::RadioButton("Velocity", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(VELOCITY));

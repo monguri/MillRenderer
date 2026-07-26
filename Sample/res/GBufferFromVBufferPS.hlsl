@@ -391,7 +391,18 @@ PSOutput main(VSOutput input)
 		emissive *= EmissiveMap.SampleGrad(AnisotropicWrapSmp, texCoord, texCoordDdx, texCoordDdy).rgb;
 	}
 
-	output.BaseColor.rgb = baseColor.rgb;
+	switch (CbCamera.DebugViewType)
+	{
+		case DEBUG_VIEW_TYPE_NONE:
+		default:
+			output.BaseColor.rgb = baseColor.rgb;
+			break;
+		case DEBUG_VIEW_TYPE_TEXCOORD:
+		{
+			output.BaseColor.rgb = float3(texCoord, 0);
+		}
+			break;
+	}
 	output.BaseColor.a = 1.0f;
 
 	output.Normal.xyz = (N + 1.0f) * 0.5f;
