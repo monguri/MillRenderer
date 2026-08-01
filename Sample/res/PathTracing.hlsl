@@ -30,6 +30,7 @@ StructuredBuffer<MeshVertex> VB : register(t1);
 StructuredBuffer<uint> IB : register(t2);
 Texture2D<float4> BaseColorMap : register(t3);
 RWTexture2D<float4> BaseColorTarget : register(u0);
+RWTexture2D<float4> NormalTarget : register(u1);
 
 SamplerState LinearWrapSmp : register(s0);
 
@@ -135,6 +136,7 @@ void BaryInterpolateDeriv2(BarycentricDeriv deriv, float2 v0, float2 v1, float2 
 struct [raypayload] Payload
 {
 	float3 color : read(caller) : write(closesthit, miss);
+	float3 normal : read(caller) : write(closesthit, miss);
 };
 
 [shader("raygeneration")]
@@ -167,6 +169,7 @@ void rayGeneration()
 	TraceRay(RtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
 
 	BaseColorTarget[rayIndex.xy] = float4(payload.color, 1);
+	NormalTarget[rayIndex.xy] = float4((payload.normal + 1) * 0.5f, 1);
 }
 
 [shader("miss")]
@@ -174,6 +177,8 @@ void miss(inout Payload payload)
 {
 	// light green
 	payload.color = float3(0.4, 0.6, 0.2);
+	// normalÇÕìKìñÇ…è„å¸Ç´Ç…ÇµÇƒÇ®Ç≠
+	payload.normal = float3(0, 0, 1);
 }
 
 [shader("closesthit")]
@@ -209,4 +214,10 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
 	float4 baseColor = BaseColorMap.SampleGrad(LinearWrapSmp, frac(uv), ddx, ddy);
 	payload.color = baseColor.rgb;
+
+	float3 normalWS0 = VB[index0].Normal;
+	float3 normalWS1 = VB[index1].Normal;
+	float3 normalWS2 = VB[index2].Normal;
+	float3 normalWS = Baryinterpolate3(barycentricDeriv, normalWS0, normalWS1, normalWS2);
+	payload.normal = normalWS;
 }

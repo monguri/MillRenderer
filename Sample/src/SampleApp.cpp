@@ -1729,9 +1729,11 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_GBufferNormalTarget.InitRenderTarget
+		if (!m_GBufferNormalTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 			m_pPool[POOL_TYPE_RTV],
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
@@ -6090,8 +6092,9 @@ bool SampleApp::OnInit(HWND hWnd)
 			//struct Payload
 			//{
 			//		float3 color;
+			//		float3 normal;
 			//};
-			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 3;
+			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 6;
 
 			// struct BuiltInTriangleIntersectionAttributes
 			// {
@@ -6144,6 +6147,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				.SetSRV(ShaderStage::ALL, 3, 2)
 				.SetSRV(ShaderStage::ALL, 4, 3)
 				.SetUAV(ShaderStage::ALL, 5, 0)
+				.SetUAV(ShaderStage::ALL, 6, 1)
 				.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 #endif
 				.End();
@@ -9199,6 +9203,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
 #endif
 	pCmdList->SetComputeRootDescriptorTable(5, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(6, m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
 #endif
 	pCmdList->DispatchRays(&dispatchDesc);
 
