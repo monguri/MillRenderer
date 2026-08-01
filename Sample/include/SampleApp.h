@@ -253,7 +253,6 @@ private:
 #endif
 	RootSignature m_GlobalRootSig;
 	ComPtr<ID3D12StateObject> m_pStateObject;
-	ColorTarget m_RTTarget;
 	Resource m_ShaderTableBB;
 	size_t m_ShaderTableEntrySize = 0;
 

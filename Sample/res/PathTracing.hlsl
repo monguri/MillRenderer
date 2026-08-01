@@ -29,7 +29,7 @@ RaytracingAccelerationStructure RtAS : register(t0);
 StructuredBuffer<MeshVertex> VB : register(t1);
 StructuredBuffer<uint> IB : register(t2);
 Texture2D<float4> BaseColorMap : register(t3);
-RWTexture2D<float4> OutTex : register(u0);
+RWTexture2D<float4> BaseColorTarget : register(u0);
 
 SamplerState LinearWrapSmp : register(s0);
 
@@ -166,7 +166,7 @@ void rayGeneration()
 
 	TraceRay(RtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
 
-	OutTex[rayIndex.xy] = float4(payload.color, 1);
+	BaseColorTarget[rayIndex.xy] = float4(payload.color, 1);
 }
 
 [shader("miss")]
@@ -188,7 +188,7 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float2 uv1 = VB[index1].TexCoord;
 	float2 uv2 = VB[index2].TexCoord;
 
-	// IBL晩なので、モデル座標がそのままワールド座標の前提
+	// IBL版なので、モデル座標がそのままワールド座標の前提
 	float3 posWS0 = VB[index0].Position;
 	float3 posWS1 = VB[index1].Position;
 	float3 posWS2 = VB[index2].Position;

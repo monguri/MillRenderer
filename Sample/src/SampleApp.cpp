@@ -1707,9 +1707,11 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_GBufferBaseColorTarget.InitRenderTarget
+		if (!m_GBufferBaseColorTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 			m_pPool[POOL_TYPE_RTV],
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
@@ -6475,29 +6477,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		// State Objectの作成
 #endif
 
-		// RT書き出し用テクスチャの作成
-		// ここで作ったUAVがPOOL_TYPE_RES_GPU_VISIBLEのディスクリプタプールでTLASのSRVの次に作るディスクリプタである必要がある
-		// m_pTlasResultSrvHandleをRayGenのシェーダテーブルに設定するので
-		{
-			float clearColor[] = { 0, 0, 0, 0 };
-			if (!m_RTTarget.InitUnorderedAccessTarget(
-				m_pDevice.Get(),
-				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-				nullptr,
-				nullptr,
-				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-				m_Width,
-				m_Height,
-				// CopyResrouce()でバックバッファにコピーするのでフォーマットは同じでないと警告が出る
-				m_BackBufferFormat,
-				clearColor
-			))
-			{
-				ELOG("Error : Texture::InitUnorderedAccessTarget() Failed");
-				return false;
-			}
-		}
-
 #if 1 // HelloTriangle
 		// Shader Tableの作成
 		{
@@ -9183,7 +9162,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 {
 	::PIXScopedEvent(pCmdList, 0, L"PathTracing");
 
-	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	D3D12_DISPATCH_RAYS_DESC dispatchDesc;
 	dispatchDesc.Width = m_Width;
@@ -9219,11 +9198,11 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 #else
 	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
 #endif
-	pCmdList->SetComputeRootDescriptorTable(5, m_RTTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(5, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
 #endif
 	pCmdList->DispatchRays(&dispatchDesc);
 
-	DirectX::TransitionResource(pCmdList, m_RTTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
@@ -9343,14 +9322,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
-			if (m_usePathTracing)
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(1, m_RTTarget.GetHandleSRV()->HandleGPU);
-			}
-			else
-			{
-				pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
-			}
+			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
 		case MESHLET_INDEX:
 		case MESHLET_AABB:
