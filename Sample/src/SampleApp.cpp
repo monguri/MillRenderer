@@ -1751,9 +1751,11 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_GBufferMetallicRoughnessTarget.InitRenderTarget
+		if (!m_GBufferMetallicRoughnessTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 			m_pPool[POOL_TYPE_RTV],
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
@@ -6093,9 +6095,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			//{
 			//		float3 color;
 			//		float3 normal;
+			//		float2 metallicRoughness;
 			//		float deviceZ;
 			//};
-			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 7;
+			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 9;
 
 			// struct BuiltInTriangleIntersectionAttributes
 			// {
@@ -6147,9 +6150,12 @@ bool SampleApp::OnInit(HWND hWnd)
 				.SetSRV(ShaderStage::ALL, 2, 1)
 				.SetSRV(ShaderStage::ALL, 3, 2)
 				.SetSRV(ShaderStage::ALL, 4, 3)
-				.SetUAV(ShaderStage::ALL, 5, 0)
-				.SetUAV(ShaderStage::ALL, 6, 1)
-				.SetUAV(ShaderStage::ALL, 7, 2)
+				.SetSRV(ShaderStage::ALL, 5, 4)
+				.SetSRV(ShaderStage::ALL, 6, 5)
+				.SetUAV(ShaderStage::ALL, 7, 0)
+				.SetUAV(ShaderStage::ALL, 8, 1)
+				.SetUAV(ShaderStage::ALL, 9, 2)
+				.SetUAV(ShaderStage::ALL, 10, 3)
 				.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 #endif
 				.End();
@@ -9172,6 +9178,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 
 	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	D3D12_DISPATCH_RAYS_DESC dispatchDesc;
@@ -9196,26 +9203,24 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
-#if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
-	// 試しにTLASをDesriptorTable方式でなくルートデスクリプタ方式にしてみる
-#if 1
 	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 	//TODO:パストレがBindless対応するまでの仮のもの。meshIdx=、materialIdx=0に固定
 	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetVB(0).GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetIB(0).GetHandleSRV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
-#else
-	pCmdList->SetComputeRootShaderResourceView(0, m_TlasResultBB.GetResource()->GetGPUVirtualAddress());
-#endif
-	pCmdList->SetComputeRootDescriptorTable(5, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(6, m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(7, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
-#endif
+	pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetNormalMap(0).GetHandleSRVPtr()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetMetallicRoughnessMap(0).GetHandleSRVPtr()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(7, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(8, m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(9, m_GBufferMetallicRoughnessTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(10, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
+
 	pCmdList->DispatchRays(&dispatchDesc);
 
 	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 

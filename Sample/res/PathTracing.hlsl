@@ -29,9 +29,12 @@ RaytracingAccelerationStructure RtAS : register(t0);
 StructuredBuffer<MeshVertex> VB : register(t1);
 StructuredBuffer<uint> IB : register(t2);
 Texture2D<float4> BaseColorMap : register(t3);
+Texture2D<float4> NormalMap : register(t4);
+Texture2D<float2> MetallicRoughnessMap : register(t5);
 RWTexture2D<float4> BaseColorTarget : register(u0);
 RWTexture2D<float4> NormalTarget : register(u1);
-RWTexture2D<uint64_t> VBufferTarget : register(u2);
+RWTexture2D<float2> MetallicRoughnessTarget : register(u2);
+RWTexture2D<uint64_t> VBufferTarget : register(u3);
 
 SamplerState LinearWrapSmp : register(s0);
 
@@ -138,6 +141,7 @@ struct [raypayload] Payload
 {
 	float3 color : read(caller) : write(closesthit, miss);
 	float3 normal : read(caller) : write(closesthit, miss);
+	float2 metallicRoughness : read(caller) : write(closesthit, miss);
 	float deviceZ : read(caller) : write(closesthit, miss);
 };
 
@@ -172,6 +176,7 @@ void rayGeneration()
 
 	BaseColorTarget[rayIndex.xy] = float4(payload.color, 1);
 	NormalTarget[rayIndex.xy] = float4((payload.normal + 1) * 0.5f, 1);
+	MetallicRoughnessTarget[rayIndex.xy] = payload.metallicRoughness;
 	VBufferTarget[rayIndex.xy] = uint64_t(asuint(payload.deviceZ)) << 32;
 }
 
@@ -182,6 +187,8 @@ void miss(inout Payload payload)
 	payload.color = float3(0.4, 0.6, 0.2);
 	// normalは適当に上向きにしておく
 	payload.normal = float3(0, 0, 1);
+	// metallicRoughnessは適当に0,1にしておく
+	payload.metallicRoughness = float2(0, 1);
 	// deviceZはFarPlane無限大
 	payload.deviceZ = 0;
 }
@@ -217,14 +224,12 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float2 uv, ddx, ddy;
 	BaryInterpolateDeriv2(barycentricDeriv, uv0, uv1, uv2, uv, ddx, ddy);
 
-	float4 baseColor = BaseColorMap.SampleGrad(LinearWrapSmp, frac(uv), ddx, ddy);
+	//TODO: MaterialのBaseColorFactorなど考慮できてない
+	float4 baseColor = BaseColorMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
 	payload.color = baseColor.rgb;
-
-	float3 normalWS0 = VB[index0].Normal;
-	float3 normalWS1 = VB[index1].Normal;
-	float3 normalWS2 = VB[index2].Normal;
-	float3 normalWS = Baryinterpolate3(barycentricDeriv, normalWS0, normalWS1, normalWS2);
-	payload.normal = normalWS;
+	//TODO: IsotropicNDFFilteringやInvTangentBasisを考慮してない
+	payload.normal = NormalMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).xyz;
+	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
 
 	// Inverse Z、Infinite Far PlaneだとClipSpaceW = ViewZである。
 	float3 invViewZs = float3(

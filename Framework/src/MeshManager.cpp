@@ -1266,3 +1266,13 @@ const Texture& MeshManager::GetBaseColorMap(uint32_t materialIdx) const
 	return m_BaseColorMaps[materialIdx];
 }
 
+const Texture& MeshManager::GetNormalMap(uint32_t materialIdx) const
+{
+	return m_NormalMaps[materialIdx];
+}
+
+const Texture& MeshManager::GetMetallicRoughnessMap(uint32_t materialIdx) const
+{
+	return m_MetallicRoughnessMaps[materialIdx];
+}
+
