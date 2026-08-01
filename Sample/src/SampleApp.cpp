@@ -5334,7 +5334,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		CbTemporalAA* ptr = m_TemporalAA_CB[i].GetPtr<CbTemporalAA>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->bEnableTemporalAA = (m_enableTemporalAA ? 1 : 0);
+		ptr->bEnableTemporalAA = (isEnableTemporalAA() ? 1 : 0);
 
 		// Referenced UE.
 		float temporalJitetrPixelsX;
@@ -6913,7 +6913,7 @@ void SampleApp::OnRender()
 	// カメラ定数バッファの更新
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		if (m_enableTemporalAA)
+		if (isEnableTemporalAA())
 		{
 			ptr->ViewProj = viewProjWithJitter;
 		}
@@ -6925,7 +6925,7 @@ void SampleApp::OnRender()
 		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
 		ptr->ViewMatrix = view;
 		Matrix proj;
-		if (m_enableTemporalAA)
+		if (isEnableTemporalAA())
 		{
 			proj = projWithJitter;
 		}
@@ -7112,7 +7112,7 @@ void SampleApp::OnRender()
 
 		if (m_enableVelocity)
 		{
-			if (m_enableTemporalAA)
+			if (isEnableTemporalAA())
 			{
 				DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
 			}
@@ -7126,7 +7126,7 @@ void SampleApp::OnRender()
 
 		DrawSSAOSetup(pCmd);
 
-		if (m_enableTemporalAA)
+		if (isEnableTemporalAA())
 		{
 			DrawSSAO(pCmd, projWithJitter);
 		}
@@ -7135,7 +7135,7 @@ void SampleApp::OnRender()
 			DrawSSAO(pCmd, projNoJitter);
 		}
 
-		if (m_enableTemporalAA)
+		if (isEnableTemporalAA())
 		{
 			DrawSSGI(pCmd, projWithJitter, viewProjWithJitter);
 		}
@@ -7153,7 +7153,7 @@ void SampleApp::OnRender()
 
 		DrawAmbientLight(pCmd, SSGI_CurTarget);
 
-		if (m_enableTemporalAA)
+		if (isEnableTemporalAA())
 		{
 			DrawSSR(pCmd, projWithJitter, viewRotProjWithJitter);
 		}
@@ -8741,7 +8741,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float tempor
 
 	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
-		ptr->bEnableTemporalAA = (m_enableTemporalAA ? 1 : 0);
+		ptr->bEnableTemporalAA = (isEnableTemporalAA() ? 1 : 0);
 
 		// Referenced UE.
 		float totalWeight = 0;
@@ -9845,3 +9845,9 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 
 	return true;
 }
+
+bool SampleApp::isEnableTemporalAA() const
+{
+	return m_enableTemporalAA && !m_usePathTracing;
+}
+

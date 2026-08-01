@@ -262,6 +262,7 @@ private:
 	virtual void OnRender() override;
 	virtual bool OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) override;
 	void ChangeDisplayMode(bool hdr);
+	bool isEnableTemporalAA() const;
 	void DrawDirectionalLightShadowMap(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Vector3& lightForward);
 	void DrawSpotLightShadowMap(ID3D12GraphicsCommandList* pCmdList, uint32_t spotLightIdx);
 	void DrawSkyTransmittanceLUT(ID3D12GraphicsCommandList* pCmdList);
