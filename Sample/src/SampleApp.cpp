@@ -6093,8 +6093,9 @@ bool SampleApp::OnInit(HWND hWnd)
 			//{
 			//		float3 color;
 			//		float3 normal;
+			//		float deviceZ;
 			//};
-			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 6;
+			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 7;
 
 			// struct BuiltInTriangleIntersectionAttributes
 			// {
@@ -6148,6 +6149,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				.SetSRV(ShaderStage::ALL, 4, 3)
 				.SetUAV(ShaderStage::ALL, 5, 0)
 				.SetUAV(ShaderStage::ALL, 6, 1)
+				.SetUAV(ShaderStage::ALL, 7, 2)
 				.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 #endif
 				.End();
@@ -7050,6 +7052,8 @@ void SampleApp::OnRender()
 	if (m_usePathTracing)
 	{
 		DoPathTracing(static_cast<ID3D12GraphicsCommandList4*>(pCmd));
+		// DepthはVBufferに書くのでそこからコピーする
+		DrawDepthBufferFromVBuffer(pCmd);
 	}
 	else
 	{
@@ -9167,6 +9171,8 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	::PIXScopedEvent(pCmdList, 0, L"PathTracing");
 
 	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	D3D12_DISPATCH_RAYS_DESC dispatchDesc;
 	dispatchDesc.Width = m_Width;
@@ -9204,10 +9210,13 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 #endif
 	pCmdList->SetComputeRootDescriptorTable(5, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(6, m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(7, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
 #endif
 	pCmdList->DispatchRays(&dispatchDesc);
 
 	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)

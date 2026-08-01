@@ -31,6 +31,7 @@ StructuredBuffer<uint> IB : register(t2);
 Texture2D<float4> BaseColorMap : register(t3);
 RWTexture2D<float4> BaseColorTarget : register(u0);
 RWTexture2D<float4> NormalTarget : register(u1);
+RWTexture2D<uint64_t> VBufferTarget : register(u2);
 
 SamplerState LinearWrapSmp : register(s0);
 
@@ -137,6 +138,7 @@ struct [raypayload] Payload
 {
 	float3 color : read(caller) : write(closesthit, miss);
 	float3 normal : read(caller) : write(closesthit, miss);
+	float deviceZ : read(caller) : write(closesthit, miss);
 };
 
 [shader("raygeneration")]
@@ -170,6 +172,7 @@ void rayGeneration()
 
 	BaseColorTarget[rayIndex.xy] = float4(payload.color, 1);
 	NormalTarget[rayIndex.xy] = float4((payload.normal + 1) * 0.5f, 1);
+	VBufferTarget[rayIndex.xy] = uint64_t(asuint(payload.deviceZ)) << 32;
 }
 
 [shader("miss")]
@@ -179,6 +182,8 @@ void miss(inout Payload payload)
 	payload.color = float3(0.4, 0.6, 0.2);
 	// normalは適当に上向きにしておく
 	payload.normal = float3(0, 0, 1);
+	// deviceZはFarPlane無限大
+	payload.deviceZ = 0;
 }
 
 [shader("closesthit")]
@@ -220,4 +225,22 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float3 normalWS2 = VB[index2].Normal;
 	float3 normalWS = Baryinterpolate3(barycentricDeriv, normalWS0, normalWS1, normalWS2);
 	payload.normal = normalWS;
+
+	// Inverse Z、Infinite Far PlaneだとClipSpaceW = ViewZである。
+	float3 invViewZs = float3(
+		rcp(posCS0.w),
+		rcp(posCS1.w),
+		rcp(posCS2.w)
+	);
+
+	// 重心座標補間は以下を参考にした
+	// https://shikihuiku.wordpress.com/2017/05/23/barycentric-coordinates%E3%81%AE%E8%A8%88%E7%AE%97%E3%81%A8perspective-correction-partial-derivative%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/
+	// Inverse Z、Infinite Far Planeなので全頂点のClipSpaceZはNear固定である。
+	float3 ndcPosZs = float3(
+		posCS0.z * invViewZs.x,
+		posCS0.z * invViewZs.y,
+		posCS0.z * invViewZs.z
+	);
+
+	payload.deviceZ = dot(ndcPosZs, barycentricDeriv.m_lambda);
 }
