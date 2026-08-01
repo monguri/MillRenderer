@@ -227,9 +227,30 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	//TODO: MaterialのBaseColorFactorなど考慮できてない
 	float4 baseColor = BaseColorMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
 	payload.color = baseColor.rgb;
-	//TODO: IsotropicNDFFilteringやInvTangentBasisを考慮してない
-	payload.normal = NormalMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).xyz;
-	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
+
+	float3 normal = NormalMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).xyz * 2 - 1;
+	normal = normalize(normal);
+
+	//TODO: MetallicFactorとRoughnessFactorはMaterialの値を考慮していない
+	float2 metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
+	//TODO: IsotropicNDFFiltering()はddx/ddy(normal)を使っておりラスタライザ前提の実装で使えない。GBufferPS.hlsliを見てみよ
+	//metallicRoughness.y = IsotropicNDFFiltering(normal, metallicRoughness.y);
+	payload.metallicRoughness = metallicRoughness;
+
+	float3 normalWS0 = VB[index0].Normal;
+	float3 normalWS1 = VB[index1].Normal;
+	float3 normalWS2 = VB[index2].Normal;
+	float3 normalWS = normalize(Baryinterpolate3(barycentricDeriv, normalWS0, normalWS1, normalWS2));
+
+	float3 tangentWS0 = VB[index0].Tangent;
+	float3 tangentWS1 = VB[index1].Tangent;
+	float3 tangentWS2 = VB[index2].Tangent;
+	float3 tangentWS = normalize(Baryinterpolate3(barycentricDeriv, tangentWS0, tangentWS1, tangentWS2));
+
+	float3 bitangentWS = normalize(cross(normalWS, tangentWS));
+	float3x3 invTangentBasis = transpose(float3x3(tangentWS, bitangentWS, normalWS));
+
+	payload.normal = mul(invTangentBasis, normal);
 
 	// Inverse Z、Infinite Far PlaneだとClipSpaceW = ViewZである。
 	float3 invViewZs = float3(
