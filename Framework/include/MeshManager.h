@@ -57,6 +57,7 @@ public:
 	const Texture& GetBaseColorMap(uint32_t materialIdx) const;
 	const Texture& GetNormalMap(uint32_t materialIdx) const;
 	const Texture& GetMetallicRoughnessMap(uint32_t materialIdx) const;
+	const Texture& GetEmissiveMap(uint32_t materialIdx) const;
 
 private:
 	std::vector<ResMesh> m_resMeshes;

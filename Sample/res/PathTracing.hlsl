@@ -31,10 +31,12 @@ StructuredBuffer<uint> IB : register(t2);
 Texture2D<float4> BaseColorMap : register(t3);
 Texture2D<float4> NormalMap : register(t4);
 Texture2D<float2> MetallicRoughnessMap : register(t5);
+Texture2D<float4> EmissiveMap : register(t6);
 RWTexture2D<float4> BaseColorTarget : register(u0);
 RWTexture2D<float4> NormalTarget : register(u1);
 RWTexture2D<float2> MetallicRoughnessTarget : register(u2);
-RWTexture2D<uint64_t> VBufferTarget : register(u3);
+RWTexture2D<float4> EmissiveTarget : register(u3);
+RWTexture2D<uint64_t> VBufferTarget : register(u4);
 
 SamplerState LinearWrapSmp : register(s0);
 
@@ -142,6 +144,7 @@ struct [raypayload] Payload
 	float3 color : read(caller) : write(closesthit, miss);
 	float3 normal : read(caller) : write(closesthit, miss);
 	float2 metallicRoughness : read(caller) : write(closesthit, miss);
+	float3 emissive : read(caller) : write(closesthit, miss);
 	float deviceZ : read(caller) : write(closesthit, miss);
 };
 
@@ -177,6 +180,7 @@ void rayGeneration()
 	BaseColorTarget[rayIndex.xy] = float4(payload.color, 1);
 	NormalTarget[rayIndex.xy] = float4((payload.normal + 1) * 0.5f, 1);
 	MetallicRoughnessTarget[rayIndex.xy] = payload.metallicRoughness;
+	EmissiveTarget[rayIndex.xy] = float4(payload.emissive, 1);
 	VBufferTarget[rayIndex.xy] = uint64_t(asuint(payload.deviceZ)) << 32;
 }
 
@@ -189,6 +193,7 @@ void miss(inout Payload payload)
 	payload.normal = float3(0, 0, 1);
 	// metallicRoughness‚Í“K“–‚É0,1‚É‚µ‚Ä‚¨‚­
 	payload.metallicRoughness = float2(0, 1);
+	payload.emissive = 0;
 	// deviceZ‚ÍFarPlane–³ŒÀ‘å
 	payload.deviceZ = 0;
 }
@@ -251,6 +256,8 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float3x3 invTangentBasis = transpose(float3x3(tangentWS, bitangentWS, normalWS));
 
 	payload.normal = mul(invTangentBasis, normal);
+
+	payload.emissive = EmissiveMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).rgb;
 
 	// Inverse ZAInfinite Far Plane‚¾‚ÆClipSpaceW = ViewZ‚Å‚ ‚éB
 	float3 invViewZs = float3(

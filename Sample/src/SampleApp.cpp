@@ -1773,9 +1773,11 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-		if (!m_GBufferEmissiveTarget.InitRenderTarget
+		if (!m_GBufferEmissiveTarget.InitUnorderedAccessTarget
 		(
 			m_pDevice.Get(),
+			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
+			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 			m_pPool[POOL_TYPE_RTV],
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_Width,
@@ -6096,9 +6098,10 @@ bool SampleApp::OnInit(HWND hWnd)
 			//		float3 color;
 			//		float3 normal;
 			//		float2 metallicRoughness;
+			//		float3 emissive;
 			//		float deviceZ;
 			//};
-			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 9;
+			shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 12;
 
 			// struct BuiltInTriangleIntersectionAttributes
 			// {
@@ -6152,10 +6155,12 @@ bool SampleApp::OnInit(HWND hWnd)
 				.SetSRV(ShaderStage::ALL, 4, 3)
 				.SetSRV(ShaderStage::ALL, 5, 4)
 				.SetSRV(ShaderStage::ALL, 6, 5)
-				.SetUAV(ShaderStage::ALL, 7, 0)
-				.SetUAV(ShaderStage::ALL, 8, 1)
-				.SetUAV(ShaderStage::ALL, 9, 2)
-				.SetUAV(ShaderStage::ALL, 10, 3)
+				.SetSRV(ShaderStage::ALL, 7, 6)
+				.SetUAV(ShaderStage::ALL, 8, 0)
+				.SetUAV(ShaderStage::ALL, 9, 1)
+				.SetUAV(ShaderStage::ALL, 10, 2)
+				.SetUAV(ShaderStage::ALL, 11, 3)
+				.SetUAV(ShaderStage::ALL, 12, 4)
 				.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 #endif
 				.End();
@@ -9179,6 +9184,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	DirectX::TransitionResource(pCmdList, m_GBufferEmissiveTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	D3D12_DISPATCH_RAYS_DESC dispatchDesc;
@@ -9211,16 +9217,19 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetNormalMap(0).GetHandleSRVPtr()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetMetallicRoughnessMap(0).GetHandleSRVPtr()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(7, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(8, m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(9, m_GBufferMetallicRoughnessTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(10, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetEmissiveMap(0).GetHandleSRVPtr()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(8, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(9, m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(10, m_GBufferMetallicRoughnessTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(11, m_GBufferEmissiveTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(12, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	pCmdList->DispatchRays(&dispatchDesc);
 
 	DirectX::TransitionResource(pCmdList, m_GBufferBaseColorTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_GBufferNormalTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_GBufferMetallicRoughnessTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	DirectX::TransitionResource(pCmdList, m_GBufferEmissiveTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	DirectX::TransitionResource(pCmdList, m_VBufferTarget.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 

@@ -1276,3 +1276,8 @@ const Texture& MeshManager::GetMetallicRoughnessMap(uint32_t materialIdx) const
 	return m_MetallicRoughnessMaps[materialIdx];
 }
 
+const Texture& MeshManager::GetEmissiveMap(uint32_t materialIdx) const
+{
+	return m_EmissiveMaps[materialIdx];
+}
+
