@@ -7064,8 +7064,11 @@ void SampleApp::OnRender()
 	if (m_usePathTracing)
 	{
 		DoPathTracing(static_cast<ID3D12GraphicsCommandList4*>(pCmd));
+
 		// DepthはVBufferに書くのでそこからコピーする
 		DrawDepthBufferFromVBuffer(pCmd);
+
+		DoDeferredShading(pCmd, lightForward);
 	}
 	else
 	{
@@ -7102,159 +7105,159 @@ void SampleApp::OnRender()
 			DrawGBuffer(pCmd);
 			DoDeferredShading(pCmd, lightForward);
 		}
+	}
 
-		DrawSkyBox(pCmd, lightForward, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
+	DrawSkyBox(pCmd, lightForward, viewRotProjWithJitter, view, projWithJitter, skyViewLutReferential);
 
-		DrawHCB(pCmd);
+	DrawHCB(pCmd);
 
-		DrawHZB(pCmd);
+	DrawHZB(pCmd);
 
-		if (m_enableVelocity)
+	if (m_enableVelocity)
+	{
+		if (isEnableTemporalAA())
 		{
-			if (isEnableTemporalAA())
+			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+		}
+		else
+		{
+			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+		}
+
+		DrawCameraVelocity(pCmd, viewProjNoJitter);
+	}
+
+	DrawSSAOSetup(pCmd);
+
+	if (isEnableTemporalAA())
+	{
+		DrawSSAO(pCmd, projWithJitter);
+	}
+	else
+	{
+		DrawSSAO(pCmd, projNoJitter);
+	}
+
+	if (isEnableTemporalAA())
+	{
+		DrawSSGI(pCmd, projWithJitter, viewProjWithJitter);
+	}
+	else
+	{
+		DrawSSGI(pCmd, projNoJitter, viewProjNoJitter);
+	}
+
+	DrawSSGI_Denoise(pCmd);
+
+	const ColorTarget& SSGI_PrevTarget = m_SSGI_TemporalAccumulationTarget[m_FrameIndex];
+	const ColorTarget& SSGI_CurTarget = m_SSGI_TemporalAccumulationTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+
+	DrawSSGI_TemporalAccumulation(pCmd, SSGI_PrevTarget, SSGI_CurTarget);
+
+	DrawAmbientLight(pCmd, SSGI_CurTarget);
+
+	if (isEnableTemporalAA())
+	{
+		DrawSSR(pCmd, projWithJitter, viewRotProjWithJitter);
+	}
+	else
+	{
+		DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
+	}
+
+	if (m_drawSponza)
+	{
+		const ColorTarget& volumetricFogScatteringPrevTarget = m_VolumetricFogScatteringTarget[m_FrameIndex];
+		const ColorTarget& volumetricFogScatteringCurTarget = m_VolumetricFogScatteringTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+
+		Matrix projNoJitterForVolumetricFog = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, VOLUMETRIC_FOG_FROXEL_NEAR, VOLUMETRIC_FOG_FROXEL_FAR);
+		Matrix viewProjNoJitterForVolumetricFog = view * projNoJitterForVolumetricFog; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
+		Matrix viewRotProjNoJitterForVolumetricFog = viewRot * projNoJitterForVolumetricFog;
+
+		DrawVolumetricFogScattering
+		(
+			pCmd,
+			viewRotProjNoJitterForVolumetricFog,
+			viewProjNoJitterForVolumetricFog,
+			m_PrevViewProjNoJitterForVolumetricFog,
+			volumetricFogScatteringPrevTarget,
+			volumetricFogScatteringCurTarget
+		);
+		DrawVolumetricFogIntegration(pCmd, volumetricFogScatteringCurTarget);
+		DrawVolumetricFogComposition(pCmd);
+
+		m_PrevViewProjNoJitterForVolumetricFog = viewProjNoJitterForVolumetricFog;
+	}
+
+	const ColorTarget& temporalAA_PrevTarget = m_TemporalAA_Target[m_FrameIndex];
+	const ColorTarget& temporalAA_CurTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
+
+	DrawTemporalAA(pCmd, temporalJitetrPixelsX, temporalJitetrPixelsY, temporalAA_PrevTarget, temporalAA_CurTarget);
+
+	DrawMotionBlur(pCmd, temporalAA_CurTarget);
+
+	DrawBloomSetup(pCmd);
+
+	{
+		::PIXScopedEvent(pCmd, 0, L"Downsample");
+
+		for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
+		{
+			DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1], i);
+		}
+	}
+
+	{
+		::PIXScopedEvent(pCmd, 0, L"BloomGaussianFilter");
+
+		for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
+		{
+			if (i == (BLOOM_NUM_DOWN_SAMPLE - 1))
 			{
-				DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
+				// m_SceneColorTargetをDownerResultColorとして使っているのはダミー
+				DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_SceneColorTarget, m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
 			}
 			else
 			{
-				DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjNoJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
-			}
-
-			DrawCameraVelocity(pCmd, viewProjNoJitter);
-		}
-
-		DrawSSAOSetup(pCmd);
-
-		if (isEnableTemporalAA())
-		{
-			DrawSSAO(pCmd, projWithJitter);
-		}
-		else
-		{
-			DrawSSAO(pCmd, projNoJitter);
-		}
-
-		if (isEnableTemporalAA())
-		{
-			DrawSSGI(pCmd, projWithJitter, viewProjWithJitter);
-		}
-		else
-		{
-			DrawSSGI(pCmd, projNoJitter, viewProjNoJitter);
-		}
-
-		DrawSSGI_Denoise(pCmd);
-
-		const ColorTarget& SSGI_PrevTarget = m_SSGI_TemporalAccumulationTarget[m_FrameIndex];
-		const ColorTarget& SSGI_CurTarget = m_SSGI_TemporalAccumulationTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
-
-		DrawSSGI_TemporalAccumulation(pCmd, SSGI_PrevTarget, SSGI_CurTarget);
-
-		DrawAmbientLight(pCmd, SSGI_CurTarget);
-
-		if (isEnableTemporalAA())
-		{
-			DrawSSR(pCmd, projWithJitter, viewRotProjWithJitter);
-		}
-		else
-		{
-			DrawSSR(pCmd, projNoJitter, viewRotProjNoJitter);
-		}
-
-		if (m_drawSponza)
-		{
-			const ColorTarget& volumetricFogScatteringPrevTarget = m_VolumetricFogScatteringTarget[m_FrameIndex];
-			const ColorTarget& volumetricFogScatteringCurTarget = m_VolumetricFogScatteringTarget[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
-
-			Matrix projNoJitterForVolumetricFog = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, VOLUMETRIC_FOG_FROXEL_NEAR, VOLUMETRIC_FOG_FROXEL_FAR);
-			Matrix viewProjNoJitterForVolumetricFog = view * projNoJitterForVolumetricFog; // 行ベクトル形式の順序で乗算するのがXMMatrixMultiply()
-			Matrix viewRotProjNoJitterForVolumetricFog = viewRot * projNoJitterForVolumetricFog;
-
-			DrawVolumetricFogScattering
-			(
-				pCmd,
-				viewRotProjNoJitterForVolumetricFog,
-				viewProjNoJitterForVolumetricFog,
-				m_PrevViewProjNoJitterForVolumetricFog,
-				volumetricFogScatteringPrevTarget,
-				volumetricFogScatteringCurTarget
-			);
-			DrawVolumetricFogIntegration(pCmd, volumetricFogScatteringCurTarget);
-			DrawVolumetricFogComposition(pCmd);
-
-			m_PrevViewProjNoJitterForVolumetricFog = viewProjNoJitterForVolumetricFog;
-		}
-
-		const ColorTarget& temporalAA_PrevTarget = m_TemporalAA_Target[m_FrameIndex];
-		const ColorTarget& temporalAA_CurTarget = m_TemporalAA_Target[(m_FrameIndex + 1) % FRAME_COUNT]; // FRAME_COUNT=2前提だとm_FrameIndex ^ 1でも可能
-
-		DrawTemporalAA(pCmd, temporalJitetrPixelsX, temporalJitetrPixelsY, temporalAA_PrevTarget, temporalAA_CurTarget);
-
-		DrawMotionBlur(pCmd, temporalAA_CurTarget);
-
-		DrawBloomSetup(pCmd);
-
-		{
-			::PIXScopedEvent(pCmd, 0, L"Downsample");
-
-			for (uint32_t i = 0; i < BLOOM_NUM_DOWN_SAMPLE - 1; i++)
-			{
-				DrawDownsample(pCmd, m_BloomSetupTarget[i], m_BloomSetupTarget[i + 1], i);
+				DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_BloomVerticalTarget[i + 1], m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
 			}
 		}
+	}
 
+	DrawTonemap(pCmd);
+
+	DrawFXAA(pCmd);
+
+	if (m_useMeshlet)
+	{
+		switch (m_debugViewMode)
 		{
-			::PIXScopedEvent(pCmd, 0, L"BloomGaussianFilter");
-
-			for (int32_t i = BLOOM_NUM_DOWN_SAMPLE - 1; i >= 0; i--) // 解像度の小さい方から重ねていくので降順
-			{
-				if (i == (BLOOM_NUM_DOWN_SAMPLE - 1))
-				{
-					// m_SceneColorTargetをDownerResultColorとして使っているのはダミー
-					DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_SceneColorTarget, m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
-				}
-				else
-				{
-					DrawFilter(pCmd, m_BloomSetupTarget[i], m_BloomHorizontalTarget[i], m_BloomVerticalTarget[i], m_BloomVerticalTarget[i + 1], m_BloomHorizontalCB[i], m_BloomVerticalCB[i]);
-				}
-			}
-		}
-
-		DrawTonemap(pCmd);
-
-		DrawFXAA(pCmd);
-
-		if (m_useMeshlet)
-		{
-			switch (m_debugViewMode)
-			{
-				using enum DEBUG_VIEW_MODE;
-				case TRIANGLE_INDEX:
-				case MESHLET_INDEX:
-					DrawDebugVBuffer(pCmd);
-					break;
-				case MESHLET_AABB:
-					// AABBのときはMeshletIdxも同時に表示する
-					DrawDebugVBuffer(pCmd);
-					DrawMeshletAABB(pCmd);
-					break;
-				case NONE:
-				case DEPTH:
-				case BASECOLOR:
-				case NORMAL:
-				case METALLIC_ROUGHNESS:
-				case EMISSIVE:
-				case SSAO_FULL_RES:
-				case SSAO_HALF_RES:
-				case SSGI:
-				case VELOCITY:
-				case TEXCOORD:
-					// 何もしない
-					break;
-				default:
-					assert(false);
-					break;
-			}
+			using enum DEBUG_VIEW_MODE;
+			case TRIANGLE_INDEX:
+			case MESHLET_INDEX:
+				DrawDebugVBuffer(pCmd);
+				break;
+			case MESHLET_AABB:
+				// AABBのときはMeshletIdxも同時に表示する
+				DrawDebugVBuffer(pCmd);
+				DrawMeshletAABB(pCmd);
+				break;
+			case NONE:
+			case DEPTH:
+			case BASECOLOR:
+			case NORMAL:
+			case METALLIC_ROUGHNESS:
+			case EMISSIVE:
+			case SSAO_FULL_RES:
+			case SSAO_HALF_RES:
+			case SSGI:
+			case VELOCITY:
+			case TEXCOORD:
+				// 何もしない
+				break;
+			default:
+				assert(false);
+				break;
 		}
 	}
 
