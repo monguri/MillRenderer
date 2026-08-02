@@ -43,7 +43,7 @@ StructuredBuffer<MeshVertex> VB : register(t1);
 StructuredBuffer<uint> IB : register(t2);
 Texture2D<float4> BaseColorMap : register(t3);
 Texture2D<float4> NormalMap : register(t4);
-Texture2D<float2> MetallicRoughnessMap : register(t5);
+Texture2D<float4> MetallicRoughnessMap : register(t5);
 Texture2D<float4> EmissiveMap : register(t6);
 RWTexture2D<float4> BaseColorTarget : register(u0);
 RWTexture2D<float4> NormalTarget : register(u1);
@@ -248,10 +248,9 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float3 normal = NormalMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).xyz * 2 - 1;
 	normal = normalize(normal);
 
-	float2 metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
 	//TODO: IsotropicNDFFiltering()はddx/ddy(normal)を使っておりラスタライザ前提の実装で使えない。GBufferPS.hlsliを見てみよ
 	//metallicRoughness.y = IsotropicNDFFiltering(normal, metallicRoughness.y);
-	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
+	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).bg;
 	payload.metallicRoughness *= float2(CbMaterial.MetallicFactor, CbMaterial.RoughnessFactor);
 
 	float3 normalWS0 = VB[index0].Normal;
