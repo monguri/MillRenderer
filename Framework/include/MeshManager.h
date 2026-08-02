@@ -54,6 +54,7 @@ public:
 	//TODO:ƒpƒXƒgƒŒ‚ªBindless‘Î‰ž‚·‚é‚Ü‚Å‚Ì‰¼‚Ì‚à‚Ì
 	const Resource& GetVB(uint32_t meshIdx) const;
 	const Resource& GetIB(uint32_t meshIdx) const;
+	const Resource& GetMaterialCB(uint32_t meshIdx) const;
 	const Texture& GetBaseColorMap(uint32_t materialIdx) const;
 	const Texture& GetNormalMap(uint32_t materialIdx) const;
 	const Texture& GetMetallicRoughnessMap(uint32_t materialIdx) const;

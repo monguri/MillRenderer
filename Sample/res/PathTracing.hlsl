@@ -23,7 +23,20 @@ struct MeshVertex
 	float3 Tangent : TANGENT;
 };
 
+struct Material
+{
+	float3 BaseColorFactor;
+	float MetallicFactor;
+	float RoughnessFactor;
+	float3 EmissiveFactor;
+	float AlphaCutoff;
+	int bExistEmissiveTex;
+	int bExistAOTex;
+	uint MaterialID;
+};
+
 ConstantBuffer<Camera> CbCamera : register(b0);
+ConstantBuffer<Material> CbMaterial : register(b1);
 
 RaytracingAccelerationStructure RtAS : register(t0);
 StructuredBuffer<MeshVertex> VB : register(t1);
@@ -229,18 +242,17 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float2 uv, ddx, ddy;
 	BaryInterpolateDeriv2(barycentricDeriv, uv0, uv1, uv2, uv, ddx, ddy);
 
-	//TODO: MaterialのBaseColorFactorなど考慮できてない
-	float4 baseColor = BaseColorMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
-	payload.color = baseColor.rgb;
+	payload.color = BaseColorMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).rgb;
+	payload.color *= CbMaterial.BaseColorFactor;
 
 	float3 normal = NormalMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).xyz * 2 - 1;
 	normal = normalize(normal);
 
-	//TODO: MetallicFactorとRoughnessFactorはMaterialの値を考慮していない
 	float2 metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
 	//TODO: IsotropicNDFFiltering()はddx/ddy(normal)を使っておりラスタライザ前提の実装で使えない。GBufferPS.hlsliを見てみよ
 	//metallicRoughness.y = IsotropicNDFFiltering(normal, metallicRoughness.y);
-	payload.metallicRoughness = metallicRoughness;
+	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy);
+	payload.metallicRoughness *= float2(CbMaterial.MetallicFactor, CbMaterial.RoughnessFactor);
 
 	float3 normalWS0 = VB[index0].Normal;
 	float3 normalWS1 = VB[index1].Normal;
@@ -257,7 +269,12 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
 	payload.normal = mul(invTangentBasis, normal);
 
-	payload.emissive = EmissiveMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).rgb;
+	payload.emissive = 0;
+	if (CbMaterial.bExistEmissiveTex)
+	{
+		payload.emissive = EmissiveMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).rgb;
+		payload.emissive *= CbMaterial.EmissiveFactor;
+	}
 
 	// Inverse Z、Infinite Far PlaneだとClipSpaceW = ViewZである。
 	float3 invViewZs = float3(
@@ -277,3 +294,4 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
 	payload.deviceZ = dot(ndcPosZs, barycentricDeriv.m_lambda);
 }
+

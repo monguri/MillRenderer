@@ -1261,6 +1261,11 @@ const Resource& MeshManager::GetIB(uint32_t meshIdx) const
 	return m_IBs[meshIdx];
 }
 
+const Resource& MeshManager::GetMaterialCB(uint32_t meshIdx) const
+{
+	return m_MaterialCBs[meshIdx];
+}
+
 const Texture& MeshManager::GetBaseColorMap(uint32_t materialIdx) const
 {
 	return m_BaseColorMaps[materialIdx];

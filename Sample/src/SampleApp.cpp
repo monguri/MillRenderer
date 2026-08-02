@@ -6149,18 +6149,19 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.Begin()
 #if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 				.SetCBV(ShaderStage::ALL, 0, 0)
-				.SetSRV(ShaderStage::ALL, 1, 0)
-				.SetSRV(ShaderStage::ALL, 2, 1)
-				.SetSRV(ShaderStage::ALL, 3, 2)
-				.SetSRV(ShaderStage::ALL, 4, 3)
-				.SetSRV(ShaderStage::ALL, 5, 4)
-				.SetSRV(ShaderStage::ALL, 6, 5)
-				.SetSRV(ShaderStage::ALL, 7, 6)
-				.SetUAV(ShaderStage::ALL, 8, 0)
-				.SetUAV(ShaderStage::ALL, 9, 1)
-				.SetUAV(ShaderStage::ALL, 10, 2)
-				.SetUAV(ShaderStage::ALL, 11, 3)
-				.SetUAV(ShaderStage::ALL, 12, 4)
+				.SetCBV(ShaderStage::ALL, 1, 1)
+				.SetSRV(ShaderStage::ALL, 2, 0)
+				.SetSRV(ShaderStage::ALL, 3, 1)
+				.SetSRV(ShaderStage::ALL, 4, 2)
+				.SetSRV(ShaderStage::ALL, 5, 3)
+				.SetSRV(ShaderStage::ALL, 6, 4)
+				.SetSRV(ShaderStage::ALL, 7, 5)
+				.SetSRV(ShaderStage::ALL, 8, 6)
+				.SetUAV(ShaderStage::ALL, 9, 0)
+				.SetUAV(ShaderStage::ALL, 10, 1)
+				.SetUAV(ShaderStage::ALL, 11, 2)
+				.SetUAV(ShaderStage::ALL, 12, 3)
+				.SetUAV(ShaderStage::ALL, 13, 4)
 				.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 #endif
 				.End();
@@ -9210,19 +9211,20 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMaterialCB(0).GetHandleCBV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 	//TODO:パストレがBindless対応するまでの仮のもの。meshIdx=、materialIdx=0に固定
-	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetVB(0).GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetIB(0).GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetNormalMap(0).GetHandleSRVPtr()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetMetallicRoughnessMap(0).GetHandleSRVPtr()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetEmissiveMap(0).GetHandleSRVPtr()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(8, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(9, m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(10, m_GBufferMetallicRoughnessTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(11, m_GBufferEmissiveTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(12, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetVB(0).GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetIB(0).GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetNormalMap(0).GetHandleSRVPtr()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetMetallicRoughnessMap(0).GetHandleSRVPtr()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetEmissiveMap(0).GetHandleSRVPtr()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(9, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(10, m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(11, m_GBufferMetallicRoughnessTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(12, m_GBufferEmissiveTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(13, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
 
 	pCmdList->DispatchRays(&dispatchDesc);
 
