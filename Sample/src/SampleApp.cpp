@@ -5743,214 +5743,6 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		ID3D12GraphicsCommandList4* pCmd = m_CommandList.Reset();
 
-#if 0 // HelloTriangle
-		// テスト用VBの作成
-		{
-			const Vector3 triangleVertices[3] = {
-				Vector3(0, 1, 0),
-				Vector3(0.866f, -0.5f, 0),
-				Vector3(-0.866f, -0.5f, 0),
-			};
-
-			if (!m_TriangleVB.InitAsVertexBuffer<Vector3>(
-				m_pDevice.Get(),
-				3,
-				D3D12_RESOURCE_FLAG_NONE,
-				D3D12_RESOURCE_STATE_COMMON,
-				m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
-				L"TriangleVB"
-			))
-			{
-				ELOG("Error : Resource::InitAsVertexBuffer() Failed.");
-				return false;
-			}
-
-			if (!m_TriangleVB.UploadBufferTypeData<Vector3>(m_pDevice.Get(), pCmd, 3, triangleVertices))
-			{
-				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-				return false;
-			}
-		}
-#endif
-
-#if 0 // HelloTriangle
-		// BLASの作成
-		Resource blasScratchBB;
-		{
-			D3D12_RAYTRACING_GEOMETRY_DESC geomDesc;
-			geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-
-			geomDesc.Triangles.VertexBuffer.StartAddress = m_TriangleVB.GetResource()->GetGPUVirtualAddress();
-			geomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vector3);
-			geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-			geomDesc.Triangles.VertexCount = 3;
-			// Transform3x4、IBの指定はオプション
-			geomDesc.Triangles.Transform3x4 = 0;
-			geomDesc.Triangles.IndexBuffer = 0;
-			geomDesc.Triangles.IndexCount = 0;
-			geomDesc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
-			geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
-
-			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
-			inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-			inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-			inputs.NumDescs = 1;
-			inputs.pGeometryDescs = &geomDesc;
-			inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-
-			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildInfo;
-			m_pDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildInfo);
-
-			// ByteAddressBufferである必要は無いが必要な処理が揃っていたので
-			if (!blasScratchBB.InitAsByteAddressBuffer
-			(
-				m_pDevice.Get(),
-				preBuildInfo.ScratchDataSizeInBytes,
-				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				nullptr,
-				nullptr,
-				nullptr
-			))
-			{
-				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-				return false;
-			}
-
-			if (!m_BlasResultBB.InitAsByteAddressBuffer
-			(
-				m_pDevice.Get(),
-				preBuildInfo.ResultDataMaxSizeInBytes,
-				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-				nullptr,
-				nullptr,
-				nullptr
-			))
-			{
-				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-				return false;
-			}
-
-			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
-			asDesc.Inputs = inputs;
-			asDesc.DestAccelerationStructureData = m_BlasResultBB.GetResource()->GetGPUVirtualAddress();
-			asDesc.ScratchAccelerationStructureData = blasScratchBB.GetResource()->GetGPUVirtualAddress();
-			asDesc.SourceAccelerationStructureData = 0;
-
-			pCmd->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
-
-			D3D12_RESOURCE_BARRIER uavBarrier;
-			uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-			uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			uavBarrier.UAV.pResource = m_BlasResultBB.GetResource();
-			pCmd->ResourceBarrier(1, &uavBarrier);
-		}
-
-		// TLASの作成
-		Resource tlasScratchBB;
-		Resource tlasInstanceDescBB;
-		{
-			D3D12_RAYTRACING_INSTANCE_DESC instanceDesc;
-			const Matrix& identityMat = Matrix::Identity;
-			memcpy(instanceDesc.Transform, &identityMat, sizeof(instanceDesc.Transform));
-			instanceDesc.InstanceID = 0;
-			instanceDesc.InstanceMask = 0xFF;
-			instanceDesc.InstanceContributionToHitGroupIndex = 0;
-			instanceDesc.AccelerationStructure = m_BlasResultBB.GetResource()->GetGPUVirtualAddress();
-			instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-
-			if (!tlasInstanceDescBB.InitAsByteAddressBuffer(
-				m_pDevice.Get(),
-				sizeof(instanceDesc),
-				D3D12_RESOURCE_FLAG_NONE,
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr,
-				nullptr,
-				nullptr
-			))
-			{
-				ELOG("Error : StructuredBuffer::Init() Failed.");
-				return false;
-			}
-
-			if (!tlasInstanceDescBB.UploadBufferData(m_pDevice.Get(), pCmd, sizeof(instanceDesc), &instanceDesc))
-			{
-				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-				return false;
-			}
-
-			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
-			inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-			inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-			inputs.NumDescs = 1;
-			inputs.InstanceDescs = tlasInstanceDescBB.GetResource()->GetGPUVirtualAddress();
-			inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-
-			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildInfo;
-			m_pDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildInfo);
-
-			// ByteAddressBufferである必要は無いが必要な処理が揃っていたので
-			if (!tlasScratchBB.InitAsByteAddressBuffer(
-				m_pDevice.Get(),
-				preBuildInfo.ScratchDataSizeInBytes,
-				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				nullptr,
-				nullptr,
-				nullptr
-			))
-			{
-				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-				return false;
-			}
-			DirectX::TransitionResource(pCmd, tlasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-			if (!m_TlasResultBB.InitAsByteAddressBuffer(
-				m_pDevice.Get(),
-				preBuildInfo.ResultDataMaxSizeInBytes,
-				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-				nullptr,
-				nullptr,
-				nullptr
-			))
-			{
-				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-				return false;
-			}
-
-			// TODO:ByteAddressBuffer::Init()でASのSRVに対応してないので一旦別途作る
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-			srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.RaytracingAccelerationStructure.Location = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
-			m_pTlasResultSrvHandle = m_pPool[POOL_TYPE_RES_GPU_VISIBLE]->AllocHandle();
-			if (m_pTlasResultSrvHandle == nullptr)
-			{
-				ELOG("Error : DescriptorPool::AllocHandle() Failed.");
-				return false;
-			}
-
-			m_pDevice.Get()->CreateShaderResourceView(nullptr, &srvDesc, m_pTlasResultSrvHandle->HandleCPU);
-
-			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc;
-			asDesc.Inputs = inputs;
-			asDesc.DestAccelerationStructureData = m_TlasResultBB.GetResource()->GetGPUVirtualAddress();
-			asDesc.ScratchAccelerationStructureData = tlasScratchBB.GetResource()->GetGPUVirtualAddress();
-			asDesc.SourceAccelerationStructureData = 0;
-
-			pCmd->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
-
-			D3D12_RESOURCE_BARRIER uavBarrier;
-			uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-			uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			uavBarrier.UAV.pResource = m_TlasResultBB.GetResource();
-			pCmd->ResourceBarrier(1, &uavBarrier);
-		}
-#endif
-
 		static const WCHAR* HIT_GROUP_NAME = L"HitGroup";
 		static const WCHAR* RAY_GEN_SHADER_ENTRY_NAME = L"rayGeneration";
 		static const WCHAR* MISS_SHADER_ENTRY_NAME = L"miss";
@@ -6499,12 +6291,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		// Shader Tableの作成
 		{
 			// 全シェーダ、最大サイズになるray-genシェーダに合わせる
-			m_ShaderTableEntrySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-	#if 0 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
-			// デスクリプタテーブルの分
-			m_ShaderTableEntrySize += 8 * 2;
-	#endif
-			m_ShaderTableEntrySize = (m_ShaderTableEntrySize + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+			size_t shaderTableSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+			shaderTableSize = (shaderTableSize + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
 
 			ComPtr<ID3D12StateObjectProperties> pStateObjProps;
 			HRESULT hr = m_pStateObject->QueryInterface(IID_PPV_ARGS(pStateObjProps.GetAddressOf()));
@@ -6516,42 +6304,81 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
 			// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
-			std::vector<uint8_t> shaderTblData;
-			shaderTblData.resize(m_ShaderTableEntrySize * 3);
-			memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+			std::vector<uint8_t> shaderTblData(shaderTableSize);
 
-	#if 0 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
-			// RTではディスクリプタテーブルの設定をSetComputeRootDescriptorTable()ではなく
-			// ShaderTableに設定する形で行う
-			uint64_t* pHandles = reinterpret_cast<uint64_t*>(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-			//*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) = m_pTlasResultSrvHandle->HandleGPU.ptr;
-			//*(uint64_t*)(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + 8) = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
-			pHandles[0] = m_pTlasResultSrvHandle->HandleGPU.ptr;
-			pHandles[1] = m_RTTarget.GetHandleUAVs()[0]->HandleGPU.ptr;
-	#endif
-
-			memcpy(shaderTblData.data() + m_ShaderTableEntrySize, pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-
-			memcpy(shaderTblData.data() + m_ShaderTableEntrySize * 2, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-
-			if (!m_ShaderTableBB.InitAsByteAddressBuffer
-			(
-				m_pDevice.Get(),
-				shaderTblData.size(),
-				D3D12_RESOURCE_FLAG_NONE,
-				nullptr,
-				nullptr,
-				nullptr
-			))
+			// RayGenシェーダのShader Tableを作成
 			{
-				ELOG("Error : Resource::InitAsByteAddressBuffer() Failed");
-				return false;
+				memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+				if (!m_RayGenShaderTableBB.InitAsByteAddressBuffer
+				(
+					m_pDevice.Get(),
+					shaderTblData.size(),
+					D3D12_RESOURCE_FLAG_NONE,
+					nullptr,
+					nullptr,
+					nullptr
+				))
+				{
+					ELOG("Error : Resource::InitAsByteAddressBuffer() Failed");
+					return false;
+				}
+
+				if (!m_RayGenShaderTableBB.UploadBufferData(m_pDevice.Get(), pCmd, shaderTblData.size(), shaderTblData.data()))
+				{
+					ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+					return false;
+				}
 			}
 
-			if (!m_ShaderTableBB.UploadBufferData(m_pDevice.Get(), pCmd, shaderTblData.size(), shaderTblData.data()))
+			// MissシェーダのShader Tableを作成
 			{
-				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-				return false;
+				memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+				if (!m_MissShaderTableBB.InitAsByteAddressBuffer
+				(
+					m_pDevice.Get(),
+					shaderTblData.size(),
+					D3D12_RESOURCE_FLAG_NONE,
+					nullptr,
+					nullptr,
+					nullptr
+				))
+				{
+					ELOG("Error : Resource::InitAsByteAddressBuffer() Failed");
+					return false;
+				}
+
+				if (!m_MissShaderTableBB.UploadBufferData(m_pDevice.Get(), pCmd, shaderTblData.size(), shaderTblData.data()))
+				{
+					ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+					return false;
+				}
+			}
+
+			// HitGroupのShader Tableを作成
+			{
+				memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+				if (!m_HitGroupShaderTableBB.InitAsByteAddressBuffer
+				(
+					m_pDevice.Get(),
+					shaderTblData.size(),
+					D3D12_RESOURCE_FLAG_NONE,
+					nullptr,
+					nullptr,
+					nullptr
+				))
+				{
+					ELOG("Error : Resource::InitAsByteAddressBuffer() Failed");
+					return false;
+				}
+
+				if (!m_HitGroupShaderTableBB.UploadBufferData(m_pDevice.Get(), pCmd, shaderTblData.size(), shaderTblData.data()))
+				{
+					ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+					return false;
+				}
 			}
 		}
 #endif
@@ -6850,6 +6677,12 @@ void SampleApp::OnTerm()
 	m_SphereMapConverter.Term();
 	m_SphereMap.Term();
 	m_SkyBox.Term();
+
+	m_GlobalRootSig.Term();
+	m_pStateObject.Reset();
+	m_RayGenShaderTableBB.Term();
+	m_MissShaderTableBB.Term();
+	m_HitGroupShaderTableBB.Term();
 
 	if (m_usePathTracing)
 	{
@@ -9196,16 +9029,16 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	dispatchDesc.Height = m_Height;
 	dispatchDesc.Depth = 1;
 
-	dispatchDesc.RayGenerationShaderRecord.StartAddress = m_ShaderTableBB.GetResource()->GetGPUVirtualAddress() + 0 * m_ShaderTableEntrySize;
-	dispatchDesc.RayGenerationShaderRecord.SizeInBytes = m_ShaderTableEntrySize;
+	dispatchDesc.RayGenerationShaderRecord.StartAddress = m_RayGenShaderTableBB.GetResource()->GetGPUVirtualAddress();
+	dispatchDesc.RayGenerationShaderRecord.SizeInBytes = m_RayGenShaderTableBB.GetSize();
 
-	dispatchDesc.MissShaderTable.StartAddress = m_ShaderTableBB.GetResource()->GetGPUVirtualAddress() + 1 * m_ShaderTableEntrySize;
-	dispatchDesc.MissShaderTable.StrideInBytes = m_ShaderTableEntrySize;
-	dispatchDesc.MissShaderTable.SizeInBytes = m_ShaderTableEntrySize;
+	dispatchDesc.MissShaderTable.StartAddress = m_MissShaderTableBB.GetResource()->GetGPUVirtualAddress();
+	dispatchDesc.MissShaderTable.StrideInBytes = m_MissShaderTableBB.GetSize();
+	dispatchDesc.MissShaderTable.SizeInBytes = m_MissShaderTableBB.GetSize();
 
-	dispatchDesc.HitGroupTable.StartAddress = m_ShaderTableBB.GetResource()->GetGPUVirtualAddress() + 2 * m_ShaderTableEntrySize;
-	dispatchDesc.HitGroupTable.StrideInBytes = m_ShaderTableEntrySize;
-	dispatchDesc.HitGroupTable.SizeInBytes = m_ShaderTableEntrySize;
+	dispatchDesc.HitGroupTable.StartAddress = m_HitGroupShaderTableBB.GetResource()->GetGPUVirtualAddress();
+	dispatchDesc.HitGroupTable.StrideInBytes = m_HitGroupShaderTableBB.GetSize();
+	dispatchDesc.HitGroupTable.SizeInBytes = m_HitGroupShaderTableBB.GetSize();
 
 	dispatchDesc.CallableShaderTable.StartAddress = 0;
 	dispatchDesc.CallableShaderTable.StrideInBytes = 0;

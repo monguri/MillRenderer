@@ -15,7 +15,6 @@ public:
 	bool Init
 	(
 		ID3D12Device* pDevice,
-		size_t size,
 		D3D12_HEAP_PROPERTIES heapProp,
 		D3D12_RESOURCE_DESC desc,
 		D3D12_RESOURCE_STATES state,
@@ -193,6 +192,7 @@ public:
 	DescriptorHandle* GetHandleSRV() const;
 	DescriptorHandle* GetHandleUAV() const;
 	ID3D12Resource* GetResource() const;
+	size_t GetSize() const;
 
 private:
 	D3D12_RESOURCE_STATES m_state = D3D12_RESOURCE_STATE_COMMON;
@@ -206,6 +206,7 @@ private:
 	DescriptorPool* m_pPoolSRV = nullptr;
 	DescriptorPool* m_pPoolUAVGpuVisible = nullptr;
 	DescriptorPool* m_pPoolUAVCpuVisible = nullptr;
+	size_t m_size = 0;
 
 	bool InitAsVertexBuffer
 	(

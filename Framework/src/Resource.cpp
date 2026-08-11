@@ -10,7 +10,6 @@ Resource::~Resource()
 bool Resource::Init
 (
 	ID3D12Device* pDevice,
-	size_t size,
 	D3D12_HEAP_PROPERTIES heapProp,
 	D3D12_RESOURCE_DESC desc,
 	D3D12_RESOURCE_STATES state,
@@ -22,7 +21,7 @@ bool Resource::Init
 	LPCWSTR name
 )
 {
-	if (pDevice == nullptr || size == 0)
+	if (pDevice == nullptr)
 	{
 		return false;
 	}
@@ -169,7 +168,7 @@ bool Resource::InitAsConstantBuffer
 	}
 
 	size_t align = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-	UINT64 sizeAligned = (size + (align - 1)) & ~(align - 1);
+	m_size = (size + (align - 1)) & ~(align - 1);
 
 	D3D12_HEAP_PROPERTIES prop = {};
 	prop.Type = heapType;
@@ -181,7 +180,7 @@ bool Resource::InitAsConstantBuffer
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Alignment = 0;
-	desc.Width = sizeAligned;
+	desc.Width = m_size;
 	desc.Height = 1;
 	desc.DepthOrArraySize = 1;
 	desc.MipLevels = 1;
@@ -216,7 +215,7 @@ bool Resource::InitAsConstantBuffer
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC descCBV = {};
 	descCBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
-	descCBV.SizeInBytes = static_cast<UINT>(sizeAligned);
+	descCBV.SizeInBytes = static_cast<UINT>(m_size);
 	// m_pHandleSRVをCBV用に使う。SRVとCBVを同時に使うことがないので。
 	pDevice->CreateConstantBufferView(&descCBV, m_pHandleSRV->HandleCPU);
 
@@ -246,10 +245,12 @@ bool Resource::InitAsVertexBuffer
 	heapProp.CreationNodeMask = 1;
 	heapProp.VisibleNodeMask = 1;
 
+	m_size = stride * count;
+
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Alignment = 0;
-	desc.Width = static_cast<UINT64>(stride * count);
+	desc.Width = static_cast<UINT64>(m_size);
 	desc.Height = 1;
 	desc.DepthOrArraySize = 1;
 	desc.MipLevels = 1;
@@ -280,7 +281,6 @@ bool Resource::InitAsVertexBuffer
 	if (!Init
 		(
 			pDevice,
-			stride * count,
 			heapProp,
 			desc,
 			state,
@@ -298,7 +298,7 @@ bool Resource::InitAsVertexBuffer
 
 	m_VBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
 	m_VBV.StrideInBytes = static_cast<UINT>(stride);
-	m_VBV.SizeInBytes = static_cast<UINT>(stride * count);
+	m_VBV.SizeInBytes = static_cast<UINT>(m_size);
 
 	return true;
 }
@@ -327,10 +327,12 @@ bool Resource::InitAsIndexBuffer
 	heapProp.CreationNodeMask = 1;
 	heapProp.VisibleNodeMask = 1;
 
+	m_size = structureSize * count;
+
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Alignment = 0;
-	desc.Width = static_cast<UINT64>(structureSize * count);
+	desc.Width = static_cast<UINT64>(m_size);
 	desc.Height = 1;
 	desc.DepthOrArraySize = 1;
 	desc.MipLevels = 1;
@@ -361,7 +363,6 @@ bool Resource::InitAsIndexBuffer
 	if (!Init
 		(
 			pDevice,
-			structureSize * count,
 			heapProp,
 			desc,
 			state,
@@ -379,7 +380,7 @@ bool Resource::InitAsIndexBuffer
 
 	m_IBV.BufferLocation = m_pResource->GetGPUVirtualAddress();
 	m_IBV.Format = format;
-	m_IBV.SizeInBytes = static_cast<UINT>(structureSize * count);
+	m_IBV.SizeInBytes = static_cast<UINT>(m_size);
 
 	return true;
 }
@@ -441,7 +442,6 @@ bool Resource::InitAsStructuredBuffer
 
 	return Init(
 		pDevice,
-		size,
 		heapProp,
 		desc,
 		state,
@@ -512,7 +512,6 @@ bool Resource::InitAsByteAddressBuffer
 
 	return Init(
 		pDevice,
-		size,
 		heapProp,
 		desc,
 		state,
@@ -534,10 +533,12 @@ bool Resource::InitAsAccelerationStructure(ID3D12Device* pDevice, size_t size, D
 	heapProp.CreationNodeMask = 1;
 	heapProp.VisibleNodeMask = 1;
 
+	m_size = size;
+
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Alignment = 0;
-	desc.Width = static_cast<UINT64>(size);
+	desc.Width = static_cast<UINT64>(m_size);
 	desc.Height = 1;
 	desc.DepthOrArraySize = 1;
 	desc.MipLevels = 1;
@@ -560,14 +561,13 @@ bool Resource::InitAsAccelerationStructure(ID3D12Device* pDevice, size_t size, D
 	dummyUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	dummyUavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 	dummyUavDesc.Buffer.FirstElement = 0;
-	dummyUavDesc.Buffer.NumElements = static_cast<UINT>(size / 4);
+	dummyUavDesc.Buffer.NumElements = static_cast<UINT>(m_size / 4);
 	dummyUavDesc.Buffer.StructureByteStride = 0;
 	dummyUavDesc.Buffer.CounterOffsetInBytes = 0;
 	dummyUavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 
 	return Init(
 		pDevice,
-		size,
 		heapProp,
 		desc,
 		state,
@@ -760,4 +760,9 @@ DescriptorHandle* Resource::GetHandleUAV() const
 ID3D12Resource* Resource::GetResource() const
 {
 	return m_pResource.Get();
+}
+
+size_t Resource::GetSize() const
+{
+	return m_size;
 }
