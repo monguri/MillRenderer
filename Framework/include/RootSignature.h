@@ -41,12 +41,12 @@ public:
 		Desc();
 		~Desc();
 		Desc& Begin();
-		Desc& SetCBV(ShaderStage stage, int rootParamIdx, uint32_t reg);
-		Desc& SetSRV(ShaderStage stage, int rootParamIdx, uint32_t reg);
-		Desc& SetUAV(ShaderStage stage, int rootParamIdx, uint32_t reg);
-		Desc& SetSmp(ShaderStage stage, int rootParamIdx, uint32_t reg);
-		Desc& AddStaticSmp(ShaderStage stage, uint32_t reg, SamplerState state, float MipLODBias = D3D12_DEFAULT_MIP_LOD_BIAS);
-		Desc& AddStaticCmpSmp(ShaderStage stage, uint32_t reg, SamplerState state);
+		Desc& AddCBV(ShaderStage stage, uint32_t registerIdx);
+		Desc& AddSRV(ShaderStage stage, uint32_t registerIdx);
+		Desc& AddUAV(ShaderStage stage, uint32_t registerIdx);
+		Desc& AddSampler(ShaderStage stage, uint32_t registerIdx);
+		Desc& AddStaticSampler(ShaderStage stage, uint32_t registerIdx, SamplerState state, float MipLODBias = D3D12_DEFAULT_MIP_LOD_BIAS);
+		Desc& AddStaticCmpSmp(ShaderStage stage, uint32_t registerIdx, SamplerState state);
 		Desc& AllowIL();
 		Desc& AllowSO();
 		Desc& SetLocalRootSignature();
@@ -62,7 +62,7 @@ public:
 		uint32_t m_Flags;
 
 		void CheckStage(ShaderStage stage);
-		void SetParam(ShaderStage stage, int rootParamIdx, uint32_t reg, D3D12_DESCRIPTOR_RANGE_TYPE type);
+		void SetParam(ShaderStage stage, uint32_t registerIdx, D3D12_DESCRIPTOR_RANGE_TYPE type);
 	};
 
 	RootSignature();

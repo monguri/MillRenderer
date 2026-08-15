@@ -48,16 +48,15 @@ void RootSignature::Desc::CheckStage(ShaderStage stage)
 	}
 }
 
-void RootSignature::Desc::SetParam(ShaderStage stage, int rootParamIdx, uint32_t reg, D3D12_DESCRIPTOR_RANGE_TYPE type)
+void RootSignature::Desc::SetParam(ShaderStage stage, uint32_t registerIdx, D3D12_DESCRIPTOR_RANGE_TYPE type)
 {
-	if (rootParamIdx >= m_Params.size())
-	{
-		return;
-	}
+	assert(m_Ranges.size() == m_Params.size());
+	assert(m_Params.size() > 0);
+	size_t rootParamIdx = m_Params.size() - 1;
 
 	m_Ranges[rootParamIdx].RangeType = type;
 	m_Ranges[rootParamIdx].NumDescriptors = 1;
-	m_Ranges[rootParamIdx].BaseShaderRegister = reg;
+	m_Ranges[rootParamIdx].BaseShaderRegister = registerIdx;
 	m_Ranges[rootParamIdx].RegisterSpace = 0;
 	m_Ranges[rootParamIdx].OffsetInDescriptorsFromTableStart = 0;
 
@@ -71,39 +70,39 @@ void RootSignature::Desc::SetParam(ShaderStage stage, int rootParamIdx, uint32_t
 	CheckStage(stage);
 }
 
-RootSignature::Desc& RootSignature::Desc::SetCBV(ShaderStage stage, int rootParamIdx, uint32_t reg)
+RootSignature::Desc& RootSignature::Desc::AddCBV(ShaderStage stage, uint32_t registerIdx)
 {
 	m_Ranges.push_back(D3D12_DESCRIPTOR_RANGE());
 	m_Params.push_back(D3D12_ROOT_PARAMETER());
-	SetParam(stage, rootParamIdx, reg, D3D12_DESCRIPTOR_RANGE_TYPE_CBV);
+	SetParam(stage, registerIdx, D3D12_DESCRIPTOR_RANGE_TYPE_CBV);
 	return *this;
 }
 
-RootSignature::Desc& RootSignature::Desc::SetSRV(ShaderStage stage, int rootParamIdx, uint32_t reg)
+RootSignature::Desc& RootSignature::Desc::AddSRV(ShaderStage stage, uint32_t registerIdx)
 {
 	m_Ranges.push_back(D3D12_DESCRIPTOR_RANGE());
 	m_Params.push_back(D3D12_ROOT_PARAMETER());
-	SetParam(stage, rootParamIdx, reg, D3D12_DESCRIPTOR_RANGE_TYPE_SRV);
+	SetParam(stage, registerIdx, D3D12_DESCRIPTOR_RANGE_TYPE_SRV);
 	return *this;
 }
 
-RootSignature::Desc& RootSignature::Desc::SetUAV(ShaderStage stage, int rootParamIdx, uint32_t reg)
+RootSignature::Desc& RootSignature::Desc::AddUAV(ShaderStage stage, uint32_t registerIdx)
 {
 	m_Ranges.push_back(D3D12_DESCRIPTOR_RANGE());
 	m_Params.push_back(D3D12_ROOT_PARAMETER());
-	SetParam(stage, rootParamIdx, reg, D3D12_DESCRIPTOR_RANGE_TYPE_UAV);
+	SetParam(stage, registerIdx, D3D12_DESCRIPTOR_RANGE_TYPE_UAV);
 	return *this;
 }
 
-RootSignature::Desc& RootSignature::Desc::SetSmp(ShaderStage stage, int rootParamIdx, uint32_t reg)
+RootSignature::Desc& RootSignature::Desc::AddSampler(ShaderStage stage, uint32_t registerIdx)
 {
 	m_Ranges.push_back(D3D12_DESCRIPTOR_RANGE());
 	m_Params.push_back(D3D12_ROOT_PARAMETER());
-	SetParam(stage, rootParamIdx, reg, D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER);
+	SetParam(stage, registerIdx, D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER);
 	return *this;
 }
 
-RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32_t reg, SamplerState state, float MipLODBias)
+RootSignature::Desc& RootSignature::Desc::AddStaticSampler(ShaderStage stage, uint32_t registerIdx, SamplerState state, float MipLODBias)
 {
 	D3D12_STATIC_SAMPLER_DESC desc = {};
 	desc.MipLODBias = MipLODBias;
@@ -112,7 +111,7 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 	desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
 	desc.MinLOD = 0.0f;
 	desc.MaxLOD = D3D12_FLOAT32_MAX;
-	desc.ShaderRegister = reg;
+	desc.ShaderRegister = registerIdx;
 	desc.RegisterSpace = 0;
 	desc.ShaderVisibility = D3D12_SHADER_VISIBILITY(stage);
 	CheckStage(stage);
@@ -195,7 +194,7 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 			desc.MaxAnisotropy = D3D12_MAX_MAXANISOTROPY;
 			break;
 		default:
-			ELOG("Error : RootSignature::Desc::AddStaticSmp Failed. Invalid SamplerState = %d.", state);
+			ELOG("Error : RootSignature::Desc::AddStaticSampler Failed. Invalid SamplerState = %d.", state);
 			break;
 	}
 
@@ -204,7 +203,7 @@ RootSignature::Desc& RootSignature::Desc::AddStaticSmp(ShaderStage stage, uint32
 	return *this;
 }
 
-RootSignature::Desc& RootSignature::Desc::AddStaticCmpSmp(ShaderStage stage, uint32_t reg, SamplerState state)
+RootSignature::Desc& RootSignature::Desc::AddStaticCmpSmp(ShaderStage stage, uint32_t registerIdx, SamplerState state)
 {
 	D3D12_STATIC_SAMPLER_DESC desc = {};
 	desc.MipLODBias = D3D12_DEFAULT_MIP_LOD_BIAS;
@@ -213,7 +212,7 @@ RootSignature::Desc& RootSignature::Desc::AddStaticCmpSmp(ShaderStage stage, uin
 	desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE; // zFarÇ1Ç…ÇµÇƒÇ¢ÇÈÇÃÇ≈ÅAzFarÇ≈èâä˙âªÇ∑ÇÈÅB
 	desc.MinLOD = 0.0f;
 	desc.MaxLOD = D3D12_FLOAT32_MAX;
-	desc.ShaderRegister = reg;
+	desc.ShaderRegister = registerIdx;
 	desc.RegisterSpace = 0;
 	desc.ShaderVisibility = D3D12_SHADER_VISIBILITY(stage);
 	CheckStage(stage);

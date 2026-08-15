@@ -5820,11 +5820,11 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
-				.SetUAV(ShaderStage::ALL, 0, 0)
-				.SetUAV(ShaderStage::ALL, 1, 1)
-				.SetUAV(ShaderStage::ALL, 2, 2)
-				.SetUAV(ShaderStage::ALL, 3, 3)
-				.SetUAV(ShaderStage::ALL, 4, 4)
+				.AddUAV(ShaderStage::ALL, 0)
+				.AddUAV(ShaderStage::ALL, 1)
+				.AddUAV(ShaderStage::ALL, 2)
+				.AddUAV(ShaderStage::ALL, 3)
+				.AddUAV(ShaderStage::ALL, 4)
 				.SetLocalRootSignature()
 				.End();
 
@@ -5896,14 +5896,14 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
-				.SetCBV(ShaderStage::ALL, 0, 1)
-				.SetSRV(ShaderStage::ALL, 1, 1)
-				.SetSRV(ShaderStage::ALL, 2, 2)
-				.SetSRV(ShaderStage::ALL, 3, 3)
-				.SetSRV(ShaderStage::ALL, 4, 4)
-				.SetSRV(ShaderStage::ALL, 5, 5)
-				.SetSRV(ShaderStage::ALL, 6, 6)
-				.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
+				.AddCBV(ShaderStage::ALL, 1)
+				.AddSRV(ShaderStage::ALL, 1)
+				.AddSRV(ShaderStage::ALL, 2)
+				.AddSRV(ShaderStage::ALL, 3)
+				.AddSRV(ShaderStage::ALL, 4)
+				.AddSRV(ShaderStage::ALL, 5)
+				.AddSRV(ShaderStage::ALL, 6)
+				.AddStaticSampler(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 				.SetLocalRootSignature()
 				.End();
 
@@ -5994,8 +5994,8 @@ bool SampleApp::OnInit(HWND hWnd)
 #if 1 // RootSignatureのDescriptorTable方式でTdrが起きてるのかもしれないのでTLASをルートデスクリプタ方式にしてみる
 			RootSignature::Desc desc;
 			desc.Begin()
-				.SetCBV(ShaderStage::ALL, 0, 0)
-				.SetSRV(ShaderStage::ALL, 1, 0)
+				.AddCBV(ShaderStage::ALL, 0)
+				.AddSRV(ShaderStage::ALL, 0)
 				.End();
 
 			if (!m_GlobalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
