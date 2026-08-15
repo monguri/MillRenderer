@@ -408,6 +408,12 @@ namespace
 		return (dividend + divisor - 1) / divisor;
 	}
 
+	size_t AlignTo(size_t value, size_t alignment)
+	{
+		// (value + (alignment - 1)) / alignment * alignment;
+		return (value + (alignment - 1)) & ~(alignment - 1);
+	}
+
 	UINT16 inline GetChromaticityCoord(double value)
 	{
 		return UINT16(value * 50000);
@@ -5814,6 +5820,11 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
+				.SetUAV(ShaderStage::ALL, 0, 0)
+				.SetUAV(ShaderStage::ALL, 1, 1)
+				.SetUAV(ShaderStage::ALL, 2, 2)
+				.SetUAV(ShaderStage::ALL, 3, 3)
+				.SetUAV(ShaderStage::ALL, 4, 4)
 				.SetLocalRootSignature()
 				.End();
 
@@ -5885,6 +5896,14 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
+				.SetCBV(ShaderStage::ALL, 0, 1)
+				.SetSRV(ShaderStage::ALL, 1, 1)
+				.SetSRV(ShaderStage::ALL, 2, 2)
+				.SetSRV(ShaderStage::ALL, 3, 3)
+				.SetSRV(ShaderStage::ALL, 4, 4)
+				.SetSRV(ShaderStage::ALL, 5, 5)
+				.SetSRV(ShaderStage::ALL, 6, 6)
+				.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 				.SetLocalRootSignature()
 				.End();
 
@@ -5975,23 +5994,8 @@ bool SampleApp::OnInit(HWND hWnd)
 #if 1 // RootSignatureのDescriptorTable方式でTdrが起きてるのかもしれないのでTLASをルートデスクリプタ方式にしてみる
 			RootSignature::Desc desc;
 			desc.Begin()
-#if 1 //TODO: リソースはGlobalRootSigにもつ形とする。これらはRayGenシェーダでしか使わないが
 				.SetCBV(ShaderStage::ALL, 0, 0)
-				.SetCBV(ShaderStage::ALL, 1, 1)
-				.SetSRV(ShaderStage::ALL, 2, 0)
-				.SetSRV(ShaderStage::ALL, 3, 1)
-				.SetSRV(ShaderStage::ALL, 4, 2)
-				.SetSRV(ShaderStage::ALL, 5, 3)
-				.SetSRV(ShaderStage::ALL, 6, 4)
-				.SetSRV(ShaderStage::ALL, 7, 5)
-				.SetSRV(ShaderStage::ALL, 8, 6)
-				.SetUAV(ShaderStage::ALL, 9, 0)
-				.SetUAV(ShaderStage::ALL, 10, 1)
-				.SetUAV(ShaderStage::ALL, 11, 2)
-				.SetUAV(ShaderStage::ALL, 12, 3)
-				.SetUAV(ShaderStage::ALL, 13, 4)
-				.AddStaticSmp(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
-#endif
+				.SetSRV(ShaderStage::ALL, 1, 0)
 				.End();
 
 			if (!m_GlobalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
@@ -6054,10 +6058,6 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// Shader Tableの作成
 		{
-			// 全シェーダ、最大サイズになるray-genシェーダに合わせる
-			size_t shaderTableSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-			shaderTableSize = (shaderTableSize + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT - 1) / D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
-
 			ComPtr<ID3D12StateObjectProperties> pStateObjProps;
 			HRESULT hr = m_pStateObject->QueryInterface(IID_PPV_ARGS(pStateObjProps.GetAddressOf()));
 			if (FAILED(hr))
@@ -6066,13 +6066,25 @@ bool SampleApp::OnInit(HWND hWnd)
 				return false;
 			}
 
-			// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
-			// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
-			std::vector<uint8_t> shaderTblData(shaderTableSize);
-
 			// RayGenシェーダのShader Tableを作成
 			{
+				// Local Root SignatureではSetComputeRootDescriptorTable()などでなくShaderTableにD3D12_GPU_DESCRIPTOR_HANDLEを書き込む方式となる
+				std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> handles;
+				handles.reserve(5);
+				handles.emplace_back(m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
+				handles.emplace_back(m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
+				handles.emplace_back(m_GBufferMetallicRoughnessTarget.GetHandleUAVs()[0]->HandleGPU);
+				handles.emplace_back(m_GBufferEmissiveTarget.GetHandleUAVs()[0]->HandleGPU);
+				handles.emplace_back(m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
+
+				size_t shaderTableSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+				shaderTableSize = AlignTo(shaderTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+
+				// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
+				// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
+				std::vector<uint8_t> shaderTblData(shaderTableSize);
 				memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(RAY_GEN_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+				memcpy(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, handles.data(), handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
 
 				if (!m_RayGenShaderTableBB.InitAsByteAddressBuffer
 				(
@@ -6097,6 +6109,13 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// MissシェーダのShader Tableを作成
 			{
+				size_t shaderTableSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+				shaderTableSize = AlignTo(shaderTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+
+				// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
+				// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
+				std::vector<uint8_t> shaderTblData(shaderTableSize);
+
 				memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(MISS_SHADER_ENTRY_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
 				if (!m_MissShaderTableBB.InitAsByteAddressBuffer
@@ -6122,7 +6141,26 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// HitGroupのShader Tableを作成
 			{
+				// Local Root SignatureではSetComputeRootDescriptorTable()などでなくShaderTableにD3D12_GPU_DESCRIPTOR_HANDLEを書き込む方式となる
+				std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> handles;
+				handles.reserve(7);
+				handles.emplace_back(m_MeshManager.GetMaterialCB(0).GetHandleCBV()->HandleGPU);
+				handles.emplace_back(m_MeshManager.GetVB(0).GetHandleSRV()->HandleGPU);
+				handles.emplace_back(m_MeshManager.GetIB(0).GetHandleSRV()->HandleGPU);
+				handles.emplace_back(m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
+				handles.emplace_back(m_MeshManager.GetNormalMap(0).GetHandleSRVPtr()->HandleGPU);
+				handles.emplace_back(m_MeshManager.GetMetallicRoughnessMap(0).GetHandleSRVPtr()->HandleGPU);
+				handles.emplace_back(m_MeshManager.GetEmissiveMap(0).GetHandleSRVPtr()->HandleGPU);
+
+				size_t shaderTableSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+				shaderTableSize = AlignTo(shaderTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+
+				// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
+				// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
+				std::vector<uint8_t> shaderTblData(shaderTableSize);
 				memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+				memcpy(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, handles.data(), handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
 
 				if (!m_HitGroupShaderTableBB.InitAsByteAddressBuffer
 				(
@@ -8810,20 +8848,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMaterialCB(0).GetHandleCBV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
-	//TODO:パストレがBindless対応するまでの仮のもの。meshIdx=、materialIdx=0に固定
-	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetVB(0).GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetIB(0).GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetNormalMap(0).GetHandleSRVPtr()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetMetallicRoughnessMap(0).GetHandleSRVPtr()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetEmissiveMap(0).GetHandleSRVPtr()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(9, m_GBufferBaseColorTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(10, m_GBufferNormalTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(11, m_GBufferMetallicRoughnessTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(12, m_GBufferEmissiveTarget.GetHandleUAVs()[0]->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(13, m_VBufferTarget.GetHandleUAVs()[0]->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 
 	pCmdList->DispatchRays(&dispatchDesc);
 

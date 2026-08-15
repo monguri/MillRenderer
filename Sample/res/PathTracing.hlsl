@@ -36,9 +36,9 @@ struct Material
 };
 
 ConstantBuffer<Camera> CbCamera : register(b0);
-ConstantBuffer<Material> CbMaterial : register(b1);
-
 RaytracingAccelerationStructure RtAS : register(t0);
+
+ConstantBuffer<Material> CbMaterial : register(b1);
 StructuredBuffer<MeshVertex> VB : register(t1);
 StructuredBuffer<uint> IB : register(t2);
 Texture2D<float4> BaseColorMap : register(t3);
