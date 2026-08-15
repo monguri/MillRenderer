@@ -5868,14 +5868,10 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// MissシェーダのExport AssociationのSubObjectを作成
 		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION missExpAssociation;
-		const WCHAR* missExportNames[] = {
-			MISS_SHADER_ENTRY_NAME,
-			CLOSEST_HIT_SHADER_ENTRY_NAME,
-		};
 		{
 			missExpAssociation.pSubobjectToAssociate = &subObjects.back();
-			missExpAssociation.NumExports = 2;
-			missExpAssociation.pExports = missExportNames;
+			missExpAssociation.NumExports = 1;
+			missExpAssociation.pExports = &MISS_SHADER_ENTRY_NAME;
 
 			D3D12_STATE_SUBOBJECT subObj;
 			subObj.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
@@ -5907,14 +5903,10 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// ClosestHitシェーダのExport AssociationのSubObjectを作成
 		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION closestHitExpAssociation;
-		const WCHAR* closestHitExportNames[] = {
-			MISS_SHADER_ENTRY_NAME,
-			CLOSEST_HIT_SHADER_ENTRY_NAME,
-		};
 		{
 			closestHitExpAssociation.pSubobjectToAssociate = &subObjects.back();
-			closestHitExpAssociation.NumExports = 2;
-			closestHitExpAssociation.pExports = closestHitExportNames;
+			closestHitExpAssociation.NumExports = 1;
+			closestHitExpAssociation.pExports = &CLOSEST_HIT_SHADER_ENTRY_NAME;
 
 			D3D12_STATE_SUBOBJECT subObj;
 			subObj.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
