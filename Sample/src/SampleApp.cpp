@@ -5748,7 +5748,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		static const WCHAR* MISS_SHADER_ENTRY_NAME = L"miss";
 		static const WCHAR* CLOSEST_HIT_SHADER_ENTRY_NAME = L"closestHit";
 
-		static constexpr size_t SUB_OBJECT_COUNT = 10;
+		static constexpr size_t SUB_OBJECT_COUNT = 12;
 		D3D12_STATE_SUBOBJECT subObjects[SUB_OBJECT_COUNT] = {};
 
 		// DXIL LibraryのSubObjectを作成
@@ -5838,48 +5838,83 @@ bool SampleApp::OnInit(HWND hWnd)
 			subObjRayGenExpAssociation.pDesc = &rayGenExpAssociation;
 		}
 
-		// MissシェーダとClosestHitシェーダのLocal Root SignatureのSubObjectを作成
-		// ルートシグネチャがひとつにまとめられるのでまとめている
-		RootSignature missClosestHitRootSig;
-		ID3D12RootSignature* pMissClosestHitRootSig = nullptr;
-		D3D12_STATE_SUBOBJECT& subObjMissClosestHitLocalRootSig = subObjects[4];
+		// MissシェーダのLocal Root SignatureのSubObjectを作成
+		RootSignature missRootSig;
+		ID3D12RootSignature* pMissRootSig = nullptr;
+		D3D12_STATE_SUBOBJECT& subObjMissLocalRootSig = subObjects[4];
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
 				.SetLocalRootSignature()
 				.End();
 
-			if (!missClosestHitRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+			if (!missRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
 			{
 				ELOG("Error : RootSignature::Init() Failed");
 				return false;
 			}
 
-			subObjMissClosestHitLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-			pMissClosestHitRootSig = missClosestHitRootSig.GetPtr();
-			subObjMissClosestHitLocalRootSig.pDesc = &pMissClosestHitRootSig;
+			subObjMissLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+			pMissRootSig = missRootSig.GetPtr();
+			subObjMissLocalRootSig.pDesc = &pMissRootSig;
 		}
-			
-		// MissシェーダとClosestHitシェーダのExport AssociationのSubObjectを作成
-		// ルートシグネチャがひとつにまとめられるのでまとめている
-		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION missClosestHitExpAssociation;
-		const WCHAR* missClosestHitExportNames[] = {
+
+		// MissシェーダのExport AssociationのSubObjectを作成
+		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION missExpAssociation;
+		const WCHAR* missExportNames[] = {
 			MISS_SHADER_ENTRY_NAME,
 			CLOSEST_HIT_SHADER_ENTRY_NAME,
 		};
 		{
-			missClosestHitExpAssociation.pSubobjectToAssociate = &subObjMissClosestHitLocalRootSig;
-			missClosestHitExpAssociation.NumExports = 2;
-			missClosestHitExpAssociation.pExports = missClosestHitExportNames;
+			missExpAssociation.pSubobjectToAssociate = &subObjMissLocalRootSig;
+			missExpAssociation.NumExports = 2;
+			missExpAssociation.pExports = missExportNames;
 
 			D3D12_STATE_SUBOBJECT& subObjMissCloesstHitExpAssociation = subObjects[5];
 			subObjMissCloesstHitExpAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-			subObjMissCloesstHitExpAssociation.pDesc = &missClosestHitExpAssociation;
+			subObjMissCloesstHitExpAssociation.pDesc = &missExpAssociation;
+		}
+
+		// Closest HitシェーダのLocal Root SignatureのSubObjectを作成
+		RootSignature closestHitRootSig;
+		ID3D12RootSignature* pClosestHitRootSig = nullptr;
+		D3D12_STATE_SUBOBJECT& subObjClosestHitLocalRootSig = subObjects[6];
+		{
+			RootSignature::Desc desc;
+			desc.Begin()
+				.SetLocalRootSignature()
+				.End();
+
+			if (!closestHitRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+			{
+				ELOG("Error : RootSignature::Init() Failed");
+				return false;
+			}
+
+			subObjClosestHitLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+			pClosestHitRootSig = closestHitRootSig.GetPtr();
+			subObjClosestHitLocalRootSig.pDesc = &pClosestHitRootSig;
+		}
+
+		// ClosestHitシェーダのExport AssociationのSubObjectを作成
+		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION closestHitExpAssociation;
+		const WCHAR* closestHitExportNames[] = {
+			MISS_SHADER_ENTRY_NAME,
+			CLOSEST_HIT_SHADER_ENTRY_NAME,
+		};
+		{
+			closestHitExpAssociation.pSubobjectToAssociate = &subObjClosestHitLocalRootSig;
+			closestHitExpAssociation.NumExports = 2;
+			closestHitExpAssociation.pExports = closestHitExportNames;
+
+			D3D12_STATE_SUBOBJECT& subObjMissCloesstHitExpAssociation = subObjects[7];
+			subObjMissCloesstHitExpAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+			subObjMissCloesstHitExpAssociation.pDesc = &closestHitExpAssociation;
 		}
 
 		// Shader Config（シェーダ間で受け渡すデータの上限サイズ情報）のSubObjectを作成
 		D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
-		D3D12_STATE_SUBOBJECT& subObjShaderConfig = subObjects[6];
+		D3D12_STATE_SUBOBJECT& subObjShaderConfig = subObjects[8];
 		{
 			//struct Payload
 			//{
@@ -5913,7 +5948,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			shaderConfigExpAssociation.NumExports = 3;
 			shaderConfigExpAssociation.pExports = shaderConfigExportNames;
 
-			D3D12_STATE_SUBOBJECT& subObjShaderConfigExpAssociation = subObjects[7];
+			D3D12_STATE_SUBOBJECT& subObjShaderConfigExpAssociation = subObjects[9];
 			subObjShaderConfigExpAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
 			subObjShaderConfigExpAssociation.pDesc = &shaderConfigExpAssociation;
 		}
@@ -5924,7 +5959,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			// primary rayのみ 
 			pipelineConfig.MaxTraceRecursionDepth = 1;
 
-			D3D12_STATE_SUBOBJECT& subObjPipelineConfig = subObjects[8];
+			D3D12_STATE_SUBOBJECT& subObjPipelineConfig = subObjects[10];
 			subObjPipelineConfig.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
 			subObjPipelineConfig.pDesc = &pipelineConfig;
 		}
@@ -5991,7 +6026,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			}
 #endif
 
-			D3D12_STATE_SUBOBJECT& subObjGlobalRootSig = subObjects[9];
+			D3D12_STATE_SUBOBJECT& subObjGlobalRootSig = subObjects[11];
 			subObjGlobalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
 			pGlobalRootSig = m_GlobalRootSig.GetPtr();
 			subObjGlobalRootSig.pDesc = &pGlobalRootSig;
