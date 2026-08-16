@@ -49,7 +49,12 @@ public:
 
 	const Resource& GetAccelerationStructure() const;
 
-	uint32_t GetMeshletCount() const;
+	// 描画対象として有効なResMeshの数
+	size_t GetMeshCount() const;
+	// 描画対象として有効なResMeshのMeshletの総計
+	size_t GetMeshletCount() const;
+
+	uint32_t GetMaterialIdx(uint32_t meshIdx) const;
 
 	//TODO:パストレがBindless対応するまでの仮のもの
 	const Resource& GetVB(uint32_t meshIdx) const;
@@ -63,6 +68,9 @@ public:
 private:
 	std::vector<ResMesh> m_resMeshes;
 	std::vector<ResMaterial> m_resMaterials;
+	// 描画対象として有効なResMeshのMaterialIdxを格納するテーブル。GetMeshCount()の戻り値と要素数が同じ
+	std::vector<uint32_t> m_resMaterialIdxTbl;
+
 	std::vector<DirectX::SimpleMath::Matrix> m_worldMatrices;
 
 	class DescriptorPool* m_pPoolGpuVisible;
@@ -93,7 +101,8 @@ private:
 	Resource m_MeshesDescHeapIndicesCB;
 	Resource m_MaterialsDescHeapIndicesCB;
 
-	uint32_t m_MeshletCount = 0;
+	size_t m_MeshCount = 0;
+	size_t m_MeshletCount = 0;
 
 	// 要素数は登録されたMaterial数
 	std::vector<Resource> m_MaterialCBs;

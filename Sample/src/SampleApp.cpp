@@ -5903,6 +5903,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				.AddSRV(ShaderStage::ALL, 4)
 				.AddSRV(ShaderStage::ALL, 5)
 				.AddSRV(ShaderStage::ALL, 6)
+				.AddCBV(ShaderStage::ALL, 2)
 				.AddStaticSampler(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 				.SetLocalRootSignature()
 				.End();
@@ -6141,26 +6142,50 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// HitGroupのShader Tableを作成
 			{
-				// Local Root SignatureではSetComputeRootDescriptorTable()などでなくShaderTableにD3D12_GPU_DESCRIPTOR_HANDLEを書き込む方式となる
-				std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> handles;
-				handles.reserve(7);
-				handles.emplace_back(m_MeshManager.GetMaterialCB(0).GetHandleCBV()->HandleGPU);
-				handles.emplace_back(m_MeshManager.GetVB(0).GetHandleSRV()->HandleGPU);
-				handles.emplace_back(m_MeshManager.GetIB(0).GetHandleSRV()->HandleGPU);
-				handles.emplace_back(m_MeshManager.GetBaseColorMap(0).GetHandleSRVPtr()->HandleGPU);
-				handles.emplace_back(m_MeshManager.GetNormalMap(0).GetHandleSRVPtr()->HandleGPU);
-				handles.emplace_back(m_MeshManager.GetMetallicRoughnessMap(0).GetHandleSRVPtr()->HandleGPU);
-				handles.emplace_back(m_MeshManager.GetEmissiveMap(0).GetHandleSRVPtr()->HandleGPU);
+				uint32_t meshCount = static_cast<uint32_t>(m_MeshManager.GetMeshCount());
 
-				size_t shaderTableSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+				struct RootConst
+				{
+					uint32_t materiaIdx;
+				};
+
+				const size_t ROOT_PARAM_COUNT = 7;
+				size_t shaderTableSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + (ROOT_PARAM_COUNT * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) + sizeof(RootConst)) * meshCount;
 				shaderTableSize = AlignTo(shaderTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
 
 				// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
 				// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
 				std::vector<uint8_t> shaderTblData(shaderTableSize);
-				memcpy(shaderTblData.data(), pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+				uint8_t* pDest = shaderTblData.data();
+				size_t copySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+				memcpy(pDest, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), copySize);
+				pDest += copySize;
 
-				memcpy(shaderTblData.data() + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, handles.data(), handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
+				for (uint32_t meshIdx = 0; meshIdx < meshCount; meshIdx++)
+				{
+					uint32_t materialIdx = m_MeshManager.GetMaterialIdx(meshIdx);
+					// Local Root SignatureではSetComputeRootDescriptorTable()などでなくShaderTableにD3D12_GPU_DESCRIPTOR_HANDLEを書き込む方式となる
+					std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> handles;
+					handles.reserve(ROOT_PARAM_COUNT);
+					handles.emplace_back(m_MeshManager.GetMaterialCB(meshIdx).GetHandleCBV()->HandleGPU);
+					handles.emplace_back(m_MeshManager.GetVB(meshIdx).GetHandleSRV()->HandleGPU);
+					handles.emplace_back(m_MeshManager.GetIB(meshIdx).GetHandleSRV()->HandleGPU);
+					handles.emplace_back(m_MeshManager.GetBaseColorMap(materialIdx).GetHandleSRVPtr()->HandleGPU);
+					handles.emplace_back(m_MeshManager.GetNormalMap(materialIdx).GetHandleSRVPtr()->HandleGPU);
+					handles.emplace_back(m_MeshManager.GetMetallicRoughnessMap(materialIdx).GetHandleSRVPtr()->HandleGPU);
+					handles.emplace_back(m_MeshManager.GetEmissiveMap(materialIdx).GetHandleSRVPtr()->HandleGPU);
+
+					copySize = handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+					memcpy(pDest, handles.data(), handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
+					pDest += copySize;
+
+					RootConst rootConst;
+					rootConst.materiaIdx = m_MeshManager.GetMaterialIdx(meshIdx);
+
+					copySize = sizeof(rootConst);
+					memcpy(pDest, &rootConst, copySize);
+					pDest += copySize;
+				}
 
 				if (!m_HitGroupShaderTableBB.InitAsByteAddressBuffer
 				(
@@ -7577,7 +7602,7 @@ void SampleApp::DrawDepthBuffer(ID3D12GraphicsCommandList* pCmdList, ALPHA_MODE 
 		pCmdList->SetGraphicsRootDescriptorTable(3, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 		pCmdList->SetGraphicsRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
 
-		static_cast<ID3D12GraphicsCommandList6*>(pCmdList)->DispatchMesh(m_MeshManager.GetMeshletCount(), 1, 1);
+		static_cast<ID3D12GraphicsCommandList6*>(pCmdList)->DispatchMesh(static_cast<UINT>(m_MeshManager.GetMeshletCount()), 1, 1);
 	}
 	else
 	{

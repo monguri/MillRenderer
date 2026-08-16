@@ -35,6 +35,11 @@ struct Material
 	uint MaterialID;
 };
 
+struct RootConst
+{
+	uint materiaIdx;
+};
+
 ConstantBuffer<Camera> CbCamera : register(b0);
 RaytracingAccelerationStructure RtAS : register(t0);
 
@@ -45,6 +50,7 @@ Texture2D<float4> BaseColorMap : register(t3);
 Texture2D<float4> NormalMap : register(t4);
 Texture2D<float4> MetallicRoughnessMap : register(t5);
 Texture2D<float4> EmissiveMap : register(t6);
+ConstantBuffer<RootConst> CbRootConst : register(b2);
 RWTexture2D<float4> BaseColorTarget : register(u0);
 RWTexture2D<float4> NormalTarget : register(u1);
 RWTexture2D<float2> MetallicRoughnessTarget : register(u2);

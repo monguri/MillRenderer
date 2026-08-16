@@ -153,6 +153,7 @@ void MeshManager::Term()
 {
 	m_resMeshes.clear();
 	m_resMaterials.clear();
+	m_resMaterialIdxTbl.clear();
 
 	if (m_pPoolGpuVisible != nullptr)
 	{
@@ -353,9 +354,13 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 	CbMeshesDescHeapIndices meshesDescHeapIndices = {};
 
+	m_MeshCount = 0;
 	m_MeshletCount = 0;
+	m_resMaterialIdxTbl.clear();
 
+	// 描画対象として有効なResMeshのみ残してインデックスをつける
 	size_t validMeshIdx = 0;
+
 	for (size_t meshIdx = 0; meshIdx < m_resMeshes.size(); meshIdx++)
 	{
 		const ResMesh& resMesh = m_resMeshes[meshIdx];
@@ -365,6 +370,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		{
 			continue;
 		}
+
+		m_resMaterialIdxTbl.emplace_back(resMesh.MaterialIdx);
 
 		size_t localMeshletCount = resMesh.Meshlets.size();
 
@@ -543,7 +550,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(validMeshIdx), resMesh.MaterialIdx, static_cast<uint32_t>(localMeshletIdx), bMasked ? 1 : 0);
 		}
 
-		m_MeshletCount += static_cast<uint32_t>(localMeshletCount);
+		m_MeshletCount += localMeshletCount;
 
 		if (createBVH)
 		{
@@ -619,6 +626,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 		validMeshIdx++;
 	}
+
+	m_MeshCount = validMeshIdx;
 
 	// MeshletとMeshおよびMaterialの対応テーブルの生成
 	if (!m_MeshletMeshMaterialTableSB.InitAsStructuredBuffer<MeshletMeshMaterial>
@@ -1246,9 +1255,21 @@ const Resource& MeshManager::GetAccelerationStructure() const
 	return m_TlasResultBB;
 }
 
-uint32_t MeshManager::GetMeshletCount() const
+size_t MeshManager::GetMeshCount() const
+{
+	return m_MeshCount;
+}
+
+size_t MeshManager::GetMeshletCount() const
 {
 	return m_MeshletCount;
+}
+
+uint32_t MeshManager::GetMaterialIdx(uint32_t meshIdx) const
+{
+	assert(m_resMaterialIdxTbl.size() == m_MeshCount);
+	assert(meshIdx < m_MeshCount);
+	return m_resMaterialIdxTbl[meshIdx];
 }
 
 const Resource& MeshManager::GetVB(uint32_t meshIdx) const
