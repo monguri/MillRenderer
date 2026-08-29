@@ -250,6 +250,7 @@ private:
 	Resource m_RayGenShaderTableBB;
 	Resource m_MissShaderTableBB;
 	Resource m_HitGroupShaderTableBB;
+	size_t m_HitGroupShaderRecordSize = 0;
 
 	virtual bool OnInit(HWND hWnd) override;
 	virtual void OnTerm() override;

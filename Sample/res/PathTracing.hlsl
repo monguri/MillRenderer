@@ -29,28 +29,50 @@ struct Material
 	float MetallicFactor;
 	float RoughnessFactor;
 	float3 EmissiveFactor;
+	uint bAlphaMask;
 	float AlphaCutoff;
-	int bExistEmissiveTex;
-	int bExistAOTex;
-	uint MaterialID;
+	uint bExistEmissiveTex;
+	uint bExistAOTex;
 };
 
-struct RootConst
+// これはRootConstantにはできない。RootConstantはDescriptorTable方式ではRootSignatureに設定できないので、今のRootSignatureクラスの方式に合わないので
+struct CbMaterialIdx
 {
-	uint materiaIdx;
+	uint MaterialIdx;
 };
+
+static const uint MAX_MATERIAL_COUNT = 256;
+
+static const uint EACH_MATERIAL_DESCRIPTOR_COUNT = 6;
+
+struct MaterialsDescHeapIndices
+{
+	//uint CbMaterial[MAX_MATERIAL_COUNT];
+	//uint BaseColorMap[MAX_MATERIAL_COUNT];
+	//uint MetallicRoughnessMap[MAX_MATERIAL_COUNT];
+	//uint NormalMap[MAX_MATERIAL_COUNT];
+	//uint EmissiveMap[MAX_MATERIAL_COUNT];
+	//uint AOMap[MAX_MATERIAL_COUNT];
+
+	//TODO: 配列変数が複数あるとメインメモリとのメモリマッピングがうまくいかないので
+	// ひとつのuint[]にまとめてインデックスは別途ゲッターを用意する
+	uint4 Indices[MAX_MATERIAL_COUNT * EACH_MATERIAL_DESCRIPTOR_COUNT / 4];
+};
+
+static const uint CbMaterialBaseIdx = 0;
+static const uint BaseColorMapBaseIdx = CbMaterialBaseIdx + MAX_MATERIAL_COUNT;
+static const uint MetallicRoughnessMapBaseIdx = BaseColorMapBaseIdx + MAX_MATERIAL_COUNT;
+static const uint NormalMapBaseIdx = MetallicRoughnessMapBaseIdx + MAX_MATERIAL_COUNT;
+static const uint EmissiveMapBaseIdx = NormalMapBaseIdx + MAX_MATERIAL_COUNT;
+static const uint AOMapBaseIdx = EmissiveMapBaseIdx + MAX_MATERIAL_COUNT;
 
 ConstantBuffer<Camera> CbCamera : register(b0);
+ConstantBuffer<MaterialsDescHeapIndices> CbMaterialsDescHeapIndices : register(b1);
 RaytracingAccelerationStructure RtAS : register(t0);
 
-ConstantBuffer<Material> CbMaterial : register(b1);
 StructuredBuffer<MeshVertex> VB : register(t1);
 StructuredBuffer<uint> IB : register(t2);
-Texture2D<float4> BaseColorMap : register(t3);
-Texture2D<float4> NormalMap : register(t4);
-Texture2D<float4> MetallicRoughnessMap : register(t5);
-Texture2D<float4> EmissiveMap : register(t6);
-ConstantBuffer<RootConst> CbRootConst : register(b2);
+ConstantBuffer<CbMaterialIdx> CB : register(b2);
 RWTexture2D<float4> BaseColorTarget : register(u0);
 RWTexture2D<float4> NormalTarget : register(u1);
 RWTexture2D<float2> MetallicRoughnessTarget : register(u2);
@@ -158,6 +180,15 @@ void BaryInterpolateDeriv2(BarycentricDeriv deriv, float2 v0, float2 v1, float2 
 	ddy.y = dot(float3(v0.y, v1.y, v2.y), deriv.m_ddy);
 }
 
+uint GetMaterialDescHeapIndex(uint matIdx)
+{
+	// [idx / 4][idx % 4]にあたる
+	// CBなので4つ分のインデックスをuint4で1セットにしているため
+	uint ret = CbMaterialsDescHeapIndices.Indices[matIdx >> 2][matIdx & 0b11];
+	//uint ret = CbMaterialsDescHeapIndices.Indices[matIdx / 4][matIdx % 4];
+	return ret;
+}
+
 struct [raypayload] Payload
 {
 	float3 color : read(caller) : write(closesthit, miss);
@@ -220,6 +251,13 @@ void miss(inout Payload payload)
 [shader("closesthit")]
 void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attrs)
 {
+	// GBuffer描画に必要なリソースを取得
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetMaterialDescHeapIndex(CbMaterialBaseIdx + CB.MaterialIdx)];
+	Texture2D<float4> BaseColorMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(BaseColorMapBaseIdx + CB.MaterialIdx)];
+	Texture2D<float4> MetallicRoughnessMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(MetallicRoughnessMapBaseIdx + CB.MaterialIdx)];
+	Texture2D<float4> NormalMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(NormalMapBaseIdx + CB.MaterialIdx)];
+	Texture2D<float4> EmissiveMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(EmissiveMapBaseIdx + CB.MaterialIdx)];
+
 	uint primitiveIndex = PrimitiveIndex();
 	uint index0 = IB[primitiveIndex * 3 + 0];
 	uint index1 = IB[primitiveIndex * 3 + 1];

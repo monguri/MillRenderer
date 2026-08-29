@@ -49,6 +49,7 @@ public:
 		Desc& AddStaticCmpSmp(ShaderStage stage, uint32_t registerIdx, SamplerState state);
 		Desc& AllowIL();
 		Desc& AllowSO();
+		Desc& HeapDirectlyIndexed();
 		Desc& SetLocalRootSignature();
 		Desc& End();
 		const D3D12_ROOT_SIGNATURE_DESC* GetDesc() const;

@@ -5896,13 +5896,8 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
-				.AddCBV(ShaderStage::ALL, 1)
 				.AddSRV(ShaderStage::ALL, 1)
 				.AddSRV(ShaderStage::ALL, 2)
-				.AddSRV(ShaderStage::ALL, 3)
-				.AddSRV(ShaderStage::ALL, 4)
-				.AddSRV(ShaderStage::ALL, 5)
-				.AddSRV(ShaderStage::ALL, 6)
 				.AddCBV(ShaderStage::ALL, 2)
 				.AddStaticSampler(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 				.SetLocalRootSignature()
@@ -5996,7 +5991,9 @@ bool SampleApp::OnInit(HWND hWnd)
 			RootSignature::Desc desc;
 			desc.Begin()
 				.AddCBV(ShaderStage::ALL, 0)
+				.AddCBV(ShaderStage::ALL, 1)
 				.AddSRV(ShaderStage::ALL, 0)
+				.HeapDirectlyIndexed()
 				.End();
 
 			if (!m_GlobalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
@@ -6144,46 +6141,36 @@ bool SampleApp::OnInit(HWND hWnd)
 			{
 				uint32_t meshCount = static_cast<uint32_t>(m_MeshManager.GetMeshCount());
 
-				struct RootConst
-				{
-					uint32_t materiaIdx;
-				};
+				const size_t ROOT_PARAM_COUNT = 3;
 
-				const size_t ROOT_PARAM_COUNT = 7;
-				size_t shaderTableSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + (ROOT_PARAM_COUNT * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) + sizeof(RootConst)) * meshCount;
+				m_HitGroupShaderRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + ROOT_PARAM_COUNT * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+				m_HitGroupShaderRecordSize = AlignTo(m_HitGroupShaderRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+
+				size_t shaderTableSize = m_HitGroupShaderRecordSize * meshCount;
 				shaderTableSize = AlignTo(shaderTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
 
-				// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
-				// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
 				std::vector<uint8_t> shaderTblData(shaderTableSize);
-				uint8_t* pDest = shaderTblData.data();
-				size_t copySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-				memcpy(pDest, pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME), copySize);
-				pDest += copySize;
+				memset(shaderTblData.data(), 0, shaderTableSize);
+
+				void* pShaderId = pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME);
 
 				for (uint32_t meshIdx = 0; meshIdx < meshCount; meshIdx++)
 				{
-					uint32_t materialIdx = m_MeshManager.GetMaterialIdx(meshIdx);
+					uint8_t* pDest = shaderTblData.data() + meshIdx * m_HitGroupShaderRecordSize;
+
+					size_t copySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+					memcpy(pDest, pShaderId, copySize);
+					pDest += copySize;
+
 					// Local Root SignatureではSetComputeRootDescriptorTable()などでなくShaderTableにD3D12_GPU_DESCRIPTOR_HANDLEを書き込む方式となる
 					std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> handles;
 					handles.reserve(ROOT_PARAM_COUNT);
-					handles.emplace_back(m_MeshManager.GetMaterialCB(meshIdx).GetHandleCBV()->HandleGPU);
 					handles.emplace_back(m_MeshManager.GetVB(meshIdx).GetHandleSRV()->HandleGPU);
 					handles.emplace_back(m_MeshManager.GetIB(meshIdx).GetHandleSRV()->HandleGPU);
-					handles.emplace_back(m_MeshManager.GetBaseColorMap(materialIdx).GetHandleSRVPtr()->HandleGPU);
-					handles.emplace_back(m_MeshManager.GetNormalMap(materialIdx).GetHandleSRVPtr()->HandleGPU);
-					handles.emplace_back(m_MeshManager.GetMetallicRoughnessMap(materialIdx).GetHandleSRVPtr()->HandleGPU);
-					handles.emplace_back(m_MeshManager.GetEmissiveMap(materialIdx).GetHandleSRVPtr()->HandleGPU);
+					handles.emplace_back(m_MeshManager.GetMaterailIdxCB(meshIdx).GetHandleCBV()->HandleGPU);
 
 					copySize = handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
-					memcpy(pDest, handles.data(), handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-					pDest += copySize;
-
-					RootConst rootConst;
-					rootConst.materiaIdx = m_MeshManager.GetMaterialIdx(meshIdx);
-
-					copySize = sizeof(rootConst);
-					memcpy(pDest, &rootConst, copySize);
+					memcpy(pDest, handles.data(), copySize);
 					pDest += copySize;
 				}
 
@@ -6201,6 +6188,8 @@ bool SampleApp::OnInit(HWND hWnd)
 					return false;
 				}
 
+				// Map/Unmap()は現在のByteAddressBufferのD3D12_HEAP_TYPE_DEFAULTを使った実装では
+				// 実行時エラーになるので別途アップロードバッファを使う書き込み方にする
 				if (!m_HitGroupShaderTableBB.UploadBufferData(m_pDevice.Get(), pCmd, shaderTblData.size(), shaderTblData.data()))
 				{
 					ELOG("Error : Resource::UploadBufferTypeData() Failed.");
@@ -8863,7 +8852,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	dispatchDesc.MissShaderTable.SizeInBytes = m_MissShaderTableBB.GetSize();
 
 	dispatchDesc.HitGroupTable.StartAddress = m_HitGroupShaderTableBB.GetResource()->GetGPUVirtualAddress();
-	dispatchDesc.HitGroupTable.StrideInBytes = m_HitGroupShaderTableBB.GetSize();
+	dispatchDesc.HitGroupTable.StrideInBytes = m_HitGroupShaderRecordSize;
 	dispatchDesc.HitGroupTable.SizeInBytes = m_HitGroupShaderTableBB.GetSize();
 
 	dispatchDesc.CallableShaderTable.StartAddress = 0;
@@ -8873,7 +8862,8 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 
 	pCmdList->DispatchRays(&dispatchDesc);
 

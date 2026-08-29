@@ -291,6 +291,12 @@ RootSignature::Desc& RootSignature::Desc::AllowSO()
 	return *this;
 }
 
+RootSignature::Desc& RootSignature::Desc::HeapDirectlyIndexed()
+{
+	m_Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+	return *this;
+}
+
 RootSignature::Desc& RootSignature::Desc::SetLocalRootSignature()
 {
 	// RTシェーダ用
