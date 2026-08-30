@@ -472,6 +472,8 @@ bool Resource::InitAsByteAddressBuffer
 	heapProp.CreationNodeMask = 1;
 	heapProp.VisibleNodeMask = 1;
 
+	m_size = size;
+
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Alignment = 0;
