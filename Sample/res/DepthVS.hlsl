@@ -48,7 +48,6 @@ struct Camera
 struct Mesh
 {
 	float4x4 World;
-	uint MeshIdx;
 };
 
 ConstantBuffer<Camera> CbCamera : register(b0);
