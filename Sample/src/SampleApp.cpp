@@ -822,8 +822,6 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 			m_usePathTracing = true;
 			// MeshManagerを利用したい
 			m_useMeshlet = true;
-			// まずはIBLのModelViewerを実装する
-			m_drawSponza = false;
 		}
 	}
 }
@@ -6709,6 +6707,17 @@ void SampleApp::OnRender()
 
 	pCmd->SetDescriptorHeaps(1, pHeaps);
 	
+	if (m_drawSponza)
+	{
+		DrawDirectionalLightShadowMap(pCmd, lightForward);
+
+		DrawSkyTransmittanceLUT(pCmd);
+		DrawSkyMultiScatteringLUT(pCmd);
+		DrawSkyViewLUT(pCmd, skyViewLutReferential, lightForward);
+
+		DrawVolumetricCloud(pCmd);
+	}
+
 	if (m_usePathTracing)
 	{
 		DoPathTracing(static_cast<ID3D12GraphicsCommandList4*>(pCmd));
@@ -6720,17 +6729,6 @@ void SampleApp::OnRender()
 	}
 	else
 	{
-		if (m_drawSponza)
-		{
-			DrawDirectionalLightShadowMap(pCmd, lightForward);
-
-			DrawSkyTransmittanceLUT(pCmd);
-			DrawSkyMultiScatteringLUT(pCmd);
-			DrawSkyViewLUT(pCmd, skyViewLutReferential, lightForward);
-
-			DrawVolumetricCloud(pCmd);
-		}
-
 		if (m_useMeshlet)
 		{
 			DoMeshletCulling(pCmd);
