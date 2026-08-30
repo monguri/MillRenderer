@@ -56,16 +56,11 @@ public:
 
 	uint32_t GetMaterialIdx(uint32_t meshIdx) const;
 
-	//TODO:ƒpƒXƒgƒŒ‚ªBindless‘Î‰ž‚·‚é‚Ü‚Å‚Ì‰¼‚Ì‚à‚Ì
 	const Resource& GetMeshCB(uint32_t meshIdx) const;
 	const Resource& GetVB(uint32_t meshIdx) const;
 	const Resource& GetMaterailIdxCB(uint32_t meshIdx) const;
 	const Resource& GetIB(uint32_t meshIdx) const;
 	const Resource& GetMaterialCB(uint32_t meshIdx) const;
-	const Texture& GetBaseColorMap(uint32_t materialIdx) const;
-	const Texture& GetNormalMap(uint32_t materialIdx) const;
-	const Texture& GetMetallicRoughnessMap(uint32_t materialIdx) const;
-	const Texture& GetEmissiveMap(uint32_t materialIdx) const;
 
 private:
 	std::vector<ResMesh> m_resMeshes;

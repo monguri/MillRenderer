@@ -1292,24 +1292,3 @@ const Resource& MeshManager::GetMaterialCB(uint32_t meshIdx) const
 {
 	return m_MaterialCBs[meshIdx];
 }
-
-const Texture& MeshManager::GetBaseColorMap(uint32_t materialIdx) const
-{
-	return m_BaseColorMaps[materialIdx];
-}
-
-const Texture& MeshManager::GetNormalMap(uint32_t materialIdx) const
-{
-	return m_NormalMaps[materialIdx];
-}
-
-const Texture& MeshManager::GetMetallicRoughnessMap(uint32_t materialIdx) const
-{
-	return m_MetallicRoughnessMaps[materialIdx];
-}
-
-const Texture& MeshManager::GetEmissiveMap(uint32_t materialIdx) const
-{
-	return m_EmissiveMaps[materialIdx];
-}
-
