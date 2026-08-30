@@ -35,9 +35,9 @@ struct Material
 	uint bExistAOTex;
 };
 
-// これはRootConstantにはできない。RootConstantはDescriptorTable方式ではRootSignatureに設定できないので、今のRootSignatureクラスの方式に合わないので
-struct CbMaterialIdx
+struct Mesh
 {
+	float4x4 World;
 	uint MaterialIdx;
 };
 
@@ -72,7 +72,7 @@ RaytracingAccelerationStructure RtAS : register(t0);
 
 StructuredBuffer<MeshVertex> VB : register(t1);
 StructuredBuffer<uint> IB : register(t2);
-ConstantBuffer<CbMaterialIdx> CB : register(b2);
+ConstantBuffer<Mesh> CB : register(b2);
 RWTexture2D<float4> BaseColorTarget : register(u0);
 RWTexture2D<float4> NormalTarget : register(u1);
 RWTexture2D<float2> MetallicRoughnessTarget : register(u2);
@@ -268,9 +268,9 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float2 uv2 = VB[index2].TexCoord;
 
 	// IBL版なので、モデル座標がそのままワールド座標の前提
-	float3 posWS0 = VB[index0].Position;
-	float3 posWS1 = VB[index1].Position;
-	float3 posWS2 = VB[index2].Position;
+	float3 posWS0 = mul(CB.World, float4(VB[index0].Position, 1)).xyz;
+	float3 posWS1 = mul(CB.World, float4(VB[index1].Position, 1)).xyz;
+	float3 posWS2 = mul(CB.World, float4(VB[index2].Position, 1)).xyz;
 
 	float4 posCS0 = mul(CbCamera.ViewProj, float4(posWS0, 1));
 	float4 posCS1 = mul(CbCamera.ViewProj, float4(posWS1, 1));

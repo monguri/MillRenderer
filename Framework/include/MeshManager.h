@@ -57,6 +57,7 @@ public:
 	uint32_t GetMaterialIdx(uint32_t meshIdx) const;
 
 	//TODO:パストレがBindless対応するまでの仮のもの
+	const Resource& GetMeshCB(uint32_t meshIdx) const;
 	const Resource& GetVB(uint32_t meshIdx) const;
 	const Resource& GetMaterailIdxCB(uint32_t meshIdx) const;
 	const Resource& GetIB(uint32_t meshIdx) const;
@@ -115,7 +116,6 @@ private:
 
 	// パストレ用
 	std::vector<Resource> m_PositionVBs;
-	std::vector<Resource> m_MaterailIdxCBs;
 	std::vector<Resource> m_IBs;
 	Resource m_BlasScratchBB;
 	Resource m_BlasResultBB;

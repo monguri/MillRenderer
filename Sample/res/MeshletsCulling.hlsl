@@ -52,6 +52,7 @@ struct RootConstants
 struct Mesh
 {
 	float4x4 World;
+	uint MaterialIdx;
 	uint bMovable;
 };
 

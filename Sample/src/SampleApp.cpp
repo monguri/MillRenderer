@@ -6165,7 +6165,7 @@ bool SampleApp::OnInit(HWND hWnd)
 					handles.reserve(ROOT_PARAM_COUNT);
 					handles.emplace_back(m_MeshManager.GetVB(meshIdx).GetHandleSRV()->HandleGPU);
 					handles.emplace_back(m_MeshManager.GetIB(meshIdx).GetHandleSRV()->HandleGPU);
-					handles.emplace_back(m_MeshManager.GetMaterailIdxCB(meshIdx).GetHandleCBV()->HandleGPU);
+					handles.emplace_back(m_MeshManager.GetMeshCB(meshIdx).GetHandleCBV()->HandleGPU);
 
 					copySize = handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
 					memcpy(pDest, handles.data(), copySize);

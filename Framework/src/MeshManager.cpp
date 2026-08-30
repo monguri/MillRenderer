@@ -16,6 +16,7 @@ namespace
 	struct alignas(256) CbMesh
 	{
 		Matrix World;
+		uint32_t MaterialIdx;
 		unsigned int bMovable;
 		float Padding[3];
 	};
@@ -260,12 +261,6 @@ void MeshManager::Term()
 	}
 	m_PositionVBs.clear();
 
-	for (Resource& CB : m_MaterailIdxCBs)
-	{
-		CB.Term();
-	}
-	m_MaterailIdxCBs.clear();
-
 	for (Resource& IB : m_IBs)
 	{
 		IB.Term();
@@ -344,7 +339,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 	m_MeshletsTrianglesSBs.resize(meshCount);
 	m_MeshletsAABBInfosSBs.resize(meshCount);
 	m_PositionVBs.resize(meshCount);
-	m_MaterailIdxCBs.resize(meshCount);
 	m_IBs.resize(meshCount);
 
 	struct MeshletMeshMaterial
@@ -396,7 +390,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		uint32_t bMovable = (validMeshIdx == MOVABLE_MESH_INDEX) ? 1 : 0;
-		CbMesh cbMesh = {m_worldMatrices[meshIdx], bMovable};
+		CbMesh cbMesh = {m_worldMatrices[meshIdx], resMesh.MaterialIdx, bMovable};
 		if (!m_MeshCBs[validMeshIdx].UploadBufferTypeData<CbMesh>(
 			pDevice,
 			pCmdList,
@@ -585,36 +579,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				pCmdList,
 				positions.size(),
 				positions.data()
-			))
-			{
-				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-				return false;
-			}
-
-			struct alignas(256) CbMaterailIdx
-			{
-				uint32_t MaterialIdx;
-				uint32_t Padding[3];
-			};
-
-			if (!m_MaterailIdxCBs[validMeshIdx].InitAsConstantBuffer<CbMaterailIdx>(
-				pDevice,
-				D3D12_HEAP_TYPE_DEFAULT,
-				pPoolGpuVisible,
-				L"CbMaterailIdx"
-			))
-			{
-				ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
-				return false;
-			}
-
-			CbMaterailIdx cbMaterailIdx = {resMesh.MaterialIdx, {0, 0, 0}};
-
-			if (!m_MaterailIdxCBs[validMeshIdx].UploadBufferTypeData<CbMaterailIdx>(
-				pDevice,
-				pCmdList,
-				1,
-				&cbMaterailIdx
 			))
 			{
 				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
@@ -1309,14 +1273,14 @@ uint32_t MeshManager::GetMaterialIdx(uint32_t meshIdx) const
 	return m_resMaterialIdxTbl[meshIdx];
 }
 
+const Resource& MeshManager::GetMeshCB(uint32_t meshIdx) const
+{
+	return m_MeshCBs[meshIdx];
+}
+
 const Resource& MeshManager::GetVB(uint32_t meshIdx) const
 {
 	return m_VBs[meshIdx];
-}
-
-const Resource& MeshManager::GetMaterailIdxCB(uint32_t meshIdx) const
-{
-	return m_MaterailIdxCBs[meshIdx];
 }
 
 const Resource& MeshManager::GetIB(uint32_t meshIdx) const
