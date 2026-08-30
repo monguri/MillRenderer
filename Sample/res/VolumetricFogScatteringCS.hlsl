@@ -117,11 +117,10 @@ cbuffer CbCamera : register(b5)
 
 cbuffer CbShadowTransform : register(b6)
 {
-	float4x4 ViewProj : packoffset(c0);
-	float4x4 WorldToDirLightShadowMap : packoffset(c4);
-	float4x4 WorldToSpotLight1ShadowMap : packoffset(c8);
-	float4x4 WorldToSpotLight2ShadowMap : packoffset(c12);
-	float4x4 WorldToSpotLight3ShadowMap : packoffset(c16);
+	float4x4 WorldToDirLightShadowMap : packoffset(c0);
+	float4x4 WorldToSpotLight1ShadowMap : packoffset(c4);
+	float4x4 WorldToSpotLight2ShadowMap : packoffset(c8);
+	float4x4 WorldToSpotLight3ShadowMap : packoffset(c12);
 }
 
 Texture3D HistoryMap : register(t0);
