@@ -39,7 +39,7 @@ void rayGeneration()
 	uint rayFlags = 0;
 	uint instanceInclusionsMask = 0xFF;
 	uint rayContributionToHitGroupIndex = 0;
-	uint multiplierForGeometryContributionToHitGroupIndex = 0;
+	uint multiplierForGeometryContributionToHitGroupIndex = 1;
 	uint missShaderIndex = 0;
 
 	TraceRay(gRtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
