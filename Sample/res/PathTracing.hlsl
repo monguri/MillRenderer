@@ -331,8 +331,8 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	// Inverse Z、Infinite Far Planeなので全頂点のClipSpaceZはNear固定である。
 	float3 ndcPosZs = float3(
 		posCS0.z * invViewZs.x,
-		posCS0.z * invViewZs.y,
-		posCS0.z * invViewZs.z
+		posCS1.z * invViewZs.y,
+		posCS2.z * invViewZs.z
 	);
 
 	payload.deviceZ = dot(ndcPosZs, barycentricDeriv.m_lambda);
