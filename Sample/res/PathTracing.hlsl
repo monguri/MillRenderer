@@ -220,7 +220,7 @@ void rayGeneration()
 
 	Payload payload;
 	//uint rayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-	uint rayFlags = RAY_FLAG_CULL_BACK_FACING_NONE;
+	uint rayFlags = RAY_FLAG_NONE;
 	uint instanceInclusionsMask = 0xFF;
 	uint rayContributionToHitGroupIndex = 0;
 	uint multiplierForGeometryContributionToHitGroupIndex = 1;
@@ -290,28 +290,22 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	payload.color = BaseColorMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).rgb;
 	payload.color *= CbMaterial.BaseColorFactor;
 
-	float3 normal = NormalMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).xyz * 2 - 1;
-	normal = normalize(normal);
-
 	//TODO: IsotropicNDFFiltering()はddx/ddy(normal)を使っておりラスタライザ前提の実装で使えない。GBufferPS.hlsliを見てみよ
 	//metallicRoughness.y = IsotropicNDFFiltering(normal, metallicRoughness.y);
 	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).bg;
 	payload.metallicRoughness *= float2(CbMaterial.MetallicFactor, CbMaterial.RoughnessFactor);
 
-	float3 normalWS0 = VB[index0].Normal;
-	float3 normalWS1 = VB[index1].Normal;
-	float3 normalWS2 = VB[index2].Normal;
-	float3 normalWS = normalize(Baryinterpolate3(barycentricDeriv, normalWS0, normalWS1, normalWS2));
+	float3 normal = Baryinterpolate3(barycentricDeriv, VB[index0].Normal, VB[index1].Normal, VB[index2].Normal);
+	normal = mul((float3x3)CB.World, normal);
 
-	float3 tangentWS0 = VB[index0].Tangent;
-	float3 tangentWS1 = VB[index1].Tangent;
-	float3 tangentWS2 = VB[index2].Tangent;
-	float3 tangentWS = normalize(Baryinterpolate3(barycentricDeriv, tangentWS0, tangentWS1, tangentWS2));
+	float3 tangent = Baryinterpolate3(barycentricDeriv, VB[index0].Tangent, VB[index1].Tangent, VB[index2].Tangent);
+	tangent = mul((float3x3)CB.World, tangent);
 
-	float3 bitangentWS = normalize(cross(normalWS, tangentWS));
-	float3x3 invTangentBasis = transpose(float3x3(tangentWS, bitangentWS, normalWS));
+	float3 bitangent = cross(normal, tangent);
+	float3x3 invTangentBasis = transpose(float3x3(tangent, bitangent, normal));
 
-	payload.normal = mul(invTangentBasis, normal);
+	float3 pixelNormal = NormalMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).xyz * 2 - 1;
+	payload.normal = mul(invTangentBasis, pixelNormal);
 
 	payload.emissive = 0;
 	if (CbMaterial.bExistEmissiveTex)
