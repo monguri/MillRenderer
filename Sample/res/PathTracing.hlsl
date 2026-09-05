@@ -219,10 +219,11 @@ void rayGeneration()
 	rayDesc.TMax = 100000;
 
 	Payload payload;
-	uint rayFlags = 0;
+	//uint rayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+	uint rayFlags = RAY_FLAG_CULL_BACK_FACING_NONE;
 	uint instanceInclusionsMask = 0xFF;
 	uint rayContributionToHitGroupIndex = 0;
-	uint multiplierForGeometryContributionToHitGroupIndex = 0;
+	uint multiplierForGeometryContributionToHitGroupIndex = 1;
 	uint missShaderIndex = 0;
 
 	TraceRay(RtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
