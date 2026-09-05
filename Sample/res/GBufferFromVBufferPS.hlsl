@@ -339,9 +339,6 @@ PSOutput main(VSOutput input)
 	// IBL版も同様
 
 	// 頂点出力の各変数の補間
-	float3 localPos = Baryinterpolate3(barycentricDeriv, vertex0.Position, vertex1.Position, vertex2.Position);
-	float4 worldPos = mul(CbMesh.World, float4(localPos, 1.0f));
-
 	float3 normal = normalize(Baryinterpolate3(barycentricDeriv, vertex0.Normal, vertex1.Normal, vertex2.Normal));
 	normal = normalize(mul((float3x3)CbMesh.World, normal));
 	float3 tangent = normalize(Baryinterpolate3(barycentricDeriv, vertex0.Tangent, vertex1.Tangent, vertex2.Tangent));
