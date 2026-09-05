@@ -615,7 +615,9 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 			geomDesc.Triangles.VertexCount = static_cast<UINT>(positions.size());
 			// Transform3x4、IBの指定はオプション
-			geomDesc.Triangles.Transform3x4 = 0;
+			// MeshCBの先頭がWorld行列のMatrix型で、float12個分はfloat3x4に相当する前提
+			//TODO: 転置行列になってしまっているので回転も逆になっている
+			geomDesc.Triangles.Transform3x4 = m_MeshCBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();
 			geomDesc.Triangles.IndexBuffer = m_IBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();;
 			geomDesc.Triangles.IndexCount = static_cast<UINT>(resMesh.Indices.size());
 			geomDesc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
