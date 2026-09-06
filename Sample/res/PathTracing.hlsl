@@ -301,7 +301,7 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float3 tangent = Baryinterpolate3(barycentricDeriv, VB[index0].Tangent, VB[index1].Tangent, VB[index2].Tangent);
 	tangent = mul((float3x3)CB.World, tangent);
 
-	float3 bitangent = cross(normal, tangent);
+	float3 bitangent = normalize(cross(normal, tangent));
 	float3x3 invTangentBasis = transpose(float3x3(tangent, bitangent, normal));
 
 	float3 pixelNormal = NormalMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).xyz * 2 - 1;
