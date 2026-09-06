@@ -215,8 +215,8 @@ void rayGeneration()
 	float3 rayDirection = normalize(worldPos - CbCamera.CameraPosition);
 	rayDesc.Direction = rayDirection;
 
-	rayDesc.TMin = 0;
-	rayDesc.TMax = 100000;
+	rayDesc.TMin = CbCamera.Near;
+	rayDesc.TMax = 3.402823466e+38; // FLT_MAX
 
 	Payload payload;
 	uint rayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
