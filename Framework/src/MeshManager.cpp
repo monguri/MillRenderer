@@ -1205,7 +1205,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 bool MeshManager::SetMovableWorldMatrix(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& worldMat)
 {
 	uint32_t bMovable = 1;
-	CbMesh cbMesh = {worldMat, bMovable};
+	CbMesh cbMesh = {worldMat, m_resMeshes[MOVABLE_MESH_INDEX].MaterialIdx, bMovable};
 	if (!m_MeshCBs[MOVABLE_MESH_INDEX].UploadBufferTypeData<CbMesh>(
 		pDevice,
 		pCmdList,
