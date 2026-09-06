@@ -344,7 +344,6 @@ PSOutput main(VSOutput input)
 	float3 tangent = normalize(Baryinterpolate3(barycentricDeriv, vertex0.Tangent, vertex1.Tangent, vertex2.Tangent));
 	tangent = normalize(mul((float3x3)CbMesh.World, tangent));
 	float3 bitangent = normalize(cross(normal, tangent));
-	bitangent = normalize(mul((float3x3)CbMesh.World, bitangent));
 
 	float3x3 invTangentBasis = transpose(float3x3(tangent, bitangent, normal));
 
