@@ -219,8 +219,7 @@ void rayGeneration()
 	rayDesc.TMax = 100000;
 
 	Payload payload;
-	//uint rayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-	uint rayFlags = RAY_FLAG_NONE;
+	uint rayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 	uint instanceInclusionsMask = 0xFF;
 	uint rayContributionToHitGroupIndex = 0;
 	uint multiplierForGeometryContributionToHitGroupIndex = 1;
