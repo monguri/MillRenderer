@@ -75,6 +75,7 @@ private:
 
 	// —v‘f”‚Í“o˜^‚³‚ê‚½Mesh”
 	std::vector<Resource> m_MeshCBs;
+	std::vector<Resource> m_MeshTransposedWorldMatrices;
 	std::vector<Resource> m_VBs;
 	std::vector<Resource> m_MeshletsSBs;
 	std::vector<Resource> m_MeshletsVerticesSBs;

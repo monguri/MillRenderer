@@ -177,6 +177,12 @@ void MeshManager::Term()
 	}
 	m_MeshCBs.clear();
 
+	for (Resource& BB : m_MeshTransposedWorldMatrices)
+	{
+		BB.Term();
+	}
+	m_MeshTransposedWorldMatrices.clear();
+
 	for (Resource& VB : m_VBs)
 	{
 		VB.Term();
@@ -333,6 +339,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 	size_t meshCount = m_resMeshes.size();
 	m_MeshCBs.resize(meshCount);
+	m_MeshTransposedWorldMatrices.resize(meshCount);
 	m_VBs.resize(meshCount);
 	m_MeshletsSBs.resize(meshCount);
 	m_MeshletsVerticesSBs.resize(meshCount);
@@ -403,6 +410,33 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		meshesDescHeapIndices.CbMesh[validMeshIdx] = m_MeshCBs[validMeshIdx].GetHandleCBV()->GetDescriptorIndex();
+
+		if (!m_MeshTransposedWorldMatrices[validMeshIdx].InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(Matrix),
+			D3D12_RESOURCE_FLAG_NONE,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"BbMeshTransposeWorldMatrices"
+		))
+		{
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+			return false;
+		}
+
+		// float3x4形式が必要でMatrixはTranslationが4行目にある形なので転置する
+		const Matrix& transposedWorldMatrix = m_worldMatrices[meshIdx].Transpose();
+		if (!m_MeshTransposedWorldMatrices[validMeshIdx].UploadBufferTypeData<Matrix>(
+			pDevice,
+			pCmdList,
+			1,
+			&transposedWorldMatrix 
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
 
 		if (!m_VBs[validMeshIdx].InitAsStructuredBuffer<MeshVertex>(
 			pDevice,
@@ -615,9 +649,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 			geomDesc.Triangles.VertexCount = static_cast<UINT>(positions.size());
 			// Transform3x4、IBの指定はオプション
-			// MeshCBの先頭がWorld行列のMatrix型で、float12個分はfloat3x4に相当する前提
-			//TODO: 転置行列になってしまっているので回転も逆になっている
-			geomDesc.Triangles.Transform3x4 = m_MeshCBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();
+			geomDesc.Triangles.Transform3x4 = m_MeshTransposedWorldMatrices[validMeshIdx].GetResource()->GetGPUVirtualAddress();
 			geomDesc.Triangles.IndexBuffer = m_IBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();;
 			geomDesc.Triangles.IndexCount = static_cast<UINT>(resMesh.Indices.size());
 			geomDesc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
