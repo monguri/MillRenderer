@@ -189,65 +189,6 @@ uint GetMaterialDescHeapIndex(uint matIdx)
 	return ret;
 }
 
-struct [raypayload] Payload
-{
-	float3 color : read(caller) : write(closesthit, miss);
-	float3 normal : read(caller) : write(closesthit, miss);
-	float2 metallicRoughness : read(caller) : write(closesthit, miss);
-	float3 emissive : read(caller) : write(closesthit, miss);
-	float deviceZ : read(caller) : write(closesthit, miss);
-};
-
-[shader("raygeneration")]
-void rayGeneration()
-{
-	// (Width, Height, 1)のレイ本数をそのままスクリーンのピクセルに割り当てる
-	uint2 rayIndex = DispatchRaysIndex().xy;
-	uint2 screenDim = DispatchRaysDimensions().xy;
-
-	float2 ndcXY = (float2(rayIndex) + 0.5f) / float2(screenDim) * float2(2, -2) + float2(-1, 1);
-	float4 ndcPos = float4(ndcXY, 1, 1);
-	float3 worldPos = ConverFromNDCToWS(ndcPos);
-
-	RayDesc rayDesc;
-	rayDesc.Origin = CbCamera.CameraPosition;
-
-	float3 rayDirection = normalize(worldPos - CbCamera.CameraPosition);
-	rayDesc.Direction = rayDirection;
-
-	rayDesc.TMin = CbCamera.Near;
-	rayDesc.TMax = 3.402823466e+38; // FLT_MAX
-
-	Payload payload;
-	uint rayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-	uint instanceInclusionsMask = 0xFF;
-	uint rayContributionToHitGroupIndex = 0;
-	uint multiplierForGeometryContributionToHitGroupIndex = 1;
-	uint missShaderIndex = 0;
-
-	TraceRay(RtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
-
-	BaseColorTarget[rayIndex.xy] = float4(payload.color, 1);
-	NormalTarget[rayIndex.xy] = float4((payload.normal + 1) * 0.5f, 1);
-	MetallicRoughnessTarget[rayIndex.xy] = payload.metallicRoughness;
-	EmissiveTarget[rayIndex.xy] = float4(payload.emissive, 1);
-	VBufferTarget[rayIndex.xy] = uint64_t(asuint(payload.deviceZ)) << 32;
-}
-
-[shader("miss")]
-void miss(inout Payload payload)
-{
-	// light green
-	payload.color = float3(0.4, 0.6, 0.2);
-	// normalは適当に上向きにしておく
-	payload.normal = float3(0, 0, 1);
-	// metallicRoughnessは適当に0,1にしておく
-	payload.metallicRoughness = float2(0, 1);
-	payload.emissive = 0;
-	// deviceZはFarPlane無限大
-	payload.deviceZ = 0;
-}
-
 static const uint CLIP_RESULT_OUTSIDE = 0;
 static const uint CLIP_RESULT_INSIDE_1_VERTEX = 1;
 static const uint CLIP_RESULT_INSIDE_2_VERTEX = 2;
@@ -377,6 +318,65 @@ VertexData ConvertToVertexData(MeshVertex meshVertex)
 	vertexData.TexCoord = meshVertex.TexCoord;
 	vertexData.Tangent = meshVertex.Tangent;
 	return vertexData;
+}
+
+struct [raypayload] Payload
+{
+	float3 color : read(caller) : write(closesthit, miss);
+	float3 normal : read(caller) : write(closesthit, miss);
+	float2 metallicRoughness : read(caller) : write(closesthit, miss);
+	float3 emissive : read(caller) : write(closesthit, miss);
+	float deviceZ : read(caller) : write(closesthit, miss);
+};
+
+[shader("raygeneration")]
+void rayGeneration()
+{
+	// (Width, Height, 1)のレイ本数をそのままスクリーンのピクセルに割り当てる
+	uint2 rayIndex = DispatchRaysIndex().xy;
+	uint2 screenDim = DispatchRaysDimensions().xy;
+
+	float2 ndcXY = (float2(rayIndex) + 0.5f) / float2(screenDim) * float2(2, -2) + float2(-1, 1);
+	float4 ndcPos = float4(ndcXY, 1, 1);
+	float3 worldPos = ConverFromNDCToWS(ndcPos);
+
+	RayDesc rayDesc;
+	rayDesc.Origin = CbCamera.CameraPosition;
+
+	float3 rayDirection = normalize(worldPos - CbCamera.CameraPosition);
+	rayDesc.Direction = rayDirection;
+
+	rayDesc.TMin = CbCamera.Near;
+	rayDesc.TMax = 3.402823466e+38; // FLT_MAX
+
+	Payload payload;
+	uint rayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+	uint instanceInclusionsMask = 0xFF;
+	uint rayContributionToHitGroupIndex = 0;
+	uint multiplierForGeometryContributionToHitGroupIndex = 1;
+	uint missShaderIndex = 0;
+
+	TraceRay(RtAS, rayFlags, instanceInclusionsMask, rayContributionToHitGroupIndex, multiplierForGeometryContributionToHitGroupIndex, missShaderIndex, rayDesc, payload);
+
+	BaseColorTarget[rayIndex.xy] = float4(payload.color, 1);
+	NormalTarget[rayIndex.xy] = float4((payload.normal + 1) * 0.5f, 1);
+	MetallicRoughnessTarget[rayIndex.xy] = payload.metallicRoughness;
+	EmissiveTarget[rayIndex.xy] = float4(payload.emissive, 1);
+	VBufferTarget[rayIndex.xy] = uint64_t(asuint(payload.deviceZ)) << 32;
+}
+
+[shader("miss")]
+void miss(inout Payload payload)
+{
+	// light green
+	payload.color = float3(0.4, 0.6, 0.2);
+	// normalは適当に上向きにしておく
+	payload.normal = float3(0, 0, 1);
+	// metallicRoughnessは適当に0,1にしておく
+	payload.metallicRoughness = float2(0, 1);
+	payload.emissive = 0;
+	// deviceZはFarPlane無限大
+	payload.deviceZ = 0;
 }
 
 [shader("closesthit")]
