@@ -346,7 +346,8 @@ void rayGeneration()
 	float3 rayDirection = normalize(worldPos - CbCamera.CameraPosition);
 	rayDesc.Direction = rayDirection;
 
-	rayDesc.TMin = CbCamera.Near;
+	float3 rayDirectionVS = mul((float3x3)CbCamera.ViewMatrix, rayDirection);
+	rayDesc.TMin = CbCamera.Near / -rayDirectionVS.z;
 	rayDesc.TMax = 3.402823466e+38; // FLT_MAX
 
 	Payload payload;
