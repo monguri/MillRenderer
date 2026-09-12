@@ -248,6 +248,137 @@ void miss(inout Payload payload)
 	payload.deviceZ = 0;
 }
 
+static const uint CLIP_RESULT_OUTSIDE = 0;
+static const uint CLIP_RESULT_INSIDE_1_VERTEX = 1;
+static const uint CLIP_RESULT_INSIDE_2_VERTEX = 2;
+static const uint CLIP_RESULT_INSIDE_3_VERTEX = 3;
+
+struct VertexData
+{
+	float4 Position : SV_Position;
+	float3 Normal : NORMAL;
+	float2 TexCoord : TEXCOORD;
+	float3 Tangent : TANGENT;
+};
+
+struct ClipSpaceTriangle
+{
+	VertexData v0;
+	VertexData v1;
+	VertexData v2;
+};
+
+VertexData calculateNewVertexDataOnNearPlane(VertexData insideVtx, VertexData outsideVertex, float near)
+{
+	float t = (near - insideVtx.Position.w) / (outsideVertex.Position.w - insideVtx.Position.w);
+
+	VertexData result;
+	result.Position.xy = insideVtx.Position.xy + t * (outsideVertex.Position.xy - insideVtx.Position.xy);
+	result.Position.z = near;
+	result.Position.w = near;
+
+	result.Normal = insideVtx.Normal + t * (outsideVertex.Normal - insideVtx.Normal);
+	result.TexCoord = insideVtx.TexCoord + t * (outsideVertex.TexCoord - insideVtx.TexCoord);
+	result.Tangent = insideVtx.Tangent + t * (outsideVertex.Tangent - insideVtx.Tangent);
+	return result;
+}
+
+uint nearClip(in ClipSpaceTriangle origTri, in float near, out ClipSpaceTriangle newTri1, out ClipSpaceTriangle newTri2)
+{
+	bool isV0Inside = origTri.v0.Position.w >= near;
+	bool isV1Inside = origTri.v1.Position.w >= near;
+	bool isV2Inside = origTri.v2.Position.w >= near;
+
+	uint insideCount = (isV0Inside ? 1 : 0) + (isV1Inside ? 1 : 0) + (isV2Inside ? 1 : 0);
+	if (insideCount == 3)
+	{
+		newTri1 = origTri;
+		return CLIP_RESULT_INSIDE_3_VERTEX;
+	}
+	else if (insideCount == 2)
+	{
+		VertexData insideVtx0, insideVtx1, outsideVtx;
+
+		if (!isV2Inside) // isV0Inside && isV1Inside
+		{
+			insideVtx0 = origTri.v0;
+			insideVtx1 = origTri.v1;
+			outsideVtx = origTri.v2;
+		}
+		else if (!isV0Inside) // isV1Inside && isV2Inside
+		{
+			insideVtx0 = origTri.v1;
+			insideVtx1 = origTri.v2;
+			outsideVtx = origTri.v0;
+		}
+		else // if (isV2Inside && isV0Inside) i.e. !isV1Inside
+		{
+			insideVtx0 = origTri.v2;
+			insideVtx1 = origTri.v0;
+			outsideVtx = origTri.v1;
+		}
+
+		VertexData newVtx0 = calculateNewVertexDataOnNearPlane(insideVtx1, outsideVtx, near);
+		VertexData newVtx1 = calculateNewVertexDataOnNearPlane(insideVtx0, outsideVtx, near);
+
+		newTri1.v0 = insideVtx0;
+		newTri1.v1 = insideVtx1;
+		newTri1.v2 = newVtx0;
+
+		newTri2.v0 = insideVtx0;
+		newTri2.v1 = newVtx0;
+		newTri2.v2 = newVtx1;
+		return CLIP_RESULT_INSIDE_2_VERTEX;
+	}
+	else if (insideCount == 1)
+	{
+		// クリップして新しい三角形を作る
+		VertexData insideVtx, outsideVtx0, outsideVtx1;
+
+		if (isV0Inside)
+		{
+			insideVtx = origTri.v0;
+			outsideVtx0 = origTri.v1;
+			outsideVtx1 = origTri.v2;
+		}
+		else if (isV1Inside)
+		{
+			insideVtx = origTri.v1;
+			outsideVtx0 = origTri.v2;
+			outsideVtx1 = origTri.v0;
+		}
+		else // if (isV2Inside)
+		{
+			insideVtx = origTri.v2;
+			outsideVtx0 = origTri.v0;
+			outsideVtx1 = origTri.v1;
+		}
+
+		VertexData newVtx0 = calculateNewVertexDataOnNearPlane(insideVtx, outsideVtx0, near);
+		VertexData newVtx1 = calculateNewVertexDataOnNearPlane(insideVtx, outsideVtx1, near);
+
+		newTri1.v0 = insideVtx;
+		newTri1.v1 = newVtx0;
+		newTri1.v2 = newVtx1;
+		return CLIP_RESULT_INSIDE_1_VERTEX;
+	}
+	else // insideCount == 0
+	{
+		return CLIP_RESULT_OUTSIDE;
+	}
+}
+
+VertexData ConvertToVertexData(MeshVertex meshVertex)
+{
+	VertexData vertexData;
+	float3 posWS = mul(CB.World, float4(meshVertex.Position, 1)).xyz;
+	vertexData.Position = mul(CbCamera.ViewProj, float4(posWS, 1));
+	vertexData.Normal = meshVertex.Normal;
+	vertexData.TexCoord = meshVertex.TexCoord;
+	vertexData.Tangent = meshVertex.Tangent;
+	return vertexData;
+}
+
 [shader("closesthit")]
 void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attrs)
 {
@@ -263,28 +394,70 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	uint index1 = IB[primitiveIndex * 3 + 1];
 	uint index2 = IB[primitiveIndex * 3 + 2];
 
-	float2 uv0 = VB[index0].TexCoord;
-	float2 uv1 = VB[index1].TexCoord;
-	float2 uv2 = VB[index2].TexCoord;
+	ClipSpaceTriangle origTri;
+	origTri.v0 = ConvertToVertexData(VB[index0]);
+	origTri.v1 = ConvertToVertexData(VB[index1]);
+	origTri.v2 = ConvertToVertexData(VB[index2]);
 
-	// IBL版なので、モデル座標がそのままワールド座標の前提
-	float3 posWS0 = mul(CB.World, float4(VB[index0].Position, 1)).xyz;
-	float3 posWS1 = mul(CB.World, float4(VB[index1].Position, 1)).xyz;
-	float3 posWS2 = mul(CB.World, float4(VB[index2].Position, 1)).xyz;
+	// Inverse ZなのでzはNear固定
+	float near = origTri.v0.Position.z;
 
-	float4 posCS0 = mul(CbCamera.ViewProj, float4(posWS0, 1));
-	float4 posCS1 = mul(CbCamera.ViewProj, float4(posWS1, 1));
-	float4 posCS2 = mul(CbCamera.ViewProj, float4(posWS2, 1));
+	ClipSpaceTriangle newTri1, newTri2;
+	uint clipResult = nearClip(origTri, near, newTri1, newTri2);
+
 
 	// (Width, Height, 1)のレイ本数をそのままスクリーンのピクセルに割り当てる
 	uint2 rayIndex = DispatchRaysIndex().xy;
 	uint2 screenDim = DispatchRaysDimensions().xy;
 	float2 ndcXY = (float2(rayIndex) + 0.5f) / float2(screenDim) * float2(2, -2) + float2(-1, 1);
 
-	BarycentricDeriv barycentricDeriv = CalcFullBary(posCS0, posCS1, posCS2, ndcXY, screenDim);
+	BarycentricDeriv barycentricDeriv;
+	ClipSpaceTriangle hitTri;
+	switch (clipResult)
+	{
+	case CLIP_RESULT_OUTSIDE:
+		// ここには来ないはず
+		// assert(false);
+		payload = (Payload)0;
+		return;
+	case CLIP_RESULT_INSIDE_1_VERTEX:
+		hitTri = newTri1;
+		break;
+	case CLIP_RESULT_INSIDE_2_VERTEX:
+		{
+			BarycentricDeriv barycentricDeriv1 = CalcFullBary(newTri1.v0.Position, newTri1.v1.Position, newTri1.v2.Position, ndcXY, screenDim);
+			BarycentricDeriv barycentricDeriv2 = CalcFullBary(newTri2.v0.Position, newTri2.v1.Position, newTri2.v2.Position, ndcXY, screenDim);
+			if (all(barycentricDeriv1.m_lambda >= 0))
+			{
+				hitTri = newTri1;
+			}
+			else if (all(barycentricDeriv2.m_lambda >= 0))
+			{
+				hitTri = newTri2;
+			}
+			else
+			{
+				// ここには来ないはず
+				// assert(false);
+				payload = (Payload)0;
+				return;
+			}
+		}
+		break;
+	case CLIP_RESULT_INSIDE_3_VERTEX:
+		hitTri = origTri;
+		break;
+	default:
+		// ここには来ないはず
+		// assert(false);
+		payload = (Payload)0;
+		return;
+	}
+
+	barycentricDeriv = CalcFullBary(hitTri.v0.Position, hitTri.v1.Position, hitTri.v2.Position, ndcXY, screenDim);
 
 	float2 uv, ddx, ddy;
-	BaryInterpolateDeriv2(barycentricDeriv, uv0, uv1, uv2, uv, ddx, ddy);
+	BaryInterpolateDeriv2(barycentricDeriv, hitTri.v0.TexCoord, hitTri.v1.TexCoord, hitTri.v2.TexCoord, uv, ddx, ddy);
 
 	payload.color = BaseColorMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).rgb;
 	payload.color *= CbMaterial.BaseColorFactor;
@@ -294,10 +467,10 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).bg;
 	payload.metallicRoughness *= float2(CbMaterial.MetallicFactor, CbMaterial.RoughnessFactor);
 
-	float3 normal = Baryinterpolate3(barycentricDeriv, VB[index0].Normal, VB[index1].Normal, VB[index2].Normal);
+	float3 normal = Baryinterpolate3(barycentricDeriv, hitTri.v0.Normal, hitTri.v1.Normal, hitTri.v2.Normal);
 	normal = mul((float3x3)CB.World, normal);
 
-	float3 tangent = Baryinterpolate3(barycentricDeriv, VB[index0].Tangent, VB[index1].Tangent, VB[index2].Tangent);
+	float3 tangent = Baryinterpolate3(barycentricDeriv, hitTri.v0.Tangent, hitTri.v1.Tangent, hitTri.v2.Tangent);
 	tangent = mul((float3x3)CB.World, tangent);
 
 	float3 bitangent = normalize(cross(normal, tangent));
@@ -315,18 +488,18 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
 	// Inverse Z、Infinite Far PlaneだとClipSpaceW = ViewZである。
 	float3 invViewZs = float3(
-		rcp(posCS0.w),
-		rcp(posCS1.w),
-		rcp(posCS2.w)
+		rcp(hitTri.v0.Position.w),
+		rcp(hitTri.v1.Position.w),
+		rcp(hitTri.v2.Position.w)
 	);
 
 	// 重心座標補間は以下を参考にした
 	// https://shikihuiku.wordpress.com/2017/05/23/barycentric-coordinates%E3%81%AE%E8%A8%88%E7%AE%97%E3%81%A8perspective-correction-partial-derivative%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/
 	// Inverse Z、Infinite Far Planeなので全頂点のClipSpaceZはNear固定である。
 	float3 ndcPosZs = float3(
-		posCS0.z * invViewZs.x,
-		posCS1.z * invViewZs.y,
-		posCS2.z * invViewZs.z
+		hitTri.v0.Position.z * invViewZs.x,
+		hitTri.v1.Position.z * invViewZs.y,
+		hitTri.v2.Position.z * invViewZs.z
 	);
 
 	payload.deviceZ = dot(ndcPosZs, barycentricDeriv.m_lambda);
