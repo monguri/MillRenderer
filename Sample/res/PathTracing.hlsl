@@ -487,6 +487,7 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 		payload.emissive *= CbMaterial.EmissiveFactor;
 	}
 
+#if 0 //TODO:これだとなぜか不正解
 	// Inverse Z、Infinite Far PlaneだとClipSpaceW = ViewZである。
 	float3 invViewZs = float3(
 		rcp(hitTri.v0.Position.w),
@@ -504,5 +505,17 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	);
 
 	payload.deviceZ = dot(ndcPosZs, barycentricDeriv.m_lambda);
+#else // Copilotの生成したコード。これだと正解。
+	float3 hitWS =
+		WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+
+	float4 hitVS = mul(
+		CbCamera.ViewMatrix,
+		float4(hitWS, 1.0f)
+	);
+
+	// このプロジェクトでは view-space Z が負値
+	payload.deviceZ = CbCamera.Near / -hitVS.z;
+#endif
 }
 
