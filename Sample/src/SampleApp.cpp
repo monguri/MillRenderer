@@ -5750,6 +5750,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		static const WCHAR* HIT_GROUP_NAME = L"HitGroup";
 		static const WCHAR* RAY_GEN_SHADER_ENTRY_NAME = L"rayGeneration";
 		static const WCHAR* MISS_SHADER_ENTRY_NAME = L"miss";
+		static const WCHAR* ANY_HIT_SHADER_ENTRY_NAME = L"anyHit";
 		static const WCHAR* CLOSEST_HIT_SHADER_ENTRY_NAME = L"closestHit";
 
 		std::vector<D3D12_STATE_SUBOBJECT> subObjects;
@@ -5761,16 +5762,19 @@ bool SampleApp::OnInit(HWND hWnd)
 		D3D12_DXIL_LIBRARY_DESC dxilLibDesc;
 		ComPtr<ID3DBlob> pLSBlob;
 		{
-			D3D12_EXPORT_DESC exportDescs[3];
+			D3D12_EXPORT_DESC exportDescs[4];
 			exportDescs[0].Name = RAY_GEN_SHADER_ENTRY_NAME;
 			exportDescs[0].ExportToRename = nullptr;
 			exportDescs[0].Flags = D3D12_EXPORT_FLAG_NONE;
 			exportDescs[1].Name = MISS_SHADER_ENTRY_NAME;
 			exportDescs[1].ExportToRename = nullptr;
 			exportDescs[1].Flags = D3D12_EXPORT_FLAG_NONE;
-			exportDescs[2].Name = CLOSEST_HIT_SHADER_ENTRY_NAME;
+			exportDescs[2].Name = ANY_HIT_SHADER_ENTRY_NAME;
 			exportDescs[2].ExportToRename = nullptr;
 			exportDescs[2].Flags = D3D12_EXPORT_FLAG_NONE;
+			exportDescs[3].Name = CLOSEST_HIT_SHADER_ENTRY_NAME;
+			exportDescs[3].ExportToRename = nullptr;
+			exportDescs[3].Flags = D3D12_EXPORT_FLAG_NONE;
 
 			std::wstring lsPath;
 			if (!SearchFilePath(L"PathTracing.cso", lsPath))
@@ -5789,7 +5793,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			D3D12_STATE_SUBOBJECT subObj;
 			dxilLibDesc.DXILLibrary.pShaderBytecode = pLSBlob->GetBufferPointer();
 			dxilLibDesc.DXILLibrary.BytecodeLength = pLSBlob->GetBufferSize();
-			dxilLibDesc.NumExports = 3;
+			dxilLibDesc.NumExports = 4;
 			dxilLibDesc.pExports = exportDescs;
 
 			subObj.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
@@ -5802,7 +5806,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			hitGroupDesc.HitGroupExport = HIT_GROUP_NAME;
 			hitGroupDesc.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES;
-			hitGroupDesc.AnyHitShaderImport = nullptr;
+			hitGroupDesc.AnyHitShaderImport = ANY_HIT_SHADER_ENTRY_NAME;
 			hitGroupDesc.ClosestHitShaderImport = CLOSEST_HIT_SHADER_ENTRY_NAME;
 			hitGroupDesc.IntersectionShaderImport = nullptr;
 
@@ -5888,6 +5892,44 @@ bool SampleApp::OnInit(HWND hWnd)
 			subObjects.emplace_back(subObj);
 		}
 
+		// Any HitシェーダのLocal Root SignatureのSubObjectを作成
+		RootSignature anyHitRootSig;
+		ID3D12RootSignature* pAnyHitRootSig = nullptr;
+		{
+			RootSignature::Desc desc;
+			desc.Begin()
+				.AddSRV(ShaderStage::ALL, 1)
+				.AddSRV(ShaderStage::ALL, 2)
+				.AddCBV(ShaderStage::ALL, 2)
+				.AddStaticSampler(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
+				.SetLocalRootSignature()
+				.End();
+
+			if (!anyHitRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
+			{
+				ELOG("Error : RootSignature::Init() Failed");
+				return false;
+			}
+
+			D3D12_STATE_SUBOBJECT subObj;
+			subObj.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+			pAnyHitRootSig = anyHitRootSig.GetPtr();
+			subObj.pDesc = &pAnyHitRootSig;
+			subObjects.emplace_back(subObj);
+		}
+
+		// Any HitシェーダのExport AssociationのSubObjectを作成
+		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION anyHitExpAssociation;
+		{
+			anyHitExpAssociation.pSubobjectToAssociate = &subObjects.back();
+			anyHitExpAssociation.NumExports = 1;
+			anyHitExpAssociation.pExports = &ANY_HIT_SHADER_ENTRY_NAME;
+			D3D12_STATE_SUBOBJECT subObj;
+			subObj.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+			subObj.pDesc = &anyHitExpAssociation;
+			subObjects.emplace_back(subObj);
+		}
+
 		// Closest HitシェーダのLocal Root SignatureのSubObjectを作成
 		RootSignature closestHitRootSig;
 		ID3D12RootSignature* pClosestHitRootSig = nullptr;
@@ -5955,13 +5997,14 @@ bool SampleApp::OnInit(HWND hWnd)
 		// ShaderConfigのExportAssociationのSubObjectを作成
 		D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderConfigExpAssociation;
 		const WCHAR* shaderConfigExportNames[] = {
-			MISS_SHADER_ENTRY_NAME,
-			CLOSEST_HIT_SHADER_ENTRY_NAME,
 			RAY_GEN_SHADER_ENTRY_NAME,
+			MISS_SHADER_ENTRY_NAME,
+			ANY_HIT_SHADER_ENTRY_NAME,
+			CLOSEST_HIT_SHADER_ENTRY_NAME,
 		};
 		{
 			shaderConfigExpAssociation.pSubobjectToAssociate = &subObjects.back();
-			shaderConfigExpAssociation.NumExports = 3;
+			shaderConfigExpAssociation.NumExports = 4;
 			shaderConfigExpAssociation.pExports = shaderConfigExportNames;
 
 			D3D12_STATE_SUBOBJECT subObj;

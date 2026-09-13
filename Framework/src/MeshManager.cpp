@@ -653,8 +653,14 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			geomDesc.Triangles.IndexBuffer = m_IBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();;
 			geomDesc.Triangles.IndexCount = static_cast<UINT>(resMesh.Indices.size());
 			geomDesc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
-			// TODO: ‰¼‚Å‚·‚×‚ÄOpaque‚Æ‚µ‚Ä‚¨‚­
-			geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+			if (bMasked)
+			{
+				geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+			}
+			else
+			{
+				geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+			}
 
 			rtGeomDescs.emplace_back(geomDesc);
 		}

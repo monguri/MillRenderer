@@ -380,6 +380,91 @@ void miss(inout Payload payload)
 	payload.deviceZ = 0;
 }
 
+[shader("anyhit")]
+void anyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attrs)
+{
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetMaterialDescHeapIndex(CbMaterialBaseIdx + CB.MaterialIdx)];
+	Texture2D<float4> BaseColorMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(BaseColorMapBaseIdx + CB.MaterialIdx)];
+
+	// 
+	//TODO: closestHitと同じ処理をしているので共通化したい
+	//
+	uint primitiveIndex = PrimitiveIndex();
+	uint index0 = IB[primitiveIndex * 3 + 0];
+	uint index1 = IB[primitiveIndex * 3 + 1];
+	uint index2 = IB[primitiveIndex * 3 + 2];
+
+	ClipSpaceTriangle origTri;
+	origTri.v0 = ConvertToVertexData(VB[index0]);
+	origTri.v1 = ConvertToVertexData(VB[index1]);
+	origTri.v2 = ConvertToVertexData(VB[index2]);
+
+	// Inverse ZなのでzはNear固定
+	float near = origTri.v0.Position.z;
+
+	ClipSpaceTriangle newTri1, newTri2;
+	uint clipResult = nearClip(origTri, near, newTri1, newTri2);
+
+	// (Width, Height, 1)のレイ本数をそのままスクリーンのピクセルに割り当てる
+	uint2 rayIndex = DispatchRaysIndex().xy;
+	uint2 screenDim = DispatchRaysDimensions().xy;
+	float2 ndcXY = (float2(rayIndex) + 0.5f) / float2(screenDim) * float2(2, -2) + float2(-1, 1);
+
+	BarycentricDeriv barycentricDeriv;
+	ClipSpaceTriangle hitTri;
+	switch (clipResult)
+	{
+	case CLIP_RESULT_OUTSIDE:
+		// ここには来ないはず
+		// assert(false);
+		payload = (Payload)0;
+		return;
+	case CLIP_RESULT_INSIDE_1_VERTEX:
+		hitTri = newTri1;
+		break;
+	case CLIP_RESULT_INSIDE_2_VERTEX:
+		{
+			BarycentricDeriv barycentricDeriv1 = CalcFullBary(newTri1.v0.Position, newTri1.v1.Position, newTri1.v2.Position, ndcXY, screenDim);
+			BarycentricDeriv barycentricDeriv2 = CalcFullBary(newTri2.v0.Position, newTri2.v1.Position, newTri2.v2.Position, ndcXY, screenDim);
+			if (all(barycentricDeriv1.m_lambda >= 0))
+			{
+				hitTri = newTri1;
+			}
+			else if (all(barycentricDeriv2.m_lambda >= 0))
+			{
+				hitTri = newTri2;
+			}
+			else
+			{
+				// ここには来ないはず
+				// assert(false);
+				payload = (Payload)0;
+				return;
+			}
+		}
+		break;
+	case CLIP_RESULT_INSIDE_3_VERTEX:
+		hitTri = origTri;
+		break;
+	default:
+		// ここには来ないはず
+		// assert(false);
+		payload = (Payload)0;
+		return;
+	}
+
+	barycentricDeriv = CalcFullBary(hitTri.v0.Position, hitTri.v1.Position, hitTri.v2.Position, ndcXY, screenDim);
+
+	float2 uv, ddx, ddy;
+	BaryInterpolateDeriv2(barycentricDeriv, hitTri.v0.TexCoord, hitTri.v1.TexCoord, hitTri.v2.TexCoord, uv, ddx, ddy);
+
+	float alpha = BaseColorMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).a;
+	if (alpha < CbMaterial.AlphaCutoff)
+	{
+		IgnoreHit();
+	}
+}
+
 [shader("closesthit")]
 void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attrs)
 {
@@ -405,7 +490,6 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
 	ClipSpaceTriangle newTri1, newTri2;
 	uint clipResult = nearClip(origTri, near, newTri1, newTri2);
-
 
 	// (Width, Height, 1)のレイ本数をそのままスクリーンのピクセルに割り当てる
 	uint2 rayIndex = DispatchRaysIndex().xy;
