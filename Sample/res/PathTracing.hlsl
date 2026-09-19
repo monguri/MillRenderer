@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 //TODO: hlsl内RootSignature定義はどう書けばいいかわからないのでとりあえずやらない
 struct Camera
 {
@@ -320,6 +322,27 @@ VertexData ConvertToVertexData(MeshVertex meshVertex)
 	return vertexData;
 }
 
+// Tokuyoshi, Y., and Kaplanyan, A. S. 2021. Stable Geometric Specular Antialiasing with Projected-Space NDF Filtering. JCGT, 10, 2, 31-58.
+// https://cedil.cesa.or.jp/cedil_sessions/view/2395
+float IsotropicNDFFiltering(float3 normal, float3 normalDdx, float3 normalDdy, float roughness)
+{
+	float alpha = roughness * roughness;
+	float alphaSq = alpha * alpha;
+
+	float SIGMA2 = 0.5f * (1.0f / F_PI);
+	float KAPPA = 0.18f;
+
+	float3 dndu = normalDdx;
+	float3 dndv = normalDdy;
+
+	float kernel = SIGMA2 * (dot(dndu, dndu) + dot(dndv, dndv));
+	float clampedKernel = min(kernel, KAPPA);
+
+	float filteredAlphaSq = saturate(alphaSq + clampedKernel);
+	float filteredRoughness = sqrt(sqrt(filteredAlphaSq));
+	return filteredRoughness;
+}
+
 struct [raypayload] Payload
 {
 	float3 color : read(caller) : write(closesthit, miss);
@@ -541,19 +564,18 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
 	barycentricDeriv = CalcFullBary(hitTri.v0.Position, hitTri.v1.Position, hitTri.v2.Position, ndcXY, screenDim);
 
-	float2 uv, ddx, ddy;
-	BaryInterpolateDeriv2(barycentricDeriv, hitTri.v0.TexCoord, hitTri.v1.TexCoord, hitTri.v2.TexCoord, uv, ddx, ddy);
+	float2 uv, duvdx, duvdy;
+	BaryInterpolateDeriv2(barycentricDeriv, hitTri.v0.TexCoord, hitTri.v1.TexCoord, hitTri.v2.TexCoord, uv, duvdx, duvdy);
 
-	payload.color = BaseColorMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).rgb;
+	payload.color = BaseColorMap.SampleGrad(LinearWrapSmp, uv, duvdx, duvdy).rgb;
 	payload.color *= CbMaterial.BaseColorFactor;
 
-	//TODO: IsotropicNDFFiltering()はddx/ddy(normal)を使っておりラスタライザ前提の実装で使えない。GBufferPS.hlsliを見てみよ
-	//metallicRoughness.y = IsotropicNDFFiltering(normal, metallicRoughness.y);
-	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).bg;
+	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, duvdx, duvdy).bg;
 	payload.metallicRoughness *= float2(CbMaterial.MetallicFactor, CbMaterial.RoughnessFactor);
 
 	float3 normal = Baryinterpolate3(barycentricDeriv, hitTri.v0.Normal, hitTri.v1.Normal, hitTri.v2.Normal);
 	normal = mul((float3x3)CB.World, normal);
+
 
 	float3 tangent = Baryinterpolate3(barycentricDeriv, hitTri.v0.Tangent, hitTri.v1.Tangent, hitTri.v2.Tangent);
 	tangent = mul((float3x3)CB.World, tangent);
@@ -561,13 +583,25 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float3 bitangent = normalize(cross(normal, tangent));
 	float3x3 invTangentBasis = transpose(float3x3(tangent, bitangent, normal));
 
-	float3 pixelNormal = NormalMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).xyz * 2 - 1;
+	float3 pixelNormal = NormalMap.SampleGrad(LinearWrapSmp, uv, duvdx, duvdy).xyz * 2 - 1;
 	payload.normal = mul(invTangentBasis, pixelNormal);
+
+	// NDFフィルタリングのために、微小なUVオフセットを使って法線マップの微分を計算する
+	const float UV_EPSILON = 0.0001f;
+	float3 pixelNormalDu = NormalMap.SampleGrad(LinearWrapSmp, uv + float2(UV_EPSILON, 0), duvdx, duvdy).xyz * 2 - 1;
+	float3 pixelNormalDv = NormalMap.SampleGrad(LinearWrapSmp, uv + float2(0, UV_EPSILON), duvdx, duvdy).xyz * 2 - 1;
+
+	float3 pixelNormalDdu = (pixelNormalDu - pixelNormal) / UV_EPSILON;
+	float3 pixelNormalDdv = (pixelNormalDv - pixelNormal) / UV_EPSILON;
+	float3 pixelNormalDdx = pixelNormalDdu * duvdx.x + pixelNormalDdv * duvdx.y;
+	float3 pixelNormalDdy = pixelNormalDdu * duvdy.x + pixelNormalDdv * duvdy.y;
+
+	payload.metallicRoughness.y = IsotropicNDFFiltering(pixelNormal, pixelNormalDdx, pixelNormalDdy, payload.metallicRoughness.y);
 
 	payload.emissive = 0;
 	if (CbMaterial.bExistEmissiveTex)
 	{
-		payload.emissive = EmissiveMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).rgb;
+		payload.emissive = EmissiveMap.SampleGrad(LinearWrapSmp, uv, duvdx, duvdy).rgb;
 		payload.emissive *= CbMaterial.EmissiveFactor;
 	}
 
