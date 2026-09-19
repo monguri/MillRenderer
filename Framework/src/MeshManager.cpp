@@ -34,6 +34,13 @@ namespace
 		uint32_t SbMeshletAABBInfosBuffer[MAX_MESH_COUNT];
 	};
 
+	struct alignas(256) CbMeshesDescHeapIndicesForPathTracing
+	{
+		uint32_t CbMesh[MAX_MESH_COUNT];
+		uint32_t SbVertexBuffer[MAX_MESH_COUNT];
+		uint32_t SbIndexBuffer[MAX_MESH_COUNT];
+	};
+
 	// シェーダ側の定義と値の一致が必要
 	static constexpr uint32_t MAX_MATERIAL_COUNT = 256;
 
@@ -169,6 +176,7 @@ void MeshManager::Term()
 	}
 
 	m_MeshesDescHeapIndicesCB.Term();
+	m_MeshesDescHeapIndicesForPathTracingCB.Term();
 	m_MaterialsDescHeapIndicesCB.Term();
 
 	for (Resource& CB : m_MeshCBs)
@@ -361,6 +369,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> rtGeomDescs;
 
 	CbMeshesDescHeapIndices meshesDescHeapIndices = {};
+	CbMeshesDescHeapIndicesForPathTracing meshesDescHeapIndicesForPathTracing = {};
 
 	m_MeshCount = 0;
 	m_MeshletCount = 0;
@@ -410,6 +419,10 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		meshesDescHeapIndices.CbMesh[validMeshIdx] = m_MeshCBs[validMeshIdx].GetHandleCBV()->GetDescriptorIndex();
+		if (createBVH)
+		{
+			meshesDescHeapIndicesForPathTracing.CbMesh[validMeshIdx] = m_MeshCBs[validMeshIdx].GetHandleCBV()->GetDescriptorIndex();
+		}
 
 		if (!m_MeshTransposedWorldMatrices[validMeshIdx].InitAsByteAddressBuffer(
 			pDevice,
@@ -463,6 +476,10 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		meshesDescHeapIndices.SbVertexBuffer[validMeshIdx] = m_VBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
+		if (createBVH)
+		{
+			meshesDescHeapIndicesForPathTracing.SbVertexBuffer[validMeshIdx] = m_VBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
+		}
 
 		if (!m_MeshletsSBs[validMeshIdx].InitAsStructuredBuffer<meshopt_Meshlet>(
 			pDevice,
@@ -642,6 +659,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 				return false;
 			}
+
+			meshesDescHeapIndicesForPathTracing.SbIndexBuffer[validMeshIdx] = m_IBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
 
 			D3D12_RAYTRACING_GEOMETRY_DESC geomDesc = {};
 			geomDesc.Triangles.VertexBuffer.StartAddress = m_PositionVBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();
@@ -917,6 +936,28 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 	if (createBVH)
 	{
+		if (!m_MeshesDescHeapIndicesForPathTracingCB.InitAsConstantBuffer<CbMeshesDescHeapIndicesForPathTracing>(
+			pDevice,
+			D3D12_HEAP_TYPE_DEFAULT,
+			pPoolGpuVisible,
+			L"MeshesDescHeapIndicesForPathTracingCB"
+		))
+		{
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_MeshesDescHeapIndicesForPathTracingCB.UploadBufferTypeData<CbMeshesDescHeapIndicesForPathTracing>(
+			pDevice,
+			pCmdList,
+			1,
+			&meshesDescHeapIndicesForPathTracing
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
 		// BLASの生成
 		{
 			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs;
@@ -1264,6 +1305,11 @@ const Resource& MeshManager::GetMeshletMeshMaterialTableSB() const
 const Resource& MeshManager::GetMeshesDescHeapIndicesCB() const
 {
 	return m_MeshesDescHeapIndicesCB;
+}
+
+const Resource& MeshManager::GetMeshesDescHeapIndicesForPathTracingCB() const
+{
+	return m_MeshesDescHeapIndicesForPathTracingCB;
 }
 
 const Resource& MeshManager::GetMaterialsDescHeapIndicesCB() const

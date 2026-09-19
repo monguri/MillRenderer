@@ -5898,9 +5898,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
-				.AddSRV(ShaderStage::ALL, 1)
-				.AddSRV(ShaderStage::ALL, 2)
-				.AddCBV(ShaderStage::ALL, 2)
 				.AddStaticSampler(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 				.SetLocalRootSignature()
 				.End();
@@ -5936,9 +5933,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		{
 			RootSignature::Desc desc;
 			desc.Begin()
-				.AddSRV(ShaderStage::ALL, 1)
-				.AddSRV(ShaderStage::ALL, 2)
-				.AddCBV(ShaderStage::ALL, 2)
 				.AddStaticSampler(ShaderStage::ALL, 0, SamplerState::LinearWrap, 0)
 				.SetLocalRootSignature()
 				.End();
@@ -6033,6 +6027,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			desc.Begin()
 				.AddCBV(ShaderStage::ALL, 0)
 				.AddCBV(ShaderStage::ALL, 1)
+				.AddCBV(ShaderStage::ALL, 2)
 				.AddSRV(ShaderStage::ALL, 0)
 				.HeapDirectlyIndexed()
 				.End();
@@ -6182,9 +6177,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			{
 				uint32_t meshCount = static_cast<uint32_t>(m_MeshManager.GetMeshCount());
 
-				const size_t ROOT_PARAM_COUNT = 3;
-
-				m_HitGroupShaderRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + ROOT_PARAM_COUNT * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+				m_HitGroupShaderRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 				m_HitGroupShaderRecordSize = AlignTo(m_HitGroupShaderRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 
 				size_t shaderTableSize = m_HitGroupShaderRecordSize * meshCount;
@@ -6201,17 +6194,6 @@ bool SampleApp::OnInit(HWND hWnd)
 
 					size_t copySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 					memcpy(pDest, pShaderId, copySize);
-					pDest += copySize;
-
-					// Local Root SignatureではSetComputeRootDescriptorTable()などでなくShaderTableにD3D12_GPU_DESCRIPTOR_HANDLEを書き込む方式となる
-					std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> handles;
-					handles.reserve(ROOT_PARAM_COUNT);
-					handles.emplace_back(m_MeshManager.GetVB(meshIdx).GetHandleSRV()->HandleGPU);
-					handles.emplace_back(m_MeshManager.GetIB(meshIdx).GetHandleSRV()->HandleGPU);
-					handles.emplace_back(m_MeshManager.GetMeshCB(meshIdx).GetHandleCBV()->HandleGPU);
-
-					copySize = handles.size() * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
-					memcpy(pDest, handles.data(), copySize);
 					pDest += copySize;
 				}
 
@@ -8903,8 +8885,9 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesForPathTracingCB().GetHandleCBV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 
 	pCmdList->DispatchRays(&dispatchDesc);
 

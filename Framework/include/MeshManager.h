@@ -40,6 +40,7 @@ public:
 	const Resource& GetDrawMovableMeshletIndicesBB() const;
 	const Resource& GetMeshletMeshMaterialTableSB() const;
 	const Resource& GetMeshesDescHeapIndicesCB() const;
+	const Resource& GetMeshesDescHeapIndicesForPathTracingCB() const;
 	const Resource& GetMaterialsDescHeapIndicesCB() const;
 	const Resource& GetUnitCubeVB() const;
 	const Resource& GetUnitCubeIB() const;
@@ -97,6 +98,7 @@ private:
 	Resource m_DrawMovableMeshletIndicesBB;
 
 	Resource m_MeshesDescHeapIndicesCB;
+	Resource m_MeshesDescHeapIndicesForPathTracingCB;
 	Resource m_MaterialsDescHeapIndicesCB;
 
 	size_t m_MeshCount = 0;
