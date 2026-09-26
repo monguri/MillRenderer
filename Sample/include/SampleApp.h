@@ -43,6 +43,8 @@ private:
 	bool m_useSWRasterizer = false;
 	// パストレーシングで描画するかどうか
 	bool m_usePathTracing = false;
+	// ASにCLASを使用するかどうか
+	bool m_useCLAS = false;
 
 	ShaderCompiler m_ShaderCompiler;
 	Texture m_DummyTexture;

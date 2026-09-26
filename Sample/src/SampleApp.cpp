@@ -816,11 +816,17 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 		else if (wcscmp(argv[a], L"--swrasterizer") == 0)
 		{
 			m_useSWRasterizer = true;
+			m_useMeshlet = true;
 		}
 		else if (wcscmp(argv[a], L"--pathtracing") == 0)
 		{
 			m_usePathTracing = true;
-			// MeshManagerを利用したい
+			m_useMeshlet = true;
+		}
+		else if (wcscmp(argv[a], L"--clas") == 0)
+		{
+			m_useCLAS = true;
+			m_usePathTracing = true;
 			m_useMeshlet = true;
 		}
 	}
