@@ -337,7 +337,7 @@ bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worl
 	return true;
 }
 
-bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createBVH)
+bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createRTAS, bool createCLAS)
 {
 	assert(pDevice != nullptr);
 	assert(pQueue != nullptr);
@@ -419,7 +419,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		meshesDescHeapIndices.CbMesh[validMeshIdx] = m_MeshCBs[validMeshIdx].GetHandleCBV()->GetDescriptorIndex();
-		if (createBVH)
+		if (createRTAS)
 		{
 			meshesDescHeapIndicesForPathTracing.CbMesh[validMeshIdx] = m_MeshCBs[validMeshIdx].GetHandleCBV()->GetDescriptorIndex();
 		}
@@ -476,7 +476,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		meshesDescHeapIndices.SbVertexBuffer[validMeshIdx] = m_VBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
-		if (createBVH)
+		if (createRTAS)
 		{
 			meshesDescHeapIndicesForPathTracing.SbVertexBuffer[validMeshIdx] = m_VBs[validMeshIdx].GetHandleSRV()->GetDescriptorIndex();
 		}
@@ -604,7 +604,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 		m_MeshletCount += localMeshletCount;
 
-		if (createBVH)
+		if (createRTAS)
 		{
 			std::vector<Vector3> positions(resMesh.Vertices.size());
 			for (size_t i = 0; i < resMesh.Vertices.size(); i++)
@@ -934,7 +934,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		return false;
 	}
 
-	if (createBVH)
+	if (createRTAS)
 	{
 		if (!m_MeshesDescHeapIndicesForPathTracingCB.InitAsConstantBuffer<CbMeshesDescHeapIndicesForPathTracing>(
 			pDevice,

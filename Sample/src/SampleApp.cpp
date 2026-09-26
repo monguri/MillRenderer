@@ -1286,7 +1286,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 			m_DummyTexture,
-			m_usePathTracing
+			m_usePathTracing && !m_useCLAS,
+			m_useCLAS
 		))
 		{
 			ELOG("Error : MeshManager::Update() failed.");
