@@ -150,6 +150,12 @@ namespace
 				return false;
 		}
 	}
+
+	size_t AlignTo(size_t value, size_t alignment)
+	{
+		// (value + (alignment - 1)) / alignment * alignment;
+		return (value + (alignment - 1)) & ~(alignment - 1);
+	}
 }
 
 MeshManager::~MeshManager()
@@ -973,7 +979,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			if (!m_BlasScratchBB.InitAsByteAddressBuffer
 			(
 				pDevice,
-				preBuildInfo.ScratchDataSizeInBytes,
+				AlignTo(preBuildInfo.ScratchDataSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT),
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 				nullptr,
 				nullptr,
@@ -990,7 +996,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			if (!m_BlasResultBB.InitAsAccelerationStructure
 			(
 				pDevice,
-				preBuildInfo.ResultDataMaxSizeInBytes,
+				AlignTo(preBuildInfo.ResultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT),
 				pPoolGpuVisible,
 				L"BlasResultBB"
 			))
@@ -1053,7 +1059,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			// ByteAddressBufferである必要は無いが必要な処理が揃っていたので
 			if (!m_TlasScratchBB.InitAsByteAddressBuffer(
 				pDevice,
-				preBuildInfo.ScratchDataSizeInBytes,
+				AlignTo(preBuildInfo.ScratchDataSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT),
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 				nullptr,
 				nullptr,
@@ -1068,7 +1074,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 			if (!m_TlasResultBB.InitAsAccelerationStructure(
 				pDevice,
-				preBuildInfo.ResultDataMaxSizeInBytes,
+				AlignTo(preBuildInfo.ResultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT),
 				pPoolGpuVisible,
 				L"TlasResultBB"
 			))
