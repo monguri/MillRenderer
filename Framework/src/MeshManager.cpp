@@ -8,6 +8,9 @@
 
 using namespace DirectX::SimpleMath;
 
+// DXRでCLASが未対応なのでそれまではNvAPIを使う
+#include "nvapi.h"
+
 namespace
 {
 	// Sponzaのときに花瓶を決め打ちで動かすためのインデックス
@@ -1091,6 +1094,12 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 			pCmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
 			m_TlasResultBB.BarrierUAV(pCmdList);
+		}
+	}
+	else if (createCLAS)
+	{
+		// CLASの生成
+		{
 		}
 	}
 
