@@ -1,6 +1,6 @@
 /*********************************************************************************************************\
 |*                                                                                                        *|
-|* SPDX-FileCopyrightText: Copyright (c) 2019-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.  *|
+|* SPDX-FileCopyrightText: Copyright (c) 2019-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.  *|
 |* SPDX-License-Identifier: MIT                                                                           *|
 |*                                                                                                        *|
 |* Permission is hereby granted, free of charge, to any person obtaining a                                *|
@@ -25,7 +25,7 @@
 \*********************************************************************************************************/
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-// Date: Mar 17, 2026 
+// Date: Jan 30, 2025 
 // File: nvapi.h
 //
 // NvAPI provides an interface to NVIDIA devices. This file contains the 
@@ -201,22 +201,6 @@ typedef enum _NV_DP_LINK_RATE
     NV_EDP_4_32GBPS           = 0x10
 } NV_DP_LINK_RATE;
 
-typedef enum _NV_DP2X_LINK_RATE
-{
-    NV_DP2X_1_62Gbps          = 0x00A2,   //  162
-    NV_DP2X_2_16Gbps          = 0x00D8,   //  216
-    NV_DP2X_2_43Gbps          = 0x00F3,   //  243
-    NV_DP2X_2_50Gbps          = 0x00FA,   //  250
-    NV_DP2X_2_70Gbps          = 0x010E,   //  270
-    NV_DP2X_3_24Gbps          = 0x0144,   //  324
-    NV_DP2X_4_32Gbps          = 0x01B0,   //  432
-    NV_DP2X_5_40Gbps          = 0x021C,   //  540
-    NV_DP2X_6_75Gbps          = 0x02A3,   //  675
-    NV_DP2X_8_10Gbps          = 0x032A,   //  810
-    NV_DP2X_10_0Gbps          = 0x03E8,   // 1000
-    NV_DP2X_13_5Gbps          = 0x0546,   // 1350
-    NV_DP2X_20_0Gbps          = 0x07D0,   // 2000
-} NV_DP2X_LINK_RATE;
 
 //! \ingroup dispcontrol
 //! Used in NV_DISPLAY_PORT_INFO.
@@ -3639,46 +3623,11 @@ typedef struct
 typedef void(__cdecl *NVAPI_CALLBACK_QSYNCEVENT)(NV_QSYNC_EVENT_DATA qyncEventData, void *callbackParam);
 
 
-typedef struct _NV_DISPLAY_OUTPUT_MODE_CHANGE_EVENT_DATA
-{
-    NvU32 displayId;                                 //!< displayId of the display
-    NvU32 outputMode;                                //!< display output mode
-} NV_DISPLAY_OUTPUT_MODE_CHANGE_EVENT_DATA;
-
-//! Callback for Display Output Mode change events
-typedef void(__cdecl *NVAPI_CALLBACK_DISPLAY_OUTPUT_MODE_CHANGE_EVENT)(NV_DISPLAY_OUTPUT_MODE_CHANGE_EVENT_DATA* pEventData, void *callbackParam);
-
-typedef struct _NV_DISPLAY_COLORIMETRY_CHANGE_EVENT_DATA
-{
-    NvU32 displayId;                                //!< displayId of the monitor
-
-    float min_luminance;                            //!< min luminance, cd/m^2
-    float max_full_frame_luminance;                 //!< max 100% frame luminance, cd/m^2
-    float max_luminance;                            //!< max 10% frame luminance, cd/m^2
-
-    float hdrBrightnessLuminanceScalingFactor;      //!< HDR brightness luminance scaling factor applied by GPU on output pixels
-
-    float red_primary_x;                            //!< red primary chromaticity coordinate x
-    float red_primary_y;                            //!< red primary chromaticity coordinate y
-    float green_primary_x;                          //!< green primary chromaticity coordinate x
-    float green_primary_y;                          //!< green primary chromaticity coordinate y
-    float blue_primary_x;                           //!< blue primary chromaticity coordinate x
-    float blue_primary_y;                           //!< blue primary chromaticity coordinate y
-    float white_point_x;                            //!< white point chromaticity coordinate x
-    float white_point_y;                            //!< white point chromaticity coordinate y
-} NV_DISPLAY_COLORIMETRY_CHANGE_EVENT_DATA;
-
-//! Callback for Display Colorimetry change events
-typedef void(__cdecl *NVAPI_CALLBACK_DISPLAY_COLORIMETRY_CHANGE_EVENT)(NV_DISPLAY_COLORIMETRY_CHANGE_EVENT_DATA* pEventData, void *callbackParam);
-
-
 //! Enum for Event IDs
 typedef enum
 {
     NV_EVENT_TYPE_NONE = 0,
     NV_EVENT_TYPE_QSYNC = 6,
-    NV_EVENT_TYPE_DISPLAY_OUTPUT_MODE_CHANGE = 103,
-    NV_EVENT_TYPE_DISPLAY_COLORIMETRY_CHANGE = 104,
 } NV_EVENT_TYPE;
 
 //! Core NV_EVENT_REGISTER_CALLBACK structure declaration
@@ -3690,8 +3639,6 @@ typedef struct
     union
     {
         NVAPI_CALLBACK_QSYNCEVENT    nvQSYNCEventCallback;                     //!< Callback function pointer for QSYNC events
-        NVAPI_CALLBACK_DISPLAY_OUTPUT_MODE_CHANGE_EVENT    nvDisplayOutputModeChangeEventCallback;  //!< Callback function pointer for Display Output Mode change events
-        NVAPI_CALLBACK_DISPLAY_COLORIMETRY_CHANGE_EVENT    nvDisplayColorimetryChangeEventCallback; //!< Callback function pointer for Display Colorimetry change events
     }nvCallBackFunc;
 
 } NV_EVENT_REGISTER_CALLBACK, *PNV_EVENT_REGISTER_CALLBACK;
@@ -4352,12 +4299,299 @@ typedef NV_LICENSABLE_FEATURES_V4     NV_LICENSABLE_FEATURES;
 NVAPI_INTERFACE NvAPI_GPU_GetLicensableFeatures(__in NvPhysicalGpuHandle hPhysicalGpu, __inout NV_LICENSABLE_FEATURES *pLicensableFeatures);
 
 
+#define NVAPI_NVLINK_COUNTER_MAX_TYPES                    32
+#define NVAPI_NVLINK_MAX_LINKS                            32
+
+//! \ingroup nvlink
+//! @{
+//! Used in NvAPI_GPU_NVLINK_GetCaps()
+
+/* caps format is byte_index:bit_mask */
+#define NVAPI_NVLINK_CAPS_SUPPORTED                          0x00000001                   //!< Set if NVLink is present and supported on this GPU.This field is used for *global* caps only and NOT for per-link caps
+#define NVAPI_NVLINK_CAPS_P2P_SUPPORTED                      0x00000002                   //!< Set if P2P over NVLink is supported on this GPU.
+#define NVAPI_NVLINK_CAPS_SYSMEM_ACCESS                      0x00000004                   //!< Set if sysmem can be accessed over NVLink on this GPU.
+#define NVAPI_NVLINK_CAPS_P2P_ATOMICS                        0x00000008                   //!< Set if P2P atomics are supported over NVLink on this GPU.
+#define NVAPI_NVLINK_CAPS_SYSMEM_ATOMICS                     0x00000010                   //!< Set if sysmem atomic transcations are supported over NVLink on this GPU.
+#define NVAPI_NVLINK_CAPS_PEX_TUNNELING                      0x00000020                   //!< Set if PEX tunneling over NVLink is supported on this GPU.
+#define NVAPI_NVLINK_CAPS_SLI_BRIDGE                         0x00000040                   //!< Set if SLI over NVLink is supported on this GPU.
+#define NVAPI_NVLINK_CAPS_SLI_BRIDGE_SENSABLE                0x00000080                    //!< This bit is set if capable of sensing SLI bridges.
+#define NVAPI_NVLINK_CAPS_POWER_STATE_L0                     0x00000100                    //!< This bit is set if L0 is a supported power state on this GPU.
+#define NVAPI_NVLINK_CAPS_POWER_STATE_L1                     0x00000200                    //!< This bit is set if L1 is a supported power state on this GPU.
+#define NVAPI_NVLINK_CAPS_POWER_STATE_L2                     0x00000400                    //!< This bit is set if L2 is a supported power state on this GPU.
+#define NVAPI_NVLINK_CAPS_POWER_STATE_L3                     0x00000800                    //!< This bit is set if L3 is a supported power state on this GPU.
+
+#define NVAPI_NVLINK_CAPS_VALID                              0x00001000                   //!< Set if this link is supported on this GPU.This field is used for *per-link* caps only and NOT for global caps.
+
+#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_INVALID             (0x00000000)
+#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_1_0                 (0x00000001)
+#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_2_0                 (0x00000002)
+#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_2_2                 (0x00000004U)
+#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_3_0                 (0x00000005U)
+#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_3_1                 (0x00000006U)
+#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_4_0                 (0x00000007U)
+#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_5_0                 (0x00000008U)
+
+#define NVAPI_NVLINK_CAPS_NCI_VERSION_INVALID                (0x00000000)
+#define NVAPI_NVLINK_CAPS_NCI_VERSION_1_0                    (0x00000001)
+#define NVAPI_NVLINK_CAPS_NCI_VERSION_2_0                    (0x00000002)
+#define NVAPI_NVLINK_CAPS_NCI_VERSION_2_2                    (0x00000004U)
+#define NVAPI_NVLINK_CAPS_NCI_VERSION_3_0                    (0x00000005U)
+#define NVAPI_NVLINK_CAPS_NCI_VERSION_3_1                    (0x00000006U)
+#define NVAPI_NVLINK_CAPS_NCI_VERSION_4_0                    (0x00000007U)
+#define NVAPI_NVLINK_CAPS_NCI_VERSION_5_0                    (0x00000008U)
+
+typedef struct
+{
+    NvU32   version;               //!< Version of this structure. Must always be first element in this structure.
+    NvU32   capsTbl;               //!< This is bit field for getting different global caps.The individual bitfields are specified by NVAPI_NVLINK_CAPS_*
+    NvU8    lowestNvlinkVersion;   //!< This field specifies the lowest supported NVLink version for this GPU.
+    NvU8    highestNvlinkVersion;  //!< This field specifies the highest supported NVLink version for this GPU.
+    NvU8    lowestNciVersion;      //!< This field specifies the lowest supported NCI version for this GPU.
+    NvU8    highestNciVersion;     //!< This field specifies the highest supported NCI version for this GPU.
+    NvU32   linkMask;              //!< This field provides a bitfield mask of NVLink links enabled on this GPU.
+}NVLINK_GET_CAPS_V1;
+
+typedef NVLINK_GET_CAPS_V1 NVLINK_GET_CAPS;
+#define NVLINK_GET_CAPS_VER1 MAKE_NVAPI_VERSION(NVLINK_GET_CAPS_V1, 1)
+
+#define NVLINK_GET_CAPS_VER NVLINK_GET_CAPS_VER1
+//! @}
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:    NvAPI_GPU_NVLINK_GetCaps
+//
+//! DESCRIPTION:     This function returns the NVLink capabilities supported by the GPU.
+//! SUPPORTED OS:  Windows 10 and higher
+//!
+//!
+//! \since Release: 361
+//!
+//! \param [in]         hPhysicalGpu                                        GPU selection
+//!
+//! \param [in,out]      NVLINK_GET_CAPS                                     This structure contains the output parameters.
+//!                                                                         Also need to specify the version.
+//!
+//! \retval ::NVAPI_INVALID_USER_PRIVILEGE       - The caller does not have administrative privileges
+//!
+//! \return  This API can return any of the error codes enumerated in
+//!          #NvAPI_Status.  If there are return error codes with specific
+//!          meaning for this API, they are listed below.
+//!
+//! \ingroup   nvlink
+///////////////////////////////////////////////////////////////////////////////
+NVAPI_INTERFACE NvAPI_GPU_NVLINK_GetCaps(__in NvPhysicalGpuHandle hPhysicalGpu, __inout NVLINK_GET_CAPS *capsParams);
+
+
+//! \ingroup nvlink
+//! @{
+//! Used in NvAPI_GPU_NVLINK_GetStatus()
+
+#define NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_NONE   (0x00000000)
+#define NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_PCI    (0x00000001)
+#define NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_UUID   (0x00000002)
+
+typedef enum _NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE
+{
+    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_EBRIDGE,
+    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_NPU,
+    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_GPU,
+    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_SWITCH,
+    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_TEGRA,
+    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_NONE,
+    NVAPI_NVLINK_DEVICE_INFO_DEVICE_UUID_INVALID,
+} NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE;
+
+typedef struct
+{
+    NvU32  deviceIdFlags;    //!< ID Flags, Bitmask that specifies which IDs are valid for the GPU. Refer NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_* for possible values.
+                             //!< If NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_PCI is set, PCI information is valid.
+                             //!< If NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_UUID is set, UUID is valid.
+    NvU16  domain;           //!< domain, bus, device, function, pciDeviceId : PCI information for the GPU.
+    NvU16  bus;
+    NvU16  device;
+    NvU16  function;
+    NvU32  pciDeviceId;
+    NvU64  deviceType;       //!< GPU Type. See NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_* for possible values.
+    NvU8   deviceUUID[16];   //!< GPU UUID
+}NVLINK_DEVICE_INFO_V1;
+
+typedef enum _NVAPI_NVLINK_STATUS_LINK_STATE
+{
+    NVAPI_NVLINK_STATUS_LINK_STATE_UNKNOWN,
+    NVAPI_NVLINK_STATUS_LINK_STATE_INIT,
+    NVAPI_NVLINK_STATUS_LINK_STATE_HWCFG,
+    NVAPI_NVLINK_STATUS_LINK_STATE_SWCFG,
+    NVAPI_NVLINK_STATUS_LINK_STATE_ACTIVE,
+    NVAPI_NVLINK_STATUS_LINK_STATE_FAULT,
+    NVAPI_NVLINK_STATUS_LINK_STATE_RECOVERY,
+    NVAPI_NVLINK_STATUS_LINK_STATE_RECOVERY_AC,
+    NVAPI_NVLINK_STATUS_LINK_STATE_RECOVERY_AX,
+    NVAPI_NVLINK_STATUS_LINK_STATE_INVALID = 0xFFFFFFFF,
+}NVAPI_NVLINK_STATUS_LINK_STATE;
+
+typedef enum _NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE
+{
+    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_UNKNOWN,
+    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_HIGH_SPEED_1,
+    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_LOW_POWER,
+    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_TRAINING,
+    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_SAFE_MODE,
+    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_OFF,
+    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_TEST,
+    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_FAULT,
+    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_INVALID = 0xFF,
+}NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE;
+
+typedef enum _NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE
+{
+    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_UNKNOWN,
+    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_HIGH_SPEED_1,
+    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_LOW_POWER,
+    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_TRAINING,
+    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_SAFE_MODE,
+    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_OFF,
+    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_TEST,
+    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_FAULT,
+
+    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_INVALID= 0xFF,
+} NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE;
+
+
+#define NVAPI_NVLINK_STATUS_PHY_NVHS                      (0x00000001)
+#define NVAPI_NVLINK_STATUS_PHY_GRS                       (0x00000002)
+#define NVAPI_NVLINK_STATUS_PHY_INVALID                   (0x000000FF)
+
+#define NVAPI_NVLINK_STATUS_NVLINK_VERSION_1_0            (0x00000001)
+#define NVAPI_NVLINK_STATUS_NVLINK_VERSION_2_0            (0x00000002)
+#define NVAPI_NVLINK_STATUS_NVLINK_VERSION_INVALID        (0x000000FF)
+
+#define NVAPI_NVLINK_STATUS_NCI_VERSION_1_0               (0x00000001)
+#define NVAPI_NVLINK_STATUS_NCI_VERSION_2_0               (0x00000002)
+#define NVAPI_NVLINK_STATUS_NCI_VERSION_INVALID           (0x000000FF)
+
+#define NVAPI_NVLINK_STATUS_NVHS_VERSION_1_0              (0x00000001)
+#define NVAPI_NVLINK_STATUS_NVHS_VERSION_INVALID          (0x000000FF)
+
+#define NVAPI_NVLINK_STATUS_GRS_VERSION_1_0               (0x00000001)
+#define NVAPI_NVLINK_STATUS_GRS_VERSION_INVALID           (0x000000FF)
+
+#define NVAPI_NVLINK_STATUS_CONNECTED_TRUE                (0x00000001)
+#define NVAPI_NVLINK_STATUS_CONNECTED_FALSE               (0x00000000)
+
+#define NVAPI_NVLINK_STATUS_LOOP_PROPERTY_LOOPBACK        (0x00000001)
+#define NVAPI_NVLINK_STATUS_LOOP_PROPERTY_LOOPOUT         (0x00000002)
+#define NVAPI_NVLINK_STATUS_LOOP_PROPERTY_NONE            (0x00000000)
+
+#define NVAPI_NVLINK_STATUS_REMOTE_LINK_NUMBER_INVALID    (0x000000FF)
+
+#define NVAPI_NVLINK_REFCLK_TYPE_INVALID                  (0x00)
+#define NVAPI_NVLINK_REFCLK_TYPE_NVHS                     (0x01)
+#define NVAPI_NVLINK_REFCLK_TYPE_PEX                      (0x02)
+
+
+typedef struct
+{
+    NvU32   capsTbl;                                //!< This is bit field for getting different global caps.The individual bitfields are specified by NVAPI_NVLINK_CAPS_*.
+    NvU8    phyType;                                //!< This field specifies the type of PHY (NVHS or GRS) being used for this link.
+    NvU8    subLinkWidth;                           //!< This field specifies the no. of lanes per sublink.
+    NvU32   linkState;                              //!< This field specifies the current state of the link.See NVAPI_NVLINK_GET_NVLINK_STATUS_LINK_STATE_* for possible values.
+    NvU8    rxSublinkStatus;                        //!< This field specifies the current state of RX sublink.See NVAPI_NVLINK_GET_NVLINK_STATUS_SUBLINK_RX_STATE_* for possible values.
+    NvU8    txSublinkStatus;                        //!< This field specifies the current state of TX sublink.See NVAPI_NVLINK_GET_NVLINK_STATUS_SUBLINK_TX_STATE_* for possible values.
+    NvU8    nvlinkVersion;                          //!< This field specifies the NVLink version supported by the link.
+    NvU8    nciVersion;                             //!< This field specifies the NCI version supported by the link.
+    NvU8    phyVersion;                             //!< This field specifies the version of PHY being used by the link.
+    NvU32   nvlinkCommonClockSpeedMhz;              //!< This field gives the value of nvlink common clock in MHz.
+    NvU32   nvlinkRefClkSpeedMhz;                   //!< This field gives the value of nvlink refclk clock in MHz.
+    NvU8    nvlinkRefClkType;                       //!< This field specifies whether refclk is taken from NVHS reflck or PEX refclk for the current GPU.See NVAPI_NVLINK_REFCLK_TYPE_INVALID* for possible values.
+    NvU32   nvlinkLinkClockMhz;                     //!< This field gives the actual clock/speed at which links is running in MHz.
+    NvU32   connected:1 ;                           //!< This field specifies if any device is connected on the other end of the link.
+    NvU32   reserved:31;                            //!< Reserved for future use.
+    NvU8    loopProperty;                           //!< This field specifies if the link is a loopback/loopout link. See NVAPI_NVLINK_STATUS_LOOP_PROPERTY_* for possible values.
+    NvU8    remoteDeviceLinkNumber;                 //!< This field specifies the link number on the remote end of the link.
+    NVLINK_DEVICE_INFO_V1 remoteDeviceInfo;         //!< This field stores the GPU information for the remote end of the link
+}NVLINK_LINK_STATUS_INFO_V1;
+
+typedef struct
+{
+    NvU32   capsTbl;                                //!< This is bit field for getting different global caps.The individual bitfields are specified by NVAPI_NVLINK_CAPS_*.
+    NvU8    phyType;                                //!< This field specifies the type of PHY (NVHS or GRS) being used for this link.
+    NvU8    subLinkWidth;                           //!< This field specifies the no. of lanes per sublink.
+    NvU32   linkState;                              //!< This field specifies the current state of the link.See NVAPI_NVLINK_GET_NVLINK_STATUS_LINK_STATE_* for possible values.
+    NvU8    rxSublinkStatus;                        //!< This field specifies the current state of RX sublink.See NVAPI_NVLINK_GET_NVLINK_STATUS_SUBLINK_RX_STATE_* for possible values.
+    NvU8    txSublinkStatus;                        //!< This field specifies the current state of TX sublink.See NVAPI_NVLINK_GET_NVLINK_STATUS_SUBLINK_TX_STATE_* for possible values.
+    NvU8    nvlinkVersion;                          //!< This field specifies the NVLink version supported by the link.
+    NvU8    nciVersion;                             //!< This field specifies the NCI version supported by the link.
+    NvU8    phyVersion;                             //!< This field specifies the version of PHY being used by the link.
+    NvU32   nvlinkCommonClockSpeedMhz;              //!< This field gives the value of nvlink common clock in MHz.
+    NvU32   nvlinkRefClkSpeedMhz;                   //!< This field gives the value of nvlink refclk clock in MHz.
+    NvU8    nvlinkRefClkType;                       //!< This field specifies whether refclk is taken from NVHS reflck or PEX refclk for the current GPU.See NVAPI_NVLINK_REFCLK_TYPE_INVALID* for possible values.
+    NvU32   nvlinkLinkClockMhz;                     //!< This field gives the actual clock/speed at which links is running in MHz.
+    NvU32   connected:1 ;                           //!< This field specifies if any device is connected on the other end of the link.
+    NvU32   reserved:31;                            //!< Reserved for future use.
+    NvU8    loopProperty;                           //!< This field specifies if the link is a loopback/loopout link. See NVAPI_NVLINK_STATUS_LOOP_PROPERTY_* for possible values.
+    NvU8    remoteDeviceLinkNumber;                 //!< This field specifies the link number on the remote end of the link.
+    NVLINK_DEVICE_INFO_V1 remoteDeviceInfo;         //!< This field stores the device information for the remote end of the link
+    NvU8    localDeviceLinkNumber;                  //!< This field specifies the link number on the local end of the link.
+    NVLINK_DEVICE_INFO_V1 localDeviceInfo;          //!< This field stores the device information for the local end of the link.
+    NvU32   nvlinkLineRateMbps;                     //!< Bit rate at which bits toggle on wires in megabits per second.
+    NvU32   reservedEx[8];                          //!< Reserved for future use to avoid versioning.
+}NVLINK_LINK_STATUS_INFO_V2;
+
+typedef struct
+{
+    NvU32 version;                                                        //!< Version of this structure.  Must always be first element in this structure.
+    NvU32 linkMask;                                                       //!< This parameter specifies for which links we want the status.
+    NVLINK_LINK_STATUS_INFO_V1 linkInfo[NVAPI_NVLINK_MAX_LINKS];          //!< This structure stores the per-link status of different NVLink parameters. The link is identified by the index.
+}NVLINK_GET_STATUS_V1;
+
+typedef struct
+{
+    NvU32 version;                                                        //!< Version of this structure.  Must always be first element in this structure.
+    NvU32 linkMask;                                                       //!< This parameter specifies for which links we want the status.
+    NVLINK_LINK_STATUS_INFO_V2 linkInfo[NVAPI_NVLINK_MAX_LINKS];          //!< This structure stores the per-link status of different NVLink parameters. The link is identified by the index.
+}NVLINK_GET_STATUS_V2;
+
+
+typedef NVLINK_GET_STATUS_V2   NVLINK_GET_STATUS;
+#define NVLINK_GET_STATUS_VER1 MAKE_NVAPI_VERSION(NVLINK_GET_STATUS_V1, 1)
+#define NVLINK_GET_STATUS_VER2 MAKE_NVAPI_VERSION(NVLINK_GET_STATUS_V2, 2)
+
+#define NVLINK_GET_STATUS_VER NVLINK_GET_STATUS_VER2
+//! @}
+///////////////////////////////////////////////////////////////////////////////
+//
+// FUNCTION NAME:    NvAPI_GPU_NVLINK_GetStatus
+//
+//! DESCRIPTION:     This function returns the NVLink status.
+//! SUPPORTED OS:  Windows 10 and higher
+//!
+//!
+//! \since Release: 361
+//!
+//! \param [in]         hPhysicalGpu                                        GPU selection
+//!
+//! \param [in,out]      NVLINK_GET_STATUS                                   This structure contains the input and output parameters.
+//!                                                                         linkMask is the input param while others are output parameters.
+//!                                                                         Also need to specify the version.
+//!
+//! \retval ::NVAPI_INVALID_USER_PRIVILEGE       - The caller does not have administrative privileges
+//!
+//! \return  This API can return any of the error codes enumerated in
+//!          #NvAPI_Status.  If there are return error codes with specific
+//!          meaning for this API, they are listed below.
+//!
+//! \ingroup   nvlink
+///////////////////////////////////////////////////////////////////////////////
+NVAPI_INTERFACE NvAPI_GPU_NVLINK_GetStatus(__in NvPhysicalGpuHandle hPhysicalGpu, __inout NVLINK_GET_STATUS* statusParams);
+
+
+
 typedef struct _NV_ENCODER_STATISTICS_V1
 {
     NvU32 version;                       //!< [in]  Structure version value.
     NvU32 sessionsCount;                 //!< [out] Count of active encoder sessions.
     NvU32 averageFps;                    //!< [out] Trailing average FPS of all active sessions.
-    NvU32 averageLatency;                //!< [out] Encode latency in microseconds.
+    NvU32 averageLatency;                //!< [out] Encode latency in milliseconds.
 } NV_ENCODER_STATISTICS_V1;
 
 typedef NV_ENCODER_STATISTICS_V1    NV_ENCODER_STATISTICS;
@@ -4410,7 +4644,7 @@ typedef struct _NV_ENCODER_PER_SESSION_INFO_V1
     NvU32             hResolution;                 //!< Current encode horizontal resolution.
     NvU32             vResolution;                 //!< Current encode vertical resolution.
     NvU32             averageEncodeFps;            //!< Moving average encode frames per second.
-    NvU32             averageEncodeLatency;        //!< Moving average encode latency in microseconds.
+    NvU32             averageEncodeLatency;        //!< Moving average encode latency in milliseconds.
 }NV_ENCODER_PER_SESSION_INFO_V1;
 
 #define NV_ENCODER_SESSION_INFO_MAX_ENTRIES_V1             0x200  //!< 512 entries.
@@ -4601,330 +4835,6 @@ typedef NV_GPU_GSP_INFO_V1               NV_GPU_GSP_INFO;
 //!  \ingroup  gpu
 ///////////////////////////////////////////////////////////////////////////////
 NVAPI_INTERFACE NvAPI_GPU_GetGspFeatures(__in NvPhysicalGpuHandle hPhysicalGpu, __inout NV_GPU_GSP_INFO *pGspInfo);
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME: NvAPI_GPU_GetUUID
-//
-//! \fn NvAPI_GPU_GetUUID(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_UUID *pGpuUuid)
-//!  DESCRIPTION: This function returns the GPU UUID for the specified physical GPU handle.
-//!               The UUID is returned in GUID format (16 bytes).
-//!
-//! SUPPORTED OS:  Windows 10 and higher
-//!
-//!
-//! TCC_SUPPORTED
-//!
-//! MCDM_SUPPORTED
-//!
-//! \since Release: 595
-//!
-//! \param [in]     hPhysicalGpu   Physical GPU handle to get UUID for
-//! \param [in,out] pGpuUuid       Pointer to structure that will receive the GPU UUID
-//!
-//! \retval NVAPI_OK                            Request completed successfully
-//! \return This API can return any of the error codes enumerated in #NvAPI_Status.
-//!
-//! \ingroup gpu
-///////////////////////////////////////////////////////////////////////////////
-//! Used in NvAPI_GPU_GetUUID()
-typedef struct _NV_GPU_UUID_V1
-{
-    NvU32   version;                  // structure version
-    NvU8    uuid[NVAPI_UUID_LEN];     // GPU UUID in GUID format (16 bytes)
-} NV_GPU_UUID_V1;
-typedef NV_GPU_UUID_V1    NV_GPU_UUID;
-#define NV_GPU_UUID_VER1  MAKE_NVAPI_VERSION(NV_GPU_UUID_V1,1)
-#define NV_GPU_UUID_VER   NV_GPU_UUID_VER1
-NVAPI_INTERFACE NvAPI_GPU_GetUUID(__in NvPhysicalGpuHandle hPhysicalGpu, __inout NV_GPU_UUID *pGpuUuid);
-
-#define NVAPI_NVLINK_COUNTER_MAX_TYPES                    32
-#define NVAPI_NVLINK_MAX_LINKS                            32
-
-//! \ingroup nvlink
-//! @{
-//! Used in NvAPI_GPU_NVLINK_GetCaps()
-
-/* caps format is byte_index:bit_mask */
-#define NVAPI_NVLINK_CAPS_SUPPORTED                          0x00000001                   //!< Set if NVLink is present and supported on this GPU.This field is used for *global* caps only and NOT for per-link caps
-#define NVAPI_NVLINK_CAPS_P2P_SUPPORTED                      0x00000002                   //!< Set if P2P over NVLink is supported on this GPU.
-#define NVAPI_NVLINK_CAPS_SYSMEM_ACCESS                      0x00000004                   //!< Set if sysmem can be accessed over NVLink on this GPU.
-#define NVAPI_NVLINK_CAPS_P2P_ATOMICS                        0x00000008                   //!< Set if P2P atomics are supported over NVLink on this GPU.
-#define NVAPI_NVLINK_CAPS_SYSMEM_ATOMICS                     0x00000010                   //!< Set if sysmem atomic transcations are supported over NVLink on this GPU.
-#define NVAPI_NVLINK_CAPS_PEX_TUNNELING                      0x00000020                   //!< Set if PEX tunneling over NVLink is supported on this GPU.
-#define NVAPI_NVLINK_CAPS_SLI_BRIDGE                         0x00000040                   //!< Set if SLI over NVLink is supported on this GPU.
-#define NVAPI_NVLINK_CAPS_SLI_BRIDGE_SENSABLE                0x00000080                    //!< This bit is set if capable of sensing SLI bridges.
-#define NVAPI_NVLINK_CAPS_POWER_STATE_L0                     0x00000100                    //!< This bit is set if L0 is a supported power state on this GPU.
-#define NVAPI_NVLINK_CAPS_POWER_STATE_L1                     0x00000200                    //!< This bit is set if L1 is a supported power state on this GPU.
-#define NVAPI_NVLINK_CAPS_POWER_STATE_L2                     0x00000400                    //!< This bit is set if L2 is a supported power state on this GPU.
-#define NVAPI_NVLINK_CAPS_POWER_STATE_L3                     0x00000800                    //!< This bit is set if L3 is a supported power state on this GPU.
-
-#define NVAPI_NVLINK_CAPS_VALID                              0x00001000                   //!< Set if this link is supported on this GPU.This field is used for *per-link* caps only and NOT for global caps.
-#define NVAPI_NVLINK_CAPS_UNCONTAINED_ERROR_RECOVERY         0x00002000                   //!< Set if this GPU supports resetless recovery from uncontained packet errors.
-
-#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_INVALID             (0x00000000)
-#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_1_0                 (0x00000001)
-#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_2_0                 (0x00000002)
-#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_2_2                 (0x00000004U)
-#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_3_0                 (0x00000005U)
-#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_3_1                 (0x00000006U)
-#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_4_0                 (0x00000007U)
-#define NVAPI_NVLINK_CAPS_NVLINK_VERSION_5_0                 (0x00000008U)
-
-#define NVAPI_NVLINK_CAPS_NCI_VERSION_INVALID                (0x00000000)
-#define NVAPI_NVLINK_CAPS_NCI_VERSION_1_0                    (0x00000001)
-#define NVAPI_NVLINK_CAPS_NCI_VERSION_2_0                    (0x00000002)
-#define NVAPI_NVLINK_CAPS_NCI_VERSION_2_2                    (0x00000004U)
-#define NVAPI_NVLINK_CAPS_NCI_VERSION_3_0                    (0x00000005U)
-#define NVAPI_NVLINK_CAPS_NCI_VERSION_3_1                    (0x00000006U)
-#define NVAPI_NVLINK_CAPS_NCI_VERSION_4_0                    (0x00000007U)
-#define NVAPI_NVLINK_CAPS_NCI_VERSION_5_0                    (0x00000008U)
-
-typedef struct
-{
-    NvU32   version;               //!< Version of this structure. Must always be first element in this structure.
-    NvU32   capsTbl;               //!< This is bit field for getting different global caps.The individual bitfields are specified by NVAPI_NVLINK_CAPS_*
-    NvU8    lowestNvlinkVersion;   //!< This field specifies the lowest supported NVLink version for this GPU.
-    NvU8    highestNvlinkVersion;  //!< This field specifies the highest supported NVLink version for this GPU.
-    NvU8    lowestNciVersion;      //!< This field specifies the lowest supported NCI version for this GPU.
-    NvU8    highestNciVersion;     //!< This field specifies the highest supported NCI version for this GPU.
-    NvU32   linkMask;              //!< This field provides a bitfield mask of NVLink links enabled on this GPU.
-}NVLINK_GET_CAPS_V1;
-
-typedef NVLINK_GET_CAPS_V1 NVLINK_GET_CAPS;
-#define NVLINK_GET_CAPS_VER1 MAKE_NVAPI_VERSION(NVLINK_GET_CAPS_V1, 1)
-
-#define NVLINK_GET_CAPS_VER NVLINK_GET_CAPS_VER1
-//! @}
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME:    NvAPI_GPU_NVLINK_GetCaps
-//
-//! DESCRIPTION:     This function returns the NVLink capabilities supported by the GPU.
-//! SUPPORTED OS:  Windows 10 and higher
-//!
-//!
-//! \since Release: 361
-//!
-//! \param [in]         hPhysicalGpu                                        GPU selection
-//!
-//! \param [in,out]      NVLINK_GET_CAPS                                     This structure contains the output parameters.
-//!                                                                         Also need to specify the version.
-//!
-//! \retval ::NVAPI_INVALID_USER_PRIVILEGE       - The caller does not have administrative privileges
-//!
-//! \return  This API can return any of the error codes enumerated in
-//!          #NvAPI_Status.  If there are return error codes with specific
-//!          meaning for this API, they are listed below.
-//!
-//! \ingroup   nvlink
-///////////////////////////////////////////////////////////////////////////////
-NVAPI_INTERFACE NvAPI_GPU_NVLINK_GetCaps(__in NvPhysicalGpuHandle hPhysicalGpu, __inout NVLINK_GET_CAPS *capsParams);
-
-//! \ingroup nvlink
-//! @{
-//! Used in NvAPI_GPU_NVLINK_GetStatus()
-
-#define NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_NONE   (0x00000000)
-#define NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_PCI    (0x00000001)
-#define NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_UUID   (0x00000002)
-
-typedef enum _NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE
-{
-    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_EBRIDGE,
-    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_NPU,
-    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_GPU,
-    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_SWITCH,
-    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_TEGRA,
-    NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_NONE,
-    NVAPI_NVLINK_DEVICE_INFO_DEVICE_UUID_INVALID,
-} NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE;
-
-typedef struct
-{
-    NvU32  deviceIdFlags;    //!< ID Flags, Bitmask that specifies which IDs are valid for the GPU. Refer NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_* for possible values.
-                             //!< If NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_PCI is set, PCI information is valid.
-                             //!< If NVAPI_NVLINK_DEVICE_INFO_DEVICE_ID_FLAGS_UUID is set, UUID is valid.
-    NvU16  domain;           //!< domain, bus, device, function, pciDeviceId : PCI information for the GPU.
-    NvU16  bus;
-    NvU16  device;
-    NvU16  function;
-    NvU32  pciDeviceId;
-    NvU64  deviceType;       //!< GPU Type. See NVAPI_NVLINK_DEVICE_INFO_DEVICE_TYPE_* for possible values.
-    NvU8   deviceUUID[NVAPI_UUID_LEN];   //!< GPU UUID
-}NVLINK_DEVICE_INFO_V1;
-
-typedef enum _NVAPI_NVLINK_STATUS_LINK_STATE
-{
-    NVAPI_NVLINK_STATUS_LINK_STATE_UNKNOWN,
-    NVAPI_NVLINK_STATUS_LINK_STATE_INIT,
-    NVAPI_NVLINK_STATUS_LINK_STATE_HWCFG,
-    NVAPI_NVLINK_STATUS_LINK_STATE_SWCFG,
-    NVAPI_NVLINK_STATUS_LINK_STATE_ACTIVE,
-    NVAPI_NVLINK_STATUS_LINK_STATE_FAULT,
-    NVAPI_NVLINK_STATUS_LINK_STATE_RECOVERY,
-    NVAPI_NVLINK_STATUS_LINK_STATE_RECOVERY_AC,
-    NVAPI_NVLINK_STATUS_LINK_STATE_RECOVERY_AX,
-    NVAPI_NVLINK_STATUS_LINK_STATE_INVALID = 0xFFFFFFFF,
-}NVAPI_NVLINK_STATUS_LINK_STATE;
-
-typedef enum _NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE
-{
-    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_UNKNOWN,
-    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_HIGH_SPEED_1,
-    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_LOW_POWER,
-    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_TRAINING,
-    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_SAFE_MODE,
-    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_OFF,
-    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_TEST,
-    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_FAULT,
-    NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE_INVALID = 0xFF,
-}NVAPI_NVLINK_STATUS_SUBLINK_RX_STATE;
-
-typedef enum _NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE
-{
-    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_UNKNOWN,
-    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_HIGH_SPEED_1,
-    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_LOW_POWER,
-    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_TRAINING,
-    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_SAFE_MODE,
-    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_OFF,
-    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_TEST,
-    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_FAULT,
-
-    NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE_INVALID= 0xFF,
-} NVAPI_NVLINK_STATUS_SUBLINK_TX_STATE;
-
-
-#define NVAPI_NVLINK_STATUS_PHY_NVHS                      (0x00000001)
-#define NVAPI_NVLINK_STATUS_PHY_GRS                       (0x00000002)
-#define NVAPI_NVLINK_STATUS_PHY_INVALID                   (0x000000FF)
-
-#define NVAPI_NVLINK_STATUS_NVLINK_VERSION_1_0            (0x00000001)
-#define NVAPI_NVLINK_STATUS_NVLINK_VERSION_2_0            (0x00000002)
-#define NVAPI_NVLINK_STATUS_NVLINK_VERSION_INVALID        (0x000000FF)
-
-#define NVAPI_NVLINK_STATUS_NCI_VERSION_1_0               (0x00000001)
-#define NVAPI_NVLINK_STATUS_NCI_VERSION_2_0               (0x00000002)
-#define NVAPI_NVLINK_STATUS_NCI_VERSION_INVALID           (0x000000FF)
-
-#define NVAPI_NVLINK_STATUS_NVHS_VERSION_1_0              (0x00000001)
-#define NVAPI_NVLINK_STATUS_NVHS_VERSION_INVALID          (0x000000FF)
-
-#define NVAPI_NVLINK_STATUS_GRS_VERSION_1_0               (0x00000001)
-#define NVAPI_NVLINK_STATUS_GRS_VERSION_INVALID           (0x000000FF)
-
-#define NVAPI_NVLINK_STATUS_CONNECTED_TRUE                (0x00000001)
-#define NVAPI_NVLINK_STATUS_CONNECTED_FALSE               (0x00000000)
-
-#define NVAPI_NVLINK_STATUS_LOOP_PROPERTY_LOOPBACK        (0x00000001)
-#define NVAPI_NVLINK_STATUS_LOOP_PROPERTY_LOOPOUT         (0x00000002)
-#define NVAPI_NVLINK_STATUS_LOOP_PROPERTY_NONE            (0x00000000)
-
-#define NVAPI_NVLINK_STATUS_REMOTE_LINK_NUMBER_INVALID    (0x000000FF)
-
-#define NVAPI_NVLINK_REFCLK_TYPE_INVALID                  (0x00)
-#define NVAPI_NVLINK_REFCLK_TYPE_NVHS                     (0x01)
-#define NVAPI_NVLINK_REFCLK_TYPE_PEX                      (0x02)
-
-
-typedef struct
-{
-    NvU32   capsTbl;                                //!< This is bit field for getting different global caps.The individual bitfields are specified by NVAPI_NVLINK_CAPS_*.
-    NvU8    phyType;                                //!< This field specifies the type of PHY (NVHS or GRS) being used for this link. See NVAPI_NVLINK_STATUS_PHY* for possible values.
-    NvU8    subLinkWidth;                           //!< This field specifies the no. of lanes per sublink.
-    NvU32   linkState;                              //!< This field specifies the current state of the link.See NVAPI_NVLINK_GET_NVLINK_STATUS_LINK_STATE_* for possible values.
-    NvU8    rxSublinkStatus;                        //!< This field specifies the current state of RX sublink.See NVAPI_NVLINK_GET_NVLINK_STATUS_SUBLINK_RX_STATE_* for possible values.
-    NvU8    txSublinkStatus;                        //!< This field specifies the current state of TX sublink.See NVAPI_NVLINK_GET_NVLINK_STATUS_SUBLINK_TX_STATE_* for possible values.
-    NvU8    nvlinkVersion;                          //!< This field specifies the NVLink version supported by the link.
-    NvU8    nciVersion;                             //!< This field specifies the NCI version supported by the link.
-    NvU8    phyVersion;                             //!< This field specifies the version of PHY being used by the link.
-    NvU32   nvlinkCommonClockSpeedMhz;              //!< This field gives the value of nvlink common clock in MHz.
-    NvU32   nvlinkRefClkSpeedMhz;                   //!< This field gives the value of nvlink refclk clock in MHz.
-    NvU8    nvlinkRefClkType;                       //!< This field specifies whether refclk is taken from NVHS reflck or PEX refclk for the current GPU.See NVAPI_NVLINK_REFCLK_TYPE_INVALID* for possible values.
-    NvU32   nvlinkLinkClockMhz;                     //!< This field gives the actual clock/speed at which links is running in MHz.
-    NvU32   connected:1 ;                           //!< This field specifies if any device is connected on the other end of the link.
-    NvU32   reserved:31;                            //!< Reserved for future use.
-    NvU8    loopProperty;                           //!< This field specifies if the link is a loopback/loopout link. See NVAPI_NVLINK_STATUS_LOOP_PROPERTY_* for possible values.
-    NvU8    remoteDeviceLinkNumber;                 //!< This field specifies the link number on the remote end of the link.
-    NVLINK_DEVICE_INFO_V1 remoteDeviceInfo;         //!< This field stores the GPU information for the remote end of the link
-}NVLINK_LINK_STATUS_INFO_V1;
-
-typedef struct
-{
-    NvU32   capsTbl;                                //!< This is bit field for getting different global caps.The individual bitfields are specified by NVAPI_NVLINK_CAPS_*.
-    NvU8    phyType;                                //!< This field specifies the type of PHY (NVHS or GRS) being used for this link.
-    NvU8    subLinkWidth;                           //!< This field specifies the no. of lanes per sublink.
-    NvU32   linkState;                              //!< This field specifies the current state of the link.See NVAPI_NVLINK_GET_NVLINK_STATUS_LINK_STATE_* for possible values.
-    NvU8    rxSublinkStatus;                        //!< This field specifies the current state of RX sublink.See NVAPI_NVLINK_GET_NVLINK_STATUS_SUBLINK_RX_STATE_* for possible values.
-    NvU8    txSublinkStatus;                        //!< This field specifies the current state of TX sublink.See NVAPI_NVLINK_GET_NVLINK_STATUS_SUBLINK_TX_STATE_* for possible values.
-    NvU8    nvlinkVersion;                          //!< This field specifies the NVLink version supported by the link.
-    NvU8    nciVersion;                             //!< This field specifies the NCI version supported by the link.
-    NvU8    phyVersion;                             //!< This field specifies the version of PHY being used by the link.
-    NvU32   nvlinkCommonClockSpeedMhz;              //!< This field gives the value of nvlink common clock in MHz.
-    NvU32   nvlinkRefClkSpeedMhz;                   //!< This field gives the value of nvlink refclk clock in MHz.
-    NvU8    nvlinkRefClkType;                       //!< This field specifies whether refclk is taken from NVHS reflck or PEX refclk for the current GPU.See NVAPI_NVLINK_REFCLK_TYPE_INVALID* for possible values.
-    NvU32   nvlinkLinkClockMhz;                     //!< This field gives the actual clock/speed at which links is running in MHz.
-    NvU32   connected:1 ;                           //!< This field specifies if any device is connected on the other end of the link.
-    NvU32   reserved:31;                            //!< Reserved for future use.
-    NvU8    loopProperty;                           //!< This field specifies if the link is a loopback/loopout link. See NVAPI_NVLINK_STATUS_LOOP_PROPERTY_* for possible values.
-    NvU8    remoteDeviceLinkNumber;                 //!< This field specifies the link number on the remote end of the link.
-    NVLINK_DEVICE_INFO_V1 remoteDeviceInfo;         //!< This field stores the device information for the remote end of the link
-    NvU8    localDeviceLinkNumber;                  //!< This field specifies the link number on the local end of the link.
-    NVLINK_DEVICE_INFO_V1 localDeviceInfo;          //!< This field stores the device information for the local end of the link.
-    NvU32   nvlinkLineRateMbps;                     //!< Bit rate at which bits toggle on wires in megabits per second.
-    NvU32   nvlinkMinL1Threshold;                   //!< This field stores the Min L1 Threshold of the link
-    NvU32   nvlinkMaxL1Threshold;                   //!< This field stores the Max L1 Threshold of the link
-    NvU32   nvlinkL1ThresholdUnits;                 //!< This field stores the L1 Threshold units of the link
-    NvU32   reservedEx[5];                          //!< Reserved for future use to avoid versioning.
-}NVLINK_LINK_STATUS_INFO_V2;
-
-typedef struct
-{
-    NvU32 version;                                                        //!< Version of this structure.  Must always be first element in this structure.
-    NvU32 linkMask;                                                       //!< This parameter specifies for which links we want the status.
-    NVLINK_LINK_STATUS_INFO_V1 linkInfo[NVAPI_NVLINK_MAX_LINKS];          //!< This structure stores the per-link status of different NVLink parameters. The link is identified by the index.
-}NVLINK_GET_STATUS_V1;
-
-typedef struct
-{
-    NvU32 version;                                                        //!< Version of this structure.  Must always be first element in this structure.
-    NvU32 linkMask;                                                       //!< This parameter specifies for which links we want the status.
-    NVLINK_LINK_STATUS_INFO_V2 linkInfo[NVAPI_NVLINK_MAX_LINKS];          //!< This structure stores the per-link status of different NVLink parameters. The link is identified by the index.
-}NVLINK_GET_STATUS_V2;
-
-
-typedef NVLINK_GET_STATUS_V2   NVLINK_GET_STATUS;
-#define NVLINK_GET_STATUS_VER1 MAKE_NVAPI_VERSION(NVLINK_GET_STATUS_V1, 1)
-#define NVLINK_GET_STATUS_VER2 MAKE_NVAPI_VERSION(NVLINK_GET_STATUS_V2, 2)
-
-#define NVLINK_GET_STATUS_VER NVLINK_GET_STATUS_VER2
-//! @}
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME:    NvAPI_GPU_NVLINK_GetStatus
-//
-//! DESCRIPTION:     This function returns the NVLink status.
-//! SUPPORTED OS:  Windows 10 and higher
-//!
-//!
-//! \since Release: 361
-//!
-//! \param [in]         hPhysicalGpu                                        GPU selection
-//!
-//! \param [in,out]      NVLINK_GET_STATUS                                   This structure contains the input and output parameters.
-//!                                                                         linkMask is the input param while others are output parameters.
-//!                                                                         Also need to specify the version.
-//!
-//! \retval ::NVAPI_INVALID_USER_PRIVILEGE       - The caller does not have administrative privileges
-//!
-//! \return  This API can return any of the error codes enumerated in
-//!          #NvAPI_Status.  If there are return error codes with specific
-//!          meaning for this API, they are listed below.
-//!
-//! \ingroup   nvlink
-///////////////////////////////////////////////////////////////////////////////
-NVAPI_INTERFACE NvAPI_GPU_NVLINK_GetStatus(__in NvPhysicalGpuHandle hPhysicalGpu, __inout NVLINK_GET_STATUS* statusParams);
 
 //! Used in NvAPI_GPU_GetPerfDecreaseInfo.
 //! Bit masks for knowing the exact reason for performance decrease
@@ -7886,8 +7796,7 @@ typedef struct _NV_HDR_CAPABILITIES_V3
     NvU32 isDolbyVisionSupported                :1;                 //!< Dolby Vision Support. Boolean: 0 = not supported, 1 = supported;
     NvU32 isHdr10PlusSupported                  :1;                 //!< HDR10+ (Sink Side Tonemapping) is supported
     NvU32 isHdr10PlusGamingSupported            :1;                 //!< HDR10+ Gaming, a.k.a HDR10+ Source Side Tonemapping (SSTM), is supported
-    NvU32 isNvidiaCertifiedDisplay              :1;                 //!< Nvidia certified HDR display
-    NvU32 reserved                              :23;
+    NvU32 reserved                              :24;
 
     NV_STATIC_METADATA_DESCRIPTOR_ID static_metadata_descriptor_id; //!< Static Metadata Descriptor Id (0 for static metadata type 1)
 
@@ -8307,50 +8216,6 @@ NVAPI_INTERFACE NvAPI_Disp_SetHdrToneMapping(__in NvU32 displayId, __in NV_HDR_T
 //
 ///////////////////////////////////////////////////////////////////////////////
 NVAPI_INTERFACE NvAPI_Disp_GetHdrToneMapping(__in NvU32 displayId, __inout NV_HDR_TONEMAPPING_METHOD* pHdrTonemapping);
-
-typedef struct _NV_DISPLAY_COLORIMETRY_V1
-{
-    NvU32    version;                               //!< Version of this structure
-
-    float min_luminance;                            //!< min luminance, cd/m^2
-    float max_full_frame_luminance;                 //!< max 100% frame luminance, cd/m^2
-    float max_luminance;                            //!< max 10% frame luminance, cd/m^2
-
-    float hdrBrightnessLuminanceScalingFactor;      //!< HDR brightness luminance scaling factor applied by GPU on output pixels
-
-    float red_primary_x;                            //!< red primary chromaticity coordinate x
-    float red_primary_y;                            //!< red primary chromaticity coordinate y
-    float green_primary_x;                          //!< green primary chromaticity coordinate x
-    float green_primary_y;                          //!< green primary chromaticity coordinate y
-    float blue_primary_x;                           //!< blue primary chromaticity coordinate x
-    float blue_primary_y;                           //!< blue primary chromaticity coordinate y
-    float white_point_x;                            //!< white point chromaticity coordinate x
-    float white_point_y;                            //!< white point chromaticity coordinate y
-} NV_DISPLAY_COLORIMETRY_V1;
-
-#define NV_DISPLAY_COLORIMETRY_VER1 MAKE_NVAPI_VERSION(NV_DISPLAY_COLORIMETRY_V1, 1)
-#define NV_DISPLAY_COLORIMETRY_VER NV_DISPLAY_COLORIMETRY_VER1
-typedef NV_DISPLAY_COLORIMETRY_V1 NV_DISPLAY_COLORIMETRY;
-
-///////////////////////////////////////////////////////////////////////////////
-// FUNCTION NAME:   NvAPI_Disp_GetColorimetry
-//
-//! \fn NvAPI_Disp_GetColorimetry(__in NvU32 displayId, __inout NV_DISPLAY_COLORIMETRY* pColorimetry)
-//! DESCRIPTION:    This API gets colorimetry parameters for the display.
-//!
-//! SUPPORTED OS:  Windows 10 and higher
-//!
-//!
-//! \since Release: 580
-//!
-//! \param [in]  displayId          display identifier
-//! \param [out] pColorimetry       display colorimetry
-//!
-//! \return    This API can return any of the error codes enumerated in #NvAPI_Status. If there are return error codes with
-//!            specific meaning for this API, they are listed below.
-//
-///////////////////////////////////////////////////////////////////////////////
-NVAPI_INTERFACE NvAPI_Disp_GetColorimetry(__in NvU32 displayId, __inout NV_DISPLAY_COLORIMETRY* pColorimetry);
 //! @}
 
 //! \ingroup dispcontrol
@@ -8511,8 +8376,7 @@ typedef struct _NV_MONITOR_CAPS_GENERIC
     NvU8    isTrueGsync                  : 1;  //!< whether the monitor is actually GSYNC or adaptive sync monitor : 0 for adaptive sync.
     NvU8    isRLACapable                 : 1;  //!< whether monitor supports RLA
     NvU8    currentlyCapableOfVRR        : 1;  //!< monitor currently supports VRR on applied display settings. Valid for NV_MONITOR_CAPS_TYPE_GENERIC only.
-    NvU8    isBasicVRR                   : 1;
-    NvU8    reserved                     : 2;
+    NvU8    reserved                     : 3;
 } NV_MONITOR_CAPS_GENERIC;
 
 //! See NvAPI_DISP_GetMonitorCapabilities().
@@ -8997,12 +8861,13 @@ typedef struct _NV_GET_ADAPTIVE_SYNC_DATA_V1
 {
     NvU32  version ;                      //!< [in]    structure version
     NvU32  maxFrameInterval;              //!< [out]   maximum frame interval in micro seconds as set previously using NvAPI_DISP_SetAdaptiveSyncData function.
+                                          //!<         If default values from EDID are used, this parameter returns 0.
     NvU32  bDisableAdaptiveSync : 1;      //!< [out]   Indicates if adaptive sync is disabled on the display.
     NvU32  bDisableFrameSplitting : 1;    //!< [out]   Indicates if frame splitting is disabled on the display.
-    NvU32  reserved : 30;                 //!<         reserved for future use.
+    NvU32  reserved : 30;                 //!< reserved for future use.
     NvU32  lastFlipRefreshCount;          //!< [out]   Number of times the last flip was shown on the screen
     NvU64  lastFlipTimeStamp;             //!< [out]   Timestamp for the lastest flip on the screen
-    NvU32  reservedEx[4];                 //!<         reserved for future use.
+    NvU32  reservedEx[4];                 //!< reserved for future use.
 } NV_GET_ADAPTIVE_SYNC_DATA_V1;
 
 #define NV_GET_ADAPTIVE_SYNC_DATA_VER1  MAKE_NVAPI_VERSION(NV_GET_ADAPTIVE_SYNC_DATA_V1,1)
@@ -9035,20 +8900,16 @@ NVAPI_INTERFACE NvAPI_DISP_GetAdaptiveSyncData(__in NvU32 displayId, __inout NV_
 typedef struct _NV_SET_ADAPTIVE_SYNC_DATA_V1
 {
     NvU32  version ;                      //!< [in]    structure version
-    NvU32  maxFrameInterval;              //!< [in]    deprecated, please use maxFrameIntervalNs instead
-                                          //!<         If maxFrameInterval is sent as 0, default values from EDID will be used.
+    NvU32  maxFrameInterval;              //!< [in]    maximum frame interval in micro seconds.
+                                          //!<         If maxFrameInterval is send as 0, default values from EDID will be used.
     NvU32  bDisableAdaptiveSync : 1;      //!< [in]    Indicates if adaptive sync is disabled on the display.
     NvU32  bDisableFrameSplitting : 1;    //!< [in]    Indicates if Frame Splitting should be disabled.
-    NvU32  reserved : 30;                 //!<         reserved for future use.
-    NvU32  reserved1;                     //!<         Ensure the alignment is 8 bytes and reserve it for future use.
-    NvU64  maxFrameIntervalNs;            //!< [in]    maximum frame interval in nano seconds.
-                                          //!<         If maxFrameIntervalNs is sent as 0, default values from EDID will be used.
-    NvU32  reservedEx[4];                 //!<         reserved for future use.
+    NvU32  reserved : 30;                 //!< reserved for future use.
+    NvU32  reservedEx[7];                 //!< reserved for future use.
 } NV_SET_ADAPTIVE_SYNC_DATA_V1;
 
 #define NV_SET_ADAPTIVE_SYNC_DATA_VER1  MAKE_NVAPI_VERSION(NV_SET_ADAPTIVE_SYNC_DATA_V1,1)
-#define NV_SET_ADAPTIVE_SYNC_DATA_VER2  MAKE_NVAPI_VERSION(NV_SET_ADAPTIVE_SYNC_DATA_V1,2)
-#define NV_SET_ADAPTIVE_SYNC_DATA_VER   NV_SET_ADAPTIVE_SYNC_DATA_VER2
+#define NV_SET_ADAPTIVE_SYNC_DATA_VER   NV_SET_ADAPTIVE_SYNC_DATA_VER1
 
 typedef NV_SET_ADAPTIVE_SYNC_DATA_V1  NV_SET_ADAPTIVE_SYNC_DATA;
 
@@ -9080,25 +8941,14 @@ typedef struct _NV_GET_VIRTUAL_REFRESH_RATE_DATA_V1
     NvU32  version;                       //!< [in]    structure version
     NvU32  frameIntervalUs;               //!< [out]   frame interval in micro seconds if Virtual RR is currently applied
     NvU32  rrx1k;                         //!< [out]   Refresh Rate * 1000
-    NvU32  bIsGamingVrr;                  //!< [out]   If the content is Gaming
-    NvU32  reservedEx[6];                 //!<         reserved for future use.
+    NvU32  bIsGamingVrr;                     //!< [out]   If the content is Gaming
+    NvU32  reservedEx[6];                 //!< reserved for future use.
 } NV_GET_VIRTUAL_REFRESH_RATE_DATA_V1;
 
-typedef struct _NV_GET_VIRTUAL_REFRESH_RATE_DATA_V2
-{
-    NvU32  version;                       //!< [in]    structure version
-    NvU32  frameIntervalUs;               //!< [out]   frame interval in micro seconds if Virtual RR is currently applied. This variable is deprecated in V2 and should not be used.
-    NvU32  rrx1k;                         //!< [out]   Refresh Rate * 1000
-    NvU32  bIsGamingVrr;                  //!< [out]   If the content is Gaming
-    NvU64  frameIntervalNs;               //!< [out]   frame interval in nano seconds if Virtual RR is currently applied
-    NvU32  reservedEx[4];                 //!<         reserved for future use.
-} NV_GET_VIRTUAL_REFRESH_RATE_DATA_V2;
-
 #define NV_GET_VIRTUAL_REFRESH_RATE_DATA_VER1  MAKE_NVAPI_VERSION(_NV_GET_VIRTUAL_REFRESH_RATE_DATA_V1,1)
-#define NV_GET_VIRTUAL_REFRESH_RATE_DATA_VER2  MAKE_NVAPI_VERSION(_NV_GET_VIRTUAL_REFRESH_RATE_DATA_V2,2)
-#define NV_GET_VIRTUAL_REFRESH_RATE_DATA_VER   NV_GET_VIRTUAL_REFRESH_RATE_DATA_VER2
+#define NV_GET_VIRTUAL_REFRESH_RATE_DATA_VER   NV_GET_VIRTUAL_REFRESH_RATE_DATA_VER1
 
-typedef NV_GET_VIRTUAL_REFRESH_RATE_DATA_V2  NV_GET_VIRTUAL_REFRESH_RATE_DATA;
+typedef NV_GET_VIRTUAL_REFRESH_RATE_DATA_V1  NV_GET_VIRTUAL_REFRESH_RATE_DATA;
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -9127,25 +8977,14 @@ typedef struct _NV_SET_VIRTUAL_REFRESH_RATE_DATA_V1
     NvU32  version;                       //!< [in]   structure version
     NvU32  frameIntervalUs;               //!< [in]   frame interval in micro seconds if Virtual RR is currently applied
     NvU32  rrx1k;                         //!< [in]   Refresh Rate * 1000
-    NvU32  bIsGamingVrr;                  //!< [in]   If the content is Gaming
-    NvU32  reservedEx[6];                 //!<        reserved for future use.
+    NvU32  bIsGamingVrr;                     //!< [in]   If the content is Gaming
+    NvU32  reservedEx[6];                 //!< reserved for future use.
 } NV_SET_VIRTUAL_REFRESH_RATE_DATA_V1;
 
-typedef struct _NV_SET_VIRTUAL_REFRESH_RATE_DATA_V2
-{
-    NvU32  version;                       //!< [in]   structure version
-    NvU32  frameIntervalUs;               //!< [in]   frame interval in micro seconds if Virtual RR is currently applied. This variable is deprecated in V2 and should not be used.
-    NvU32  rrx1k;                         //!< [in]   Refresh Rate * 1000
-    NvU32  bIsGamingVrr;                  //!< [in]   If the content is Gaming
-    NvU64  frameIntervalNs;               //!< [in]   frame interval in nano seconds if Virtual RR is currently applied
-    NvU32  reservedEx[4];                 //!<        reserved for future use.
-} NV_SET_VIRTUAL_REFRESH_RATE_DATA_V2;
-
 #define NV_SET_VIRTUAL_REFRESH_RATE_DATA_VER1  MAKE_NVAPI_VERSION(_NV_SET_VIRTUAL_REFRESH_RATE_DATA_V1,1)
-#define NV_SET_VIRTUAL_REFRESH_RATE_DATA_VER2  MAKE_NVAPI_VERSION(_NV_SET_VIRTUAL_REFRESH_RATE_DATA_V2,2)
-#define NV_SET_VIRTUAL_REFRESH_RATE_DATA_VER   NV_SET_VIRTUAL_REFRESH_RATE_DATA_VER2
+#define NV_SET_VIRTUAL_REFRESH_RATE_DATA_VER   NV_SET_VIRTUAL_REFRESH_RATE_DATA_VER1
 
-typedef NV_SET_VIRTUAL_REFRESH_RATE_DATA_V2  NV_SET_VIRTUAL_REFRESH_RATE_DATA;
+typedef NV_SET_VIRTUAL_REFRESH_RATE_DATA_V1  NV_SET_VIRTUAL_REFRESH_RATE_DATA;
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -15707,72 +15546,7 @@ NVAPI_INTERFACE NvAPI_D3D_IsGSyncCapable(__in IUnknown *pDeviceOrContext, __in N
 NVAPI_INTERFACE NvAPI_D3D_IsGSyncActive(__in IUnknown *pDeviceOrContext, __in NVDX_ObjectHandle primarySurface, __out BOOL *pIsGsyncActive);
 #endif //if defined(_D3D9_H_) || defined(__d3d10_h__) || defined(__d3d11_h__)
 
-//! \ingroup dx
 
-//! values contained in NV_FLIP_CONFIG::flipConfigFeedback
-typedef enum
-{
-    NVAPI_FLIP_CONFIG_FEEDBACK_OK = 0,
-    NVAPI_FLIP_CONFIG_FEEDBACK_NO_IFLIP = NV_BIT(0),
-    NVAPI_FLIP_CONFIG_FEEDBACK_MIRRORING_DETECTED = NV_BIT(1)
-} NVAPI_FLIP_CONFIG_FEEDBACK_MASK;
-
-//! Maximum number of frames per batch for flip metering
-#define NVAPI_MAX_FRAMES_PER_FLIP_BATCH 8
-
-#if defined(__d3d12_h__)
-typedef struct _NV_FLIP_CONFIG_V1
-{
-    NvU32   version;                //!< [in] Structure version
-    NvU32   nFramesPerBatch;        //!< [in] Number of frames per batch for flip metering (must be <= NVAPI_MAX_FRAMES_PER_FLIP_BATCH), 0 = flip metering disabled
-    NvU32   flipConfigFeedbackMask; //!< [out] Feedback from the driver, a mask of bits from \ref NVAPI_FLIP_CONFIG_FEEDBACK_MASK
-    NvU32   reserved[3];            //!< Reserved, must be 0
-} NV_FLIP_CONFIG_V1;
-
-typedef struct _NV_FLIP_CONFIG_V2
-{
-    NvU32   version;                  //!< [in] Structure version
-    NvU32   nFramesPerBatch;          //!< [in] Number of frames per batch for flip metering (must be <= NVAPI_MAX_FRAMES_PER_FLIP_BATCH), 0 = flip metering disabled
-    NvU32   flipConfigFeedbackMask;   //!< [out] Feedback from the driver, a mask of bits from \ref NVAPI_FLIP_CONFIG_FEEDBACK_MASK
-    NvU32   nPresentedFramesPerBatch; //!< [in] Number of presented frames per batch (always provided to driver, even when flip metering is disabled)
-    NvF32   timePerBatchMs;           //!< [in] Time per batch in milliseconds, <= 0 if unknown
-    NvU32   reserved;                 //!< Reserved, must be 0
-} NV_FLIP_CONFIG_V2;
-
-typedef NV_FLIP_CONFIG_V2     NV_FLIP_CONFIG;
-
-#define NV_FLIP_CONFIG_VER1   MAKE_NVAPI_VERSION(NV_FLIP_CONFIG_V1, 1)
-#define NV_FLIP_CONFIG_VER2   MAKE_NVAPI_VERSION(NV_FLIP_CONFIG_V2, 2)
-#define NV_FLIP_CONFIG_VER    NV_FLIP_CONFIG_VER2
-
-///////////////////////////////////////////////////////////////////////////////
-//!
-//! FUNCTION NAME: NvAPI_D3D12_SetFlipConfig
-//!   DESCRIPTION: This API configures flip metering for frame pacing control. When enabled, the display
-//!                driver will equally space the flips for all frames within a batch, helping to achieve
-//!                smoother frame delivery. The batch size and timing parameters are specified via the
-//!                \ref NV_FLIP_CONFIG structure. This function must be called right before the first
-//!                Present() of each batch of frames.
-//!
-//! \since Release: 570
-//! \param [in]     pCommandQueue    The D3D12 command queue associated with the swap chain
-//! \param [in]     vidpnSrcID       The VidPN source ID for the target display
-//! \param [in,out] pFlipConfig      Pointer to \ref NV_FLIP_CONFIG structure. On return, flipConfigFeedbackMask
-//!                                  contains feedback from the driver.
-//!
-//! SUPPORTED OS:  Windows 10 and higher
-//!
-//!
-//! RETURN STATUS: This API can return any of the error codes enumerated in #NvAPI_Status. 
-//!                If there are return error codes with specific meaning for this API, they are listed below.
-//!
-//! \retval        NVAPI_INVALID_ARGUMENT   nFramesPerBatch exceeds NVAPI_MAX_FRAMES_PER_FLIP_BATCH
-//!
-//! \ingroup dx
-///////////////////////////////////////////////////////////////////////////////
-NVAPI_INTERFACE NvAPI_D3D12_SetFlipConfig(__in IUnknown *pCommandQueue,
-    __in UINT vidpnSrcID, __inout NV_FLIP_CONFIG *pFlipConfig);
-#endif // defined(__d3d12_h__)
 
 //! SUPPORTED OS:  Windows 10 and higher
 //!
@@ -16831,11 +16605,9 @@ typedef struct _NV_D3D1x_GRAPHICS_CAPS_V2
     NvU32   bVariablePixelRateShadingSupported      :  1;     //!< (OUT) Outputs whether Variable Pixel Shading Rates are supported or not
     NvU32   bFastUAVClearSupported                  :  1;     //!< (OUT) Outputs whether UAVClear is implemented using ZBC rather than compute shader
     NvU32   reservedBits                            : 29;     // Reserved bits for future expansion
-    NvU16   majorSMVersion;                                   //!< (OUT) Major SM version of the device, generally referring to internal architecture SM/SPA capabilities.
-    NvU16   minorSMVersion;                                   //!< (OUT) Minor SM version of the device, generally referring to internal architecture SM/SPA capabilities.
-    NvU16   majorCudaSMVersion;                               //!< (OUT) Major CUDA SM version of the device, corresponding to externally documented CUDA SM capabilities. No implied compatibility with the above internal SM version.
-    NvU16   minorCudaSMVersion;                               //!< (OUT) Minor CUDA SM version of the device, corresponding to externally documented CUDA SM capabilities. No implied compatibility with the above internal SM version.
-    NvU32   reserved[13];                                     // Reserved for future expansion
+    NvU16   majorSMVersion;                                   //!< (OUT) Major SM version of the device
+    NvU16   minorSMVersion;                                   //!< (OUT) Minor SM version of the device
+    NvU32   reserved[14];                                     // Reserved for future expansion
 } NV_D3D1x_GRAPHICS_CAPS_V2;
 
 typedef NV_D3D1x_GRAPHICS_CAPS_V2    NV_D3D1x_GRAPHICS_CAPS;
@@ -16882,11 +16654,9 @@ typedef struct _NV_D3D12_GRAPHICS_CAPS_V1
     NvU32   bVariablePixelRateShadingSupported      :  1;     //!< (OUT) Outputs whether Variable Pixel Shading Rates are supported or not
     NvU32   bFastUAVClearSupported                  :  1;     //!< (OUT) Outputs whether UAVClear is implemented using ZBC rather than compute shader
     NvU32   reservedBits                            : 29;     // Reserved bits for future expansion
-    NvU16   majorSMVersion;                                   //!< (OUT) Major SM version of the device, generally referring to internal architecture SM/SPA capabilities.
-    NvU16   minorSMVersion;                                   //!< (OUT) Minor SM version of the device, generally referring to internal architecture SM/SPA capabilities.
-    NvU16   majorCudaSMVersion;                               //!< (OUT) Major CUDA SM version of the device, corresponding to externally documented CUDA SM capabilities. No implied compatibility with the above internal SM version.
-    NvU16   minorCudaSMVersion;                               //!< (OUT) Minor CUDA SM version of the device, corresponding to externally documented CUDA SM capabilities. No implied compatibility with the above internal SM version.
-    NvU32   reserved[5];                                      // Reserved for future expansion
+    NvU16   majorSMVersion;                                   //!< (OUT) Major SM version of the device
+    NvU16   minorSMVersion;                                   //!< (OUT) Minor SM version of the device
+    NvU32   reserved[6];                                      // Reserved for future expansion
 } NV_D3D12_GRAPHICS_CAPS_V1;
 
 typedef NV_D3D12_GRAPHICS_CAPS_V1    NV_D3D12_GRAPHICS_CAPS;
@@ -18080,9 +17850,7 @@ typedef struct _NV_GET_SLEEP_STATUS_PARAMS
     NvBool bCplVsyncOn;                                   //!< (OUT) Is Control Panel overriding VSYNC ON?
     NvU32  sleepIntervalUs;                               //!< (OUT) Latest sleep interval in microseconds.
     NvBool bUseGameSleep;                                 //!< (OUT) Is NvAPI_D3D_Sleep() being called?
-    NvBool bFullscreenIFlip;                              //!< (OUT) Is in fullscreen/iFlip mode?
-    NvU8   fgMultiplier;                                  //!< (OUT) Latest Frame Generation multiplier used.
-    NvU8   rsvd[119];                                     //!< (IN) Reserved. Must be set to 0s.
+    NvU8   rsvd[121];                                     //!< (IN) Reserved. Must be set to 0s.
 } NV_GET_SLEEP_STATUS_PARAMS_V1;
 
 typedef NV_GET_SLEEP_STATUS_PARAMS_V1            NV_GET_SLEEP_STATUS_PARAMS;
@@ -18129,8 +17897,7 @@ typedef struct _NV_SET_SLEEP_MODE_PARAMS
     NvBool bLowLatencyBoost;                              //!< (IN) Request maximum GPU clock frequency regardless of workload.
     NvU32  minimumIntervalUs;                             //!< (IN) Minimum frame interval in microseconds. 0 = no frame rate limit.
     NvBool bUseMarkersToOptimize;                         //!< (IN) Allow latency markers to be used for runtime optimizations.
-    NvBool bUseMinQueueTime;                              //!< (IN) Consider all submission overlaps (both in between frames and within each frame).
-    NvU8   rsvd[30];                                      //!< (IN) Reserved. Must be set to 0s.
+    NvU8   rsvd[31];                                      //!< (IN) Reserved. Must be set to 0s.
 } NV_SET_SLEEP_MODE_PARAMS_V1;
 
 typedef NV_SET_SLEEP_MODE_PARAMS_V1            NV_SET_SLEEP_MODE_PARAMS;
@@ -18219,8 +17986,7 @@ typedef struct _NV_SET_REFLEX_SYNC_PARAMS
     NvU32  vblankIntervalUs;                              //!< (IN) Interval between VBLANKs in microseconds. (0 means N/A)
     NvS32  timeInQueueUs;                                 //!< (IN) Amount of time in the completed frame queue. Can be negative. (0 means N/A)
     NvU32  timeInQueueUsTarget;                           //!< (IN) Target amount of time in the completed frame queue. (0 means N/A)
-    NvU8   fgMultiplier;                                  //!< (IN) Specify the frame generation multipler to use. (0 means driver should auto-detect)
-    NvU8   rsvd[27];                                      //!< (IN) Reserved. Must be set to 0s.
+    NvU8   rsvd[28];                                      //!< (IN) Reserved. Must be set to 0s.
 } NV_SET_REFLEX_SYNC_PARAMS_V1;
 
 typedef NV_SET_REFLEX_SYNC_PARAMS_V1            NV_SET_REFLEX_SYNC_PARAMS;
@@ -18257,26 +18023,23 @@ typedef struct _NV_LATENCY_RESULT_PARAMS
 {
     NvU32  version;                                       //!< (IN) Structure version
     struct FrameReport {
-        NvU64 frameID;                                    //!< (OUT)
-        NvU64 inputSampleTime;                            //!< (OUT)
-        NvU64 simStartTime;                               //!< (OUT)
-        NvU64 simEndTime;                                 //!< (OUT)
-        NvU64 renderSubmitStartTime;                      //!< (OUT)
-        NvU64 renderSubmitEndTime;                        //!< (OUT)
-        NvU64 presentStartTime;                           //!< (OUT)
-        NvU64 presentEndTime;                             //!< (OUT)
-        NvU64 driverStartTime;                            //!< (OUT)
-        NvU64 driverEndTime;                              //!< (OUT)
-        NvU64 osRenderQueueStartTime;                     //!< (OUT)
-        NvU64 osRenderQueueEndTime;                       //!< (OUT)
-        NvU64 gpuRenderStartTime;                         //!< (OUT)
-        NvU64 gpuRenderEndTime;                           //!< (OUT)
+        NvU64 frameID;
+        NvU64 inputSampleTime;
+        NvU64 simStartTime;
+        NvU64 simEndTime;
+        NvU64 renderSubmitStartTime;
+        NvU64 renderSubmitEndTime;
+        NvU64 presentStartTime;
+        NvU64 presentEndTime;
+        NvU64 driverStartTime;
+        NvU64 driverEndTime;
+        NvU64 osRenderQueueStartTime;
+        NvU64 osRenderQueueEndTime;
+        NvU64 gpuRenderStartTime;
+        NvU64 gpuRenderEndTime;
         NvU32 gpuActiveRenderTimeUs;                      //!< (OUT) Difference between gpuRenderStartTime and gpuRenderEndTime, excluding the idles in between, in microseconds.
         NvU32 gpuFrameTimeUs;                             //!< (OUT) Difference between previous and current frame's gpuRenderEndTime, in microseconds.
-        NvU64 cameraConstructedTime;                      //!< (OUT)
-        NvU32 crossAdapterCopyTimeUs;                     //!< (OUT) Cross adapter copy time in microseconds.
-        NvU32 aiFrameTimeUs;                              //!< (OUT) Frame generation time in microseconds.
-        NvU8  rsvd[104];
+        NvU8  rsvd[120];
     } frameReport[64];
     NvU8  rsvd[32];
 } NV_LATENCY_RESULT_PARAMS_V1;
@@ -19823,7 +19586,7 @@ typedef struct _NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX
     NvU32                                                        numDescs;                  //!< If \c type is \c D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TOP_LEVEL, it represents the number of descriptions stored in \c instanceDescs.
                                                                                             //!< Otherwise, it contains the number of geometry descriptions stored in \c pGeometryDescs or \c ppGeometryDescs.
     D3D12_ELEMENTS_LAYOUT                                        descsLayout;               //!< If \c type is \c D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BOTTOM_LEVEL, it specifies which of \c pGeometryDescs and \c ppGeometryDescs to use.
-                                                                                            //!< If \c type is \c D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TOP_LEVEL, it specifies wheather \c instanceDescs contains an array of instance descs or an array of addresses to instance descs.
+                                                                                            //!< Otherwise, this parameter is unused.
     NvU32                                                        geometryDescStrideInBytes; //!< Stride between consecutive geometry descriptors. Should typically be set to sizeof(NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX).
                                                                                             //!< Only used if \c type is \c D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL and \c descLayout is \c D3D12_ELEMENTS_LAYOUT_ARRAY.
                                                                                             //!< This field guarantees backwards compatibility, even if the geometry descriptor size increases in future NVAPI versions.
@@ -20527,7 +20290,7 @@ typedef struct _NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC_V1
     NvU32                                   numRows;                //!< [in]    Is the number of rows in the matrix.
     NvU32                                   numColumns;             //!< [in]    Is the number of columns in the matrix.
     NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT  srcLayout;              //!< [in]    Is the layout of the source matrix.
-    size_t                                  srcStride;              //!< [in]    Is the number of bytes between a consecutive row or column (depending on srcLayout) of the source matrix, if it is row-major or column-major.
+    size_t                                  srcStride;              //!< [in]    Is the number of elements between a consecutive row or column (depending on srcLayout) of the source matrix, if it is row-major or column-major.
     NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT  dstLayout;              //!< [in]    Is the layout the matrix is converted to.
     size_t                                  dstStride;              //!< [in]    Is the number of bytes between a consecutive row or column (depending on dstLayout) of the destination matrix if it is row-major or column-major.
 } NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC_V1;
@@ -20713,11 +20476,11 @@ typedef enum _NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_GEOMETRY_F
 //! \ingroup dx
 typedef enum _NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE
 {
-    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_MOVE_CLUSTER_OBJECT                     = 0, //!< Copies/moves CLAS, Cluster BLAS or Templates, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_MOVES_DESC as desc. Alignment requirement depends on the type of object moved.
-    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS                    = 1, //!< Constructs Cluster BLAS from arrays of CLAS addresses, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_CLAS_DESC as desc. Alignment of Cluster BLAS is a multiple of D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT.
-    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES               = 2, //!< Constructs CLAS from triangle data, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_TRIANGLES_DESC as desc. Alignment of CLAS is a multiple of NVAPI_D3D12_RAYTRACING_CLAS_BYTE_ALIGNMENT.
-    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES  = 3, //!< Constructs Cluster Templates from triangle data, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_TRIANGLES_DESC as desc. Alignment of Cluster Templates is a multiple of NVAPI_D3D12_RAYTRACING_CLUSTER_TEMPLATE_BYTE_ALIGNMENT.
-    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_INSTANTIATE_CLUSTER_TEMPLATES           = 4, //!< Instantiates Cluster Templates to create CLAS results, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_TRIANGLES_DESC as desc. Alignment of CLAS is a multiple of NVAPI_D3D12_RAYTRACING_CLAS_BYTE_ALIGNMENT.
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_MOVE_CLUSTER_OBJECT                     = 0, //!< Copies/moves CLAS, Cluster BLAS or Templates, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MOVES_DESC as desc. Alignment requirement depends on the type of object moved.
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS                    = 1, //!< Constructs Cluster BLAS from arrays of CLAS addresses, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_CLAS_DESC as desc. Alignment of Cluster BLAS is a multiple of D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT.
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES               = 2, //!< Constructs CLAS from triangle data, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TRIANGLES_DESC as desc. Alignment of CLAS is a multiple of NVAPI_D3D12_RAYTRACING_CLAS_BYTE_ALIGNMENT.
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES  = 3, //!< Constructs Cluster Templates from triangle data, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TRIANGLES_DESC as desc. Alignment of Cluster Templates is a multiple of NVAPI_D3D12_RAYTRACING_CLUSTER_TEMPLATE_BYTE_ALIGNMENT.
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_INSTANTIATE_CLUSTER_TEMPLATES           = 4, //!< Instantiates Cluster Templates to create CLAS results, use NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TRIANGLES_DESC as desc. Alignment of CLAS is a multiple of NVAPI_D3D12_RAYTRACING_CLAS_BYTE_ALIGNMENT.
 } NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE;
 
 //! Specifies the index format to use for cluster operations.
@@ -20945,7 +20708,6 @@ typedef struct _NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_MOV
     D3D12_GPU_VIRTUAL_ADDRESS            srcAccelerationStructure;  //!< [in] The address of the object to copy/move. The source object will not become clobbered unless the destinations of the call overlap with it.
 } NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_MOVE_ARGS;
 
-
 //! Enumeration listing permitted address resolution flag values for NvAPI_D3D12_RaytracingMultiIndirectClusterOperation
 //! Unless flags are set, each address in NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC will point directly to the data value or array of data values
 //! By setting these flags the behavior is changed (one flag per field) for the field to be interpreted as containing the address of a piece of memory holding the address to the data value or array of data values.
@@ -20975,7 +20737,7 @@ typedef struct _NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC
     D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE                           destinationAddressArray; //!< [inout] Address and stride of an array of D3D12_GPU_VIRTUAL_ADDRESS. If inputs.mode is NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_IMPLICIT_DESTINATIONS this will be filled out by the call, otherwise if inputs.mode is NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS each element of the array must contain the destination address with sufficient memory for either resultDataMaxSizeInBytes or a previous call with NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_GET_SIZES.
                                                                                             //!< The array must be in D3D12_RESOURCE_STATE_UNORDERED_ACCESS state. If inputs.mode is NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS the addresses referenced by the array must be in D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE state.
     D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE                           resultSizeArray;         //!< [out] Address and stride of an array of 32bit values. If inputs.mode is equal to NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS, will be populated by the call with the projected sizes of each result object based on the provided input. Otherwise, this field is optional and will be populated with the sizes of the objects written to destinationAddressArray. Must be in D3D12_RESOURCE_STATE_UNORDERED_ACCESS state.
-    D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE                           indirectArgArray;        //!< [in] Address and stride of an array of type determined by inputs.type, see NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_*_ARGS. Structures must be aligned to the default C structure alignment of the structures. The memory pointed to must be in state D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE.
+    D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE                           indirectArgArray;        //!< [in] Address and stride of an array of type determined by inputs.type, see NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_*_ARGS. Structures must be tightly packed and aligned to the default C structure alignment of the structures. The memory pointed to must be in state D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE.
     D3D12_GPU_VIRTUAL_ADDRESS                                      indirectArgCount;        //!< [in] Determines the argument count, if 0 the value of inputs.maxArgCount will be used instead. If non-zero, the arrays in destinationAddressArray, resultSizeArray and indirectArgArray must all be equal to the argument count. The memory pointed to must be in state D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE.
 } NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC;
 
@@ -21238,9 +21000,7 @@ typedef enum {
     NV_NGX_DLSS_OVERRIDE_FLAG_SCALING_RATIO     = NV_BIT(7),
     NV_NGX_DLSS_OVERRIDE_FLAG_OPTIMAL_SETTINGS  = NV_BIT(8),
     NV_NGX_DLSS_OVERRIDE_FLAG_CREATED           = NV_BIT(9),
-    NV_NGX_DLSS_OVERRIDE_FLAG_EVALUATE          = NV_BIT(10),
 
-    NV_NGX_DLSS_OVERRIDE_FLAG_FG_MODE           = NV_BIT(13),
     NV_NGX_DLSS_OVERRIDE_FLAG_SR_DLAA_MODE      = NV_BIT(14),
     NV_NGX_DLSS_OVERRIDE_FLAG_FG_MULTI_FRAME    = NV_BIT(15),
 
@@ -21262,13 +21022,7 @@ typedef struct _NV_NGX_DLSS_OVERRIDE_GET_STATE_PARAMS_V1
     NvU64  feedbackMaskSR;          //!< [out] Feedback bits for Super Resolution
     NvU64  feedbackMaskRR;          //!< [out] Feedback bits for Ray Reconstruction
     NvU64  feedbackMaskFG;          //!< [out] Feedback bits for Frame Generation
-    NvF32  scalingRatio;            //!< [out] Scaling Ratio
-    NvU32  performanceMode;         //!< [out] Performance Mode
-    NvU32  renderPreset;            //!< [out] Render Preset for SR/RR
-    NvU32  frameGenerationCount;    //!< [out] FG Override Frame Count Target
-    NvU32  frameGenerationPreset;   //!< [out] Render Preset for FG
-    NvU32  frameGenerationMode;     //!< [out] Frame Generation Mode
-    NvU32  reserved[2];             //!< Reserved for future use. Must be zero.
+    NvU64  reserved[4];             //!< Reserved for future use. Must be zero.
 } NV_NGX_DLSS_OVERRIDE_GET_STATE_PARAMS_V1;
 
 #define NV_NGX_DLSS_OVERRIDE_GET_STATE_PARAMS_VER1  MAKE_NVAPI_VERSION(NV_NGX_DLSS_OVERRIDE_GET_STATE_PARAMS_V1, 1)
@@ -24486,7 +24240,6 @@ NVAPI_INTERFACE NvAPI_DRS_GetNumProfiles(NvDRSSessionHandle hSession, NvU32 *num
 //! \retval ::NVAPI_OK     SUCCESS
 //! \retval ::NVAPI_ERROR  For miscellaneous errors.
 //!
-//! Note: The recommendation is to provide absolute path of the application in appName field of NVDRS_APPLICATION
 //! \ingroup drsapi
 ///////////////////////////////////////////////////////////////////////////////
 NVAPI_INTERFACE NvAPI_DRS_CreateApplication(NvDRSSessionHandle hSession, NvDRSProfileHandle  hProfile, NVDRS_APPLICATION *pApplication);
@@ -25232,56 +24985,6 @@ typedef NV_LOGICAL_GPUS_V1          NV_LOGICAL_GPUS;
 NVAPI_INTERFACE NvAPI_SYS_GetLogicalGPUs(__inout NV_LOGICAL_GPUS *pLogicalGPUs);
 
 
-typedef enum _NV_NGX_DRIVER_FEATURE_ID
-{
-    NV_NGX_DRIVER_FEATURE_ID_SET_FLIP_CONFIG_V2 = 0x343dcf,
-} NV_NGX_DRIVER_FEATURE_ID;
-
-#define NVAPI_MAX_NGX_FEATURES_PER_QUERY 16
-
-typedef struct _NV_NGX_DRIVER_FEATURE_SUPPORT_INFO
-{
-    NV_NGX_DRIVER_FEATURE_ID    featureId;      //!< [IN] Feature ID to query
-    NvU32                       bSupported:1;   //!< [OUT] Feature support (NV_TRUE = supported, NV_FALSE = unsupported)
-    NvU32                       reserved1:31;   //!< Reserved for future use
-    NvU32                       reserved2[2];   //!< Reserved for future use
-} NV_NGX_DRIVER_FEATURE_SUPPORT_INFO;
-
-typedef struct _NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS_V1
-{
-    NvU32                               version;                                              //!< [IN] Structure version
-    NvU32                               featureCount;                                         //!< [IN] Number of features to query (must be <= NVAPI_MAX_NGX_FEATURES_PER_QUERY)
-    NV_NGX_DRIVER_FEATURE_SUPPORT_INFO  featureSupportInfo[NVAPI_MAX_NGX_FEATURES_PER_QUERY]; //!< [INOUT] Feature query array
-    NvU32                               reserved[6];                                          //!< Reserved for future use
-} NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS_V1;
-
-typedef NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS_V1 NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS;
-
-#define NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS_VER1  MAKE_NVAPI_VERSION(NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS_V1,1)
-#define NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS_VER   NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS_VER1
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// FUNCTION NAME: NvAPI_NGX_GetDriverFeatureSupport
-//
-//! DESCRIPTION: Query driver support for NGX features.
-//!              Returns a boolean support status for each queried feature. 
-//!              NV_TRUE indicates the feature is supported, NV_FALSE indicates 
-//!              the feature is unsupported.
-//!
-//! SUPPORTED OS:  Windows 10 and higher
-//!
-//!
-//! \since Release: 595
-//!
-//! \param [inout]  pParams   Pointer to NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS structure
-//!
-//! \return  This API can return any of the error codes enumerated in #NvAPI_Status.
-//!
-//! \ingroup sysgeneral
-///////////////////////////////////////////////////////////////////////////////
-NVAPI_INTERFACE NvAPI_NGX_GetDriverFeatureSupport(__inout NV_NGX_GET_DRIVER_FEATURE_SUPPORT_PARAMS* pParams);
-
 /*!
  * Callback settings common to all client callbacks.
  */
@@ -25489,8 +25192,7 @@ typedef enum _NV_RISE_CONTENT_TYPE
     NV_RISE_CONTENT_TYPE_INSTALLING               = 5,
     NV_RISE_CONTENT_TYPE_PROGRESS_UPDATE          = 6,
     NV_RISE_CONTENT_TYPE_READY                    = 7,
-    NV_RISE_CONTENT_TYPE_DOWNLOAD_REQUEST         = 8,
-    NV_RISE_CONTENT_TYPE_UPDATE_INFO              = 9,
+    NV_RISE_CONTENT_TYPE_DOWNLOAD_REQUEST         = 8
 } NV_RISE_CONTENT_TYPE;
 
 /*!

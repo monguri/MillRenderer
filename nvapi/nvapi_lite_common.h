@@ -1,6 +1,6 @@
 /*********************************************************************************************************\
 |*                                                                                                        *|
-|* SPDX-FileCopyrightText: Copyright (c) 2019-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.  *|
+|* SPDX-FileCopyrightText: Copyright (c) 2019-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.  *|
 |* SPDX-License-Identifier: MIT                                                                           *|
 |*                                                                                                        *|
 |* Permission is hereby granted, free of charge, to any person obtaining a                                *|
@@ -84,8 +84,6 @@ typedef signed int         NvS32; /* -2147483648 to 2147483647 */
 #if ( (defined(macintosh) && defined(__LP64__) && (__NVAPI_RESERVED0__)) || \
       (!defined(macintosh) && defined(__NVAPI_RESERVED0__)) ) 
 typedef unsigned int       NvU32; /* 0 to 4294967295                         */
-#elif defined(__clang__)
-typedef unsigned int       NvU32; /* 0 to 4294967295                         */
 #else
 typedef unsigned long      NvU32; /* 0 to 4294967295                         */
 #endif
@@ -111,7 +109,7 @@ typedef double           NvF64;
  */
 #define NvF32TONvU32(_pData) *(NvU32 *)(_pData)
 
-#define NVAPI_SDK_VERSION 59596
+#define NVAPI_SDK_VERSION 57218
 /* Boolean type */
 typedef NvU8 NvBool;
 #define NV_TRUE           ((NvBool)(0 == 0))
@@ -144,6 +142,7 @@ NV_DECLARE_HANDLE(NvMonitorHandle);                //!< Monitor handle
 NV_DECLARE_HANDLE(NvUnAttachedDisplayHandle);      //!< Unattached Display Device driven by NVIDIA GPU(s)
 NV_DECLARE_HANDLE(NvVisualComputingDeviceHandle);  //!< A handle to a Visual Computing Device
 NV_DECLARE_HANDLE(NvEventHandle);                  //!< A handle to an event registration instance
+NV_DECLARE_HANDLE(NvDLADeviceHandle);              //!< A handle to a DLA device
 
 
 NV_DECLARE_HANDLE(NvHICHandle);                    //!< A handle to a Host Interface Card
@@ -219,8 +218,6 @@ typedef struct
 
 #define NVAPI_SYSTEM_MAX_HWBCS              128
 #define NVAPI_SYSTEM_HWBC_INVALID_ID        0xffffffff
-
-#define NVAPI_UUID_LEN                      16 
 
 #define NVAPI_SYSTEM_MAX_DISPLAYS           NVAPI_MAX_PHYSICAL_GPUS * NV_MAX_HEADS
 #define NV_MAX_HEADS                        4   //!< Maximum heads, each with NVAPI_DESKTOP_RES resolution
