@@ -113,7 +113,7 @@ private:
 	std::vector<Texture> m_EmissiveMaps;
 	std::vector<Texture> m_AOMaps;
 
-	// パストレ用
+	// レイトレ用
 	std::vector<Resource> m_PositionVBs;
 	std::vector<Resource> m_IBs;
 	Resource m_BlasScratchBB;
@@ -121,6 +121,10 @@ private:
 	Resource m_TlasScratchBB;
 	Resource m_TlasInstanceDescBB;
 	Resource m_TlasResultBB;
+
+	// CLAS用
+	std::vector<Resource> m_ClasIBs;
+
 
 	MeshManager(const MeshManager&) = delete;
 	void operator=(const MeshManager&) = delete;

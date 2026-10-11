@@ -843,9 +843,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 	m_ShaderCompiler.Init();
 
-#if defined(DEBUG) || defined(_DEBUG)
-	// nvapi初期化
-	if (m_usePathTracing)
+	if (ShouldUseNvAPI())
 	{
 		NvAPI_Status status = NVAPI_OK;
 		NvAPI_ShortString szError = {0};
@@ -894,7 +892,6 @@ bool SampleApp::OnInit(HWND hWnd)
 			return false;
 		}
 	}
-#endif
 
 	// imgui初期化
 	{
@@ -5353,7 +5350,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		CbTemporalAA* ptr = m_TemporalAA_CB[i].GetPtr<CbTemporalAA>();
 		ptr->Width = m_Width;
 		ptr->Height = m_Height;
-		ptr->bEnableTemporalAA = (isEnableTemporalAA() ? 1 : 0);
+		ptr->bEnableTemporalAA = (IsEnableTemporalAA() ? 1 : 0);
 
 		// Referenced UE.
 		float temporalJitetrPixelsX;
@@ -6234,9 +6231,10 @@ bool SampleApp::OnInit(HWND hWnd)
 		// Wait command queue finishing.
 		m_Fence.Wait(m_pQueue.Get(), INFINITE);
 
-	#if defined(DEBUG) || defined(_DEBUG)
-		NvAPI_D3D12_FlushRaytracingValidationMessages(m_pDevice.Get());
-	#endif
+		if (ShouldUseNvAPI())
+		{
+			NvAPI_D3D12_FlushRaytracingValidationMessages(m_pDevice.Get());
+		}
 	}
 
 	return true;
@@ -6529,11 +6527,10 @@ void SampleApp::OnTerm()
 	m_MissShaderTableBB.Term();
 	m_HitGroupShaderTableBB.Term();
 
-	if (m_usePathTracing)
+	if (ShouldUseNvAPI())
 	{
-	#if defined(DEBUG) || defined(_DEBUG)
 		NvAPI_D3D12_FlushRaytracingValidationMessages(m_pDevice.Get());
-	#endif
+		NvAPI_Unload();
 	}
 }
 
@@ -6588,7 +6585,7 @@ void SampleApp::OnRender()
 	// カメラ定数バッファの更新
 	{
 		CbCamera* ptr = m_CameraCB[m_FrameIndex].GetPtr<CbCamera>();
-		if (isEnableTemporalAA())
+		if (IsEnableTemporalAA())
 		{
 			ptr->ViewProj = viewProjWithJitter;
 		}
@@ -6600,7 +6597,7 @@ void SampleApp::OnRender()
 		ptr->DebugViewType = std::max(0, (static_cast<int>(m_debugViewMode) - static_cast<int>(DEBUG_VIEW_MODE::DEBUG_VIEW_TYPE_NONE)));
 		ptr->ViewMatrix = view;
 		Matrix proj;
-		if (isEnableTemporalAA())
+		if (IsEnableTemporalAA())
 		{
 			proj = projWithJitter;
 		}
@@ -6793,7 +6790,7 @@ void SampleApp::OnRender()
 
 	if (m_enableVelocity)
 	{
-		if (isEnableTemporalAA())
+		if (IsEnableTemporalAA())
 		{
 			DrawObjectVelocity(pCmd, worldForMovable, m_PrevWorldForMovable, viewProjWithJitter, viewProjNoJitter, m_PrevViewProjNoJitter);
 		}
@@ -6807,7 +6804,7 @@ void SampleApp::OnRender()
 
 	DrawSSAOSetup(pCmd);
 
-	if (isEnableTemporalAA())
+	if (IsEnableTemporalAA())
 	{
 		DrawSSAO(pCmd, projWithJitter);
 	}
@@ -6816,7 +6813,7 @@ void SampleApp::OnRender()
 		DrawSSAO(pCmd, projNoJitter);
 	}
 
-	if (isEnableTemporalAA())
+	if (IsEnableTemporalAA())
 	{
 		DrawSSGI(pCmd, projWithJitter, viewProjWithJitter);
 	}
@@ -6834,7 +6831,7 @@ void SampleApp::OnRender()
 
 	DrawAmbientLight(pCmd, SSGI_CurTarget);
 
-	if (isEnableTemporalAA())
+	if (IsEnableTemporalAA())
 	{
 		DrawSSR(pCmd, projWithJitter, viewRotProjWithJitter);
 	}
@@ -8421,7 +8418,7 @@ void SampleApp::DrawTemporalAA(ID3D12GraphicsCommandList* pCmdList, float tempor
 
 	{
 		CbTemporalAA* ptr = m_TemporalAA_CB[m_FrameIndex].GetPtr<CbTemporalAA>();
-		ptr->bEnableTemporalAA = (isEnableTemporalAA() ? 1 : 0);
+		ptr->bEnableTemporalAA = (IsEnableTemporalAA() ? 1 : 0);
 
 		// Referenced UE.
 		float totalWeight = 0;
@@ -9518,8 +9515,17 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	return true;
 }
 
-bool SampleApp::isEnableTemporalAA() const
+bool SampleApp::IsEnableTemporalAA() const
 {
 	return m_enableTemporalAA && !m_usePathTracing;
+}
+
+bool SampleApp::ShouldUseNvAPI() const
+{
+#if defined(DEBUG) || defined(_DEBUG)
+	return (m_usePathTracing || m_useCLAS);
+#else
+	return m_useCLAS;
+#endif
 }
 

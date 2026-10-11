@@ -613,14 +613,14 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 		m_MeshletCount += localMeshletCount;
 
-		if (createRTAS)
+		if (createRTAS || createCLAS)
 		{
 			std::vector<Vector3> positions(resMesh.Vertices.size());
 			for (size_t i = 0; i < resMesh.Vertices.size(); i++)
 			{
 				positions[i] = resMesh.Vertices[i].Position;
 			}
-				
+
 			if (!m_PositionVBs[validMeshIdx].InitAsVertexBuffer<Vector3>(
 				pDevice,
 				positions.size(),
@@ -644,7 +644,10 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 				return false;
 			}
+		}
 
+		if (createRTAS)
+		{
 			if (!m_IBs[validMeshIdx].InitAsStructuredBuffer<uint32_t>(
 				pDevice,
 				resMesh.Indices.size(),
@@ -675,7 +678,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			geomDesc.Triangles.VertexBuffer.StartAddress = m_PositionVBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();
 			geomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vector3);
 			geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-			geomDesc.Triangles.VertexCount = static_cast<UINT>(positions.size());
+			geomDesc.Triangles.VertexCount = static_cast<UINT>(resMesh.Vertices.size());
 			// Transform3x4、IBの指定はオプション
 			geomDesc.Triangles.Transform3x4 = m_MeshTransposedWorldMatrices[validMeshIdx].GetResource()->GetGPUVirtualAddress();
 			geomDesc.Triangles.IndexBuffer = m_IBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();;
@@ -1094,12 +1097,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 			pCmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
 			m_TlasResultBB.BarrierUAV(pCmdList);
-		}
-	}
-	else if (createCLAS)
-	{
-		// CLASの生成
-		{
 		}
 	}
 
