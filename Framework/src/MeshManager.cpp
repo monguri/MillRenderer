@@ -159,6 +159,49 @@ namespace
 		// (value + (alignment - 1)) / alignment * alignment;
 		return (value + (alignment - 1)) & ~(alignment - 1);
 	}
+
+	struct ClasIndexRange
+	{
+		uint32_t IdxOffset;
+		uint32_t IdxCount;
+	};
+
+	// CLAS用のインデックスバッファを作るために、ResMeshのMeshletごとのインデックスをまとめて1つのインデックス配列し、各CLASの範囲を記録する
+	void BuildClasIndex(const ResMesh& resMesh, std::vector<uint32_t>& indices, std::vector<ClasIndexRange>& ranges)
+	{
+		indices.clear();
+
+		ranges.clear();
+		ranges.reserve(resMesh.Meshlets.size());
+
+		for (const meshopt_Meshlet& meshlet : resMesh.Meshlets)
+		{
+			ClasIndexRange range;
+			range.IdxOffset = static_cast<uint32_t>(indices.size());
+			range.IdxCount = meshlet.triangle_count * 3;
+			ranges.emplace_back(range);
+
+			uint32_t triangleOffset = meshlet.triangle_offset * 3;
+
+			// Reallocation回数をおさえる
+			indices.reserve(indices.size() + range.IdxCount);
+
+			for (uint32_t i = 0; i < range.IdxCount; i++)
+			{
+				uint32_t localVertexIdx = resMesh.MeshletsTriangles[triangleOffset + i];
+
+				uint32_t remapIndex = meshlet.vertex_offset + localVertexIdx;
+				assert(remapIndex < resMesh.MeshletsVertices.size());
+
+				uint32_t globalVertexIdx = resMesh.MeshletsVertices[remapIndex];
+				assert(globalVertexIdx < resMesh.Vertices.size());
+
+				indices.emplace_back(globalVertexIdx);
+			}
+		}
+	}
+
+
 }
 
 MeshManager::~MeshManager()
