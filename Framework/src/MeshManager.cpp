@@ -167,7 +167,7 @@ namespace
 	};
 
 	// CLAS用のインデックスバッファを作るために、ResMeshのMeshletごとのインデックスをまとめて1つのインデックス配列し、各CLASの範囲を記録する
-	void BuildClasIndex(const ResMesh& resMesh, std::vector<uint32_t>& indices, std::vector<ClasIndexRange>& ranges)
+	void BuildClasIndices(const ResMesh& resMesh, std::vector<uint32_t>& indices, std::vector<ClasIndexRange>& ranges)
 	{
 		indices.clear();
 
@@ -181,14 +181,12 @@ namespace
 			range.IdxCount = meshlet.triangle_count * 3;
 			ranges.emplace_back(range);
 
-			uint32_t triangleOffset = meshlet.triangle_offset * 3;
-
 			// Reallocation回数をおさえる
 			indices.reserve(indices.size() + range.IdxCount);
 
 			for (uint32_t i = 0; i < range.IdxCount; i++)
 			{
-				uint32_t localVertexIdx = resMesh.MeshletsTriangles[triangleOffset + i];
+				uint32_t localVertexIdx = resMesh.MeshletsTriangles[meshlet.triangle_offset + i];
 
 				uint32_t remapIndex = meshlet.vertex_offset + localVertexIdx;
 				assert(remapIndex < resMesh.MeshletsVertices.size());
@@ -204,7 +202,6 @@ namespace
 	NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS
 	CreateClasTriangleArgs
 	(
-		const ResMesh& resMesh, 
 		const meshopt_Meshlet& meshlet,
 		const ClasIndexRange& range,
 		D3D12_GPU_VIRTUAL_ADDRESS vertexBuffer,
@@ -495,6 +492,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 	m_MeshletsAABBInfosSBs.resize(meshCount);
 	m_PositionVBs.resize(meshCount);
 	m_IBs.resize(meshCount);
+	m_ClasIBs.resize(meshCount);
 
 	struct MeshletMeshMaterial
 	{
@@ -507,6 +505,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 	std::vector<MeshletMeshMaterial> meshletMeshMaterialTable;
 
 	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> rtGeomDescs;
+	std::vector<NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS> clasTriangleArgs;
 
 	CbMeshesDescHeapIndices meshesDescHeapIndices = {};
 	CbMeshesDescHeapIndicesForPathTracing meshesDescHeapIndicesForPathTracing = {};
@@ -738,11 +737,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		bool bMasked = (resMat.AlphaMode == ALPHA_MODE_MASK) && resMat.DoubleSided;
 		for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
 		{
-
 			meshletMeshMaterialTable.emplace_back(static_cast<uint32_t>(validMeshIdx), resMesh.MaterialIdx, static_cast<uint32_t>(localMeshletIdx), bMasked ? 1 : 0);
 		}
-
-		m_MeshletCount += localMeshletCount;
 
 		if (createRTAS || createCLAS)
 		{
@@ -827,7 +823,58 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			rtGeomDescs.emplace_back(geomDesc);
 		}
 
+		//TODO:テスト用にRTASモードでも処理を通す
+		//if (createCLAS)
+		if (createCLAS || createRTAS)
+		{
+			std::vector<uint32_t> clasIndices;
+			std::vector<ClasIndexRange> clasIndexRange;
+			BuildClasIndices(resMesh, clasIndices, clasIndexRange);
+
+			if (!m_ClasIBs[validMeshIdx].InitAsStructuredBuffer<uint32_t>(
+				pDevice,
+				clasIndices.size(),
+				D3D12_RESOURCE_FLAG_NONE,
+				pPoolGpuVisible,
+				nullptr,
+				L"ClasIB"
+			))
+			{
+				ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+				return false;
+			}
+
+			if (!m_ClasIBs[validMeshIdx].UploadBufferTypeData<uint32_t>(
+				pDevice,
+				pCmdList,
+				clasIndices.size(),
+				clasIndices.data()
+			))
+			{
+				ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+				return false;
+			}
+
+			clasTriangleArgs.reserve(clasTriangleArgs.size() + localMeshletCount);
+			assert(clasIndexRange.size() == localMeshletCount);
+			for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
+			{
+				NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS args = CreateClasTriangleArgs
+				(
+					resMesh.Meshlets[localMeshletIdx],
+					clasIndexRange[localMeshletIdx],
+					m_PositionVBs[validMeshIdx].GetResource()->GetGPUVirtualAddress(),
+					m_ClasIBs[validMeshIdx].GetResource()->GetGPUVirtualAddress(),
+					static_cast<uint32_t>(m_MeshletCount + localMeshletIdx)
+				);
+
+				clasTriangleArgs.emplace_back(args);
+			}
+		}
+
 		validMeshIdx++;
+
+		m_MeshletCount += localMeshletCount;
 	}
 
 	m_MeshCount = validMeshIdx;
@@ -1282,6 +1329,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			return false;
 		}
 
+		DirectX::TransitionResource(pCmdList, m_ClasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 		if (!m_ClasResultBB.InitAsAccelerationStructure(
 			pDevice,
 			totalClasResultSize,
@@ -1292,8 +1341,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
 			return false;
 		}
-
-		DirectX::TransitionResource(pCmdList, m_ClasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> clasDestinations(m_MeshletCount);
 
@@ -1316,8 +1363,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			return false;
 		}
 
-		DirectX::TransitionResource(pCmdList, m_ClasDestinationAddressBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 		if (!m_ClasDestinationAddressBB.UploadBufferData(
 			pDevice,
 			pCmdList,
@@ -1328,6 +1373,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasDestinationAddressBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		if (!m_ClasResultSizeBB.InitAsByteAddressBuffer(
 			pDevice,
@@ -1356,6 +1403,18 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		))
 		{
 			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		assert(clasTriangleArgs.size() == m_MeshletCount);
+		if (!m_ClasTriangleArgsBB.UploadBufferData(
+			pDevice,
+			pCmdList,
+			sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS) * m_MeshletCount,
+			clasTriangleArgs.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
 
