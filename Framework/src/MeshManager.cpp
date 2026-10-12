@@ -423,6 +423,8 @@ void MeshManager::Term()
 	m_ClasIBs.clear();
 	m_ClasScratchBB.Term();
 	m_ClasResultBB.Term();
+	m_ClasDestinationAddressBB.Term();
+	m_ClasResultSizeBB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -1262,7 +1264,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			return false;
 		}
 
-		size_t totalClasResultSize = AlignTo(requirements.resultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT) * m_MeshletCount;
+		size_t clasSize = AlignTo(requirements.resultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+		size_t totalClasResultSize = clasSize * m_MeshletCount;
 
 		if (!m_ClasScratchBB.InitAsByteAddressBuffer(
 			pDevice,
@@ -1290,6 +1293,56 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		DirectX::TransitionResource(pCmdList, m_ClasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> clasDestinations(m_MeshletCount);
+
+		for (size_t meshletIdx = 0; meshletIdx < m_MeshletCount; meshletIdx++)
+		{
+			clasDestinations[meshletIdx] = m_ClasResultBB.GetResource()->GetGPUVirtualAddress() + clasSize * meshletIdx;
+		}
+
+		if (!m_ClasDestinationAddressBB.InitAsByteAddressBuffer(
+			pDevice,
+			clasDestinations.size() * sizeof(D3D12_GPU_VIRTUAL_ADDRESS),
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasDestinationsAddressBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasDestinationAddressBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_ClasDestinationAddressBB.UploadBufferData(
+			pDevice,
+			pCmdList,
+			clasDestinations.size() * sizeof(D3D12_GPU_VIRTUAL_ADDRESS),
+			clasDestinations.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		if (!m_ClasResultSizeBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(uint32_t) * m_MeshCount,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasResultSizeBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasResultSizeBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	}
 
 

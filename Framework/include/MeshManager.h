@@ -126,6 +126,8 @@ private:
 	std::vector<Resource> m_ClasIBs;
 	Resource m_ClasScratchBB;
 	Resource m_ClasResultBB;
+	Resource m_ClasDestinationAddressBB;
+	Resource m_ClasResultSizeBB;
 
 
 	MeshManager(const MeshManager&) = delete;
