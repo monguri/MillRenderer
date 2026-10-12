@@ -201,7 +201,84 @@ namespace
 		}
 	}
 
+	NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS
+	CreateClasTriangleArgs
+	(
+		const ResMesh& resMesh, 
+		const meshopt_Meshlet& meshlet,
+		const ClasIndexRange& range,
+		D3D12_GPU_VIRTUAL_ADDRESS vertexBuffer,
+		D3D12_GPU_VIRTUAL_ADDRESS indexBuffer,
+		uint32_t clusterId
+	)
+	{
+		NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS args = {};
+		args.clusterId = clusterId;
+		args.clusterFlags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_CLUSTER_FLAG_NONE;
+		args.triangleCount = meshlet.triangle_count;
+		args.vertexCount = meshlet.vertex_count;
+		args.positionTruncateBitCount = 0;
+		args.indexFormat = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INDEX_FORMAT_32BIT;
+		args.opacityMicromapIndexFormat = 0;
+		args.baseGeometryIndexAndFlags = 0;
+		args.indexBufferStride = sizeof(uint32_t);
+		args.vertexBufferStride = sizeof(Vector3);
+		args.geometryIndexAndFlagsBufferStride = 0;
+		args.opacityMicromapIndexBufferStride = 0;
+		args.indexBuffer = indexBuffer + range.IdxOffset * sizeof(uint32_t);
+		args.vertexBuffer = vertexBuffer;
+		args.geometryIndexAndFlagsBuffer = 0;
+		args.opacityMicromapArray = 0;
+		args.opacityMicromapIndexBuffer = 0;
+		return args;
+	}
 
+	NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS
+	CreateClasInputs
+	(
+		uint32_t meshletCount,
+		uint32_t maxTriangleCount,
+		uint32_t maxVertexCount,
+		uint32_t totalTriangleCount,
+		uint32_t totalVertexCount
+	)
+	{
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS inputs = {};
+		inputs.maxArgCount = meshletCount;
+		inputs.flags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
+		inputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
+		inputs.mode = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS;
+		inputs.trianglesDesc.vertexFormat = static_cast<NvU32>(DXGI_FORMAT_R32G32B32_FLOAT);
+		inputs.trianglesDesc.maxGeometryIndexValue = NVAPI_D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
+		inputs.trianglesDesc.maxUniqueGeometryCountPerArg = 1;
+		inputs.trianglesDesc.maxTriangleCountPerArg = maxTriangleCount;
+		inputs.trianglesDesc.maxVertexCountPerArg = maxVertexCount;
+		inputs.trianglesDesc.maxTotalTriangleCount = totalTriangleCount;
+		inputs.trianglesDesc.maxTotalVertexCount = totalVertexCount;
+		inputs.trianglesDesc.minPositionTruncateBitCount = 0;
+		return inputs;
+	}
+
+	bool QueryClusterOperationRequirements(ID3D12Device5* pDevice, NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS const& inputs, NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO& requirements)
+	{
+		requirements = {};
+		
+		NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS params = {};
+		params.version = NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS_VER;
+		params.pInput = &inputs;
+		params.pInfo = &requirements;
+
+		NvAPI_Status status = NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo(pDevice, &params);
+		if (status != NVAPI_OK)
+		{
+			NvAPI_ShortString szError = {0};
+			NvAPI_GetErrorMessage(status, szError);
+			ELOG("Error : NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo Failed. status = %d, error message = %s", status, szError);
+			return false;
+		}
+
+		return true;
+	}
 }
 
 MeshManager::~MeshManager()
