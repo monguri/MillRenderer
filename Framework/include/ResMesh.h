@@ -78,6 +78,10 @@ struct ResMesh
 	std::vector<MeshVertex> Vertices;
 	std::vector<uint32_t> Indices;
 
+	// NVIDIAの推奨値
+	static constexpr uint32_t MAX_MESHLET_VERT_COUNT = 64;
+	static constexpr uint32_t MAX_MESHLET_TRI_COUNT = 126;
+
 	// データにはmeshletoptimezerのものをそのまま使う
 	std::vector<meshopt_Meshlet> Meshlets;
 	std::vector<uint32_t> MeshletsVertices;

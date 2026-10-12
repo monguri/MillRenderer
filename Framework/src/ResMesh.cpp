@@ -446,10 +446,6 @@ namespace
 
 	void MeshLoader::BuildMeshlet(ResMesh& dstMesh, bool useMetis)
 	{
-		// NVIDIAの推奨値
-		static constexpr uint32_t MAX_VERTS = 64;
-		static constexpr uint32_t MAX_TRIS = 126;
-
 		size_t vertexCount = dstMesh.Vertices.size();
 		static_assert(sizeof(float) * 3 == sizeof(Vector3));
 		std::vector<float> vertexPositions(vertexCount * 3);
@@ -463,8 +459,8 @@ namespace
 		{
 			// Metisは分割数を指定して分割する形なので、各分割のVertex数やTriangle数がMAX_VERTSとMAX_TRIS以下になる保証はない
 			// よってを上限を小さめにして分割数を大きく計算し余裕を持たせている。
-			static constexpr uint32_t MAX_VERTS_FOR_METIS = MAX_VERTS / 2;
-			static constexpr uint32_t MAX_TRIS_FOR_METIS = MAX_TRIS / 2;
+			static constexpr uint32_t MAX_VERTS_FOR_METIS = ResMesh::MAX_MESHLET_VERT_COUNT / 2;
+			static constexpr uint32_t MAX_TRIS_FOR_METIS = ResMesh::MAX_MESHLET_TRI_COUNT / 2;
 
 			if (dstMesh.Vertices.size() <= MAX_VERTS_FOR_METIS || dstMesh.Indices.size() / 3 <= MAX_TRIS_FOR_METIS)
 			{
@@ -476,10 +472,10 @@ namespace
 
 				meshopt_Meshlet& meshlet = dstMesh.Meshlets[0];
 				meshlet.vertex_count = static_cast<unsigned int>(dstMesh.Vertices.size());
-				assert(meshlet.vertex_count <= MAX_VERTS);
+				assert(meshlet.vertex_count <= ResMesh::MAX_MESHLET_VERT_COUNT);
 				meshlet.vertex_offset = 0;
 				meshlet.triangle_count = static_cast<unsigned int>(dstMesh.Indices.size() / 3);
-				assert(meshlet.triangle_count <= MAX_TRIS);
+				assert(meshlet.triangle_count <= ResMesh::MAX_MESHLET_TRI_COUNT);
 				meshlet.triangle_offset = 0;
 
 				for (uint32_t i = 0; i < dstMesh.Vertices.size(); i++)
@@ -681,7 +677,7 @@ namespace
 
 					const std::set<uint32_t>& vertexSet = meshletVertexSets[meshletIdx];
 					meshlet.vertex_count = static_cast<unsigned int>(vertexSet.size());
-					assert(meshlet.vertex_count <= MAX_VERTS);
+					assert(meshlet.vertex_count <= ResMesh::MAX_MESHLET_VERT_COUNT);
 					meshlet.vertex_offset = vertexOffset;
 					vertexOffset += meshlet.vertex_count;
 
@@ -694,7 +690,7 @@ namespace
 					const std::vector<uint8_t>& triangleList = meshletTriangleLists[meshletIdx];
 					assert(triangleList.size() % 3 == 0);
 					meshlet.triangle_count = static_cast<unsigned int>(triangleList.size() / 3);
-					assert(meshlet.triangle_count <= MAX_TRIS);
+					assert(meshlet.triangle_count <= ResMesh::MAX_MESHLET_TRI_COUNT);
 					meshlet.triangle_offset = triangleOffset;
 					triangleOffset += meshlet.triangle_count * 3;
 
@@ -710,7 +706,7 @@ namespace
 		{
 			size_t indexCount = dstMesh.Indices.size();
 
-			size_t maxMeshletCount = meshopt_buildMeshletsBound(indexCount, MAX_VERTS, MAX_TRIS);
+			size_t maxMeshletCount = meshopt_buildMeshletsBound(indexCount, ResMesh::MAX_MESHLET_VERT_COUNT, ResMesh::MAX_MESHLET_TRI_COUNT);
 
 			dstMesh.Meshlets.resize(maxMeshletCount);
 			dstMesh.MeshletsVertices.resize(indexCount);
@@ -729,8 +725,8 @@ namespace
 				vertexPositions.data(),
 				vertexCount,
 				sizeof(float) * 3,
-				MAX_VERTS,
-				MAX_TRIS,
+				ResMesh::MAX_MESHLET_VERT_COUNT,
+				ResMesh::MAX_MESHLET_TRI_COUNT,
 				0.0f // cone cullingを使わない
 			);
 

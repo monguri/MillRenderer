@@ -124,6 +124,8 @@ private:
 
 	// CLAS—p
 	std::vector<Resource> m_ClasIBs;
+	Resource m_ClasScratchBB;
+	Resource m_ClasResultBB;
 
 
 	MeshManager(const MeshManager&) = delete;

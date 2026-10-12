@@ -415,6 +415,14 @@ void MeshManager::Term()
 	m_TlasScratchBB.Term();
 	m_TlasInstanceDescBB.Term();
 	m_TlasResultBB.Term();
+
+	for (Resource& IB : m_ClasIBs)
+	{
+		IB.Term();
+	}
+	m_ClasIBs.clear();
+	m_ClasScratchBB.Term();
+	m_ClasResultBB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -1219,6 +1227,71 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			m_TlasResultBB.BarrierUAV(pCmdList);
 		}
 	}
+
+	//TODO: ƒeƒXƒg‚Ì‚½‚ß‚ÉRTAS‚Ì‚Æ‚«‚à’Ê‚·
+	//if (createCLAS)
+	if (createCLAS || createRTAS)
+	{
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS inputs = {};
+		inputs.maxArgCount = static_cast<NvU32>(m_MeshletCount);
+		inputs.flags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
+		inputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
+		inputs.mode = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS;
+		inputs.trianglesDesc.vertexFormat = static_cast<NvU32>(DXGI_FORMAT_R32G32B32_FLOAT);
+		inputs.trianglesDesc.maxGeometryIndexValue = NVAPI_D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
+		inputs.trianglesDesc.maxUniqueGeometryCountPerArg = 1;
+		inputs.trianglesDesc.maxTriangleCountPerArg = ResMesh::MAX_MESHLET_TRI_COUNT;
+		inputs.trianglesDesc.maxVertexCountPerArg = ResMesh::MAX_MESHLET_VERT_COUNT;
+		inputs.trianglesDesc.maxTotalTriangleCount = ResMesh::MAX_MESHLET_TRI_COUNT * static_cast<NvU32>(m_MeshletCount);
+		inputs.trianglesDesc.maxTotalVertexCount = ResMesh::MAX_MESHLET_VERT_COUNT * static_cast<NvU32>(m_MeshletCount);
+		inputs.trianglesDesc.minPositionTruncateBitCount = 0;
+
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO requirements = {};
+		
+		NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS params = {};
+		params.version = NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS_VER;
+		params.pInput = &inputs;
+		params.pInfo = &requirements;
+
+		NvAPI_Status status = NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo(pDevice, &params);
+		if (status != NVAPI_OK)
+		{
+			NvAPI_ShortString szError = {0};
+			NvAPI_GetErrorMessage(status, szError);
+			ELOG("Error : NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo Failed. status = %d, error message = %s", status, szError);
+			return false;
+		}
+
+		size_t totalClasResultSize = AlignTo(requirements.resultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT) * m_MeshletCount;
+
+		if (!m_ClasScratchBB.InitAsByteAddressBuffer(
+			pDevice,
+			requirements.scratchDataSizeInBytes,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasScratchBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_ClasResultBB.InitAsAccelerationStructure(
+			pDevice,
+			totalClasResultSize,
+			pPoolGpuVisible,
+			L"ClasResultBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	}
+
 
 	CbMaterialsDescHeapIndices materialsDescHeapIndices = {};
 
