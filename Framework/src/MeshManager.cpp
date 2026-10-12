@@ -230,32 +230,6 @@ namespace
 		return args;
 	}
 
-	NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS
-	CreateClasInputs
-	(
-		uint32_t meshletCount,
-		uint32_t maxTriangleCount,
-		uint32_t maxVertexCount,
-		uint32_t totalTriangleCount,
-		uint32_t totalVertexCount
-	)
-	{
-		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS inputs = {};
-		inputs.maxArgCount = meshletCount;
-		inputs.flags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
-		inputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
-		inputs.mode = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS;
-		inputs.trianglesDesc.vertexFormat = static_cast<NvU32>(DXGI_FORMAT_R32G32B32_FLOAT);
-		inputs.trianglesDesc.maxGeometryIndexValue = NVAPI_D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
-		inputs.trianglesDesc.maxUniqueGeometryCountPerArg = 1;
-		inputs.trianglesDesc.maxTriangleCountPerArg = maxTriangleCount;
-		inputs.trianglesDesc.maxVertexCountPerArg = maxVertexCount;
-		inputs.trianglesDesc.maxTotalTriangleCount = totalTriangleCount;
-		inputs.trianglesDesc.maxTotalVertexCount = totalVertexCount;
-		inputs.trianglesDesc.minPositionTruncateBitCount = 0;
-		return inputs;
-	}
-
 	bool QueryClusterOperationRequirements(ID3D12Device5* pDevice, NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS const& inputs, NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO& requirements)
 	{
 		requirements = {};
@@ -1297,28 +1271,18 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		clasInputs.trianglesDesc.maxTotalVertexCount = ResMesh::MAX_MESHLET_VERT_COUNT * static_cast<NvU32>(m_MeshletCount);
 		clasInputs.trianglesDesc.minPositionTruncateBitCount = 0;
 
-		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO requirements = {};
-		
-		NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS reqParams = {};
-		reqParams.version = NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS_VER;
-		reqParams.pInput = &clasInputs;
-		reqParams.pInfo = &requirements;
-
-		NvAPI_Status status = NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo(pDevice, &reqParams);
-		if (status != NVAPI_OK)
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO clasReqs = {};
+		if (!QueryClusterOperationRequirements(pDevice, clasInputs, clasReqs))
 		{
-			NvAPI_ShortString szError = {0};
-			NvAPI_GetErrorMessage(status, szError);
-			ELOG("Error : NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo Failed. status = %d, error message = %s", status, szError);
 			return false;
 		}
 
-		size_t clasSize = AlignTo(requirements.resultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+		size_t clasSize = AlignTo(clasReqs.resultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
 		size_t totalClasResultSize = clasSize * m_MeshletCount;
 
 		if (!m_ClasScratchBB.InitAsByteAddressBuffer(
 			pDevice,
-			requirements.scratchDataSizeInBytes,
+			clasReqs.scratchDataSizeInBytes,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			nullptr,
 			nullptr,
@@ -1438,7 +1402,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		opParams.version = NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS_VER;
 		opParams.pDesc = &opDesc;
 
-		status = NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(pCmdList, &opParams);
+		NvAPI_Status status = NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(pCmdList, &opParams);
 		if (status != NVAPI_OK)
 		{
 			NvAPI_ShortString szError = {0};
@@ -1481,6 +1445,22 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		DirectX::TransitionResource(pCmdList, m_ClasAddressesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		// BLASÇÕëSMeshletÇÃCLASÇÇ‹Ç∆ÇﬂÇƒàÍå¬ÇµÇ©çÏÇÁÇ»Ç¢ÅBMeshÇ≤Ç∆Ç≈ÇÕÇ»Ç¢ÅB
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS blasInputs = {};
+		blasInputs.maxArgCount = 1;
+		blasInputs.flags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
+		blasInputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS;
+		blasInputs.mode = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_IMPLICIT_DESTINATIONS;
+		blasInputs.clasDesc.maxTotalClasCount = static_cast<NvU32>(m_MeshletCount);
+		blasInputs.clasDesc.maxClasCountPerArg = static_cast<NvU32>(m_MeshletCount);
+
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO blasReqs = {};
+		if (!QueryClusterOperationRequirements(pDevice, blasInputs, blasReqs))
+		{
+			return false;
+		}
+
 	}
 
 
