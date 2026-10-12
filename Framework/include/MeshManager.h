@@ -130,6 +130,7 @@ private:
 	Resource m_ClasResultSizeBB;
 	Resource m_ClasTriangleArgsBB;
 	Resource m_ClasAddressesBB;
+	Resource m_ClusterBlasArgsBB;
 
 
 	MeshManager(const MeshManager&) = delete;

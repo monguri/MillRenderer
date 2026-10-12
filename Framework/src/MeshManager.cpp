@@ -398,6 +398,7 @@ void MeshManager::Term()
 	m_ClasResultSizeBB.Term();
 	m_ClasTriangleArgsBB.Term();
 	m_ClasAddressesBB.Term();
+	m_ClusterBlasArgsBB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -1461,6 +1462,37 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			return false;
 		}
 
+		NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_CLUSTER_ARGS blasArgs = {};
+		blasArgs.clusterCount = static_cast<NvU32>(m_MeshletCount);
+		blasArgs.reserved = 0;
+		blasArgs.clusterVAs = m_ClasAddressesBB.GetResource()->GetGPUVirtualAddress();
+
+		if (!m_ClusterBlasArgsBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(blasArgs),
+			D3D12_RESOURCE_FLAG_NONE,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterBlasArgsBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_ClusterBlasArgsBB.UploadBufferData(
+			pDevice,
+			pCmdList,
+			sizeof(blasArgs),
+			&blasArgs
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClusterBlasArgsBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	}
 
 
