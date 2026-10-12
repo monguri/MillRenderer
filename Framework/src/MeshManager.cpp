@@ -425,6 +425,7 @@ void MeshManager::Term()
 	m_ClasResultBB.Term();
 	m_ClasDestinationAddressBB.Term();
 	m_ClasResultSizeBB.Term();
+	m_ClasTriangleArgsBB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -1234,28 +1235,28 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 	//if (createCLAS)
 	if (createCLAS || createRTAS)
 	{
-		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS inputs = {};
-		inputs.maxArgCount = static_cast<NvU32>(m_MeshletCount);
-		inputs.flags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
-		inputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
-		inputs.mode = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS;
-		inputs.trianglesDesc.vertexFormat = static_cast<NvU32>(DXGI_FORMAT_R32G32B32_FLOAT);
-		inputs.trianglesDesc.maxGeometryIndexValue = NVAPI_D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
-		inputs.trianglesDesc.maxUniqueGeometryCountPerArg = 1;
-		inputs.trianglesDesc.maxTriangleCountPerArg = ResMesh::MAX_MESHLET_TRI_COUNT;
-		inputs.trianglesDesc.maxVertexCountPerArg = ResMesh::MAX_MESHLET_VERT_COUNT;
-		inputs.trianglesDesc.maxTotalTriangleCount = ResMesh::MAX_MESHLET_TRI_COUNT * static_cast<NvU32>(m_MeshletCount);
-		inputs.trianglesDesc.maxTotalVertexCount = ResMesh::MAX_MESHLET_VERT_COUNT * static_cast<NvU32>(m_MeshletCount);
-		inputs.trianglesDesc.minPositionTruncateBitCount = 0;
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS clasInputs = {};
+		clasInputs.maxArgCount = static_cast<NvU32>(m_MeshletCount);
+		clasInputs.flags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
+		clasInputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
+		clasInputs.mode = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS;
+		clasInputs.trianglesDesc.vertexFormat = static_cast<NvU32>(DXGI_FORMAT_R32G32B32_FLOAT);
+		clasInputs.trianglesDesc.maxGeometryIndexValue = NVAPI_D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
+		clasInputs.trianglesDesc.maxUniqueGeometryCountPerArg = 1;
+		clasInputs.trianglesDesc.maxTriangleCountPerArg = ResMesh::MAX_MESHLET_TRI_COUNT;
+		clasInputs.trianglesDesc.maxVertexCountPerArg = ResMesh::MAX_MESHLET_VERT_COUNT;
+		clasInputs.trianglesDesc.maxTotalTriangleCount = ResMesh::MAX_MESHLET_TRI_COUNT * static_cast<NvU32>(m_MeshletCount);
+		clasInputs.trianglesDesc.maxTotalVertexCount = ResMesh::MAX_MESHLET_VERT_COUNT * static_cast<NvU32>(m_MeshletCount);
+		clasInputs.trianglesDesc.minPositionTruncateBitCount = 0;
 
 		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO requirements = {};
 		
-		NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS params = {};
-		params.version = NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS_VER;
-		params.pInput = &inputs;
-		params.pInfo = &requirements;
+		NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS reqParams = {};
+		reqParams.version = NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS_VER;
+		reqParams.pInput = &clasInputs;
+		reqParams.pInfo = &requirements;
 
-		NvAPI_Status status = NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo(pDevice, &params);
+		NvAPI_Status status = NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo(pDevice, &reqParams);
 		if (status != NVAPI_OK)
 		{
 			NvAPI_ShortString szError = {0};
@@ -1343,6 +1344,50 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		DirectX::TransitionResource(pCmdList, m_ClasResultSizeBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_ClasTriangleArgsBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS) * m_MeshletCount,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasTriangleArgsBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasTriangleArgsBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC opDesc = {};
+		opDesc.inputs = clasInputs;
+		opDesc.addressResolutionFlags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
+		opDesc.batchResultData = 0;
+		opDesc.batchScratchData = m_ClasScratchBB.GetResource()->GetGPUVirtualAddress();
+		opDesc.destinationAddressArray.StartAddress = m_ClasDestinationAddressBB.GetResource()->GetGPUVirtualAddress();
+		opDesc.destinationAddressArray.StrideInBytes = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+		opDesc.resultSizeArray.StartAddress = m_ClasResultSizeBB.GetResource()->GetGPUVirtualAddress();
+		opDesc.resultSizeArray.StrideInBytes = sizeof(uint32_t);
+		opDesc.indirectArgArray.StartAddress = m_ClasTriangleArgsBB.GetResource()->GetGPUVirtualAddress();
+		opDesc.indirectArgArray.StrideInBytes = sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS);
+		opDesc.indirectArgCount = 0; // 0ÇÃèÍçáNVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS.maxArgCountÇ™égÇÌÇÍÇÈ
+
+		NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS opParams = {};
+		opParams.version = NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS_VER;
+		opParams.pDesc = &opDesc;
+
+		status = NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(pCmdList, &opParams);
+		if (status != NVAPI_OK)
+		{
+			NvAPI_ShortString szError = {0};
+			NvAPI_GetErrorMessage(status, szError);
+			ELOG("Error : NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation Failed. status = %d, error message = %s", status, szError);
+			return false;
+		}
+
+		m_ClasResultBB.BarrierUAV(pCmdList);
 	}
 
 
