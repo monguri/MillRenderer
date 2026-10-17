@@ -399,6 +399,8 @@ void MeshManager::Term()
 	m_ClasTriangleArgsBB.Term();
 	m_ClasAddressesBB.Term();
 	m_ClusterBlasArgsBB.Term();
+	m_ClusterBlasScratchBB.Term();
+	m_ClusterBlasResultBB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -1493,6 +1495,35 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		DirectX::TransitionResource(pCmdList, m_ClusterBlasArgsBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+		size_t blasScratchSize = AlignTo(blasReqs.scratchDataSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+		if (!m_ClusterBlasScratchBB.InitAsByteAddressBuffer(
+			pDevice,
+			blasScratchSize,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterBlasScratchBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClusterBlasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		size_t blasResultSize = AlignTo(blasReqs.resultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+		if (!m_ClusterBlasResultBB.InitAsAccelerationStructure(
+			pDevice,
+			blasResultSize,
+			pPoolGpuVisible,
+			L"ClusterBlasResultBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
+			return false;
+		}
 	}
 
 

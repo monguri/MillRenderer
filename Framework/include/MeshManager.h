@@ -131,6 +131,8 @@ private:
 	Resource m_ClasTriangleArgsBB;
 	Resource m_ClasAddressesBB;
 	Resource m_ClusterBlasArgsBB;
+	Resource m_ClusterBlasScratchBB;
+	Resource m_ClusterBlasResultBB;
 
 
 	MeshManager(const MeshManager&) = delete;
