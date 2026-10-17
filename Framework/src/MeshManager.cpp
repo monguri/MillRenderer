@@ -1524,6 +1524,34 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
 			return false;
 		}
+
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC blasOpDesc = {};
+		blasOpDesc.inputs = blasInputs;
+		blasOpDesc.addressResolutionFlags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
+		blasOpDesc.batchResultData = m_ClusterBlasResultBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.batchScratchData = m_ClusterBlasScratchBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.destinationAddressArray.StartAddress = 0;
+		blasOpDesc.destinationAddressArray.StrideInBytes = 0;
+		blasOpDesc.resultSizeArray.StartAddress = 0;
+		blasOpDesc.resultSizeArray.StrideInBytes = 0;
+		blasOpDesc.indirectArgArray.StartAddress = m_ClusterBlasArgsBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.indirectArgArray.StrideInBytes = sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_CLUSTER_ARGS);
+		blasOpDesc.indirectArgCount = 0;
+
+		NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS blasExeParams = {};
+		blasExeParams.version = NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS_VER;
+		blasExeParams.pDesc = &blasOpDesc;
+
+		status = NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(pCmdList, &blasExeParams);
+		if (status != NVAPI_OK)
+		{
+			NvAPI_ShortString szError = {0};
+			NvAPI_GetErrorMessage(status, szError);
+			ELOG("Error : NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation Failed. status = %d, error message = %s", status, szError);
+			return false;
+		}
+
+		m_ClusterBlasResultBB.BarrierUAV(pCmdList);
 	}
 
 
