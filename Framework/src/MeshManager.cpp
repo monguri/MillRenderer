@@ -1280,7 +1280,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			return false;
 		}
 
-		size_t clasSize = AlignTo(clasReqs.resultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+		size_t clasSize = AlignTo(clasReqs.resultDataMaxSizeInBytes, NVAPI_D3D12_RAYTRACING_CLAS_BYTE_ALIGNMENT);
 		size_t totalClasResultSize = clasSize * m_MeshletCount;
 
 		if (!m_ClasScratchBB.InitAsByteAddressBuffer(
