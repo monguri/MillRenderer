@@ -1346,7 +1346,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 		if (!m_ClasResultSizeBB.InitAsByteAddressBuffer(
 			pDevice,
-			sizeof(uint32_t) * m_MeshCount,
+			sizeof(uint32_t) * m_MeshletCount,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			nullptr,
 			nullptr,
@@ -1447,7 +1447,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			return false;
 		}
 
-		DirectX::TransitionResource(pCmdList, m_ClasAddressesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmdList, m_ClasAddressesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		// BLASÇÕëSMeshletÇÃCLASÇÇ‹Ç∆ÇﬂÇƒàÍå¬ÇµÇ©çÏÇÁÇ»Ç¢ÅBMeshÇ≤Ç∆Ç≈ÇÕÇ»Ç¢ÅB
 		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS blasInputs = {};
