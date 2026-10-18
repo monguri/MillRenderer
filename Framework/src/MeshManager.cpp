@@ -401,6 +401,8 @@ void MeshManager::Term()
 	m_ClusterBlasArgsBB.Term();
 	m_ClusterBlasScratchBB.Term();
 	m_ClusterBlasResultBB.Term();
+	m_ClusterBlasAddressesBB.Term();
+	m_ClusterBlasResultBB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -1311,7 +1313,6 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> clasDestinations(m_MeshletCount);
-
 		for (size_t meshletIdx = 0; meshletIdx < m_MeshletCount; meshletIdx++)
 		{
 			clasDestinations[meshletIdx] = m_ClasResultBB.GetResource()->GetGPUVirtualAddress() + clasSize * meshletIdx;
@@ -1525,17 +1526,49 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			return false;
 		}
 
+		if (!m_ClusterBlasAddressesBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * 1,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterBlasAddressesBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClusterBlasAddressesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_ClusterBlasResultSizeBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(uint32_t) * 1,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterBlasResultSizeBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClusterBlasResultSizeBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC blasOpDesc = {};
 		blasOpDesc.inputs = blasInputs;
 		blasOpDesc.addressResolutionFlags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
 		blasOpDesc.batchResultData = m_ClusterBlasResultBB.GetResource()->GetGPUVirtualAddress();
 		blasOpDesc.batchScratchData = m_ClusterBlasScratchBB.GetResource()->GetGPUVirtualAddress();
-		blasOpDesc.destinationAddressArray.StartAddress = 0;
-		blasOpDesc.destinationAddressArray.StrideInBytes = 0;
-		blasOpDesc.resultSizeArray.StartAddress = 0;
-		blasOpDesc.resultSizeArray.StrideInBytes = 0;
+		blasOpDesc.destinationAddressArray.StartAddress = m_ClusterBlasAddressesBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.destinationAddressArray.StrideInBytes = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+		blasOpDesc.resultSizeArray.StartAddress = m_ClusterBlasResultSizeBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.resultSizeArray.StrideInBytes = sizeof(uint32_t);
 		blasOpDesc.indirectArgArray.StartAddress = m_ClusterBlasArgsBB.GetResource()->GetGPUVirtualAddress();
-		blasOpDesc.indirectArgArray.StrideInBytes = sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_CLUSTER_ARGS);
+		blasOpDesc.indirectArgArray.StrideInBytes = sizeof(blasArgs);
 		blasOpDesc.indirectArgCount = 0;
 
 		NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS blasExeParams = {};

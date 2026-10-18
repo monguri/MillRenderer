@@ -133,6 +133,8 @@ private:
 	Resource m_ClusterBlasArgsBB;
 	Resource m_ClusterBlasScratchBB;
 	Resource m_ClusterBlasResultBB;
+	Resource m_ClusterBlasAddressesBB;
+	Resource m_ClusterBlasResultSizeBB;
 
 
 	MeshManager(const MeshManager&) = delete;
