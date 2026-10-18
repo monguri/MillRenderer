@@ -126,14 +126,14 @@ private:
 	std::vector<Resource> m_ClasIBs;
 	Resource m_ClasScratchBB;
 	Resource m_ClasResultBB;
-	Resource m_ClasDestinationAddressBB;
+	Resource m_ClasDestAddressBB;
 	Resource m_ClasResultSizeBB;
 	Resource m_ClasTriangleArgsBB;
 	Resource m_ClasAddressesBB;
 	Resource m_ClusterBlasArgsBB;
 	Resource m_ClusterBlasScratchBB;
 	Resource m_ClusterBlasResultBB;
-	Resource m_ClusterBlasAddressesBB;
+	Resource m_ClusterBlasDestAddressesBB;
 	Resource m_ClusterBlasResultSizeBB;
 
 
