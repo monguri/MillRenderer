@@ -402,7 +402,10 @@ void MeshManager::Term()
 	m_ClusterBlasScratchBB.Term();
 	m_ClusterBlasResultBB.Term();
 	m_ClusterBlasDestAddressesBB.Term();
-	m_ClusterBlasResultBB.Term();
+	m_ClusterBlasResultSizeBB.Term();
+	m_ClusterTlasScratchBB.Term();
+	m_ClusterTlasInstanceDescBB.Term();
+	m_ClusterTlasResultBB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -1587,6 +1590,108 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		m_ClusterBlasResultBB.BarrierUAV(pCmdList);
 		m_ClusterBlasDestAddressesBB.BarrierUAV(pCmdList);
 		m_ClusterBlasResultSizeBB.BarrierUAV(pCmdList);
+
+		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
+		const Matrix& identityMat = Matrix::Identity;
+		memcpy(instanceDesc.Transform, &identityMat, sizeof(instanceDesc.Transform));
+		instanceDesc.InstanceID = 0;
+		instanceDesc.InstanceMask = 0xff;
+		instanceDesc.InstanceContributionToHitGroupIndex = 0;
+		instanceDesc.AccelerationStructure =
+			m_ClusterBlasResultBB.GetResource()->GetGPUVirtualAddress();
+		instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+
+		if (!m_ClusterTlasInstanceDescBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(instanceDesc),
+			D3D12_RESOURCE_FLAG_NONE,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterTlasInstanceDescBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_ClusterTlasInstanceDescBB.UploadBufferData(
+			pDevice,
+			pCmdList,
+			sizeof(instanceDesc),
+			&instanceDesc
+		))
+		{
+			ELOG("Error : Resource::UploadBufferData() Failed.");
+			return false;
+		}
+
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS tlasInputs = {};
+		tlasInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+		tlasInputs.Flags =
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+		tlasInputs.NumDescs = 1;
+		tlasInputs.InstanceDescs =
+			m_ClusterTlasInstanceDescBB.GetResource()->GetGPUVirtualAddress();
+		tlasInputs.Type =
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO
+		tlasPrebuildInfo = {};
+
+		pDevice->GetRaytracingAccelerationStructurePrebuildInfo(
+			&tlasInputs,
+			&tlasPrebuildInfo
+		);
+
+		if (!m_ClusterTlasScratchBB.InitAsByteAddressBuffer(
+			pDevice,
+			AlignTo(tlasPrebuildInfo.ScratchDataSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT),
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterTlasScratchBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(
+			pCmdList,
+			m_ClusterTlasScratchBB.GetResource(),
+			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS
+		);
+
+		if (!m_ClusterTlasResultBB.InitAsAccelerationStructure(
+			pDevice,
+			AlignTo(tlasPrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT),
+			pPoolGpuVisible,
+			L"ClusterTlasResultBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
+			return false;
+		}
+
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC tlasDesc = {};
+
+		tlasDesc.Inputs = tlasInputs;
+		tlasDesc.DestAccelerationStructureData =
+			m_ClusterTlasResultBB.GetResource()->GetGPUVirtualAddress();
+		tlasDesc.ScratchAccelerationStructureData =
+			m_ClusterTlasScratchBB.GetResource()->GetGPUVirtualAddress();
+		tlasDesc.SourceAccelerationStructureData = 0;
+
+		pCmdList->BuildRaytracingAccelerationStructure(
+			&tlasDesc,
+			0,
+			nullptr
+		);
+
+		m_ClusterTlasResultBB.BarrierUAV(pCmdList);
 	}
 
 

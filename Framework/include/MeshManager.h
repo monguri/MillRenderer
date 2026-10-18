@@ -135,6 +135,10 @@ private:
 	Resource m_ClusterBlasResultBB;
 	Resource m_ClusterBlasDestAddressesBB;
 	Resource m_ClusterBlasResultSizeBB;
+	//TODO: TLASはCLAS不使用時と同じバッファを本来は使うが現在はテストのため別にしている
+	Resource m_ClusterTlasScratchBB;
+	Resource m_ClusterTlasInstanceDescBB;
+	Resource m_ClusterTlasResultBB;
 
 
 	MeshManager(const MeshManager&) = delete;
