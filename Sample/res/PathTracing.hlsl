@@ -1,4 +1,9 @@
 #include "Common.hlsli"
+#ifdef USE_CLAS
+#define NV_SHADER_EXTN_SLOT u1000
+#define NV_SHADER_EXTN_REGISTER_SPACE space0
+#include "../../nvapi/nvHLSLExtns.h"
+#endif
 
 //TODO: hlsl内RootSignature定義はどう書けばいいかわからないのでとりあえずやらない
 struct Camera
@@ -47,6 +52,43 @@ struct Mesh
 static const uint MAX_MESH_COUNT = 256;
 static const uint EACH_MESH_DESCRIPTOR_COUNT = 3;
 
+#ifdef USE_CLAS
+struct meshopt_Meshlet
+{
+	uint VertOffset;
+	uint TriOffset;
+	uint VertCount;
+	uint TriCount;
+};
+
+struct MeshesDescHeapIndices
+{
+	//uint CbMesh[MAX_MESH_COUNT];
+	//uint SbVertexBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletVerticesBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletTrianglesBuffer[MAX_MESH_COUNT];
+	//uint SbMeshletAABBInfosBuffer[MAX_MESH_COUNT];
+
+	//TODO: 配列変数が複数あるとメインメモリとのメモリマッピングがうまくいかないので
+	// ひとつのuint[]にまとめてインデックスは別途ゲッターを用意する
+	uint4 Indices[MAX_MESH_COUNT * EACH_MESH_DESCRIPTOR_COUNT / 4];
+};
+
+static const uint CbMeshBaseIdx = 0;
+static const uint SbVertexBufferBaseIdx = CbMeshBaseIdx  + MAX_MESH_COUNT;
+static const uint SbMeshletBufferBaseIdx = SbVertexBufferBaseIdx + MAX_MESH_COUNT;
+static const uint SbMeshletVerticesBufferBaseIdx = SbMeshletBufferBaseIdx + MAX_MESH_COUNT;
+static const uint SbMeshletTrianglesBufferBaseIdx = SbMeshletVerticesBufferBaseIdx + MAX_MESH_COUNT;
+
+struct MeshletMeshMaterial
+{
+	uint MeshIdx;
+	uint MaterialIdx;
+	uint LocalMeshletIdx;
+	uint bMasked;
+};
+#else
 struct MeshesDescHeapIndices
 {
 	//uint CbMesh[MAX_MESH_COUNT];
@@ -61,6 +103,8 @@ struct MeshesDescHeapIndices
 static const uint CbMeshBaseIdx = 0;
 static const uint SbVertexBufferBaseIdx = CbMeshBaseIdx  + MAX_MESH_COUNT;
 static const uint SbIndexBufferBaseIdx = SbVertexBufferBaseIdx + MAX_MESH_COUNT;
+#endif
+
 
 static const uint MAX_MATERIAL_COUNT = 256;
 
@@ -91,6 +135,9 @@ ConstantBuffer<Camera> CbCamera : register(b0);
 ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b1);
 ConstantBuffer<MaterialsDescHeapIndices> CbMaterialsDescHeapIndices : register(b2);
 RaytracingAccelerationStructure RtAS : register(t0);
+#ifdef USE_CLAS
+StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t1);
+#endif
 
 RWTexture2D<float4> BaseColorTarget : register(u0);
 RWTexture2D<float4> NormalTarget : register(u1);
@@ -199,7 +246,7 @@ void BaryInterpolateDeriv2(BarycentricDeriv deriv, float2 v0, float2 v1, float2 
 	ddy.y = dot(float3(v0.y, v1.y, v2.y), deriv.m_ddy);
 }
 
-uint GetMeshesDescHeapIndex(uint meshIdx)
+uint GetMeshDescHeapIndex(uint meshIdx)
 {
 	// [idx / 4][idx % 4]にあたる
 	// CBなので4つ分のインデックスをuint4で1セットにしているため
@@ -432,12 +479,42 @@ void miss(inout Payload payload)
 [shader("anyhit")]
 void anyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attrs)
 {
+#ifdef USE_CLAS
+	uint meshletIdx = NvRtGetClusterID();
+
+	MeshletMeshMaterial meshMaterial = SbMeshletMeshMaterialTable[meshletIdx];
+	uint meshIdx = meshMaterial.MeshIdx;
+	uint matIdx = meshMaterial.MaterialIdx;
+	uint localMeshletIdx = meshMaterial.LocalMeshletIdx;
+
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[GetMeshDescHeapIndex(CbMeshBaseIdx + meshIdx)];
+	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletBufferBaseIdx + meshIdx)];
+	meshopt_Meshlet meshlet = meshlets[localMeshletIdx];
+
+	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletTrianglesBufferBaseIdx + meshIdx)];
+
+	uint localTriIdx = PrimitiveIndex();
+	uint triBaseIdx = meshlet.TriOffset + localTriIdx * 3;
+	uint index0 = meshletsTriangles[triBaseIdx];
+	uint index1 = meshletsTriangles[triBaseIdx + 1];
+	uint index2 = meshletsTriangles[triBaseIdx + 2];
+
+	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletVerticesBufferBaseIdx + meshIdx)];
+	uint vertIdx0 = meshletsVertices[meshlet.VertOffset + index0];
+	uint vertIdx1 = meshletsVertices[meshlet.VertOffset + index1];
+	uint vertIdx2 = meshletsVertices[meshlet.VertOffset + index2];
+
+	StructuredBuffer<MeshVertex> SbVertexBuffer = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbVertexBufferBaseIdx + meshIdx)];
+
+	ClipSpaceTriangle origTri;
+	origTri.v0 = ConvertToVertexData(SbVertexBuffer[vertIdx0], CbMesh.World);
+	origTri.v1 = ConvertToVertexData(SbVertexBuffer[vertIdx1], CbMesh.World);
+	origTri.v2 = ConvertToVertexData(SbVertexBuffer[vertIdx2], CbMesh.World);
+#else
 	uint meshIdx = GeometryIndex();
-	StructuredBuffer<MeshVertex> VB = ResourceDescriptorHeap[GetMeshesDescHeapIndex(SbVertexBufferBaseIdx + meshIdx)];
-	StructuredBuffer<uint> IB = ResourceDescriptorHeap[GetMeshesDescHeapIndex(SbIndexBufferBaseIdx + meshIdx)];
-	ConstantBuffer<Mesh> CB = ResourceDescriptorHeap[GetMeshesDescHeapIndex(CbMeshBaseIdx + meshIdx)];
-	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetMaterialDescHeapIndex(CbMaterialBaseIdx + CB.MaterialIdx)];
-	Texture2D<float4> BaseColorMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(BaseColorMapBaseIdx + CB.MaterialIdx)];
+	StructuredBuffer<MeshVertex> VB = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbVertexBufferBaseIdx + meshIdx)];
+	StructuredBuffer<uint> IB = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbIndexBufferBaseIdx + meshIdx)];
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[GetMeshDescHeapIndex(CbMeshBaseIdx + meshIdx)];
 
 	// 
 	//TODO: closestHitと同じ処理をしているので共通化したい
@@ -448,10 +525,10 @@ void anyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr
 	uint index2 = IB[primitiveIndex * 3 + 2];
 
 	ClipSpaceTriangle origTri;
-	origTri.v0 = ConvertToVertexData(VB[index0], CB.World);
-	origTri.v1 = ConvertToVertexData(VB[index1], CB.World);
-	origTri.v2 = ConvertToVertexData(VB[index2], CB.World);
-
+	origTri.v0 = ConvertToVertexData(VB[index0], CbMesh.World);
+	origTri.v1 = ConvertToVertexData(VB[index1], CbMesh.World);
+	origTri.v2 = ConvertToVertexData(VB[index2], CbMesh.World);
+#endif
 	// Inverse ZなのでzはNear固定
 	float near = origTri.v0.Position.z;
 
@@ -511,6 +588,9 @@ void anyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr
 	float2 uv, ddx, ddy;
 	BaryInterpolateDeriv2(barycentricDeriv, hitTri.v0.TexCoord, hitTri.v1.TexCoord, hitTri.v2.TexCoord, uv, ddx, ddy);
 
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetMaterialDescHeapIndex(CbMaterialBaseIdx + CbMesh.MaterialIdx)];
+	Texture2D<float4> BaseColorMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(BaseColorMapBaseIdx + CbMesh.MaterialIdx)];
+
 	float alpha = BaseColorMap.SampleGrad(LinearWrapSmp, uv, ddx, ddy).a;
 	if (alpha < CbMaterial.AlphaCutoff)
 	{
@@ -521,16 +601,43 @@ void anyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr
 [shader("closesthit")]
 void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attrs)
 {
+#ifdef USE_CLAS
+	uint meshletIdx = NvRtGetClusterID();
+
+	MeshletMeshMaterial meshMaterial = SbMeshletMeshMaterialTable[meshletIdx];
+	uint meshIdx = meshMaterial.MeshIdx;
+	uint matIdx = meshMaterial.MaterialIdx;
+	uint localMeshletIdx = meshMaterial.LocalMeshletIdx;
+
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[GetMeshDescHeapIndex(CbMeshBaseIdx + meshIdx)];
+	StructuredBuffer<meshopt_Meshlet> meshlets = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletBufferBaseIdx + meshIdx)];
+	meshopt_Meshlet meshlet = meshlets[localMeshletIdx];
+
+	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletTrianglesBufferBaseIdx + meshIdx)];
+
+	uint localTriIdx = PrimitiveIndex();
+	uint triBaseIdx = meshlet.TriOffset + localTriIdx * 3;
+	uint index0 = meshletsTriangles[triBaseIdx];
+	uint index1 = meshletsTriangles[triBaseIdx + 1];
+	uint index2 = meshletsTriangles[triBaseIdx + 2];
+
+	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletVerticesBufferBaseIdx + meshIdx)];
+	uint vertIdx0 = meshletsVertices[meshlet.VertOffset + index0];
+	uint vertIdx1 = meshletsVertices[meshlet.VertOffset + index1];
+	uint vertIdx2 = meshletsVertices[meshlet.VertOffset + index2];
+
+	StructuredBuffer<MeshVertex> SbVertexBuffer = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbVertexBufferBaseIdx + meshIdx)];
+
+	ClipSpaceTriangle origTri;
+	origTri.v0 = ConvertToVertexData(SbVertexBuffer[vertIdx0], CbMesh.World);
+	origTri.v1 = ConvertToVertexData(SbVertexBuffer[vertIdx1], CbMesh.World);
+	origTri.v2 = ConvertToVertexData(SbVertexBuffer[vertIdx2], CbMesh.World);
+#else
 	// GBuffer描画に必要なリソースを取得
 	uint meshIdx = GeometryIndex();
-	StructuredBuffer<MeshVertex> VB = ResourceDescriptorHeap[GetMeshesDescHeapIndex(SbVertexBufferBaseIdx + meshIdx)];
-	StructuredBuffer<uint> IB = ResourceDescriptorHeap[GetMeshesDescHeapIndex(SbIndexBufferBaseIdx + meshIdx)];
-	ConstantBuffer<Mesh> CB = ResourceDescriptorHeap[GetMeshesDescHeapIndex(CbMeshBaseIdx + meshIdx)];
-	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetMaterialDescHeapIndex(CbMaterialBaseIdx + CB.MaterialIdx)];
-	Texture2D<float4> BaseColorMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(BaseColorMapBaseIdx + CB.MaterialIdx)];
-	Texture2D<float4> MetallicRoughnessMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(MetallicRoughnessMapBaseIdx + CB.MaterialIdx)];
-	Texture2D<float4> NormalMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(NormalMapBaseIdx + CB.MaterialIdx)];
-	Texture2D<float4> EmissiveMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(EmissiveMapBaseIdx + CB.MaterialIdx)];
+	StructuredBuffer<MeshVertex> VB = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbVertexBufferBaseIdx + meshIdx)];
+	StructuredBuffer<uint> IB = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbIndexBufferBaseIdx + meshIdx)];
+	ConstantBuffer<Mesh> CbMesh = ResourceDescriptorHeap[GetMeshDescHeapIndex(CbMeshBaseIdx + meshIdx)];
 
 	uint primitiveIndex = PrimitiveIndex();
 	uint index0 = IB[primitiveIndex * 3 + 0];
@@ -538,9 +645,10 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	uint index2 = IB[primitiveIndex * 3 + 2];
 
 	ClipSpaceTriangle origTri;
-	origTri.v0 = ConvertToVertexData(VB[index0], CB.World);
-	origTri.v1 = ConvertToVertexData(VB[index1], CB.World);
-	origTri.v2 = ConvertToVertexData(VB[index2], CB.World);
+	origTri.v0 = ConvertToVertexData(VB[index0], CbMesh.World);
+	origTri.v1 = ConvertToVertexData(VB[index1], CbMesh.World);
+	origTri.v2 = ConvertToVertexData(VB[index2], CbMesh.World);
+#endif
 
 	// Inverse ZなのでzはNear固定
 	float near = origTri.v0.Position.z;
@@ -601,6 +709,12 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	float2 uv, duvdx, duvdy;
 	BaryInterpolateDeriv2(barycentricDeriv, hitTri.v0.TexCoord, hitTri.v1.TexCoord, hitTri.v2.TexCoord, uv, duvdx, duvdy);
 
+	ConstantBuffer<Material> CbMaterial = ResourceDescriptorHeap[GetMaterialDescHeapIndex(CbMaterialBaseIdx + CbMesh.MaterialIdx)];
+	Texture2D<float4> BaseColorMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(BaseColorMapBaseIdx + CbMesh.MaterialIdx)];
+	Texture2D<float4> MetallicRoughnessMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(MetallicRoughnessMapBaseIdx + CbMesh.MaterialIdx)];
+	Texture2D<float4> NormalMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(NormalMapBaseIdx + CbMesh.MaterialIdx)];
+	Texture2D<float4> EmissiveMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(EmissiveMapBaseIdx + CbMesh.MaterialIdx)];
+
 	payload.color = BaseColorMap.SampleGrad(LinearWrapSmp, uv, duvdx, duvdy).rgb;
 	payload.color *= CbMaterial.BaseColorFactor;
 
@@ -608,11 +722,11 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	payload.metallicRoughness *= float2(CbMaterial.MetallicFactor, CbMaterial.RoughnessFactor);
 
 	float3 normal = Baryinterpolate3(barycentricDeriv, hitTri.v0.Normal, hitTri.v1.Normal, hitTri.v2.Normal);
-	normal = mul((float3x3)CB.World, normal);
+	normal = mul((float3x3)CbMesh.World, normal);
 
 
 	float3 tangent = Baryinterpolate3(barycentricDeriv, hitTri.v0.Tangent, hitTri.v1.Tangent, hitTri.v2.Tangent);
-	tangent = mul((float3x3)CB.World, tangent);
+	tangent = mul((float3x3)CbMesh.World, tangent);
 
 	float3 bitangent = normalize(cross(normal, tangent));
 	float3x3 invTangentBasis = transpose(float3x3(tangent, bitangent, normal));
