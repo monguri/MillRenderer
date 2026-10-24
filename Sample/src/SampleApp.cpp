@@ -5802,7 +5802,6 @@ bool SampleApp::OnInit(HWND hWnd)
 				compileArgs.push_back(L"-D USE_CLAS");
 			}
 
-			ComPtr<IDxcBlob> pLSBlob;
 			if (!m_ShaderCompiler.Compile(lsPath.c_str(), compileArgs, pLSBlob))
 			{
 				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", lsPath.c_str());
