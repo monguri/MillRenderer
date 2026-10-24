@@ -5764,7 +5764,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 		// DXIL LibraryのSubObjectを作成
 		D3D12_DXIL_LIBRARY_DESC dxilLibDesc;
-		ComPtr<ID3DBlob> pLSBlob;
+		ComPtr<IDxcBlob> pLSBlob;
 		{
 			D3D12_EXPORT_DESC exportDescs[4];
 			exportDescs[0].Name = RAY_GEN_SHADER_ENTRY_NAME;
