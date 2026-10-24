@@ -806,9 +806,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			rtGeomDescs.emplace_back(geomDesc);
 		}
 
-		//TODO:テスト用にRTASモードでも処理を通す
-		//if (createCLAS)
-		if (createCLAS || createRTAS)
+		if (createCLAS)
 		{
 			std::vector<uint32_t> clasIndices;
 			std::vector<ClasIndexRange> clasIndexRange;
@@ -1261,9 +1259,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 	}
 
-	//TODO: テストのためにRTASのときも通す
-	//if (createCLAS)
-	if (createCLAS || createRTAS)
+	if (createCLAS)
 	{
 		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS clasInputs = {};
 		clasInputs.maxArgCount = static_cast<NvU32>(m_MeshletCount);
