@@ -5781,16 +5781,31 @@ bool SampleApp::OnInit(HWND hWnd)
 			exportDescs[3].Flags = D3D12_EXPORT_FLAG_NONE;
 
 			std::wstring lsPath;
-			if (!SearchFilePath(L"PathTracing.cso", lsPath))
+			if (!SearchFilePath(L"PathTracing.hlsl", lsPath))
 			{
-				ELOG("Error : Compute Shader Not Found");
+				ELOG("Error : Library Shader Not Found");
 				return false;
 			}
 
-			HRESULT hr = D3DReadFileToBlob(lsPath.c_str(), pLSBlob.GetAddressOf());
-			if (FAILED(hr))
+			std::vector<const wchar_t*> compileArgs =
 			{
-				ELOG("Error : D3DReadFileToBlob Failed. path = %ls", lsPath.c_str());
+				L"-T lib_6_7",
+				L"-I", L"../res",
+	#if defined(DEBUG) || defined(_DEBUG)
+				L"-Zi",
+				L"-Qembed_debug",
+				L"-Od"
+	#endif
+			};
+			if (m_useCLAS)
+			{
+				compileArgs.push_back(L"-D USE_CLAS");
+			}
+
+			ComPtr<IDxcBlob> pLSBlob;
+			if (!m_ShaderCompiler.Compile(lsPath.c_str(), compileArgs, pLSBlob))
+			{
+				ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", lsPath.c_str());
 				return false;
 			}
 
