@@ -6183,12 +6183,20 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			// HitGroupのShader Tableを作成
 			{
-				uint32_t meshCount = static_cast<uint32_t>(m_MeshManager.GetMeshCount());
+				uint32_t shaderRecordCount = 0;
+				if (m_useCLAS)
+				{
+					shaderRecordCount = static_cast<uint32_t>(m_MeshManager.GetMeshletCount());
+				}
+				else
+				{
+					shaderRecordCount = static_cast<uint32_t>(m_MeshManager.GetMeshCount());
+				}
 
 				m_HitGroupShaderRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 				m_HitGroupShaderRecordSize = AlignTo(m_HitGroupShaderRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 
-				size_t shaderTableSize = m_HitGroupShaderRecordSize * meshCount;
+				size_t shaderTableSize = m_HitGroupShaderRecordSize * shaderRecordCount;
 				shaderTableSize = AlignTo(shaderTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
 
 				std::vector<uint8_t> shaderTblData(shaderTableSize);
@@ -6196,9 +6204,9 @@ bool SampleApp::OnInit(HWND hWnd)
 
 				void* pShaderId = pStateObjProps->GetShaderIdentifier(HIT_GROUP_NAME);
 
-				for (uint32_t meshIdx = 0; meshIdx < meshCount; meshIdx++)
+				for (uint32_t recordIdx = 0; recordIdx < shaderRecordCount; recordIdx++)
 				{
-					uint8_t* pDest = shaderTblData.data() + meshIdx * m_HitGroupShaderRecordSize;
+					uint8_t* pDest = shaderTblData.data() + recordIdx * m_HitGroupShaderRecordSize;
 
 					size_t copySize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 					memcpy(pDest, pShaderId, copySize);
