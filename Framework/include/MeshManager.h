@@ -125,7 +125,7 @@ private:
 	Resource m_TlasResultBB;
 
 	// CLAS—p
-	std::vector<Resource> m_ClasIBs;
+	std::vector<Resource> m_ClasVBs;
 	Resource m_ClasScratchBB;
 	Resource m_ClasResultBB;
 	Resource m_ClasDestAddressBB;
