@@ -49,7 +49,6 @@ struct Mesh
 
 // C++側の定義と値の一致が必要
 static const uint MAX_MESH_COUNT = 256;
-static const uint EACH_MESH_DESCRIPTOR_COUNT = 3;
 
 #ifdef USE_CLAS
 struct meshopt_Meshlet
@@ -59,6 +58,8 @@ struct meshopt_Meshlet
 	uint VertCount;
 	uint TriCount;
 };
+
+static const uint EACH_MESH_DESCRIPTOR_COUNT = 6;
 
 struct MeshesDescHeapIndices
 {
@@ -88,6 +89,8 @@ struct MeshletMeshMaterial
 	uint bMasked;
 };
 #else
+static const uint EACH_MESH_DESCRIPTOR_COUNT = 3;
+
 struct MeshesDescHeapIndices
 {
 	//uint CbMesh[MAX_MESH_COUNT];
