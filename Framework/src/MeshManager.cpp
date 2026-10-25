@@ -57,6 +57,28 @@ namespace
 		uint32_t AOMap[MAX_MATERIAL_COUNT];
 	};
 
+	// nvHLSLExtnsInternal.hÇÃNvShaderExtnStructÇ∆ëŒâûÇ≥ÇπÇƒÇ¢ÇÈ
+	struct NvShaderExtnStruct
+	{
+		uint32_t   opcode;                  // opcode
+		uint32_t   rid;                     // resource ID
+		uint32_t   sid;                     // sampler ID
+				
+		uint32_t  dst1u[4];                   // destination operand 1 (for instructions that need extra destination operands)
+		uint32_t  src3u[4];                   // source operand 3
+		uint32_t  src4u[4];                   // source operand 4
+		uint32_t  src5u[4];                   // source operand 5
+				
+		uint32_t  src0u[4];                   // uint source operand  0
+		uint32_t  src1u[4];                   // uint source operand  0
+		uint32_t  src2u[4];                   // uint source operand  0
+		uint32_t  dst0u[4];                   // uint destination operand
+				
+		uint32_t   markUavRef;              // the next store to UAV is fake and is used only to identify the uav slot
+		uint32_t   numOutputsForIncCounter; // Used for output to IncrementCounter 
+		float  padding1[27];            // struct size: 256 bytes
+	};
+
 	// DirectXTK12ÅAGeometry.cpp/hÇÃDirectX::ComputeBoxÇéQçlÇ…ÇµÇƒÇ¢ÇÈ
 	void CreateUnitCubeMesh(std::vector<struct Vector3>& outVertices, std::vector<uint32_t>& outIndices)
 	{
@@ -406,6 +428,7 @@ void MeshManager::Term()
 	m_ClusterTlasScratchBB.Term();
 	m_ClusterTlasInstanceDescBB.Term();
 	m_ClusterTlasResultBB.Term();
+	m_NvShaderExtnSB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -1688,6 +1711,19 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		);
 
 		m_ClusterTlasResultBB.BarrierUAV(pCmdList);
+
+		if (!m_NvShaderExtnSB.InitAsStructuredBuffer<NvShaderExtnStruct>(
+			pDevice,
+			1,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			pPoolGpuVisible,
+			pPoolGpuVisible,
+			L"NvShaderExtnSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
 	}
 
 
@@ -1943,6 +1979,16 @@ const ComPtr<ID3D12CommandSignature>& MeshManager::GetSWRasCmdSig() const
 const Resource& MeshManager::GetAccelerationStructure() const
 {
 	return m_TlasResultBB;
+}
+
+const Resource& MeshManager::GetNvShaderExtnSB() const
+{
+	return m_NvShaderExtnSB;
+}
+
+const Resource& MeshManager::GetClusterAccelerationStructure() const
+{
+	return m_ClusterTlasResultBB;
 }
 
 size_t MeshManager::GetMeshCount() const

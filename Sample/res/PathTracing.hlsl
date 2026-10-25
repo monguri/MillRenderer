@@ -1,7 +1,6 @@
 #include "Common.hlsli"
 #ifdef USE_CLAS
-#define NV_SHADER_EXTN_SLOT u1000
-#define NV_SHADER_EXTN_REGISTER_SPACE space0
+#define NV_SHADER_EXTN_SLOT u10
 #include "../../nvapi/nvHLSLExtns.h"
 #endif
 

@@ -50,6 +50,8 @@ public:
 	const ComPtr<ID3D12CommandSignature>& GetSWRasCmdSig() const;
 
 	const Resource& GetAccelerationStructure() const;
+	const Resource& GetNvShaderExtnSB() const;
+	const Resource& GetClusterAccelerationStructure() const;
 
 	// •`‰æ‘ÎÛ‚Æ‚µ‚Ä—LŒø‚ÈResMesh‚Ì”
 	size_t GetMeshCount() const;
@@ -139,7 +141,7 @@ private:
 	Resource m_ClusterTlasScratchBB;
 	Resource m_ClusterTlasInstanceDescBB;
 	Resource m_ClusterTlasResultBB;
-
+	Resource m_NvShaderExtnSB;
 
 	MeshManager(const MeshManager&) = delete;
 	void operator=(const MeshManager&) = delete;

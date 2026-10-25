@@ -6048,7 +6048,8 @@ bool SampleApp::OnInit(HWND hWnd)
 				.AddSRV(ShaderStage::ALL, 0);
 			if (m_useCLAS)
 			{
-				desc.AddSRV(ShaderStage::ALL, 1);
+				desc.AddSRV(ShaderStage::ALL, 1)
+					.AddUAV(ShaderStage::ALL, 10);
 			}
 			desc.HeapDirectlyIndexed()
 				.End();
@@ -8884,10 +8885,15 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 		pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesForPathTracingCB().GetHandleCBV()->HandleGPU);
 	}
 	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 	if (m_useCLAS)
 	{
+		pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetClusterAccelerationStructure().GetHandleSRV()->HandleGPU);
 		pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetNvShaderExtnSB().GetHandleSRV()->HandleGPU);
+	}
+	else
+	{
+		pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
 	}
 
 	pCmdList->DispatchRays(&dispatchDesc);
