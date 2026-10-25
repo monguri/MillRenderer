@@ -6067,6 +6067,23 @@ bool SampleApp::OnInit(HWND hWnd)
 			subObjects.emplace_back(subObj);
 		}
 
+		if (m_useCLAS)
+		{
+			assert(ShouldUseNvAPI());
+
+            NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
+            params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
+            params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT;
+            NvAPI_Status status = NvAPI_D3D12_SetCreatePipelineStateOptions(m_pDevice.Get(), &params);
+			if (status != NVAPI_OK)
+			{
+				NvAPI_ShortString szError = {0};
+				NvAPI_GetErrorMessage(status, szError);
+				ELOG("Error : NvAPI_Initialize() Failed. status = %d, error message = %s", status, szError);
+				return false;
+			}
+		}
+
 		// RTPipelineのState Object作成
 		{
 			D3D12_STATE_OBJECT_DESC desc;
