@@ -6040,14 +6040,17 @@ bool SampleApp::OnInit(HWND hWnd)
 		// Global Root SignatureのSubObjectを作成
 		ID3D12RootSignature* pGlobalRootSig = nullptr;
 		{
-#if 1 // RootSignatureのDescriptorTable方式でTdrが起きてるのかもしれないのでTLASをルートデスクリプタ方式にしてみる
 			RootSignature::Desc desc;
 			desc.Begin()
 				.AddCBV(ShaderStage::ALL, 0)
 				.AddCBV(ShaderStage::ALL, 1)
 				.AddCBV(ShaderStage::ALL, 2)
-				.AddSRV(ShaderStage::ALL, 0)
-				.HeapDirectlyIndexed()
+				.AddSRV(ShaderStage::ALL, 0);
+			if (m_useCLAS)
+			{
+				desc.AddSRV(ShaderStage::ALL, 1);
+			}
+			desc.HeapDirectlyIndexed()
 				.End();
 
 			if (!m_GlobalRootSig.Init(m_pDevice.Get(), desc.GetDesc()))
@@ -6055,37 +6058,6 @@ bool SampleApp::OnInit(HWND hWnd)
 				ELOG("Error : RootSignature::Init() Failed");
 				return false;
 			}
-#else
-			D3D12_DESCRIPTOR_RANGE range[1] = {};
-			range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-			range[0].NumDescriptors = 1;
-			range[0].BaseShaderRegister = 0;
-			range[0].RegisterSpace = 0;
-			range[0].OffsetInDescriptorsFromTableStart = 0;
-
-			D3D12_ROOT_PARAMETER param[2] = {};
-			param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-			param[0].Descriptor.ShaderRegister = 0;
-			param[0].Descriptor.RegisterSpace = 0;
-			param[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-			// ディスクリプタテーブル方式にしないとTexture2Dのようなtyped-UAVが使えない
-			param[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			param[1].DescriptorTable.NumDescriptorRanges = 1;
-			param[1].DescriptorTable.pDescriptorRanges = &range[0];
-			param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-			D3D12_ROOT_SIGNATURE_DESC desc = {};
-			desc.NumParameters = _countof(param);
-			desc.pParameters = param;
-			desc.NumStaticSamplers = 0;
-			desc.pStaticSamplers = nullptr;
-
-			if (!m_GlobalRootSig.Init(m_pDevice.Get(), &desc))
-			{
-				ELOG("Error : RootSignature::Init() Failed");
-				return false;
-			}
-#endif
 
 			D3D12_STATE_SUBOBJECT subObj;
 			subObj.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
@@ -8903,9 +8875,20 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesForPathTracingCB().GetHandleCBV()->HandleGPU);
+	if (m_useCLAS)
+	{
+		pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
+	}
+	else
+	{
+		pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesForPathTracingCB().GetHandleCBV()->HandleGPU);
+	}
 	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetAccelerationStructure().GetHandleSRV()->HandleGPU);
+	if (m_useCLAS)
+	{
+		pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+	}
 
 	pCmdList->DispatchRays(&dispatchDesc);
 
