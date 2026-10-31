@@ -617,11 +617,11 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
 	StructuredBuffer<uint> meshletsTriangles = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletTrianglesBufferBaseIdx + meshIdx)];
 
-	uint localTriIdx = PrimitiveIndex();
-	uint triBaseIdx = meshlet.TriOffset + localTriIdx * 3;
-	uint index0 = meshletsTriangles[triBaseIdx];
-	uint index1 = meshletsTriangles[triBaseIdx + 1];
-	uint index2 = meshletsTriangles[triBaseIdx + 2];
+	uint primitiveIndex = PrimitiveIndex();
+	uint triIdx = meshlet.TriOffset + primitiveIndex * 3;
+	uint index0 = meshletsTriangles[triIdx];
+	uint index1 = meshletsTriangles[triIdx + 1];
+	uint index2 = meshletsTriangles[triIdx + 2];
 
 	StructuredBuffer<uint> meshletsVertices = ResourceDescriptorHeap[GetMeshDescHeapIndex(SbMeshletVerticesBufferBaseIdx + meshIdx)];
 	uint vertIdx0 = meshletsVertices[meshlet.VertOffset + index0];
@@ -717,7 +717,41 @@ void closestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 	Texture2D<float4> NormalMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(NormalMapBaseIdx + CbMesh.MaterialIdx)];
 	Texture2D<float4> EmissiveMap = ResourceDescriptorHeap[GetMaterialDescHeapIndex(EmissiveMapBaseIdx + CbMesh.MaterialIdx)];
 
-	payload.color = BaseColorMap.SampleGrad(LinearWrapSmp, uv, duvdx, duvdy).rgb;
+	switch (CbCamera.DebugViewType)
+	{
+		case DEBUG_VIEW_TYPE_NONE:
+		default:
+			payload.color = BaseColorMap.SampleGrad(LinearWrapSmp, uv, duvdx, duvdy).rgb;
+			break;
+		case DEBUG_VIEW_TYPE_TRIANGLE_INDEX:
+		{
+			payload.color = float3
+			(
+				float((primitiveIndex & 1) + 1) * 0.5f, // (primitiveID % 2 + 1) / 2.0
+				float((primitiveIndex & 3) + 1) * 0.25f, // (primitiveID % 4 + 1) / 4.0
+				float((primitiveIndex & 7) + 1) * 0.125f // (primitiveID % 8 + 1) / 8.0
+			);
+		}
+			break;
+#ifdef USE_CLAS
+		case DEBUG_VIEW_TYPE_MESHLET_INDEX:
+		{
+			payload.color = float3
+			(
+				float((meshletIdx & 1) + 1) * 0.5f, // (meshletIdx % 2 + 1) / 2.0
+				float((meshletIdx & 3) + 1) * 0.25f, // (meshletIdx % 4 + 1) / 4.0
+				float((meshletIdx & 7) + 1) * 0.125f // (meshletIdx % 8 + 1) / 8.0
+			);
+		}
+			break;
+#endif
+		case DEBUG_VIEW_TYPE_TEXCOORD:
+		{
+			payload.color = float3(uv, 0);
+		}
+			break;
+	}
+
 	payload.color *= CbMaterial.BaseColorFactor;
 
 	payload.metallicRoughness = MetallicRoughnessMap.SampleGrad(LinearWrapSmp, uv, duvdx, duvdy).bg;

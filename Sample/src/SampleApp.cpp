@@ -6922,12 +6922,18 @@ void SampleApp::OnRender()
 			using enum DEBUG_VIEW_MODE;
 			case TRIANGLE_INDEX:
 			case MESHLET_INDEX:
-				DrawDebugVBuffer(pCmd);
+				if (!m_useCLAS)
+				{
+					DrawDebugVBuffer(pCmd);
+				}
 				break;
 			case MESHLET_AABB:
 				// AABBのときはMeshletIdxも同時に表示する
-				DrawDebugVBuffer(pCmd);
-				DrawMeshletAABB(pCmd);
+				if (!m_useCLAS)
+				{
+					DrawDebugVBuffer(pCmd);
+					DrawMeshletAABB(pCmd);
+				}
 				break;
 			case NONE:
 			case DEPTH:
@@ -8660,7 +8666,7 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawDebugVBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
-	assert(m_useMeshlet);
+	assert(m_useMeshlet && !m_useCLAS);
 	assert(
 		(m_debugViewMode == DEBUG_VIEW_MODE::TRIANGLE_INDEX)
 		|| (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_INDEX)
@@ -8938,6 +8944,15 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
 		case MESHLET_INDEX:
+			if (m_useMeshlet)
+			{
+				renderTargetName = L"Final Result";
+			}
+			else
+			{
+				renderTargetName = L"GBufferBaseColor";
+			}
+			break;
 		case MESHLET_AABB:
 			renderTargetName = L"Final Result";
 			break;
@@ -9047,9 +9062,6 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 	{
 		using enum DEBUG_VIEW_MODE;
 		case NONE:
-			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
-			break;
-		case MESHLET_INDEX:
 		case MESHLET_AABB:
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			break;
@@ -9082,13 +9094,23 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case TRIANGLE_INDEX:
-			if (m_useMeshlet)
+			if (m_useMeshlet && !m_useCLAS)
 			{
 				pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			}
 			else
 			{
 				pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferBaseColorTarget.GetHandleSRV()->HandleGPU);
+			}
+			break;
+		case MESHLET_INDEX:
+			if (m_useCLAS)
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferBaseColorTarget.GetHandleSRV()->HandleGPU);
+			}
+			else
+			{
+				pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			}
 			break;
 		default:
@@ -9169,7 +9191,10 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		if (m_useMeshlet)
 		{
 			ImGui::RadioButton("Meshlet Index", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_INDEX));
-			ImGui::RadioButton("Meshlet AABB", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_AABB));
+			if (!m_useCLAS)
+			{
+				ImGui::RadioButton("Meshlet AABB", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_AABB));
+			}
 		}
 		ImGui::SliderFloat("Debug View Contrast", &m_debugViewContrast, 0.01f, 100.0f, "%f", ImGuiSliderFlags_Logarithmic);
 	}
