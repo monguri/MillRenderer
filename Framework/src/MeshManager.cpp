@@ -845,7 +845,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			clasTriangleArgs.reserve(clasTriangleArgs.size() + localMeshletCount);
 			for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
 			{
-				NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS args = CreateClasTriangleArgs
+				const NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS& args = CreateClasTriangleArgs
 				(
 					resMesh.Meshlets[localMeshletIdx],
 					m_ClasVBs[validMeshIdx].GetResource()->GetGPUVirtualAddress(),
