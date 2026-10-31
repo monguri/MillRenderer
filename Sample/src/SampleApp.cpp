@@ -8976,7 +8976,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			}
 			else
 			{
-				renderTargetName = L"SceneColor";
+				renderTargetName = L"GBufferBaseColor";
 			}
 			break;
 		default:
@@ -9088,7 +9088,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			}
 			else
 			{
-				pCmdList->SetGraphicsRootDescriptorTable(1, m_SceneColorTarget.GetHandleSRV()->HandleGPU);
+				pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferBaseColorTarget.GetHandleSRV()->HandleGPU);
 			}
 			break;
 		default:
