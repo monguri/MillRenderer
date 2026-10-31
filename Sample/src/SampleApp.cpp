@@ -8920,7 +8920,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	{
 		pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetClusterAccelerationStructure().GetHandleSRV()->HandleGPU);
 		pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-		pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetNvShaderExtnSB().GetHandleSRV()->HandleGPU);
+		pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetNvShaderExtnSB().GetHandleUAV()->HandleGPU);
 	}
 	else
 	{
