@@ -5789,7 +5789,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			std::vector<const wchar_t*> compileArgs =
 			{
-				L"-T lib_6_8", //TODO: 6_9以降にするとRTASモードでもCreateStateObjectがエラーとなる
+				L"-T lib_6_10",
 				L"-I", L"../res",
 	#if defined(DEBUG) || defined(_DEBUG)
 				L"-Zi",
