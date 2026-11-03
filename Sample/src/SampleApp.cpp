@@ -829,6 +829,12 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 			m_usePathTracing = true;
 			m_useMeshlet = true;
 		}
+		else if (_wcsicmp(argv[a], L"--dxrclas") == 0)
+		{
+			m_useDxrCLAS = true;
+			m_usePathTracing = true;
+			m_useMeshlet = true;
+		}
 	}
 }
 
@@ -1283,8 +1289,9 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 			m_DummyTexture,
-			m_usePathTracing && !m_useNvCLAS,
-			m_useNvCLAS
+			m_usePathTracing && !m_useNvCLAS && !m_useDxrCLAS,
+			m_useNvCLAS,
+			m_useDxrCLAS
 		))
 		{
 			ELOG("Error : MeshManager::Update() failed.");
@@ -9570,7 +9577,7 @@ bool SampleApp::OnMsgProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 
 bool SampleApp::IsEnableTemporalAA() const
 {
-	return m_enableTemporalAA && !m_usePathTracing;
+	return m_enableTemporalAA && !m_usePathTracing && !m_useNvCLAS && !m_useDxrCLAS;
 }
 
 bool SampleApp::ShouldUseNvAPI() const

@@ -28,7 +28,8 @@ public:
 		class DescriptorPool* pPoolCpuVisible,
 		const class Texture& dummyTexture,
 		bool createRTAS,
-		bool createNvCLAS
+		bool createNvCLAS,
+		bool createDxrCLAS
 	);
 
 	bool SetMovableWorldMatrix(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& worldMat);

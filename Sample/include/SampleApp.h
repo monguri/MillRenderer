@@ -45,6 +45,8 @@ private:
 	bool m_usePathTracing = false;
 	// ASにNVAPI CLASを使用するかどうか
 	bool m_useNvCLAS = false;
+	// ASにDXR CLASを使用するかどうか
+	bool m_useDxrCLAS = false;
 
 	ShaderCompiler m_ShaderCompiler;
 	Texture m_DummyTexture;

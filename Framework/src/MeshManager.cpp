@@ -462,7 +462,7 @@ bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worl
 	return true;
 }
 
-bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createRTAS, bool createNvCLAS)
+bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createRTAS, bool createNvCLAS, bool createDxrCLAS)
 {
 	assert(pDevice != nullptr);
 	assert(pQueue != nullptr);
