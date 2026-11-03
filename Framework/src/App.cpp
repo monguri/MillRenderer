@@ -4,6 +4,21 @@
 #include <algorithm>
 #include <pix3.h>
 
+//AgilitySDKのNuGetパッケージを使う場合は、D3D12SDKVersionとD3D12SDKPathをエクスポートするのでこちらは不要
+#pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "d3dcompiler.lib")
+#if defined(DEBUG) || defined(_DEBUG)
+#pragma comment(lib, "assimp-vc142-mtd.lib")
+#else
+#pragma comment(lib, "assimp-vc142-mt.lib")
+#endif
+
+// The NuGet package copies the matching preview runtime into D3D12\.
+extern "C" { __declspec(dllexport) extern const UINT  D3D12SDKVersion = D3D12_PREVIEW_SDK_VERSION; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\"; }
+
 namespace
 {
 	const auto WindowClassName = TEXT("SampleWindowClass");
@@ -188,6 +203,21 @@ bool App::InitD3D()
 	// Create dxgi factory.
 	{
 		HRESULT hr = CreateDXGIFactory2(0, IID_PPV_ARGS(m_pFactory.GetAddressOf()));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+	}
+
+	// Check experimental features support.
+	{
+		UUID experimentalFeatures[] =
+		{
+			D3D12ExperimentalShaderModels,
+			D3D12RaytracingPreview,
+		};
+
+		HRESULT hr = D3D12EnableExperimentalFeatures(_countof(experimentalFeatures), experimentalFeatures, nullptr, nullptr);
 		if (FAILED(hr))
 		{
 			return false;
@@ -434,7 +464,7 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 		// Create device. 12.0 is needed for ray tracing.
 		HRESULT hr = D3D12CreateDevice(
 			pAdapter.Get(),
-			D3D_FEATURE_LEVEL_12_0,
+			D3D_FEATURE_LEVEL_12_2,
 			IID_PPV_ARGS(m_pDevice.GetAddressOf())
 		);
 		if (FAILED(hr))

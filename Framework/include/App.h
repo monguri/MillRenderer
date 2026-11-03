@@ -12,16 +12,6 @@
 #include "CommandList.h"
 #include "Fence.h"
 
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "dxguid.lib")
-#pragma comment(lib, "d3dcompiler.lib")
-#if defined(DEBUG) || defined(_DEBUG)
-#pragma comment(lib, "assimp-vc142-mtd.lib")
-#else
-#pragma comment(lib, "assimp-vc142-mt.lib")
-#endif
-
 class App
 {
 public:
@@ -55,7 +45,7 @@ protected:
 	uint32_t m_Height;
 
 	ComPtr<IDXGIFactory4> m_pFactory;
-	ComPtr<ID3D12Device5> m_pDevice;
+	ComPtr<ID3D12Device16> m_pDevice;
 	ComPtr<ID3D12CommandQueue> m_pQueue;
 	ComPtr<IDXGISwapChain4> m_pSwapChain;
 	DescriptorPool* m_pPool[POOL_COUNT];
