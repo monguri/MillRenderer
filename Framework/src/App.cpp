@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <pix3.h>
 
-//AgilitySDKのNuGetパッケージを使う場合は、D3D12SDKVersionとD3D12SDKPathをエクスポートするのでこちらは不要
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
