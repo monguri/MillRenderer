@@ -793,39 +793,39 @@ SampleApp::SampleApp(int argc, wchar_t** argv, uint32_t width, uint32_t height)
 {
 	for (int a = 0; a < argc; a++)
 	{
-		if (wcscmp(argv[a], L"--debuglayer") == 0)
+		if (_wcsicmp(argv[a], L"--debuglayer") == 0)
 		{
 			m_enableDebugLayer = true;
 		}
-		if (wcscmp(argv[a], L"--gpuvalidation") == 0)
+		if (_wcsicmp(argv[a], L"--gpuvalidation") == 0)
 		{
 			m_enableGpuBaseValidation = true;
 		}
-		if (wcscmp(argv[a], L"--IBL") == 0)
+		if (_wcsicmp(argv[a], L"--ibl") == 0)
 		{
 			m_drawSponza = false;
 		}
-		else if (wcscmp(argv[a], L"--meshlet") == 0)
+		else if (_wcsicmp(argv[a], L"--meshlet") == 0)
 		{
 			m_useMeshlet = true;
 		}
-		else if (wcscmp(argv[a], L"--metis") == 0)
+		else if (_wcsicmp(argv[a], L"--metis") == 0)
 		{
 			m_useMetis = true;
 		}
-		else if (wcscmp(argv[a], L"--swrasterizer") == 0)
+		else if (_wcsicmp(argv[a], L"--swrasterizer") == 0)
 		{
 			m_useSWRasterizer = true;
 			m_useMeshlet = true;
 		}
-		else if (wcscmp(argv[a], L"--pathtracing") == 0)
+		else if (_wcsicmp(argv[a], L"--pathtracing") == 0)
 		{
 			m_usePathTracing = true;
 			m_useMeshlet = true;
 		}
-		else if (wcscmp(argv[a], L"--clas") == 0)
+		else if (_wcsicmp(argv[a], L"--nvclas") == 0)
 		{
-			m_useCLAS = true;
+			m_useNvCLAS = true;
 			m_usePathTracing = true;
 			m_useMeshlet = true;
 		}
@@ -1283,8 +1283,8 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 			m_DummyTexture,
-			m_usePathTracing && !m_useCLAS,
-			m_useCLAS
+			m_usePathTracing && !m_useNvCLAS,
+			m_useNvCLAS
 		))
 		{
 			ELOG("Error : MeshManager::Update() failed.");
@@ -5789,7 +5789,7 @@ bool SampleApp::OnInit(HWND hWnd)
 
 			std::vector<const wchar_t*> compileArgs =
 			{
-				L"-T lib_6_10",
+				L"-T lib_6_10", // CLAS対応のためここだけSM6.10にする
 				L"-I", L"../res",
 	#if defined(DEBUG) || defined(_DEBUG)
 				L"-Zi",
@@ -5797,7 +5797,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				L"-Od"
 	#endif
 			};
-			if (m_useCLAS)
+			if (m_useNvCLAS)
 			{
 				compileArgs.push_back(L"-D USE_CLAS");
 			}
@@ -6046,7 +6046,7 @@ bool SampleApp::OnInit(HWND hWnd)
 				.AddCBV(ShaderStage::ALL, 1)
 				.AddCBV(ShaderStage::ALL, 2)
 				.AddSRV(ShaderStage::ALL, 0);
-			if (m_useCLAS)
+			if (m_useNvCLAS)
 			{
 				desc.AddSRV(ShaderStage::ALL, 1)
 					.AddUAV(ShaderStage::ALL, 10);
@@ -6067,7 +6067,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			subObjects.emplace_back(subObj);
 		}
 
-		if (m_useCLAS)
+		if (m_useNvCLAS)
 		{
 			assert(ShouldUseNvAPI());
 
@@ -6184,7 +6184,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			// HitGroupのShader Tableを作成
 			{
 				uint32_t shaderRecordCount = 0;
-				if (m_useCLAS)
+				if (m_useNvCLAS)
 				{
 					shaderRecordCount = static_cast<uint32_t>(m_MeshManager.GetMeshletCount());
 				}
@@ -6922,14 +6922,14 @@ void SampleApp::OnRender()
 			using enum DEBUG_VIEW_MODE;
 			case TRIANGLE_INDEX:
 			case MESHLET_INDEX:
-				if (!m_useCLAS)
+				if (!m_useNvCLAS)
 				{
 					DrawDebugVBuffer(pCmd);
 				}
 				break;
 			case MESHLET_AABB:
 				// AABBのときはMeshletIdxも同時に表示する
-				if (!m_useCLAS)
+				if (!m_useNvCLAS)
 				{
 					DrawDebugVBuffer(pCmd);
 					DrawMeshletAABB(pCmd);
@@ -8666,7 +8666,7 @@ void SampleApp::DrawFXAA(ID3D12GraphicsCommandList* pCmdList)
 
 void SampleApp::DrawDebugVBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
-	assert(m_useMeshlet && !m_useCLAS);
+	assert(m_useMeshlet && !m_useNvCLAS);
 	assert(
 		(m_debugViewMode == DEBUG_VIEW_MODE::TRIANGLE_INDEX)
 		|| (m_debugViewMode == DEBUG_VIEW_MODE::MESHLET_INDEX)
@@ -8907,7 +8907,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 	pCmdList->SetComputeRootSignature(m_GlobalRootSig.GetPtr());
 	pCmdList->SetPipelineState1(m_pStateObject.Get());
 	pCmdList->SetComputeRootDescriptorTable(0, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
-	if (m_useCLAS)
+	if (m_useNvCLAS)
 	{
 		pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
 	}
@@ -8916,7 +8916,7 @@ void SampleApp::DoPathTracing(ID3D12GraphicsCommandList4* pCmdList)
 		pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetMeshesDescHeapIndicesForPathTracingCB().GetHandleCBV()->HandleGPU);
 	}
 	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetMaterialsDescHeapIndicesCB().GetHandleCBV()->HandleGPU);
-	if (m_useCLAS)
+	if (m_useNvCLAS)
 	{
 		pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetClusterAccelerationStructure().GetHandleSRV()->HandleGPU);
 		pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
@@ -9094,7 +9094,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			pCmdList->SetGraphicsRootDescriptorTable(1, m_VelocityTarget.GetHandleSRV()->HandleGPU);
 			break;
 		case TRIANGLE_INDEX:
-			if (m_useMeshlet && !m_useCLAS)
+			if (m_useMeshlet && !m_useNvCLAS)
 			{
 				pCmdList->SetGraphicsRootDescriptorTable(1, m_FXAA_Target.GetHandleSRV()->HandleGPU);
 			}
@@ -9104,7 +9104,7 @@ void SampleApp::DrawBackBuffer(ID3D12GraphicsCommandList* pCmdList)
 			}
 			break;
 		case MESHLET_INDEX:
-			if (m_useCLAS)
+			if (m_useNvCLAS)
 			{
 				pCmdList->SetGraphicsRootDescriptorTable(1, m_GBufferBaseColorTarget.GetHandleSRV()->HandleGPU);
 			}
@@ -9191,7 +9191,7 @@ void SampleApp::DrawImGui(ID3D12GraphicsCommandList* pCmdList)
 		if (m_useMeshlet)
 		{
 			ImGui::RadioButton("Meshlet Index", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_INDEX));
-			if (!m_useCLAS)
+			if (!m_useNvCLAS)
 			{
 				ImGui::RadioButton("Meshlet AABB", reinterpret_cast<int*>(&m_debugViewMode), static_cast<int>(MESHLET_AABB));
 			}
@@ -9576,7 +9576,7 @@ bool SampleApp::IsEnableTemporalAA() const
 bool SampleApp::ShouldUseNvAPI() const
 {
 #if defined(DEBUG) || defined(_DEBUG)
-	return (m_usePathTracing || m_useCLAS);
+	return (m_usePathTracing || m_useNvCLAS);
 #else
 	return m_useCLAS;
 #endif

@@ -462,7 +462,7 @@ bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worl
 	return true;
 }
 
-bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createRTAS, bool createCLAS)
+bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createRTAS, bool createNvCLAS)
 {
 	assert(pDevice != nullptr);
 	assert(pQueue != nullptr);
@@ -810,7 +810,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			rtGeomDescs.emplace_back(geomDesc);
 		}
 
-		if (createCLAS)
+		if (createNvCLAS)
 		{
 
 			std::vector<Vector3> clasPositionArray;
@@ -1263,7 +1263,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 	}
 
-	if (createCLAS)
+	if (createNvCLAS)
 	{
 		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS clasInputs = {};
 		clasInputs.maxArgCount = static_cast<NvU32>(m_MeshletCount);
