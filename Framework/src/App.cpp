@@ -503,10 +503,28 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 			continue;
 		}
 
+		// Check feature support. D3D12_OPTIONS_RAYTRACING2 is needed for clustered geometry.
+		D3D12_FEATURE_DATA_D3D12_OPTIONS_RAYTRACING2 options = {};
+		hr = m_pDevice->CheckFeatureSupport1(
+			D3D12_FEATURE_D3D12_OPTIONS_RAYTRACING2,
+			&options,
+			sizeof(options),
+			D3D12_PREVIEW_SDK_VERSION
+		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		if (!options.ClustersAndPTLASSupported)
+		{
+			continue;
+		}
+
 		// Check feature support. D3D_SHADER_MODEL_6_5 is needed for mesh shader.
 		// D3D_SHADER_MODEL_6_6 is needed for dynamic resources.
+		// D3D_SHADER_MODEL_6_10 is needed for clusterd geomtry.
 		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel;
-		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_6;
+		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_10;
 		hr = m_pDevice->CheckFeatureSupport(
 			D3D12_FEATURE_SHADER_MODEL,
 			&shaderModel,
@@ -516,7 +534,7 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 		{
 			continue;
 		}
-		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_6)
+		if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_10)
 		{
 			continue;
 		}
