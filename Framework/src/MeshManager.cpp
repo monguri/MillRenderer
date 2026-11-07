@@ -330,6 +330,8 @@ void MeshManager::Term()
 	m_UnitCubeVB.Term();
 	m_UnitCubeIB.Term();
 
+	m_DrawMeshletIndirectArgBB.Term();
+	m_DrawMeshletIndicesBB.Term();
 	m_DrawOpaqueMeshletIndirectArgBB.Term();
 	m_DrawOpaqueMeshletIndicesBB.Term();
 	m_DrawMaskedMeshletIndirectArgBB.Term();
@@ -977,6 +979,40 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			ELOG("Error : ID3D12Device::CreateCommandSignature() Failed.");
 			return false;
 		}
+	}
+
+	// Meshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
+	if (!m_DrawMeshletIndirectArgBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		3 * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndirectArgBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
+	}
+
+	DirectX::TransitionResource(pCmdList, m_DrawMeshletIndirectArgBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	// Meshlet描画用のカリング済みMeshletIdxリストの生成
+	if (!m_DrawMeshletIndicesBB.InitAsByteAddressBuffer
+	(
+		pDevice,
+		m_MeshletCount * sizeof(uint32_t),
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		pPoolGpuVisible,
+		pPoolGpuVisible,
+		pPoolCpuVisible,
+		L"DrawMeshletIndicesBB"
+	))
+	{
+		ELOG("Error : Resource::InitAsByteAddressBuffe() Failed.");
+		return false;
 	}
 
 	// OpaqueのMeshlet描画用のMeshletカウンターのDispatchIndirectArgの生成
@@ -1885,6 +1921,16 @@ bool MeshManager::SetMovableWorldMatrix(ID3D12Device* pDevice, ID3D12GraphicsCom
 	}
 
 	return true;
+}
+
+const Resource& MeshManager::GetDrawMeshletIndirectArgBB() const
+{
+	return m_DrawMeshletIndirectArgBB;
+}
+
+const Resource& MeshManager::GetDrawMeshletIndicesBB() const
+{
+	return m_DrawMeshletIndicesBB;
 }
 
 const Resource& MeshManager::GetDrawOpaqueMeshletIndirectArgBB() const

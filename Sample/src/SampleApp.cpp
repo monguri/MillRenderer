@@ -6768,6 +6768,11 @@ void SampleApp::OnRender()
 
 	if (m_usePathTracing)
 	{
+		if (m_useDxrCLAS)
+		{
+			DoMeshletCulling(pCmd);
+		}
+
 		DoPathTracing(static_cast<ID3D12GraphicsCommandList4*>(pCmd));
 
 		// DepthはVBufferに書くのでそこからコピーする
@@ -7214,6 +7219,12 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList)
 	{
 		uint32_t clearValue[4] = {0, 0, 0, 0};
 		// 本来はX=0、Y=1、Z=1にしたいが、ClearUavWithUintValue()とByteAddressBufferではそれができないようだ。[0]の値ですべてクリアされてしまう。よってY=1、Z=1はシェーダで入れる。
+		m_MeshManager.GetDrawMeshletIndirectArgBB().ClearUavWithUintValue(pCmdList, clearValue);
+		m_MeshManager.GetDrawMeshletIndicesBB().ClearUavWithUintValue(pCmdList, clearValue);
+
+		m_MeshManager.GetDrawMeshletIndirectArgBB().BarrierUAV(pCmdList);
+		m_MeshManager.GetDrawMeshletIndicesBB().BarrierUAV(pCmdList);
+
 		m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().ClearUavWithUintValue(pCmdList, clearValue);
 		m_MeshManager.GetDrawOpaqueMeshletIndicesBB().ClearUavWithUintValue(pCmdList, clearValue);
 
@@ -7241,12 +7252,14 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetComputeRootDescriptorTable(2, m_CameraCB[m_FrameIndex].GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(3, m_CullingCB.GetHandle()->HandleGPU);
 	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(9, m_MeshManager.GetDrawMovableMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
-	pCmdList->SetComputeRootDescriptorTable(10, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(5, m_MeshManager.GetDrawMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(6, m_MeshManager.GetDrawMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(7, m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(8, m_MeshManager.GetDrawOpaqueMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(9, m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(10, m_MeshManager.GetDrawMaskedMeshletIndicesBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(11, m_MeshManager.GetDrawMovableMeshletIndirectArgBB().GetHandleUAV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(12, m_MeshManager.GetDrawMovableMeshletIndicesBB().GetHandleUAV()->HandleGPU);
 
 	// シェーダ側と合わせている
 	constexpr size_t GROUP_SIZE_X = 64;
@@ -7254,6 +7267,8 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList)
 	UINT NumGroupX = static_cast<UINT>((m_MeshManager.GetMeshletCount() + GROUP_SIZE_X - 1) / GROUP_SIZE_X);
 	pCmdList->Dispatch(NumGroupX, 1, 1);
 
+	m_MeshManager.GetDrawMeshletIndirectArgBB().BarrierUAV(pCmdList);
+	m_MeshManager.GetDrawMeshletIndicesBB().BarrierUAV(pCmdList);
 	m_MeshManager.GetDrawOpaqueMeshletIndirectArgBB().BarrierUAV(pCmdList);
 	m_MeshManager.GetDrawOpaqueMeshletIndicesBB().BarrierUAV(pCmdList);
 	m_MeshManager.GetDrawMaskedMeshletIndirectArgBB().BarrierUAV(pCmdList);

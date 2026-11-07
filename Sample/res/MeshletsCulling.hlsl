@@ -21,6 +21,8 @@
 ", DescriptorTable(UAV(u3), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u4), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(UAV(u5), visibility = SHADER_VISIBILITY_ALL)"\
+", DescriptorTable(UAV(u6), visibility = SHADER_VISIBILITY_ALL)"\
+", DescriptorTable(UAV(u7), visibility = SHADER_VISIBILITY_ALL)"\
 
 //TODO: GBufferFromVBufferPS.hlslと共通化できる定数は共通ヘッダに移す
 // C++側の定義と値の一致が必要
@@ -87,12 +89,14 @@ ConstantBuffer<MeshesDescHeapIndices> CbMeshesDescHeapIndices : register(b1);
 ConstantBuffer<Camera> CbCamera : register(b2);
 ConstantBuffer<Culling> CbCulling : register(b3);
 StructuredBuffer<MeshletMeshMaterial> SbMeshletMeshMaterialTable : register(t0);
-RWByteAddressBuffer DrawOpaqueMeshletIndirectArgBB : register(u0);
-RWByteAddressBuffer DrawOpaqueMeshletIndicesBB : register(u1);
-RWByteAddressBuffer DrawMaskedMeshletIndirectArgBB : register(u2);
-RWByteAddressBuffer DrawMaskedMeshletIndicesBB : register(u3);
-RWByteAddressBuffer DrawMovableMeshletIndirectArgBB : register(u4);
-RWByteAddressBuffer DrawMovableMeshletIndicesBB : register(u5);
+RWByteAddressBuffer DrawMeshletIndirectArgBB : register(u0);
+RWByteAddressBuffer DrawMeshletIndicesBB : register(u1);
+RWByteAddressBuffer DrawOpaqueMeshletIndirectArgBB : register(u2);
+RWByteAddressBuffer DrawOpaqueMeshletIndicesBB : register(u3);
+RWByteAddressBuffer DrawMaskedMeshletIndirectArgBB : register(u4);
+RWByteAddressBuffer DrawMaskedMeshletIndicesBB : register(u5);
+RWByteAddressBuffer DrawMovableMeshletIndirectArgBB : register(u6);
+RWByteAddressBuffer DrawMovableMeshletIndicesBB : register(u7);
 
 uint GetCbMeshDescHeapIndex(uint meshIdx)
 {
@@ -151,6 +155,8 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 	if (meshletIdx == 0)
 	{
 		// Y=1,Z=1の引数初期化。cppでClearUavWithUintValue()でやりにくいためここで。
+		DrawMeshletIndirectArgBB.Store(4, 1);
+		DrawMeshletIndirectArgBB.Store(8, 1);
 		DrawOpaqueMeshletIndirectArgBB.Store(4, 1);
 		DrawOpaqueMeshletIndirectArgBB.Store(8, 1);
 		DrawMaskedMeshletIndirectArgBB.Store(4, 1);
@@ -197,6 +203,12 @@ void main(uint meshletIdx : SV_DispatchThreadID)
 
 	if (visible)
 	{
+		{
+			uint drawMeshletIdx;
+			DrawMeshletIndirectArgBB.InterlockedAdd(0, 1, drawMeshletIdx);
+			DrawMeshletIndicesBB.Store(drawMeshletIdx * 4, meshletIdx);
+		}
+
 		if (meshMaterial.bMasked == 0)
 		{
 			uint drawMeshletIdx;

@@ -34,6 +34,8 @@ public:
 
 	bool SetMovableWorldMatrix(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& worldMat);
 
+	const Resource& GetDrawMeshletIndirectArgBB() const;
+	const Resource& GetDrawMeshletIndicesBB() const;
 	const Resource& GetDrawOpaqueMeshletIndirectArgBB() const;
 	const Resource& GetDrawOpaqueMeshletIndicesBB() const;
 	const Resource& GetDrawMaskedMeshletIndirectArgBB() const;
@@ -94,6 +96,8 @@ private:
 
 	ComPtr<ID3D12CommandSignature> m_pDrawByHWRasCmdSig;
 	ComPtr<ID3D12CommandSignature> m_pDrawBySWRasCmdSig;
+	Resource m_DrawMeshletIndirectArgBB;
+	Resource m_DrawMeshletIndicesBB;
 	Resource m_DrawOpaqueMeshletIndirectArgBB;
 	Resource m_DrawOpaqueMeshletIndicesBB;
 	Resource m_DrawMaskedMeshletIndirectArgBB;
