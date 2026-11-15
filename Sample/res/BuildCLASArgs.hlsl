@@ -63,8 +63,9 @@ RWStructuredBuffer<D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS> RWBuildC
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(64, 1, 1)]
-void main(uint idx : SV_DispatchThreadID)
+void main(uint3 dtid : SV_DispatchThreadID)
 {
+    uint idx = dtid.x;
     if (idx >= ClasMeshDataCB.clusterCount)
     {
         return;

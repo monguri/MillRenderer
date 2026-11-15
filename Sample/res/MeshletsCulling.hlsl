@@ -150,8 +150,9 @@ bool frustumCull(float3 aabbNdcPos[8])
 
 [RootSignature(ROOT_SIGNATURE)]
 [numthreads(64, 1, 1)]
-void main(uint meshletIdx : SV_DispatchThreadID)
+void main(uint3 dtid : SV_DispatchThreadID)
 {
+	uint meshletIdx = dtid.x;
 	if (meshletIdx == 0)
 	{
 		// Y=1,Z=1‚Ìˆø”‰Šú‰»Bcpp‚ÅClearUavWithUintValue()‚Å‚â‚è‚É‚­‚¢‚½‚ß‚±‚±‚ÅB
