@@ -44,8 +44,15 @@ bool Resource::Init
 	assert(m_pPoolUAVGpuVisible == nullptr);
 	assert(m_pHandleUAVGpuVisible == nullptr);
 
+	if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+	{
+		assert((pPoolUAVGpuVisible != nullptr) || (pPoolUAVCpuVisible != nullptr));
+	}
+
 	if (pPoolUAVGpuVisible != nullptr)
 	{
+		assert((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0);
+
 		m_pPoolUAVGpuVisible = pPoolUAVGpuVisible;
 		m_pPoolUAVGpuVisible->AddRef();
 
