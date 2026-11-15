@@ -270,6 +270,7 @@ private:
 	void DrawSkyViewLUT(ID3D12GraphicsCommandList* pCmdList, const DirectX::SimpleMath::Matrix& skyViewLutReferential, const DirectX::SimpleMath::Vector3& dirLightDir);
 	void DrawVolumetricCloud(ID3D12GraphicsCommandList* pCmdList);
 	void DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList);
+	void BuildCLASArgs(ID3D12GraphicsCommandList* pCmdList);
 	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList);

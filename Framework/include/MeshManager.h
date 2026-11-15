@@ -148,6 +148,12 @@ private:
 	Resource m_ClusterTlasResultBB;
 	Resource m_NvShaderExtnSB;
 
+	// DXR CLAS—p
+	Resource m_DxrClasMeshDataCB;
+	Resource m_DxrClasInputDatasSB;
+	Resource m_BuildDxrClasArgsSB;
+
+
 	MeshManager(const MeshManager&) = delete;
 	void operator=(const MeshManager&) = delete;
 };

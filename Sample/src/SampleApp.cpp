@@ -5754,6 +5754,36 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	if (m_useDxrCLAS)
+	{
+		// uint16_tを使っているのでFXCだとコンパイルできない。DXCが必要。
+		std::wstring csPath;
+		if (!SearchFilePath(L"BuildCLASArgs.hlsl", csPath))
+		{
+			ELOG("Error : Library Shader Not Found");
+			return false;
+		}
+
+		std::vector<const wchar_t*> compileArgs =
+		{
+			L"-T cs_6_8",
+			L"-enable-16bit-types", // uint16_tのため
+			L"-I", L"../res",
+#if defined(DEBUG) || defined(_DEBUG)
+			L"-Zi",
+			L"-Qembed_debug",
+			L"-Od"
+#endif
+		};
+
+		ComPtr<IDxcBlob> pCSBlob;
+		if (!m_ShaderCompiler.Compile(csPath.c_str(), compileArgs, pCSBlob))
+		{
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %cs", csPath.c_str());
+			return false;
+		}
+	}
+
 	if (m_usePathTracing)
 	{
 		ID3D12GraphicsCommandList4* pCmd = m_CommandList.Reset();
@@ -6771,6 +6801,7 @@ void SampleApp::OnRender()
 		if (m_useDxrCLAS)
 		{
 			DoMeshletCulling(pCmd);
+			BuildCLASArgs(pCmd);
 		}
 
 		DoPathTracing(static_cast<ID3D12GraphicsCommandList4*>(pCmd));
@@ -7275,6 +7306,15 @@ void SampleApp::DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList)
 	m_MeshManager.GetDrawMaskedMeshletIndicesBB().BarrierUAV(pCmdList);
 	m_MeshManager.GetDrawMovableMeshletIndirectArgBB().BarrierUAV(pCmdList);
 	m_MeshManager.GetDrawMovableMeshletIndicesBB().BarrierUAV(pCmdList);
+}
+
+void SampleApp::BuildCLASArgs(ID3D12GraphicsCommandList* pCmdList)
+{
+	assert(m_useMeshlet && m_usePathTracing && m_useDxrCLAS);
+
+	::PIXScopedEvent(pCmdList, 0, L"BuildCLASArgs");
+
+
 }
 
 void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList)

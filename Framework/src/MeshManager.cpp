@@ -413,6 +413,9 @@ void MeshManager::Term()
 	m_ClusterTlasInstanceDescBB.Term();
 	m_ClusterTlasResultBB.Term();
 	m_NvShaderExtnSB.Term();
+	m_DxrClasMeshDataCB.Term();
+	m_DxrClasInputDatasSB.Term();
+	m_BuildDxrClasArgsSB.Term();
 }
 
 bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worldMat, bool useMetis)
@@ -496,6 +499,17 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> rtGeomDescs;
 	std::vector<NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS> clasTriangleArgs;
+
+	struct DxrClasInputData
+	{
+		uint32_t clusterID;
+		uint32_t triangleCount;
+		uint32_t vertexCount;
+		uint32_t vertexBufferOffset;
+		uint32_t indexBufferOffset;
+		uint32_t meshIdx;
+	};
+	std::vector<DxrClasInputData> dxrClasInputData;
 
 	CbMeshesDescHeapIndices meshesDescHeapIndices = {};
 	CbMeshesDescHeapIndicesForPathTracing meshesDescHeapIndicesForPathTracing = {};
@@ -812,9 +826,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			rtGeomDescs.emplace_back(geomDesc);
 		}
 
-		if (createNvCLAS)
+		if (createNvCLAS || createDxrCLAS)
 		{
-
 			std::vector<Vector3> clasPositionArray;
 			BuildClasPositionArray(resMesh, clasPositionArray);
 
@@ -843,7 +856,10 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			}
 
 			DirectX::TransitionResource(pCmdList, m_ClasVBs[validMeshIdx].GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		}
 
+		if (createNvCLAS)
+		{
 			clasTriangleArgs.reserve(clasTriangleArgs.size() + localMeshletCount);
 			for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
 			{
@@ -856,6 +872,24 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				);
 
 				clasTriangleArgs.emplace_back(args);
+			}
+		}
+
+		if (createDxrCLAS)
+		{
+			for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
+			{
+				const meshopt_Meshlet& meshlet = resMesh.Meshlets[localMeshletIdx];
+
+				DxrClasInputData data = {};
+				data.clusterID = static_cast<uint32_t>(m_MeshletCount + localMeshletIdx);
+				data.triangleCount = meshlet.triangle_count;
+				data.vertexCount = meshlet.vertex_count;
+				data.vertexBufferOffset = meshlet.vertex_offset * sizeof(Vector3);
+				data.indexBufferOffset = meshlet.triangle_offset * sizeof(uint32_t);
+				data.meshIdx = static_cast<uint32_t>(validMeshIdx);
+
+				dxrClasInputData.emplace_back(data);
 			}
 		}
 
@@ -1736,6 +1770,90 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			pPoolGpuVisible,
 			pPoolGpuVisible,
 			L"NvShaderExtnSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+	}
+
+	if (createDxrCLAS)
+	{
+		struct alignas(256) CbClasMeshData
+		{
+			uint64_t vertexBufferAddress;
+			uint64_t indexBufferAddress;
+			uint32_t clusterCount;
+			uint32_t vertexBufferStride;
+			uint32_t indexBufferStride;
+			uint32_t positionTruncateBits;
+		};
+
+		if (!m_DxrClasMeshDataCB.InitAsConstantBuffer<CbClasMeshData>(
+			pDevice,
+			D3D12_HEAP_TYPE_DEFAULT,
+			pPoolGpuVisible,
+			L"DxrClasMeshDataCB"
+		))
+		{
+			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+			return false;
+		}
+
+		//TODO: Mesh‚²‚Æ‚É‚µ‚ÄBuildArgƒpƒX‚àMesh‚²‚Æ‚É‘–‚ç‚¹‚È‚¢‚ÆŒµ‚µ‚¢H
+		//m_PositionVBs[0]‚ðŽw’è‚µ‚Ä‚µ‚Ü‚Á‚Ä‚¢‚é
+		// VB/IB‚ð“‡‚¹‚Ë‚Î‚È‚ç‚È‚­‚È‚é
+		CbClasMeshData cbClasMeshData = {};
+		cbClasMeshData.vertexBufferAddress = m_PositionVBs[0].GetResource()->GetGPUVirtualAddress();
+		cbClasMeshData.indexBufferAddress = m_IBs[0].GetResource()->GetGPUVirtualAddress();
+		cbClasMeshData.clusterCount = static_cast<uint32_t>(m_MeshletCount);
+		cbClasMeshData.vertexBufferStride = sizeof(Vector3);
+		cbClasMeshData.indexBufferStride = sizeof(uint32_t);
+		cbClasMeshData.positionTruncateBits = 0; // Float32‚ÅŠi”[‚µ‚Ä‚¢‚é‚Ì‚ÅTruncate‚Í–³‚µ
+
+		if (!m_DxrClasMeshDataCB.UploadBufferTypeData<CbClasMeshData>(
+			pDevice,
+			pCmdList,
+			1,
+			&cbClasMeshData
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		assert(dxrClasInputData.size() == m_MeshletCount);
+		if (!m_DxrClasInputDatasSB.InitAsStructuredBuffer<DxrClasInputData>(
+			pDevice,
+			m_MeshletCount,
+			D3D12_RESOURCE_FLAG_NONE,
+			pPoolGpuVisible,
+			nullptr,
+			L"DxrClasInputDatasSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_DxrClasInputDatasSB.UploadBufferTypeData<DxrClasInputData>(
+			pDevice,
+			pCmdList,
+			m_MeshletCount,
+			dxrClasInputData.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		if (!m_BuildDxrClasArgsSB.InitAsStructuredBuffer<D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS>(
+			pDevice,
+			m_MeshletCount,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			pPoolGpuVisible,
+			pPoolGpuVisible,
+			L"BuildDxrClasArgsSB"
 		))
 		{
 			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
