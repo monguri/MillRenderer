@@ -9640,7 +9640,7 @@ bool SampleApp::ShouldUseNvAPI() const
 #if defined(DEBUG) || defined(_DEBUG)
 	return (m_usePathTracing || m_useNvCLAS);
 #else
-	return m_useCLAS;
+	return m_useNvCLAS;
 #endif
 }
 
