@@ -5,7 +5,7 @@
 
 void OutputLog(const char* format, ...)
 {
-	char msg[2048];
+	char msg[4096];
 	memset(msg, '\0', sizeof(msg));
 	va_list arg;
 
