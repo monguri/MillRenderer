@@ -149,7 +149,7 @@ private:
 	Resource m_NvShaderExtnSB;
 
 	// DXR CLAS—p
-	Resource m_DxrClasMeshDataCB;
+	Resource m_DxrClasMeshDatasSB;
 	Resource m_DxrClasInputDatasSB;
 	Resource m_BuildDxrClasArgsSB;
 

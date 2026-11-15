@@ -413,7 +413,7 @@ void MeshManager::Term()
 	m_ClusterTlasInstanceDescBB.Term();
 	m_ClusterTlasResultBB.Term();
 	m_NvShaderExtnSB.Term();
-	m_DxrClasMeshDataCB.Term();
+	m_DxrClasMeshDatasSB.Term();
 	m_DxrClasInputDatasSB.Term();
 	m_BuildDxrClasArgsSB.Term();
 }
@@ -500,6 +500,18 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> rtGeomDescs;
 	std::vector<NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS> clasTriangleArgs;
 
+	struct DxrClasMeshData
+	{
+		uint64_t vertexBufferAddress;
+		uint64_t indexBufferAddress;
+		uint32_t clusterCount;
+		uint32_t vertexBufferStride;
+		uint32_t indexBufferStride;
+		uint32_t positionTruncateBits;
+	};
+	std::vector<DxrClasMeshData> dxrClasMeshDatas;
+	dxrClasMeshDatas.reserve(meshCount);
+
 	struct DxrClasInputData
 	{
 		uint32_t clusterID;
@@ -509,7 +521,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		uint32_t indexBufferOffset;
 		uint32_t meshIdx;
 	};
-	std::vector<DxrClasInputData> dxrClasInputData;
+	std::vector<DxrClasInputData> dxrClasInputDatas;
 
 	CbMeshesDescHeapIndices meshesDescHeapIndices = {};
 	CbMeshesDescHeapIndicesForPathTracing meshesDescHeapIndicesForPathTracing = {};
@@ -877,10 +889,20 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 		if (createDxrCLAS)
 		{
+			DxrClasMeshData meshData = {};
+			meshData.vertexBufferAddress = m_ClasVBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();
+			meshData.indexBufferAddress = m_MeshletsTrianglesSBs[validMeshIdx].GetResource()->GetGPUVirtualAddress();
+			meshData.clusterCount = static_cast<uint32_t>(localMeshletCount);
+			meshData.vertexBufferStride = sizeof(Vector3);
+			meshData.indexBufferStride = sizeof(uint32_t);
+			meshData.positionTruncateBits = 0; // floatの32bitをtruncateなしで使用している
+			dxrClasMeshDatas.emplace_back(meshData);
+
 			for (size_t localMeshletIdx = 0; localMeshletIdx < localMeshletCount; localMeshletIdx++)
 			{
 				const meshopt_Meshlet& meshlet = resMesh.Meshlets[localMeshletIdx];
 
+				// NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGSとデータ的には同じ
 				DxrClasInputData data = {};
 				data.clusterID = static_cast<uint32_t>(m_MeshletCount + localMeshletIdx);
 				data.triangleCount = meshlet.triangle_count;
@@ -889,7 +911,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 				data.indexBufferOffset = meshlet.triangle_offset * sizeof(uint32_t);
 				data.meshIdx = static_cast<uint32_t>(validMeshIdx);
 
-				dxrClasInputData.emplace_back(data);
+				dxrClasInputDatas.emplace_back(data);
 			}
 		}
 
@@ -1779,50 +1801,32 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 
 	if (createDxrCLAS)
 	{
-		struct alignas(256) CbClasMeshData
-		{
-			uint64_t vertexBufferAddress;
-			uint64_t indexBufferAddress;
-			uint32_t clusterCount;
-			uint32_t vertexBufferStride;
-			uint32_t indexBufferStride;
-			uint32_t positionTruncateBits;
-		};
-
-		if (!m_DxrClasMeshDataCB.InitAsConstantBuffer<CbClasMeshData>(
+		if (!m_DxrClasMeshDatasSB.InitAsStructuredBuffer<DxrClasMeshData>(
 			pDevice,
-			D3D12_HEAP_TYPE_DEFAULT,
+			m_MeshCount,
+			D3D12_RESOURCE_FLAG_NONE,
 			pPoolGpuVisible,
-			L"DxrClasMeshDataCB"
+			nullptr,
+			L"DxrClasMeshDataSB"
 		))
 		{
-			ELOG("Error : Resource::InitAsConstantBuffer() Failed.");
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
 			return false;
 		}
 
-		//TODO: MeshごとにしてBuildArgパスもMeshごとに走らせないと厳しい？
-		//m_PositionVBs[0]を指定してしまっている
-		// VB/IBを統合せねばならなくなる
-		CbClasMeshData cbClasMeshData = {};
-		cbClasMeshData.vertexBufferAddress = m_PositionVBs[0].GetResource()->GetGPUVirtualAddress();
-		cbClasMeshData.indexBufferAddress = m_IBs[0].GetResource()->GetGPUVirtualAddress();
-		cbClasMeshData.clusterCount = static_cast<uint32_t>(m_MeshletCount);
-		cbClasMeshData.vertexBufferStride = sizeof(Vector3);
-		cbClasMeshData.indexBufferStride = sizeof(uint32_t);
-		cbClasMeshData.positionTruncateBits = 0; // Float32で格納しているのでTruncateは無し
-
-		if (!m_DxrClasMeshDataCB.UploadBufferTypeData<CbClasMeshData>(
+		assert(dxrClasMeshDatas.size() == m_MeshCount);
+		if (!m_DxrClasMeshDatasSB.UploadBufferTypeData<DxrClasMeshData>(
 			pDevice,
 			pCmdList,
-			1,
-			&cbClasMeshData
+			m_MeshCount,
+			dxrClasMeshDatas.data()
 		))
 		{
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
 			return false;
 		}
 
-		assert(dxrClasInputData.size() == m_MeshletCount);
+		assert(dxrClasInputDatas.size() == m_MeshletCount);
 		if (!m_DxrClasInputDatasSB.InitAsStructuredBuffer<DxrClasInputData>(
 			pDevice,
 			m_MeshletCount,
@@ -1840,7 +1844,7 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			pDevice,
 			pCmdList,
 			m_MeshletCount,
-			dxrClasInputData.data()
+			dxrClasInputDatas.data()
 		))
 		{
 			ELOG("Error : Resource::UploadBufferTypeData() Failed.");

@@ -192,7 +192,7 @@
     <FxCompile Include="..\res\PathTracing.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="..\res\BuildCLASArgs.hlsl">
+    <FxCompile Include="..\res\BuildCLASArgsCS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>

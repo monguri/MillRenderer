@@ -5758,7 +5758,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	{
 		// uint16_tを使っているのでFXCだとコンパイルできない。DXCが必要。
 		std::wstring csPath;
-		if (!SearchFilePath(L"BuildCLASArgs.hlsl", csPath))
+		if (!SearchFilePath(L"BuildCLASArgsCS.hlsl", csPath))
 		{
 			ELOG("Error : Library Shader Not Found");
 			return false;
