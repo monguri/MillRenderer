@@ -237,6 +237,8 @@ bool App::InitD3D()
 		{
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+			// Deprecated APIの使用を検出する場合は有効化する。現状はいろんなところで止まるので無効化している
+			pInfoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEPRECATED_API, FALSE);
 		}
 	}
 #endif
@@ -473,10 +475,12 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 
 		// Check feature support. D3D12_OPTIONS5 is needed for ray tracing.
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5 = {};
-		hr = m_pDevice->CheckFeatureSupport(
+		hr = m_pDevice->CheckFeatureSupport1
+		(
 			D3D12_FEATURE_D3D12_OPTIONS5,
 			&features5,
-			sizeof(features5)
+			sizeof(features5),
+			D3D12_PREVIEW_SDK_VERSION
 		);
 		if (FAILED(hr))
 		{
@@ -489,10 +493,12 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 
 		// Check feature support. D3D12_OPTIONS7 is needed for mesh shader.
 		D3D12_FEATURE_DATA_D3D12_OPTIONS7 features7 = {};
-		hr = m_pDevice->CheckFeatureSupport(
+		hr = m_pDevice->CheckFeatureSupport1
+		(
 			D3D12_FEATURE_D3D12_OPTIONS7,
 			&features7,
-			sizeof(features7)
+			sizeof(features7),
+			D3D12_PREVIEW_SDK_VERSION
 		);
 		if (FAILED(hr))
 		{
@@ -505,7 +511,8 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 
 		// Check feature support. D3D12_OPTIONS_RAYTRACING2 is needed for clustered geometry.
 		D3D12_FEATURE_DATA_D3D12_OPTIONS_RAYTRACING2 options = {};
-		hr = m_pDevice->CheckFeatureSupport1(
+		hr = m_pDevice->CheckFeatureSupport1
+		(
 			D3D12_FEATURE_D3D12_OPTIONS_RAYTRACING2,
 			&options,
 			sizeof(options),
@@ -525,10 +532,12 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 		// D3D_SHADER_MODEL_6_10 is needed for clusterd geomtry.
 		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel;
 		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_10;
-		hr = m_pDevice->CheckFeatureSupport(
+		hr = m_pDevice->CheckFeatureSupport1
+		(
 			D3D12_FEATURE_SHADER_MODEL,
 			&shaderModel,
-			sizeof(shaderModel)
+			sizeof(shaderModel),
+			D3D12_PREVIEW_SDK_VERSION
 		);
 		if (FAILED(hr))
 		{
