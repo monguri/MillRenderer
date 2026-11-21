@@ -237,6 +237,11 @@ bool App::InitD3D()
 		{
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+
+			// 普段はFalseにしておき、対応する警告が出たらTRUEにして調査する
+			// これ系の警告とブレークしてくれるD3D12_MESSAGE_ID_XXXはたくさんある
+			pInfoQueue->SetBreakOnID(D3D12_MESSAGE_ID_CREATEGRAPHICSPIPELINESTATE_DEPTHSTENCILVIEW_NOT_SET, FALSE);
+
 			// Deprecated APIの使用を検出する場合は有効化する。現状はいろんなところで止まるので無効化している
 			pInfoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEPRECATED_API, FALSE);
 		}
