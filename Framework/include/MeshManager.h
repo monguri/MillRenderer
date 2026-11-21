@@ -55,6 +55,10 @@ public:
 	const Resource& GetAccelerationStructure() const;
 	const Resource& GetNvShaderExtnSB() const;
 	const Resource& GetClusterAccelerationStructure() const;
+	
+	const Resource& GetDxrClasMeshDatasSB() const;
+	const Resource& GetDxrClasInputDatasSB() const;
+	const Resource& GetBuildDxrClasArgsSB() const;
 
 	// •`‰æ‘ÎÛ‚Æ‚µ‚Ä—LŒø‚ÈResMesh‚Ì”
 	size_t GetMeshCount() const;

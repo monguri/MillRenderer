@@ -66,6 +66,8 @@ private:
 	RootSignature m_GBufferRootSig;
 	ComPtr<ID3D12PipelineState> m_pMeshletCullingPSO;
 	RootSignature m_MeshletCullingRootSig;
+	ComPtr<ID3D12PipelineState> m_pBuildCLASArgsPSO;
+	RootSignature m_BuildCLASArgsRootSig;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferSWRasOpaquePSO;
 	ComPtr<ID3D12PipelineState> m_pDrawVBufferSWRasMaskPSO;
 	RootSignature m_DrawVBufferSWRasRootSig;

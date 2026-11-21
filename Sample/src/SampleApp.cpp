@@ -3052,6 +3052,70 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
+	// DXR CLASビルド用の設定ビルドパス用ルートシグニチャとパイプラインステートの生成
+	if (m_useDxrCLAS)
+	{
+		// uint16_tを使っているのでFXCだとコンパイルできない。DXCが必要。
+		std::wstring csPath;
+		if (!SearchFilePath(L"BuildCLASArgsCS.hlsl", csPath))
+		{
+			ELOG("Error : Compute Shader Not Found");
+			return false;
+		}
+
+		std::vector<const wchar_t*> compileArgs =
+		{
+			L"-T cs_6_8",
+			L"-enable-16bit-types", // uint16_tのため
+			L"-I", L"../res",
+#if defined(DEBUG) || defined(_DEBUG)
+			L"-Zi",
+			L"-Qembed_debug",
+			L"-Od"
+#endif
+		};
+
+		ComPtr<IDxcBlob> pCSBlob;
+		if (!m_ShaderCompiler.Compile(csPath.c_str(), compileArgs, pCSBlob))
+		{
+			ELOG("Error : ShaderCompiler::Compile() Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		ComPtr<ID3DBlob> pRSBlob;
+		HRESULT hr = D3DGetBlobPart(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &pRSBlob);
+		if (FAILED(hr))
+		{
+			ELOG("Error : D3DGetBlobPart Failed. path = %ls", csPath.c_str());
+			return false;
+		}
+
+		if (!m_BuildCLASArgsRootSig.Init(m_pDevice.Get(), pRSBlob))
+		{
+			ELOG("Error : RootSignature::Init() Failed.");
+			return false;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = m_BuildCLASArgsRootSig.GetPtr();
+		desc.CS.pShaderBytecode = pCSBlob->GetBufferPointer();
+		desc.CS.BytecodeLength = pCSBlob->GetBufferSize();
+		desc.NodeMask = 0;
+		desc.CachedPSO.pCachedBlob = nullptr;
+		desc.CachedPSO.CachedBlobSizeInBytes = 0;
+		desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+		hr = m_pDevice->CreateComputePipelineState(
+			&desc,
+			IID_PPV_ARGS(m_pBuildCLASArgsPSO.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			ELOG("Error : ID3D12Device::CreateComputePipelineState Failed. retcode = 0x%x", hr);
+			return false;
+		}
+	}
+
 	// Visibilityパス用ルートシグニチャとパイプラインステートの生成
 	if (m_useMeshlet)
 	{
@@ -5754,36 +5818,6 @@ bool SampleApp::OnInit(HWND hWnd)
 		}
 	}
 
-	if (m_useDxrCLAS)
-	{
-		// uint16_tを使っているのでFXCだとコンパイルできない。DXCが必要。
-		std::wstring csPath;
-		if (!SearchFilePath(L"BuildCLASArgsCS.hlsl", csPath))
-		{
-			ELOG("Error : Library Shader Not Found");
-			return false;
-		}
-
-		std::vector<const wchar_t*> compileArgs =
-		{
-			L"-T cs_6_8",
-			L"-enable-16bit-types", // uint16_tのため
-			L"-I", L"../res",
-#if defined(DEBUG) || defined(_DEBUG)
-			L"-Zi",
-			L"-Qembed_debug",
-			L"-Od"
-#endif
-		};
-
-		ComPtr<IDxcBlob> pCSBlob;
-		if (!m_ShaderCompiler.Compile(csPath.c_str(), compileArgs, pCSBlob))
-		{
-			ELOG("Error : ShaderCompiler::Compile() Failed. path = %cs", csPath.c_str());
-			return false;
-		}
-	}
-
 	if (m_usePathTracing)
 	{
 		ID3D12GraphicsCommandList4* pCmd = m_CommandList.Reset();
@@ -6483,6 +6517,9 @@ void SampleApp::OnTerm()
 
 	m_pMeshletCullingPSO.Reset();
 	m_MeshletCullingRootSig.Term();
+
+	m_pBuildCLASArgsPSO.Reset();
+	m_BuildCLASArgsRootSig.Term();
 
 	m_pDrawVBufferHWRasOpaquePSO.Reset();
 	m_pDrawVBufferHWRasMaskPSO.Reset();
@@ -7314,7 +7351,22 @@ void SampleApp::BuildCLASArgs(ID3D12GraphicsCommandList* pCmdList)
 
 	::PIXScopedEvent(pCmdList, 0, L"BuildCLASArgs");
 
+	pCmdList->SetComputeRootSignature(m_BuildCLASArgsRootSig.GetPtr());
+	pCmdList->SetPipelineState(m_pBuildCLASArgsPSO.Get());
 
+	pCmdList->SetComputeRoot32BitConstant(0, static_cast<UINT>(m_MeshManager.GetMeshletCount()), 0);
+	pCmdList->SetComputeRootDescriptorTable(1, m_MeshManager.GetDxrClasMeshDatasSB().GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(2, m_MeshManager.GetDxrClasInputDatasSB().GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(3, m_MeshManager.GetMeshletMeshMaterialTableSB().GetHandleSRV()->HandleGPU);
+	pCmdList->SetComputeRootDescriptorTable(4, m_MeshManager.GetBuildDxrClasArgsSB().GetHandleUAV()->HandleGPU);
+
+	// シェーダ側と合わせている
+	constexpr size_t GROUP_SIZE_X = 64;
+	// グループ数は切り上げ
+	UINT NumGroupX = static_cast<UINT>((m_MeshManager.GetMeshletCount() + GROUP_SIZE_X - 1) / GROUP_SIZE_X);
+	pCmdList->Dispatch(NumGroupX, 1, 1);
+
+	m_MeshManager.GetBuildDxrClasArgsSB().BarrierUAV(pCmdList);
 }
 
 void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList)

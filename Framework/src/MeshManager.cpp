@@ -1826,6 +1826,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			return false;
 		}
 
+		DirectX::TransitionResource(pCmdList, m_DxrClasMeshDatasSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
 		assert(dxrClasInputDatas.size() == m_MeshletCount);
 		if (!m_DxrClasInputDatasSB.InitAsStructuredBuffer<DxrClasInputData>(
 			pDevice,
@@ -1851,6 +1853,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			return false;
 		}
 
+		DirectX::TransitionResource(pCmdList, m_DxrClasInputDatasSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
 		if (!m_BuildDxrClasArgsSB.InitAsStructuredBuffer<D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS>(
 			pDevice,
 			m_MeshletCount,
@@ -1863,6 +1867,8 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
 			return false;
 		}
+
+		DirectX::TransitionResource(pCmdList, m_BuildDxrClasArgsSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	}
 
 
@@ -2138,6 +2144,21 @@ const Resource& MeshManager::GetNvShaderExtnSB() const
 const Resource& MeshManager::GetClusterAccelerationStructure() const
 {
 	return m_ClusterTlasResultBB;
+}
+
+const Resource& MeshManager::GetDxrClasMeshDatasSB() const
+{
+	return m_DxrClasMeshDatasSB;
+}
+
+const Resource& MeshManager::GetDxrClasInputDatasSB() const
+{
+	return m_DxrClasInputDatasSB;
+}
+
+const Resource& MeshManager::GetBuildDxrClasArgsSB() const
+{
+	return m_BuildDxrClasArgsSB;
 }
 
 size_t MeshManager::GetMeshCount() const

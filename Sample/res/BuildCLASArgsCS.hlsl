@@ -9,7 +9,7 @@
 " | DENY_AMPLIFICATION_SHADER_ROOT_ACCESS"\
 " | DENY_MESH_SHADER_ROOT_ACCESS"\
 ")"\
-", DescriptorTable(CBV(b0), visibility = SHADER_VISIBILITY_ALL)"\
+", RootConstants(num32BitConstants=1, b0, visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(SRV(t0), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(SRV(t1), visibility = SHADER_VISIBILITY_ALL)"\
 ", DescriptorTable(SRV(t2), visibility = SHADER_VISIBILITY_ALL)"\
