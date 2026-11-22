@@ -1869,6 +1869,473 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		}
 
 		DirectX::TransitionResource(pCmdList, m_BuildDxrClasArgsSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		// この2つでNVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_TRIANGLES_DESCにあたる
+		D3D12_RTAS_CLUSTER_LIMITS limits = {};
+		limits.MaxArgCount = static_cast<UINT>(m_MeshletCount);
+		limits.MaxGeometryIndexValue = D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
+		limits.MaxUniqueGeometryIndexAndFlagsCountPerCluster = 1;
+		limits.MaxTriangleCountPerCluster = ResMesh::MAX_MESHLET_TRI_COUNT;
+		limits.MaxUniqueVertexIndexCountPerCluster = ResMesh::MAX_MESHLET_VERT_COUNT;
+		limits.MaxTotalTriangleCount = ResMesh::MAX_MESHLET_TRI_COUNT * static_cast<UINT>(m_MeshletCount);
+		limits.MaxSumOfUniqueVertexIndexCounts = ResMesh::MAX_MESHLET_VERT_COUNT * static_cast<UINT>(m_MeshletCount);
+		limits.MaxOpacityMicromapIndicesPerCluster = 0;
+
+		D3D12_RTAS_CLUSTER_TRIANGLES_INPUTS_DESC clasTrianglesInputsDesc = {};
+		clasTrianglesInputsDesc.ClusterLimits = limits;
+		clasTrianglesInputsDesc.Flags = D3D12_RTAS_OPERATION_FLAG_FAST_TRACE;
+		clasTrianglesInputsDesc.VertexFormat = D3D12_VERTEX_FORMAT_FLOAT32_3;
+		// VertexFormat以外のフォーマット指定はNVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTSにはなかった
+		clasTrianglesInputsDesc.IndexFormat = D3D12_INDEX_FORMAT_UINT32;
+		//TODO: 続き！！！！！！！！！！！！！！！！１
+
+		// NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTSにあたる
+		D3D12_RTAS_OPERATION_INPUTS clasInputs = {};
+		clasInputs.Type = D3D12_RTAS_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
+		clasInputs.pClusterTrianglesDesc = &clasTrianglesInputsDesc;
+
+#if 0 //NVAPIとの実装比較用
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS clasInputs = {};
+		clasInputs.maxArgCount = static_cast<NvU32>(m_MeshletCount);
+		clasInputs.flags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
+		clasInputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
+		clasInputs.mode = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS;
+		clasInputs.trianglesDesc.vertexFormat = static_cast<NvU32>(DXGI_FORMAT_R32G32B32_FLOAT);
+		clasInputs.trianglesDesc.maxGeometryIndexValue = NVAPI_D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
+		clasInputs.trianglesDesc.maxUniqueGeometryCountPerArg = 1;
+		clasInputs.trianglesDesc.maxTriangleCountPerArg = ResMesh::MAX_MESHLET_TRI_COUNT;
+		clasInputs.trianglesDesc.maxVertexCountPerArg = ResMesh::MAX_MESHLET_VERT_COUNT;
+		clasInputs.trianglesDesc.maxTotalTriangleCount = ResMesh::MAX_MESHLET_TRI_COUNT * static_cast<NvU32>(m_MeshletCount);
+		clasInputs.trianglesDesc.maxTotalVertexCount = ResMesh::MAX_MESHLET_VERT_COUNT * static_cast<NvU32>(m_MeshletCount);
+		clasInputs.trianglesDesc.minPositionTruncateBitCount = 0;
+
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO clasReqs = {};
+		if (!QueryClusterOperationRequirements(pDevice, clasInputs, clasReqs))
+		{
+			return false;
+		}
+
+		size_t clasSize = AlignTo(clasReqs.resultDataMaxSizeInBytes, NVAPI_D3D12_RAYTRACING_CLAS_BYTE_ALIGNMENT);
+		size_t totalClasResultSize = clasSize * m_MeshletCount;
+
+		if (!m_ClasScratchBB.InitAsByteAddressBuffer(
+			pDevice,
+			clasReqs.scratchDataSizeInBytes,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasScratchBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_ClasResultBB.InitAsAccelerationStructure(
+			pDevice,
+			totalClasResultSize,
+			pPoolGpuVisible,
+			L"ClasResultBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
+			return false;
+		}
+
+		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> clasDestinations(m_MeshletCount);
+		for (size_t meshletIdx = 0; meshletIdx < m_MeshletCount; meshletIdx++)
+		{
+			clasDestinations[meshletIdx] = m_ClasResultBB.GetResource()->GetGPUVirtualAddress() + clasSize * meshletIdx;
+		}
+
+		if (!m_ClasDestAddressBB.InitAsByteAddressBuffer(
+			pDevice,
+			clasDestinations.size() * sizeof(D3D12_GPU_VIRTUAL_ADDRESS),
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasDestinationsAddressBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_ClasDestAddressBB.UploadBufferData(
+			pDevice,
+			pCmdList,
+			clasDestinations.size() * sizeof(D3D12_GPU_VIRTUAL_ADDRESS),
+			clasDestinations.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasDestAddressBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_ClasResultSizeBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(uint32_t) * m_MeshletCount,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasResultSizeBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasResultSizeBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_ClasTriangleArgsBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS) * m_MeshletCount,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasTriangleArgsBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		assert(clasTriangleArgs.size() == m_MeshletCount);
+		if (!m_ClasTriangleArgsBB.UploadBufferData(
+			pDevice,
+			pCmdList,
+			sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS) * m_MeshletCount,
+			clasTriangleArgs.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasTriangleArgsBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC opDesc = {};
+		opDesc.inputs = clasInputs;
+		opDesc.addressResolutionFlags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
+		opDesc.batchResultData = 0;
+		opDesc.batchScratchData = m_ClasScratchBB.GetResource()->GetGPUVirtualAddress();
+		opDesc.destinationAddressArray.StartAddress = m_ClasDestAddressBB.GetResource()->GetGPUVirtualAddress();
+		opDesc.destinationAddressArray.StrideInBytes = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+		opDesc.resultSizeArray.StartAddress = m_ClasResultSizeBB.GetResource()->GetGPUVirtualAddress();
+		opDesc.resultSizeArray.StrideInBytes = sizeof(uint32_t);
+		opDesc.indirectArgArray.StartAddress = m_ClasTriangleArgsBB.GetResource()->GetGPUVirtualAddress();
+		opDesc.indirectArgArray.StrideInBytes = sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS);
+		opDesc.indirectArgCount = 0; // 0の場合NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS.maxArgCountが使われる
+
+		NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS opParams = {};
+		opParams.version = NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS_VER;
+		opParams.pDesc = &opDesc;
+
+		NvAPI_Status status = NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(pCmdList, &opParams);
+		if (status != NVAPI_OK)
+		{
+			NvAPI_ShortString szError = {0};
+			NvAPI_GetErrorMessage(status, szError);
+			ELOG("Error : NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation Failed. status = %d, error message = %s", status, szError);
+			return false;
+		}
+
+		m_ClasResultBB.BarrierUAV(pCmdList);
+
+		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> clasAddresses(m_MeshletCount);
+		for (size_t meshletIdx = 0; meshletIdx < m_MeshletCount; meshletIdx++)
+		{
+			clasAddresses[meshletIdx] = m_ClasResultBB.GetResource()->GetGPUVirtualAddress() + clasSize * meshletIdx;
+		}
+
+		if (!m_ClasAddressesBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * m_MeshletCount,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasAddressesBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_ClasAddressesBB.UploadBufferData(
+			pDevice,
+			pCmdList,
+			sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * m_MeshletCount,
+			clasAddresses.data()
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasAddressesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+		// BLASは全MeshletのCLASをまとめて一個しか作らない。Meshごとではない。
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS blasInputs = {};
+		blasInputs.maxArgCount = 1;
+		blasInputs.flags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
+		blasInputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS;
+		blasInputs.mode = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_IMPLICIT_DESTINATIONS;
+		blasInputs.clasDesc.maxTotalClasCount = static_cast<NvU32>(m_MeshletCount);
+		blasInputs.clasDesc.maxClasCountPerArg = static_cast<NvU32>(m_MeshletCount);
+
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO blasReqs = {};
+		if (!QueryClusterOperationRequirements(pDevice, blasInputs, blasReqs))
+		{
+			return false;
+		}
+
+		NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_CLUSTER_ARGS blasArgs = {};
+		blasArgs.clusterCount = static_cast<NvU32>(m_MeshletCount);
+		blasArgs.reserved = 0;
+		blasArgs.clusterVAs = m_ClasAddressesBB.GetResource()->GetGPUVirtualAddress();
+
+		if (!m_ClusterBlasArgsBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(blasArgs),
+			D3D12_RESOURCE_FLAG_NONE,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterBlasArgsBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_ClusterBlasArgsBB.UploadBufferData(
+			pDevice,
+			pCmdList,
+			sizeof(blasArgs),
+			&blasArgs
+		))
+		{
+			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClusterBlasArgsBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+		size_t blasScratchSize = AlignTo(blasReqs.scratchDataSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+		if (!m_ClusterBlasScratchBB.InitAsByteAddressBuffer(
+			pDevice,
+			blasScratchSize,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterBlasScratchBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClusterBlasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		size_t blasResultSize = AlignTo(blasReqs.resultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+		if (!m_ClusterBlasResultBB.InitAsAccelerationStructure(
+			pDevice,
+			blasResultSize,
+			pPoolGpuVisible,
+			L"ClusterBlasResultBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
+			return false;
+		}
+
+		if (!m_ClusterBlasDestAddressesBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * 1,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterBlasAddressesBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClusterBlasDestAddressesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_ClusterBlasResultSizeBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(uint32_t) * 1,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterBlasResultSizeBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClusterBlasResultSizeBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC blasOpDesc = {};
+		blasOpDesc.inputs = blasInputs;
+		blasOpDesc.addressResolutionFlags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
+		blasOpDesc.batchResultData = m_ClusterBlasResultBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.batchScratchData = m_ClusterBlasScratchBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.destinationAddressArray.StartAddress = m_ClusterBlasDestAddressesBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.destinationAddressArray.StrideInBytes = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+		blasOpDesc.resultSizeArray.StartAddress = m_ClusterBlasResultSizeBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.resultSizeArray.StrideInBytes = sizeof(uint32_t);
+		blasOpDesc.indirectArgArray.StartAddress = m_ClusterBlasArgsBB.GetResource()->GetGPUVirtualAddress();
+		blasOpDesc.indirectArgArray.StrideInBytes = sizeof(blasArgs);
+		blasOpDesc.indirectArgCount = 0;
+
+		NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS blasExeParams = {};
+		blasExeParams.version = NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS_VER;
+		blasExeParams.pDesc = &blasOpDesc;
+
+		status = NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(pCmdList, &blasExeParams);
+		if (status != NVAPI_OK)
+		{
+			NvAPI_ShortString szError = {0};
+			NvAPI_GetErrorMessage(status, szError);
+			ELOG("Error : NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation Failed. status = %d, error message = %s", status, szError);
+			return false;
+		}
+
+		m_ClusterBlasResultBB.BarrierUAV(pCmdList);
+		m_ClusterBlasDestAddressesBB.BarrierUAV(pCmdList);
+		m_ClusterBlasResultSizeBB.BarrierUAV(pCmdList);
+
+		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
+		const Matrix& identityMat = Matrix::Identity;
+		memcpy(instanceDesc.Transform, &identityMat, sizeof(instanceDesc.Transform));
+		instanceDesc.InstanceID = 0;
+		instanceDesc.InstanceMask = 0xff;
+		instanceDesc.InstanceContributionToHitGroupIndex = 0;
+		instanceDesc.AccelerationStructure =
+			m_ClusterBlasResultBB.GetResource()->GetGPUVirtualAddress();
+		instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+
+		if (!m_ClusterTlasInstanceDescBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(instanceDesc),
+			D3D12_RESOURCE_FLAG_NONE,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterTlasInstanceDescBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		if (!m_ClusterTlasInstanceDescBB.UploadBufferData(
+			pDevice,
+			pCmdList,
+			sizeof(instanceDesc),
+			&instanceDesc
+		))
+		{
+			ELOG("Error : Resource::UploadBufferData() Failed.");
+			return false;
+		}
+
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS tlasInputs = {};
+		tlasInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+		tlasInputs.Flags =
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+		tlasInputs.NumDescs = 1;
+		tlasInputs.InstanceDescs =
+			m_ClusterTlasInstanceDescBB.GetResource()->GetGPUVirtualAddress();
+		tlasInputs.Type =
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO
+		tlasPrebuildInfo = {};
+
+		pDevice->GetRaytracingAccelerationStructurePrebuildInfo(
+			&tlasInputs,
+			&tlasPrebuildInfo
+		);
+
+		if (!m_ClusterTlasScratchBB.InitAsByteAddressBuffer(
+			pDevice,
+			AlignTo(tlasPrebuildInfo.ScratchDataSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT),
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClusterTlasScratchBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(
+			pCmdList,
+			m_ClusterTlasScratchBB.GetResource(),
+			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS
+		);
+
+		if (!m_ClusterTlasResultBB.InitAsAccelerationStructure(
+			pDevice,
+			AlignTo(tlasPrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT),
+			pPoolGpuVisible,
+			L"ClusterTlasResultBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
+			return false;
+		}
+
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC tlasDesc = {};
+
+		tlasDesc.Inputs = tlasInputs;
+		tlasDesc.DestAccelerationStructureData =
+			m_ClusterTlasResultBB.GetResource()->GetGPUVirtualAddress();
+		tlasDesc.ScratchAccelerationStructureData =
+			m_ClusterTlasScratchBB.GetResource()->GetGPUVirtualAddress();
+		tlasDesc.SourceAccelerationStructureData = 0;
+
+		pCmdList->BuildRaytracingAccelerationStructure(
+			&tlasDesc,
+			0,
+			nullptr
+		);
+
+		m_ClusterTlasResultBB.BarrierUAV(pCmdList);
+
+		if (!m_NvShaderExtnSB.InitAsStructuredBuffer<NvShaderExtnStruct>(
+			pDevice,
+			1,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			pPoolGpuVisible,
+			pPoolGpuVisible,
+			L"NvShaderExtnSB"
+		))
+		{
+			ELOG("Error : Resource::InitAsStructuredBuffer() Failed.");
+			return false;
+		}
+#endif
 	}
 
 
