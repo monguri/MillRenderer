@@ -1280,6 +1280,7 @@ bool SampleApp::OnInit(HWND hWnd)
 	if (m_useMeshlet)
 	{
 		ID3D12GraphicsCommandList6* pCmd = m_CommandList.Reset();
+		ID3D12CommandListRaytracing2* pRTCmdList = m_CommandList.GetRTCommandList();
 
 		if (!m_MeshManager.Update
 		(
@@ -1287,6 +1288,7 @@ bool SampleApp::OnInit(HWND hWnd)
 			m_pRTDevice.Get(),
 			m_pQueue.Get(),
 			pCmd,
+			pRTCmdList,
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
 			m_pPool[POOL_TYPE_RES_CPU_VISIBLE],
 			m_DummyTexture,
@@ -6788,6 +6790,7 @@ void SampleApp::OnRender()
 	}
 
 	ID3D12GraphicsCommandList* pCmd = m_CommandList.Reset();
+	ID3D12CommandListRaytracing2* pRTCmd = m_CommandList.GetRTCommandList();
 
 	// MovableなメッシュをVelocityのテストのためサインカーブで動かす
 	const Matrix& worldForMovable = Matrix::CreateTranslation(0, 0, sinf(m_RotateAngle));
@@ -6840,6 +6843,7 @@ void SampleApp::OnRender()
 		{
 			DoMeshletCulling(pCmd);
 			BuildCLASArgs(pCmd);
+			BuildCLAS(pCmd, pRTCmd);
 		}
 
 		DoPathTracing(static_cast<ID3D12GraphicsCommandList4*>(pCmd));
@@ -7352,6 +7356,8 @@ void SampleApp::BuildCLASArgs(ID3D12GraphicsCommandList* pCmdList)
 
 	::PIXScopedEvent(pCmdList, 0, L"BuildCLASArgs");
 
+	DirectX::TransitionResource(pCmdList, m_MeshManager.GetBuildDxrClasArgsSB().GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 	pCmdList->SetComputeRootSignature(m_BuildCLASArgsRootSig.GetPtr());
 	pCmdList->SetPipelineState(m_pBuildCLASArgsPSO.Get());
 
@@ -7367,6 +7373,43 @@ void SampleApp::BuildCLASArgs(ID3D12GraphicsCommandList* pCmdList)
 	UINT NumGroupX = static_cast<UINT>((m_MeshManager.GetMeshletCount() + GROUP_SIZE_X - 1) / GROUP_SIZE_X);
 	pCmdList->Dispatch(NumGroupX, 1, 1);
 
+	m_MeshManager.GetBuildDxrClasArgsSB().BarrierUAV(pCmdList);
+
+	DirectX::TransitionResource(pCmdList, m_MeshManager.GetBuildDxrClasArgsSB().GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+}
+
+void SampleApp::BuildCLAS(ID3D12GraphicsCommandList* pCmdList, ID3D12CommandListRaytracing2* pRTCmdList)
+{
+	assert(m_useMeshlet && m_usePathTracing && m_useDxrCLAS);
+
+	::PIXScopedEvent(pCmdList, 0, L"BuildCLAS");
+
+	D3D12_RTAS_CLUSTER_TRIANGLES_INPUTS_DESC clasTrianglesInputsDesc = {};
+	D3D12_RTAS_OPERATION_INPUTS clasBuildOpInputs = {};
+
+	m_MeshManager.CreateBuildCLASOperationInputs(clasTrianglesInputsDesc, clasBuildOpInputs);
+
+	D3D12_RTAS_BATCHED_OPERATION_DATA batchOpData = {};
+	batchOpData.AddressResolutionFlags = D3D12_RTAS_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
+	batchOpData.BatchResultData = m_MeshManager.GetCLASResultBB().GetResource()->GetGPUVirtualAddress();
+	batchOpData.BatchScratchData = m_MeshManager.GetCLASScratchBB().GetResource()->GetGPUVirtualAddress();
+	batchOpData.ResultAddressArray.StartAddress = m_MeshManager.GetCLASDestAddressBB().GetResource()->GetGPUVirtualAddress();
+	batchOpData.ResultAddressArray.StrideInBytes = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+	batchOpData.ResultSizeArray.StartAddress = m_MeshManager.GetCLASResultSizeBB().GetResource()->GetGPUVirtualAddress();
+	batchOpData.ResultSizeArray.StrideInBytes = sizeof(UINT64);
+	batchOpData.IndirectArgumentArray.StartAddress = m_MeshManager.GetBuildDxrClasArgsSB().GetResource()->GetGPUVirtualAddress();
+	batchOpData.IndirectArgumentArray.StrideInBytes = sizeof(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS);
+	batchOpData.IndirectArgumentArraySize = 0;
+
+	D3D12_RTAS_OPERATION_DESC opDesc = {};
+	opDesc.Inputs = clasBuildOpInputs;
+	opDesc.pBatchedOperationData = &batchOpData;
+
+	pRTCmdList->ExecuteIndirectRTASOperations(1, &opDesc, D3D12_EXECUTE_INDIRECT_RTAS_OPERATIONS_FLAG_NONE);
+
+	m_MeshManager.GetCLASScratchBB().BarrierUAV(pCmdList);
+	m_MeshManager.GetCLASResultBB().BarrierUAV(pCmdList);
+	m_MeshManager.GetCLASDestAddressBB().BarrierUAV(pCmdList);
 	m_MeshManager.GetBuildDxrClasArgsSB().BarrierUAV(pCmdList);
 }
 

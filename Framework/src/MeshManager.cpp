@@ -467,11 +467,26 @@ bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worl
 	return true;
 }
 
-bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12DeviceRaytracing2* pRTDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createRTAS, bool createNvCLAS, bool createDxrCLAS)
+bool MeshManager::Update
+(
+	ID3D12Device5* pDevice,
+	ID3D12DeviceRaytracing2* pRTDevice,
+	ID3D12CommandQueue* pQueue,
+	ID3D12GraphicsCommandList6* pCmdList,
+	ID3D12CommandListRaytracing2* pRTCmdList,
+	class DescriptorPool* pPoolGpuVisible,
+	class DescriptorPool* pPoolCpuVisible,
+	const class Texture& dummyTexture,
+	bool createRTAS,
+	bool createNvCLAS,
+	bool createDxrCLAS
+)
 {
 	assert(pDevice != nullptr);
+	assert(pRTDevice != nullptr);
 	assert(pQueue != nullptr);
 	assert(pCmdList != nullptr);
+	assert(pRTCmdList != nullptr);
 	assert(pPoolGpuVisible != nullptr);
 	assert(pPoolCpuVisible != nullptr);
 
@@ -1868,36 +1883,17 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12DeviceRaytracing2* pRTDev
 			return false;
 		}
 
-		DirectX::TransitionResource(pCmdList, m_BuildDxrClasArgsSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		DirectX::TransitionResource(pCmdList, m_BuildDxrClasArgsSB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-		// この2つでNVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_TRIANGLES_DESCにあたる
-		D3D12_RTAS_CLUSTER_LIMITS limits = {};
-		limits.MaxArgCount = static_cast<UINT>(m_MeshletCount);
-		limits.MaxGeometryIndexValue = D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
-		limits.MaxUniqueGeometryIndexAndFlagsCountPerCluster = 1;
-		limits.MaxTriangleCountPerCluster = ResMesh::MAX_MESHLET_TRI_COUNT;
-		limits.MaxUniqueVertexIndexCountPerCluster = ResMesh::MAX_MESHLET_VERT_COUNT;
-		limits.MaxTotalTriangleCount = ResMesh::MAX_MESHLET_TRI_COUNT * static_cast<UINT>(m_MeshletCount);
-		limits.MaxSumOfUniqueVertexIndexCounts = ResMesh::MAX_MESHLET_VERT_COUNT * static_cast<UINT>(m_MeshletCount);
-		limits.MaxOpacityMicromapIndicesPerCluster = 0;
-
+		// NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_TRIANGLES_DESCにあたる
 		D3D12_RTAS_CLUSTER_TRIANGLES_INPUTS_DESC clasTrianglesInputsDesc = {};
-		clasTrianglesInputsDesc.ClusterLimits = limits;
-		clasTrianglesInputsDesc.Flags = D3D12_RTAS_OPERATION_FLAG_FAST_TRACE;
-		clasTrianglesInputsDesc.VertexFormat = D3D12_VERTEX_FORMAT_FLOAT32_3;
-		// VertexFormat以外のフォーマット指定はNVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTSにはなかった
-		clasTrianglesInputsDesc.IndexFormat = D3D12_INDEX_FORMAT_UINT32;
-		clasTrianglesInputsDesc.GeometryIndexAndFlagsIndexFormat = D3D12_INDEX_FORMAT_NONE;
-		clasTrianglesInputsDesc.OpacityMicromapIndexFormat = D3D12_INDEX_FORMAT_NONE;
-		clasTrianglesInputsDesc.MinPositionTruncateBitCount = 0;
-
 		// NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTSにあたる
-		D3D12_RTAS_OPERATION_INPUTS clasInputs = {};
-		clasInputs.Type = D3D12_RTAS_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
-		clasInputs.pClusterTrianglesDesc = &clasTrianglesInputsDesc;
+		D3D12_RTAS_OPERATION_INPUTS clasBuildOpInputs = {};
+
+		CreateBuildCLASOperationInputs(clasTrianglesInputsDesc, clasBuildOpInputs);
 
 		D3D12_RTAS_OPERATION_PREBUILD_INFO prebuildInfo = {};
-		pRTDevice->GetRTASOperationPrebuildInfo(&clasInputs, &prebuildInfo);
+		pRTDevice->GetRTASOperationPrebuildInfo(&clasBuildOpInputs, &prebuildInfo);
 
 		if (!m_ClasScratchBB.InitAsByteAddressBuffer(
 			pDevice,
@@ -1957,134 +1953,30 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12DeviceRaytracing2* pRTDev
 		}
 
 		DirectX::TransitionResource(pCmdList, m_ClasResultSizeBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		D3D12_RTAS_BATCHED_OPERATION_DATA batchOpData = {};
+		batchOpData.AddressResolutionFlags = D3D12_RTAS_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
+		batchOpData.BatchResultData = m_ClasResultBB.GetResource()->GetGPUVirtualAddress();
+		batchOpData.BatchScratchData = m_ClasScratchBB.GetResource()->GetGPUVirtualAddress();
+		batchOpData.ResultAddressArray.StartAddress = m_ClasDestAddressBB.GetResource()->GetGPUVirtualAddress();
+		batchOpData.ResultAddressArray.StrideInBytes = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+		batchOpData.ResultSizeArray.StartAddress = m_ClasResultSizeBB.GetResource()->GetGPUVirtualAddress();
+		batchOpData.ResultSizeArray.StrideInBytes = sizeof(UINT64);
+		batchOpData.IndirectArgumentArray.StartAddress = m_BuildDxrClasArgsSB.GetResource()->GetGPUVirtualAddress();
+		batchOpData.IndirectArgumentArray.StrideInBytes = sizeof(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS);
+		batchOpData.IndirectArgumentArraySize = 0;
+
+		D3D12_RTAS_OPERATION_DESC opDesc = {};
+		opDesc.Inputs = clasBuildOpInputs;
+		opDesc.pBatchedOperationData = &batchOpData;
+
+		pRTCmdList->ExecuteIndirectRTASOperations(1, &opDesc, D3D12_EXECUTE_INDIRECT_RTAS_OPERATIONS_FLAG_NONE);
+
+		m_ClusterBlasResultBB.BarrierUAV(pCmdList);
+		m_ClusterBlasDestAddressesBB.BarrierUAV(pCmdList);
+		m_ClusterBlasResultSizeBB.BarrierUAV(pCmdList);
+
 #if 0 //NVAPIとの実装比較用
-		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS clasInputs = {};
-		clasInputs.maxArgCount = static_cast<NvU32>(m_MeshletCount);
-		clasInputs.flags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
-		clasInputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
-		clasInputs.mode = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS;
-		clasInputs.trianglesDesc.vertexFormat = static_cast<NvU32>(DXGI_FORMAT_R32G32B32_FLOAT);
-		clasInputs.trianglesDesc.maxGeometryIndexValue = NVAPI_D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
-		clasInputs.trianglesDesc.maxUniqueGeometryCountPerArg = 1;
-		clasInputs.trianglesDesc.maxTriangleCountPerArg = ResMesh::MAX_MESHLET_TRI_COUNT;
-		clasInputs.trianglesDesc.maxVertexCountPerArg = ResMesh::MAX_MESHLET_VERT_COUNT;
-		clasInputs.trianglesDesc.maxTotalTriangleCount = ResMesh::MAX_MESHLET_TRI_COUNT * static_cast<NvU32>(m_MeshletCount);
-		clasInputs.trianglesDesc.maxTotalVertexCount = ResMesh::MAX_MESHLET_VERT_COUNT * static_cast<NvU32>(m_MeshletCount);
-		clasInputs.trianglesDesc.minPositionTruncateBitCount = 0;
-
-		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO clasReqs = {};
-		if (!QueryClusterOperationRequirements(pDevice, clasInputs, clasReqs))
-		{
-			return false;
-		}
-
-		size_t clasSize = AlignTo(clasReqs.resultDataMaxSizeInBytes, NVAPI_D3D12_RAYTRACING_CLAS_BYTE_ALIGNMENT);
-		size_t totalClasResultSize = clasSize * m_MeshletCount;
-
-		if (!m_ClasScratchBB.InitAsByteAddressBuffer(
-			pDevice,
-			clasReqs.scratchDataSizeInBytes,
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			nullptr,
-			nullptr,
-			nullptr,
-			L"ClasScratchBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-			return false;
-		}
-
-		DirectX::TransitionResource(pCmdList, m_ClasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		if (!m_ClasResultBB.InitAsAccelerationStructure(
-			pDevice,
-			totalClasResultSize,
-			pPoolGpuVisible,
-			L"ClasResultBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
-			return false;
-		}
-
-		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> clasDestinations(m_MeshletCount);
-		for (size_t meshletIdx = 0; meshletIdx < m_MeshletCount; meshletIdx++)
-		{
-			clasDestinations[meshletIdx] = m_ClasResultBB.GetResource()->GetGPUVirtualAddress() + clasSize * meshletIdx;
-		}
-
-		if (!m_ClasDestAddressBB.InitAsByteAddressBuffer(
-			pDevice,
-			clasDestinations.size() * sizeof(D3D12_GPU_VIRTUAL_ADDRESS),
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			nullptr,
-			nullptr,
-			nullptr,
-			L"ClasDestinationsAddressBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-			return false;
-		}
-
-		if (!m_ClasDestAddressBB.UploadBufferData(
-			pDevice,
-			pCmdList,
-			clasDestinations.size() * sizeof(D3D12_GPU_VIRTUAL_ADDRESS),
-			clasDestinations.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
-		DirectX::TransitionResource(pCmdList, m_ClasDestAddressBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		if (!m_ClasResultSizeBB.InitAsByteAddressBuffer(
-			pDevice,
-			sizeof(uint32_t) * m_MeshletCount,
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			nullptr,
-			nullptr,
-			nullptr,
-			L"ClasResultSizeBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-			return false;
-		}
-
-		DirectX::TransitionResource(pCmdList, m_ClasResultSizeBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		if (!m_ClasTriangleArgsBB.InitAsByteAddressBuffer(
-			pDevice,
-			sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS) * m_MeshletCount,
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			nullptr,
-			nullptr,
-			nullptr,
-			L"ClasTriangleArgsBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-			return false;
-		}
-
-		assert(clasTriangleArgs.size() == m_MeshletCount);
-		if (!m_ClasTriangleArgsBB.UploadBufferData(
-			pDevice,
-			pCmdList,
-			sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS) * m_MeshletCount,
-			clasTriangleArgs.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
-		DirectX::TransitionResource(pCmdList, m_ClasTriangleArgsBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC opDesc = {};
 		opDesc.inputs = clasInputs;
 		opDesc.addressResolutionFlags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
@@ -2676,6 +2568,26 @@ const Resource& MeshManager::GetClusterAccelerationStructure() const
 	return m_ClusterTlasResultBB;
 }
 
+const Resource& MeshManager::GetCLASScratchBB() const
+{
+	return m_ClasScratchBB;
+}
+
+const Resource& MeshManager::GetCLASResultBB() const
+{
+	return m_ClasResultBB;
+}
+
+const Resource& MeshManager::GetCLASDestAddressBB() const
+{
+	return m_ClasDestAddressBB;
+}
+
+const Resource& MeshManager::GetCLASResultSizeBB() const
+{
+	return m_ClasResultSizeBB;
+}
+
 const Resource& MeshManager::GetDxrClasMeshDatasSB() const
 {
 	return m_DxrClasMeshDatasSB;
@@ -2689,6 +2601,37 @@ const Resource& MeshManager::GetDxrClasInputDatasSB() const
 const Resource& MeshManager::GetBuildDxrClasArgsSB() const
 {
 	return m_BuildDxrClasArgsSB;
+}
+
+void MeshManager::CreateBuildCLASOperationInputs(D3D12_RTAS_CLUSTER_TRIANGLES_INPUTS_DESC& outClasTriInputs, D3D12_RTAS_OPERATION_INPUTS& outClasInputs)
+{
+	assert(m_MeshletCount > 0);
+
+	// この2つでNVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_TRIANGLES_DESCにあたる
+	D3D12_RTAS_CLUSTER_LIMITS limits = {};
+	limits.MaxArgCount = static_cast<UINT>(m_MeshletCount);
+	limits.MaxGeometryIndexValue = D3D12_RAYTRACING_MAXIMUM_GEOMETRY_INDEX;
+	limits.MaxUniqueGeometryIndexAndFlagsCountPerCluster = 1;
+	limits.MaxTriangleCountPerCluster = ResMesh::MAX_MESHLET_TRI_COUNT;
+	limits.MaxUniqueVertexIndexCountPerCluster = ResMesh::MAX_MESHLET_VERT_COUNT;
+	limits.MaxTotalTriangleCount = ResMesh::MAX_MESHLET_TRI_COUNT * static_cast<UINT>(m_MeshletCount);
+	limits.MaxSumOfUniqueVertexIndexCounts = ResMesh::MAX_MESHLET_VERT_COUNT * static_cast<UINT>(m_MeshletCount);
+	limits.MaxOpacityMicromapIndicesPerCluster = 0;
+
+	outClasTriInputs = {};
+	outClasTriInputs.ClusterLimits = limits;
+	outClasTriInputs.Flags = D3D12_RTAS_OPERATION_FLAG_FAST_TRACE;
+	outClasTriInputs.VertexFormat = D3D12_VERTEX_FORMAT_FLOAT32_3;
+	// VertexFormat以外のフォーマット指定はNVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTSにはなかった
+	outClasTriInputs.IndexFormat = D3D12_INDEX_FORMAT_UINT32;
+	outClasTriInputs.GeometryIndexAndFlagsIndexFormat = D3D12_INDEX_FORMAT_NONE;
+	outClasTriInputs.OpacityMicromapIndexFormat = D3D12_INDEX_FORMAT_NONE;
+	outClasTriInputs.MinPositionTruncateBitCount = 0;
+
+	// NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTSにあたる
+	outClasInputs = {};
+	outClasInputs.Type = D3D12_RTAS_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
+	outClasInputs.pClusterTrianglesDesc = &outClasTriInputs;
 }
 
 size_t MeshManager::GetMeshCount() const

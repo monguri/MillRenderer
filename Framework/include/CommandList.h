@@ -21,6 +21,7 @@ public:
 	void Term();
 
 	ID3D12GraphicsCommandList6* Reset();
+	ID3D12CommandListRaytracing2* GetRTCommandList();
 
 private:
 	ComPtr<ID3D12GraphicsCommandList6> m_pCmdList;

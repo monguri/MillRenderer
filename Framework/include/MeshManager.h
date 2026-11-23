@@ -25,6 +25,7 @@ public:
 		ID3D12DeviceRaytracing2* pRTDevice,
 		ID3D12CommandQueue* pQueue,
 		ID3D12GraphicsCommandList6* pCmdList,
+		ID3D12CommandListRaytracing2* pRTCmdList,
 		class DescriptorPool* pPoolGpuVisible,
 		class DescriptorPool* pPoolCpuVisible,
 		const class Texture& dummyTexture,
@@ -56,10 +57,16 @@ public:
 	const Resource& GetAccelerationStructure() const;
 	const Resource& GetNvShaderExtnSB() const;
 	const Resource& GetClusterAccelerationStructure() const;
+	const Resource& GetCLASScratchBB() const;
+	const Resource& GetCLASResultBB() const;
+	const Resource& GetCLASDestAddressBB() const;
+	const Resource& GetCLASResultSizeBB() const;
 	
 	const Resource& GetDxrClasMeshDatasSB() const;
 	const Resource& GetDxrClasInputDatasSB() const;
 	const Resource& GetBuildDxrClasArgsSB() const;
+
+	void CreateBuildCLASOperationInputs(D3D12_RTAS_CLUSTER_TRIANGLES_INPUTS_DESC& outClasTriInputs, D3D12_RTAS_OPERATION_INPUTS& outClasInputs);
 
 	// ï`âÊëŒè€Ç∆ÇµÇƒóLå¯Ç»ResMeshÇÃêî
 	size_t GetMeshCount() const;

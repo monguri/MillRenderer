@@ -101,3 +101,8 @@ ID3D12GraphicsCommandList6* CommandList::Reset()
 	m_Index = (m_Index + 1) % uint32_t(m_pAllocators.size());
 	return m_pCmdList.Get();
 }
+
+ID3D12CommandListRaytracing2* CommandList::GetRTCommandList()
+{
+	return m_pRTCmdList.Get();
+}
