@@ -56,6 +56,15 @@ bool CommandList::Init
 		m_pCmdList->Close();
 	}
 
+	{
+		HRESULT hr = m_pCmdList->QueryInterface(IID_PPV_ARGS(m_pRTCmdList.GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+	}
+
 	m_Index = 0;
 
 	return true;
@@ -64,6 +73,8 @@ bool CommandList::Init
 void CommandList::Term()
 {
 	m_pCmdList.Reset();
+	m_pRTCmdList.Reset();
+
 	for (size_t i = 0; i < m_pAllocators.size(); ++i)
 	{
 		m_pAllocators[i].Reset();

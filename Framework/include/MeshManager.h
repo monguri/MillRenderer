@@ -22,6 +22,7 @@ public:
 	bool Update
 	(
 		ID3D12Device5* pDevice,
+		ID3D12DeviceRaytracing2* pRTDevice,
 		ID3D12CommandQueue* pQueue,
 		ID3D12GraphicsCommandList6* pCmdList,
 		class DescriptorPool* pPoolGpuVisible,

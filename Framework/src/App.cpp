@@ -431,6 +431,7 @@ void App::TermD3D()
 	m_pQueue.Reset();
 
 	m_pDevice.Reset();
+	m_pRTDevice.Reset();
 
     CoUninitialize();
 }
@@ -473,6 +474,12 @@ ComPtr<IDXGIAdapter1> App::SelectAdapter()
 			D3D_FEATURE_LEVEL_12_2,
 			IID_PPV_ARGS(m_pDevice.GetAddressOf())
 		);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+
+		hr = m_pDevice->QueryInterface(IID_PPV_ARGS(m_pRTDevice.GetAddressOf()));
 		if (FAILED(hr))
 		{
 			continue;

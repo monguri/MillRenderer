@@ -467,7 +467,7 @@ bool MeshManager::RegisterModel(const std::wstring& filePath, const Matrix& worl
 	return true;
 }
 
-bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createRTAS, bool createNvCLAS, bool createDxrCLAS)
+bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12DeviceRaytracing2* pRTDevice, ID3D12CommandQueue* pQueue, ID3D12GraphicsCommandList6* pCmdList, DescriptorPool* pPoolGpuVisible, DescriptorPool* pPoolCpuVisible, const Texture& dummyTexture, bool createRTAS, bool createNvCLAS, bool createDxrCLAS)
 {
 	assert(pDevice != nullptr);
 	assert(pQueue != nullptr);
@@ -1887,12 +1887,17 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12CommandQueue* pQueue, ID3
 		clasTrianglesInputsDesc.VertexFormat = D3D12_VERTEX_FORMAT_FLOAT32_3;
 		// VertexFormat以外のフォーマット指定はNVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTSにはなかった
 		clasTrianglesInputsDesc.IndexFormat = D3D12_INDEX_FORMAT_UINT32;
-		//TODO: 続き！！！！！！！！！！！！！！！！１
+		clasTrianglesInputsDesc.GeometryIndexAndFlagsIndexFormat = D3D12_INDEX_FORMAT_NONE;
+		clasTrianglesInputsDesc.OpacityMicromapIndexFormat = D3D12_INDEX_FORMAT_NONE;
+		clasTrianglesInputsDesc.MinPositionTruncateBitCount = 0;
 
 		// NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTSにあたる
 		D3D12_RTAS_OPERATION_INPUTS clasInputs = {};
 		clasInputs.Type = D3D12_RTAS_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
 		clasInputs.pClusterTrianglesDesc = &clasTrianglesInputsDesc;
+
+		D3D12_RTAS_OPERATION_PREBUILD_INFO prebuildInfo = {};
+		pRTDevice->GetRTASOperationPrebuildInfo(&clasInputs, &prebuildInfo);
 
 #if 0 //NVAPIとの実装比較用
 		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS clasInputs = {};

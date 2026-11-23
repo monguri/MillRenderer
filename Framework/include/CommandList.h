@@ -24,6 +24,7 @@ public:
 
 private:
 	ComPtr<ID3D12GraphicsCommandList6> m_pCmdList;
+	ComPtr<ID3D12CommandListRaytracing2> m_pRTCmdList;
 	std::vector<ComPtr<ID3D12CommandAllocator>> m_pAllocators;
 	// allocator index
 	uint32_t m_Index;

@@ -1284,6 +1284,7 @@ bool SampleApp::OnInit(HWND hWnd)
 		if (!m_MeshManager.Update
 		(
 			m_pDevice.Get(),
+			m_pRTDevice.Get(),
 			m_pQueue.Get(),
 			pCmd,
 			m_pPool[POOL_TYPE_RES_GPU_VISIBLE],
