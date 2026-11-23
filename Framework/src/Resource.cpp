@@ -44,11 +44,6 @@ bool Resource::Init
 	assert(m_pPoolUAVGpuVisible == nullptr);
 	assert(m_pHandleUAVGpuVisible == nullptr);
 
-	if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
-	{
-		assert((pPoolUAVGpuVisible != nullptr) || (pPoolUAVCpuVisible != nullptr));
-	}
-
 	if (pPoolUAVGpuVisible != nullptr)
 	{
 		assert((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0);
@@ -565,7 +560,7 @@ bool Resource::InitAsAccelerationStructure(ID3D12Device* pDevice, size_t size, D
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	// srvDesc.RaytracingAccelerationStructureはID3D12Resourc作成後でないと設定できないのでInit()内で設定する
 
-	// ASにUAVは作らないがInit()の引数に必要がなので作る
+	// ASにUAVは作らないがInit()の引数に必要なので作る
 	D3D12_UNORDERED_ACCESS_VIEW_DESC dummyUavDesc = {};
 	dummyUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	dummyUavDesc.Format = DXGI_FORMAT_R32_TYPELESS;

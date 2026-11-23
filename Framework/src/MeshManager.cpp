@@ -1899,6 +1899,64 @@ bool MeshManager::Update(ID3D12Device5* pDevice, ID3D12DeviceRaytracing2* pRTDev
 		D3D12_RTAS_OPERATION_PREBUILD_INFO prebuildInfo = {};
 		pRTDevice->GetRTASOperationPrebuildInfo(&clasInputs, &prebuildInfo);
 
+		if (!m_ClasScratchBB.InitAsByteAddressBuffer(
+			pDevice,
+			prebuildInfo.ScratchDataSizeInBytes,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasScratchBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasScratchBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_ClasResultBB.InitAsAccelerationStructure(
+			pDevice,
+			prebuildInfo.ScratchDataSizeInBytes * m_MeshletCount,
+			nullptr,
+			L"ClasResultBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
+			return false;
+		}
+
+		if (!m_ClasDestAddressBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * m_MeshletCount,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasDestinationsAddressBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasDestAddressBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		if (!m_ClasResultSizeBB.InitAsByteAddressBuffer(
+			pDevice,
+			sizeof(UINT64) * m_MeshletCount,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			nullptr,
+			nullptr,
+			nullptr,
+			L"ClasResultSizeBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
+			return false;
+		}
+
+		DirectX::TransitionResource(pCmdList, m_ClasResultSizeBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 #if 0 //NVAPI‚Æ‚ÌŽÀ‘•”äŠr—p
 		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS clasInputs = {};
 		clasInputs.maxArgCount = static_cast<NvU32>(m_MeshletCount);
