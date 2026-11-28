@@ -72,6 +72,8 @@ public:
 	size_t GetMeshCount() const;
 	// •`‰æ‘ÎÛ‚Æ‚µ‚Ä—LŒø‚ÈResMesh‚ÌMeshlet‚Ì‘Œv
 	size_t GetMeshletCount() const;
+	// •`‰æ‘ÎÛ‚Æ‚µ‚Ä—LŒø‚ÈResMesh‚²‚Æ‚ÌMeshlet‚ÌÅ‘å”
+	size_t GetMaxLocalMeshletCount() const;
 
 	uint32_t GetMaterialIdx(uint32_t meshIdx) const;
 
@@ -123,6 +125,7 @@ private:
 
 	size_t m_MeshCount = 0;
 	size_t m_MeshletCount = 0;
+	size_t m_MaxLocalMeshletCount = 0;
 
 	// —v‘f”‚Í“o˜^‚³‚ê‚½Material”
 	std::vector<Resource> m_MaterialCBs;

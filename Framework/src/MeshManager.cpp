@@ -543,6 +543,7 @@ bool MeshManager::Update
 
 	m_MeshCount = 0;
 	m_MeshletCount = 0;
+	m_MaxLocalMeshletCount = 0;
 	m_resMaterialIdxTbl.clear();
 
 	// 描画対象として有効なResMeshのみ残してインデックスをつける
@@ -933,6 +934,7 @@ bool MeshManager::Update
 		validMeshIdx++;
 
 		m_MeshletCount += localMeshletCount;
+		m_MaxLocalMeshletCount = std::max(m_MaxLocalMeshletCount, localMeshletCount);
 	}
 
 	m_MeshCount = validMeshIdx;
@@ -2642,6 +2644,11 @@ size_t MeshManager::GetMeshCount() const
 size_t MeshManager::GetMeshletCount() const
 {
 	return m_MeshletCount;
+}
+
+size_t MeshManager::GetMaxLocalMeshletCount() const
+{
+	return m_MaxLocalMeshletCount;
 }
 
 uint32_t MeshManager::GetMaterialIdx(uint32_t meshIdx) const

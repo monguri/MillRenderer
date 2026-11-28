@@ -274,6 +274,7 @@ private:
 	void DoMeshletCulling(ID3D12GraphicsCommandList* pCmdList);
 	void BuildCLASArgs(ID3D12GraphicsCommandList* pCmdList);
 	void BuildCLAS(ID3D12GraphicsCommandList* pCmdList, ID3D12CommandListRaytracing2* pRTCmdList);
+	void BuildBLAS(ID3D12GraphicsCommandList* pCmdList, ID3D12CommandListRaytracing2* pRTCmdList);
 	void DrawVBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawGBuffer(ID3D12GraphicsCommandList* pCmdList);
 	void DrawGBufferFromVBuffer(ID3D12GraphicsCommandList* pCmdList);

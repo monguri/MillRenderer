@@ -6844,6 +6844,7 @@ void SampleApp::OnRender()
 			DoMeshletCulling(pCmd);
 			BuildCLASArgs(pCmd);
 			BuildCLAS(pCmd, pRTCmd);
+			BuildBLAS(pCmd, pRTCmd);
 		}
 
 		DoPathTracing(static_cast<ID3D12GraphicsCommandList4*>(pCmd));
@@ -7412,6 +7413,28 @@ void SampleApp::BuildCLAS(ID3D12GraphicsCommandList* pCmdList, ID3D12CommandList
 	m_MeshManager.GetCLASDestAddressBB().BarrierUAV(pCmdList);
 	m_MeshManager.GetBuildDxrClasArgsSB().BarrierUAV(pCmdList);
 }
+
+void SampleApp::BuildBLAS(ID3D12GraphicsCommandList* pCmdList, ID3D12CommandListRaytracing2* pRTCmdList)
+{
+	assert(m_useMeshlet && m_usePathTracing && m_useDxrCLAS);
+
+	::PIXScopedEvent(pCmdList, 0, L"BuildBLAS");
+
+	D3D12_RTAS_CLAS_INPUTS_DESC clasInputsDesc = {};
+	clasInputsDesc.Flags = D3D12_RTAS_OPERATION_FLAG_FAST_TRACE;
+	clasInputsDesc.MaxArgCount = static_cast<UINT>(m_MeshManager.GetMeshCount());
+	clasInputsDesc.Mode = D3D12_RTAS_OPERATION_MODE_EXPLICIT_DESTINATIONS;
+	clasInputsDesc.MaxTotalClasCount = static_cast<UINT>(m_MeshManager.GetMeshletCount());
+	clasInputsDesc.MaxClasCountPerArg = static_cast<UINT>(m_MeshManager.GetMaxLocalMeshletCount());
+
+	D3D12_RTAS_OPERATION_INPUTS opInputs = {};
+	opInputs.Type = D3D12_RTAS_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS;
+	opInputs.pClasDesc = &clasInputsDesc;
+
+	D3D12_RTAS_OPERATION_PREBUILD_INFO prebuildInfo = {};
+	m_pRTDevice->GetRTASOperationPrebuildInfo(&opInputs, &prebuildInfo);
+}
+
 
 void SampleApp::DrawVBuffer(ID3D12GraphicsCommandList* pCmdList)
 {
