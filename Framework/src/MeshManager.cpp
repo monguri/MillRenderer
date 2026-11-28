@@ -254,6 +254,33 @@ namespace
 
 		return true;
 	}
+
+	UINT64 GetBLASSize(ID3D12DeviceRaytracing2* pRTDevice, UINT CLASCount, std::unordered_map<UINT, UINT64>& CLASCountBLASSizeMap)
+	{
+		// 起動時から(CLASCount, BLASSize)のマップをキャッシュしていきキャッシュにあればそれを返す
+		auto it = CLASCountBLASSizeMap.find(CLASCount);
+		if (it != CLASCountBLASSizeMap.end())
+		{
+			return it->second;
+		}
+
+		D3D12_RTAS_CLAS_INPUTS_DESC clasInputsDesc = {};
+		clasInputsDesc.Flags = D3D12_RTAS_OPERATION_FLAG_FAST_TRACE;
+		clasInputsDesc.MaxArgCount = 1;
+		clasInputsDesc.Mode = D3D12_RTAS_OPERATION_MODE_EXPLICIT_DESTINATIONS;
+		clasInputsDesc.MaxTotalClasCount = CLASCount;
+		clasInputsDesc.MaxClasCountPerArg = CLASCount;
+
+		D3D12_RTAS_OPERATION_INPUTS opInputs = {};
+		opInputs.Type = D3D12_RTAS_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS;
+		opInputs.pClasDesc = &clasInputsDesc;
+
+		D3D12_RTAS_OPERATION_PREBUILD_INFO prebuildInfo = {};
+		pRTDevice->GetRTASOperationPrebuildInfo(&opInputs, &prebuildInfo);
+
+		CLASCountBLASSizeMap[CLASCount] = prebuildInfo.ResultDataMaxSizeInBytes;
+		return prebuildInfo.ResultDataMaxSizeInBytes;
+	}
 }
 
 MeshManager::~MeshManager()
@@ -1894,12 +1921,12 @@ bool MeshManager::Update
 
 		CreateBuildCLASOperationInputs(clasTrianglesInputsDesc, clasBuildOpInputs);
 
-		D3D12_RTAS_OPERATION_PREBUILD_INFO prebuildInfo = {};
-		pRTDevice->GetRTASOperationPrebuildInfo(&clasBuildOpInputs, &prebuildInfo);
+		D3D12_RTAS_OPERATION_PREBUILD_INFO prebuildClasInfo = {};
+		pRTDevice->GetRTASOperationPrebuildInfo(&clasBuildOpInputs, &prebuildClasInfo);
 
 		if (!m_ClasScratchBB.InitAsByteAddressBuffer(
 			pDevice,
-			prebuildInfo.ScratchDataSizeInBytes,
+			prebuildClasInfo.ScratchDataSizeInBytes,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			nullptr,
 			nullptr,
@@ -1915,7 +1942,7 @@ bool MeshManager::Update
 
 		if (!m_ClasResultBB.InitAsAccelerationStructure(
 			pDevice,
-			prebuildInfo.ScratchDataSizeInBytes * m_MeshletCount,
+			prebuildClasInfo.ScratchDataSizeInBytes * m_MeshletCount,
 			nullptr,
 			L"ClasResultBB"
 		))
@@ -1974,71 +2001,49 @@ bool MeshManager::Update
 
 		pRTCmdList->ExecuteIndirectRTASOperations(1, &opDesc, D3D12_EXECUTE_INDIRECT_RTAS_OPERATIONS_FLAG_NONE);
 
-		m_ClusterBlasResultBB.BarrierUAV(pCmdList);
-		m_ClusterBlasDestAddressesBB.BarrierUAV(pCmdList);
-		m_ClusterBlasResultSizeBB.BarrierUAV(pCmdList);
+		m_ClasResultBB.BarrierUAV(pCmdList);
+		m_ClasScratchBB.BarrierUAV(pCmdList);
+		m_ClasDestAddressBB.BarrierUAV(pCmdList);
+		m_ClasResultSizeBB.BarrierUAV(pCmdList);
+
+		D3D12_RTAS_CLAS_INPUTS_DESC clasInputsDesc = {};
+		clasInputsDesc.Flags = D3D12_RTAS_OPERATION_FLAG_FAST_TRACE;
+		clasInputsDesc.MaxArgCount = static_cast<UINT>(m_MeshCount);
+		clasInputsDesc.Mode = D3D12_RTAS_OPERATION_MODE_EXPLICIT_DESTINATIONS;
+		clasInputsDesc.MaxTotalClasCount = static_cast<UINT>(m_MeshletCount);
+		clasInputsDesc.MaxClasCountPerArg = static_cast<UINT>(m_MaxLocalMeshletCount);
+
+		D3D12_RTAS_OPERATION_INPUTS buildBlasOpInputs = {};
+		buildBlasOpInputs.Type = D3D12_RTAS_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS;
+		buildBlasOpInputs.pClasDesc = &clasInputsDesc;
+
+		D3D12_RTAS_OPERATION_PREBUILD_INFO prebuildBlasInfo = {};
+		pRTDevice->GetRTASOperationPrebuildInfo(&buildBlasOpInputs, &prebuildBlasInfo);
+
+		UINT64 blasResultSize = 0;
+		std::vector<UINT64> blasAddressOffsets;
+		blasAddressOffsets.reserve(m_MeshCount);
+
+		for (const DxrClasMeshData& clasMeshData : dxrClasMeshDatas)
+		{
+			UINT64 blasSize = GetBLASSize(pRTDevice, clasMeshData.clusterCount, m_CLASCountBLASSizeMap);
+			UINT64 alignedBlasSize = AlignTo(blasSize, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+			blasAddressOffsets.push_back(blasResultSize);
+			blasResultSize += alignedBlasSize;
+		}
+
+		if (!m_ClusterBlasResultBB.InitAsAccelerationStructure(
+			pDevice,
+			blasResultSize,
+			pPoolGpuVisible,
+			L"ClusterBlasResultBB"
+		))
+		{
+			ELOG("Error : Resource::InitAsAccelerationStructure() Failed.");
+			return false;
+		}
 
 #if 0 //NVAPIとの実装比較用
-		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC opDesc = {};
-		opDesc.inputs = clasInputs;
-		opDesc.addressResolutionFlags = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
-		opDesc.batchResultData = 0;
-		opDesc.batchScratchData = m_ClasScratchBB.GetResource()->GetGPUVirtualAddress();
-		opDesc.destinationAddressArray.StartAddress = m_ClasDestAddressBB.GetResource()->GetGPUVirtualAddress();
-		opDesc.destinationAddressArray.StrideInBytes = sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
-		opDesc.resultSizeArray.StartAddress = m_ClasResultSizeBB.GetResource()->GetGPUVirtualAddress();
-		opDesc.resultSizeArray.StrideInBytes = sizeof(uint32_t);
-		opDesc.indirectArgArray.StartAddress = m_ClasTriangleArgsBB.GetResource()->GetGPUVirtualAddress();
-		opDesc.indirectArgArray.StrideInBytes = sizeof(NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_MULTI_INDIRECT_TRIANGLE_CLUSTER_ARGS);
-		opDesc.indirectArgCount = 0; // 0の場合NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS.maxArgCountが使われる
-
-		NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS opParams = {};
-		opParams.version = NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS_VER;
-		opParams.pDesc = &opDesc;
-
-		NvAPI_Status status = NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(pCmdList, &opParams);
-		if (status != NVAPI_OK)
-		{
-			NvAPI_ShortString szError = {0};
-			NvAPI_GetErrorMessage(status, szError);
-			ELOG("Error : NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation Failed. status = %d, error message = %s", status, szError);
-			return false;
-		}
-
-		m_ClasResultBB.BarrierUAV(pCmdList);
-
-		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> clasAddresses(m_MeshletCount);
-		for (size_t meshletIdx = 0; meshletIdx < m_MeshletCount; meshletIdx++)
-		{
-			clasAddresses[meshletIdx] = m_ClasResultBB.GetResource()->GetGPUVirtualAddress() + clasSize * meshletIdx;
-		}
-
-		if (!m_ClasAddressesBB.InitAsByteAddressBuffer(
-			pDevice,
-			sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * m_MeshletCount,
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			nullptr,
-			nullptr,
-			nullptr,
-			L"ClasAddressesBB"
-		))
-		{
-			ELOG("Error : Resource::InitAsByteAddressBuffer() Failed.");
-			return false;
-		}
-
-		if (!m_ClasAddressesBB.UploadBufferData(
-			pDevice,
-			pCmdList,
-			sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * m_MeshletCount,
-			clasAddresses.data()
-		))
-		{
-			ELOG("Error : Resource::UploadBufferTypeData() Failed.");
-			return false;
-		}
-
-		DirectX::TransitionResource(pCmdList, m_ClasAddressesBB.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		// BLASは全MeshletのCLASをまとめて一個しか作らない。Meshごとではない。
 		NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS blasInputs = {};
@@ -2644,11 +2649,6 @@ size_t MeshManager::GetMeshCount() const
 size_t MeshManager::GetMeshletCount() const
 {
 	return m_MeshletCount;
-}
-
-size_t MeshManager::GetMaxLocalMeshletCount() const
-{
-	return m_MaxLocalMeshletCount;
 }
 
 uint32_t MeshManager::GetMaterialIdx(uint32_t meshIdx) const
